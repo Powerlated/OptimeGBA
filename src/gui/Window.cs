@@ -4,7 +4,6 @@ using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using System;
 using System.IO;
-using Dear_ImGui_Sample;
 using ImGuiNET;
 
 namespace OptimeGBAEmulator
@@ -14,7 +13,6 @@ namespace OptimeGBAEmulator
         int gbTexId;
         int tsTexId;
         ImGuiController _controller;
-        Shader shader;
         int VertexBufferObject;
         int VertexArrayObject;
 
@@ -40,7 +38,6 @@ namespace OptimeGBAEmulator
         protected override void OnLoad(EventArgs e)
         {
             VertexArrayObject = GL.GenVertexArray();
-            shader = new Shader("src/gui/shaders/shader.vert", "src/gui/shaders/shader.frag");
             GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             VertexBufferObject = GL.GenBuffer();
 
@@ -132,10 +129,9 @@ namespace OptimeGBAEmulator
 
             debugOam();
 
-            ImGui.Begin("Test test 123");
-            ImGui.Text("ok boomer");
+            ImGui.Begin("Display");
             ImGui.Text($"Pointer: {gbTexId}");
-            ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(160 * 4, 144 * 4));
+            ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
             ImGui.End();
 
             ImGui.Begin("It's a tileset");
