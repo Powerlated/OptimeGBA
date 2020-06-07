@@ -2,7 +2,9 @@ using System;
 using System.Runtime.InteropServices;
 using System.IO;
 using static SDL2.SDL;
+using OpenTK.Graphics.OpenGL;
 using OptimeGBA;
+using ImGuiNET;
 
 namespace OptimeGBAEmulator
 {
@@ -16,8 +18,10 @@ namespace OptimeGBAEmulator
         static SDL_Rect rect = new SDL_Rect();
 
         static IntPtr window = IntPtr.Zero; static GBA Gba;
+        static IntPtr glcontext;
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
+        static ImGuiIOPtr ImGuiIO;
 
         public static void Main(string[] args)
         {
@@ -30,7 +34,40 @@ namespace OptimeGBAEmulator
 
             SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO);
             SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
-            SDL_CreateWindowAndRenderer(width, height, 0, out window, out Renderer);
+            SDL_CreateWindowAndRenderer(width, height, SDL_WindowFlags.SDL_WINDOW_OPENGL | SDL_WindowFlags.SDL_WINDOW_RESIZABLE, out window, out Renderer);
+
+            if (window == IntPtr.Zero)
+            {
+                Console.Error.WriteLine("Failed to create SDL Window!");
+            }
+
+            // OpenGL Setup ----
+            SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_DOUBLEBUFFER, 1);
+            SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_DEPTH_SIZE, 24);
+            SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_STENCIL_SIZE, 8);
+
+            SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+            SDL_GL_SetAttribute(SDL_GLattr.SDL_GL_CONTEXT_MINOR_VERSION, 1);
+
+
+            glcontext = SDL_GL_CreateContext(window);
+            SDL_GL_MakeCurrent(window, glcontext);
+
+
+            GL.ClearColor(1f, 1f, 1f, 1f);
+            GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+
+
+            // Enable vsync
+            SDL_GL_SetSwapInterval(1);
+
+            var ImGuiContext = ImGui.CreateContext();
+            ImGui.SetCurrentContext(ImGuiContext);
+            ImGuiIO = ImGui.GetIO();
+            ImGuiIO.Fonts.AddFontDefault();
+
+            ImGui.StyleColorsDark();
 
             want.freq = 65536;
             want.format = AUDIO_F32SYS;
@@ -49,7 +86,8 @@ namespace OptimeGBAEmulator
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
             bios.CopyTo(Gba.Mem.Bios, 0);
 
-            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
             rom.CopyTo(Gba.Mem.Rom, 0);
 
             // Enter Loop ---------------
@@ -65,20 +103,25 @@ namespace OptimeGBAEmulator
                     switch (e.key.keysym.sym)
                     {
                         case SDL_Keycode.SDLK_SPACE:
-
+                            RunEmulator();
                             break;
                     }
                 }
-
-                // Render();
-
-
                 if (e.type == SDL_EventType.SDL_QUIT)
                 {
                     Quit();
                 }
 
-                RunEmulator();
+
+                ImGui.NewFrame();
+
+                ImGui.Begin("Stupid");
+                ImGui.Text("Hi, boomer");
+                ImGui.End();
+
+                ImGui.Render();
+
+                SDL_GL_SwapWindow(window);
             }
         }
 
@@ -92,11 +135,13 @@ namespace OptimeGBAEmulator
 
         static void RunEmulator()
         {
-            int max = 16777216 / 60;
-            while (max > 0)
-            {
-                max -= (int)Gba.Run();
-            }
+            // int max = 16777216 / 60;
+            // while (max > 0)
+            // {
+            //     max -= (int)Gba.Run();
+            // }
+
+            Gba.Run();
         }
 
         static void AudioReady()

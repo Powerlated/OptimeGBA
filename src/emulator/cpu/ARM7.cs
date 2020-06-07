@@ -39,6 +39,8 @@ namespace OptimeGBA
         {
             Gba = gba;
             R15 = 0;
+            R15 = 0x08000000;
+
         }
 
         public void Execute()
@@ -91,7 +93,7 @@ namespace OptimeGBA
 
                     R15 = (uint)(R15 + offset + 4);
                 }
-                else if ((ins & 0b111000000000000000000000) == 0b001000000000000000000000)
+                else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000)
                 {
                     Console.WriteLine("Data Processing / FSR Transfer");
                     // ALU Operations
@@ -106,14 +108,17 @@ namespace OptimeGBA
 
                     // Shift by immediate or shift by register
                     bool shiftByReg = (ins & BIT_4) != 0;
+                    Console.WriteLine($"Shift by reg: {shiftByReg}");
 
                     uint shiftBy;
 
-                    switch (opcode)
-                    {
-                        default:
-                            throw new Exception($"ALU Opcode Unimplemented: {opcode:X}");
-                    }
+                    // switch (opcode)
+                    // {
+                    //     case 0xD: // MOV
+                    //         imm
+                    //     default:
+                    //         throw new Exception($"ALU Opcode Unimplemented: {opcode:X}");
+                    // }
 
                 }
                 else

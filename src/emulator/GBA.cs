@@ -20,8 +20,8 @@ namespace OptimeGBA
         }
 
         public uint Run() {
-            // Arm7.Execute();
-            Tick(8);
+            Arm7.Execute();
+            // Tick(8);
             return 8;
         }
 
