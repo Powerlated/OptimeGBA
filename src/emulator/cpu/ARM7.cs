@@ -3,36 +3,35 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    class ARM7
+    public class ARM7
     {
 
         GBA Gba;
-        uint R0;
-        uint R1;
-        uint R2;
-        uint R3;
-        uint R4;
-        uint R5;
-        uint R6;
-        uint R7;
-        uint R8;
-        uint R9;
-        uint R10;
-        uint R11;
-        uint R12;
-        uint R13;
-        uint R14;
-        uint R15;
+        public uint R0;
+        public uint R1;
+        public uint R2;
+        public uint R3;
+        public uint R4;
+        public uint R5;
+        public uint R6;
+        public uint R7;
+        public uint R8;
+        public uint R9;
+        public uint R10;
+        public uint R11;
+        public uint R12;
+        public uint R13;
+        public uint R14;
+        public uint R15;
 
-
-        bool Sign = false;
-        bool Zero = false;
-        bool Carry = false;
-        bool Overflow = false;
-        bool Sticky = false;
-        bool IRQDisable = false;
-        bool FIQDisable = false;
-        bool ThumbState = false;
+        public bool Sign = false;
+        public bool Zero = false;
+        public bool Carry = false;
+        public bool Overflow = false;
+        public bool Sticky = false;
+        public bool IRQDisable = false;
+        public bool FIQDisable = false;
+        public bool ThumbState = false;
         uint Mode = 0;
 
         public ARM7(GBA gba)

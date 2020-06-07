@@ -6,7 +6,7 @@ using OptimeGBA;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    class Audio
+    public class Audio
     {
         public GBA Gba;
 

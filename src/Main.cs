@@ -6,30 +6,31 @@ using OpenGL;
 using OptimeGBA;
 using System.Threading;
 using ImGuiNET;
+using static Util;
 
 namespace OptimeGBAEmulator
 {
     class OptimeGBAEmulator
     {
         static IntPtr window = IntPtr.Zero;
-        static GBA Gba;
         static IntPtr glcontext;
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
         static ImGuiIOPtr ImGuiIO;
+        static GBA Gba;
 
         static private System.Numerics.Vector2 _scaleFactor = System.Numerics.Vector2.One;
 
         public static void Main(string[] args)
         {
+            Gba = new GBA(AudioReady);
 
-
-            using (Game game = new Game(1600, 900, "Optime GBA"))
+            using (Game game = new Game(1600, 900, "Optime GBA", Gba))
             {
                 //Run takes a double, which is how many frames per second it should strive to reach.
                 //You can leave that out and it'll just update as fast as the hardware will allow it.
                 game.VSync = OpenTK.VSyncMode.On;
-                game.Run(60.0, 60.0);
+                game.Run(60.0, 0.0);
             }
 
             SetupSDL();
@@ -44,16 +45,16 @@ namespace OptimeGBAEmulator
             SDL_PauseAudioDevice(AudioDevice, 0);
         }
 
-        static void AudioReady(float[] audioQueue)
+        static void AudioReady()
         {
 
-            int bytes = sizeof(float) * audioQueue.Length;
+            int bytes = sizeof(float) * Gba.Audio.AudioQueue.Length;
 
-            IntPtr ptr = Marshal.AllocHGlobal(bytes + 2);
+            IntPtr ptr = Marshal.AllocHGlobal(bytes);
 
-            Marshal.Copy(audioQueue, 0, ptr, audioQueue.Length);
+            Marshal.Copy(Gba.Audio.AudioQueue, 0, ptr, Gba.Audio.AudioQueue.Length);
 
-            // Console.WriteLine("Outputting samples to SDL");
+            Console.WriteLine("Outputting samples to SDL");
 
             SDL_QueueAudio(AudioDevice, ptr, (uint)bytes);
             Marshal.FreeHGlobal(ptr);

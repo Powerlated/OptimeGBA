@@ -2,7 +2,7 @@ using System;
 
 namespace OptimeGBA
 {
-    class Memory
+    public class Memory
     {
 
         public Memory(GBA gba)

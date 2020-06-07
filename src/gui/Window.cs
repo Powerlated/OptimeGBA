@@ -5,6 +5,9 @@ using OpenTK.Input;
 using System;
 using System.IO;
 using ImGuiNET;
+using ImGuiUtils;
+using static Util;
+using OptimeGBA;
 
 namespace OptimeGBAEmulator
 {
@@ -16,9 +19,11 @@ namespace OptimeGBAEmulator
         int VertexBufferObject;
         int VertexArrayObject;
 
-        public Game(int width, int height, string title) : base(width, height, GraphicsMode.Default, title)
-        {
+        GBA Gba;
 
+        public Game(int width, int height, string title, GBA gba) : base(width, height, GraphicsMode.Default, title)
+        {
+            Gba = gba;
         }
 
         protected override void OnResize(EventArgs e)
@@ -57,7 +62,7 @@ namespace OptimeGBAEmulator
         {
             KeyboardState input = Keyboard.GetState();
 
-        
+
             // if (input.IsKeyDown(Key.Escape))
             // {
             //     Exit();
@@ -70,7 +75,7 @@ namespace OptimeGBAEmulator
 
             if (input.IsKeyDown(Key.ControlLeft) && input.IsKeyDown(Key.D))
             {
-            
+
             }
 
             base.OnUpdateFrame(e);
@@ -123,12 +128,6 @@ namespace OptimeGBAEmulator
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             _controller.Update(this, (float)e.Time);
 
-            ImGui.Begin("--- Debug ---");
-            ImGui.End();
-
-
-            debugOam();
-
             ImGui.Begin("Display");
             ImGui.Text($"Pointer: {gbTexId}");
             ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
@@ -138,6 +137,27 @@ namespace OptimeGBAEmulator
             ImGui.Text($"Pointer: {tsTexId}");
             ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
             ImGui.End();
+
+            ImGui.Begin("--- Debug ---");
+            ImGui.Text($"R0: {Hex(Gba.Arm7.R0, 8)}");
+            ImGui.Text($"R1: {Hex(Gba.Arm7.R1, 8)}");
+            ImGui.Text($"R2: {Hex(Gba.Arm7.R2, 8)}");
+            ImGui.Text($"R3: {Hex(Gba.Arm7.R3, 8)}");
+            ImGui.Text($"R4: {Hex(Gba.Arm7.R4, 8)}");
+            ImGui.Text($"R5: {Hex(Gba.Arm7.R5, 8)}");
+            ImGui.Text($"R6: {Hex(Gba.Arm7.R6, 8)}");
+            ImGui.Text($"R7: {Hex(Gba.Arm7.R7, 8)}");
+            ImGui.Text($"R8: {Hex(Gba.Arm7.R8, 8)}");
+            ImGui.Text($"R9: {Hex(Gba.Arm7.R9, 8)}");
+            ImGui.Text($"R10: {Hex(Gba.Arm7.R10, 8)}");
+            ImGui.Text($"R11: {Hex(Gba.Arm7.R11, 8)}");
+            ImGui.Text($"R12: {Hex(Gba.Arm7.R12, 8)}");
+            ImGui.Text($"R13: {Hex(Gba.Arm7.R13, 8)}");
+            ImGui.Text($"R14: {Hex(Gba.Arm7.R14, 8)}");
+            ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
+            ImGui.End();
+
+
 
             _controller.Render();
             GL.Flush();
@@ -163,15 +183,6 @@ namespace OptimeGBAEmulator
             // GL.Flush();
             // Context.SwapBuffers();
 
-        }
-
-        void debugOam()
-        {
-            ImGui.Begin("--- Debug ---");
-            // ImGui.Text("ScrollX: " + gb.gpu.scrX);
-            // ImGui.Text("ScrollY: " + gb.gpu.scrY);
-            // ImGui.Text("Debug");
-            ImGui.End();
         }
     }
 }

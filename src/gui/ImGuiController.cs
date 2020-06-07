@@ -11,8 +11,9 @@ using OpenTK.Graphics;
 using System.Threading;
 using System.Drawing;
 using System.Drawing.Imaging;
+using OptimeGBAEmulator;
 
-namespace OptimeGBAEmulator
+namespace ImGuiUtils
 {
     /// <summary>
     /// A modified version of Veldrid.ImGui's ImGuiRenderer.
@@ -597,13 +598,4 @@ void main()
             GL.DeleteTexture(GLTexture);
         }
     }
-
-    public struct UniformFieldInfo
-    {
-        public int Location;
-        public string Name;
-        public int Size;
-        public ActiveUniformType Type;
-    }
-
 }

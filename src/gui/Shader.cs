@@ -12,7 +12,7 @@ using System.Threading;
 using System.Drawing;
 using System.Drawing.Imaging;
 
-namespace OptimeGBAEmulator
+namespace ImGuiUtils
 {
     public class Shader : IDisposable
     {
@@ -44,6 +44,14 @@ namespace OptimeGBAEmulator
                 GL.DeleteProgram(Program);
                 Initialized = false;
             }
+        }
+
+        public struct UniformFieldInfo
+        {
+            public int Location;
+            public string Name;
+            public int Size;
+            public ActiveUniformType Type;
         }
 
         public UniformFieldInfo[] GetUniforms()

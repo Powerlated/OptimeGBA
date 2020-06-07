@@ -3,7 +3,7 @@ public delegate void Callback();
 namespace OptimeGBA
 {
 
-    class GBA
+    public class GBA
     {
         public ARM7 Arm7;
         public Memory Mem;
