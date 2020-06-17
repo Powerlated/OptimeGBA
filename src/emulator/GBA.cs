@@ -19,7 +19,7 @@ namespace OptimeGBA
             AudioCallback = audioCallback;
         }
 
-        public uint Run() {
+        public uint Step() {
             Arm7.Execute();
             // Tick(8);
             return 8;

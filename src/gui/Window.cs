@@ -155,7 +155,14 @@ namespace OptimeGBAEmulator
             ImGui.Text($"R13: {Hex(Gba.Arm7.R13, 8)}");
             ImGui.Text($"R14: {Hex(Gba.Arm7.R14, 8)}");
             ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
+
+            if (ImGui.Button("Step")) {
+                Gba.Step();
+            }
+
             ImGui.End();
+
+
 
 
 
