@@ -138,7 +138,7 @@ namespace OptimeGBAEmulator
             ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
             ImGui.End();
 
-            ImGui.Begin("--- Debug ---");
+            ImGui.Begin("Debug");
             ImGui.Text($"R0: {Hex(Gba.Arm7.R0, 8)}");
             ImGui.Text($"R1: {Hex(Gba.Arm7.R1, 8)}");
             ImGui.Text($"R2: {Hex(Gba.Arm7.R2, 8)}");
@@ -155,16 +155,21 @@ namespace OptimeGBAEmulator
             ImGui.Text($"R13: {Hex(Gba.Arm7.R13, 8)}");
             ImGui.Text($"R14: {Hex(Gba.Arm7.R14, 8)}");
             ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
+            ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
+            ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, 8)}");
 
-            if (ImGui.Button("Step")) {
+            if (ImGui.Button("Step"))
+            {
                 Gba.Step();
             }
 
             ImGui.End();
 
+            ImGui.Begin("Instruction Info");
+            ImGui.Text(Gba.Arm7.Debug);
+            ImGui.End();
 
-
-
+            DrawMemoryViewer();
 
             _controller.Render();
             GL.Flush();
@@ -190,6 +195,105 @@ namespace OptimeGBAEmulator
             // GL.Flush();
             // Context.SwapBuffers();
 
+        }
+
+        static int MemoryViewerInit = 1;
+        int MemoryViewerCurrent = MemoryViewerInit;
+        uint MemoryViewerCurrentAddr = baseAddrs[MemoryViewerInit];
+        uint MemoryViewerHoverAddr = 0;
+        uint MemoryViewerHoverVal = 0;
+        bool MemoryViewerHover = false;
+        byte[] MemoryViewerGoToAddr = new byte[16];
+
+        static String[] baseNames = {
+                    "BIOS",
+                    "ROM",
+                };
+
+        static uint[] baseAddrs = {
+                0x00000000,
+                0x08000000
+            };
+
+        public void DrawMemoryViewer()
+        {
+
+            int rows = 64;
+            int cols = 16;
+
+            ImGui.Begin("Memory Viewer");
+
+            if (ImGui.BeginCombo("", $"{baseNames[MemoryViewerCurrent]}: {Hex(baseAddrs[MemoryViewerCurrent], 8)}"))
+            {
+                for (int n = 0; n < baseNames.Length; n++)
+                {
+                    bool isSelected = (MemoryViewerCurrent == n);
+                    String display = $"{baseNames[n]}: {Hex(baseAddrs[n], 8)}";
+                    if (ImGui.Selectable(display, isSelected))
+                    {
+                        MemoryViewerCurrent = n;
+                        MemoryViewerCurrentAddr = baseAddrs[n];
+                    }
+                    if (isSelected)
+                    {
+                        ImGui.SetItemDefaultFocus();
+                    }
+                }
+                ImGui.EndCombo();
+            };
+
+            // ImGui.InputText("", MemoryViewerGoToAddr, (uint)MemoryViewerGoToAddr.Length);
+            // if (ImGui.Button("Go To"))
+            // {
+            //     try
+            //     {
+            //         String s = System.Text.Encoding.ASCII.GetString(MemoryViewerGoToAddr);
+            //         MemoryViewerCurrentAddr = uint.Parse(s);
+            //     }
+            //     catch (Exception e)
+            //     {
+            //         Console.Error.WriteLine(e);
+            //     }
+            // }
+
+            uint tempBase = MemoryViewerCurrentAddr;
+            if (MemoryViewerHover)
+            {
+                ImGui.Text($"Addr: {HexN(MemoryViewerHoverAddr, 8)}");
+                ImGui.SameLine(); ImGui.Text($"Val: {HexN(MemoryViewerHoverVal, 2)}");
+            }
+            else
+            {
+                ImGui.Text("");
+            }
+
+            ImGui.Separator();
+
+            MemoryViewerHover = false;
+
+            ImGui.BeginChild("Memory");
+            for (int i = 0; i < rows; i++)
+            {
+                ImGui.Text($"{Util.HexN(tempBase, 8)}:");
+                for (int j = 0; j < cols; j++)
+                {
+                    uint val = Gba.Mem.Read8(tempBase);
+
+                    ImGui.SameLine();
+                    ImGui.Selectable($"{HexN(val, 2)}");
+
+                    if (ImGui.IsItemHovered())
+                    {
+                        MemoryViewerHover = true;
+                        MemoryViewerHoverAddr = tempBase;
+                        MemoryViewerHoverVal = val;
+                    }
+
+                    tempBase++;
+                }
+            }
+            ImGui.EndChild();
+            ImGui.End();
         }
     }
 }

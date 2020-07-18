@@ -33,5 +33,32 @@ namespace OptimeGBA
         public const uint BIT_28 = (1 << 28);
         public const uint BIT_29 = (1 << 29);
         public const uint BIT_30 = (1 << 30);
+
+        public static bool BitTest(uint i, byte bit)
+        {
+            return (i & (1 << bit)) != 0;
+        }
+
+        public static uint BitSet(uint i, byte bit)
+        {
+            return (uint)(i | (uint)(1 << bit));
+        }
+
+        // public bool bitReset(uint i, uint bit)
+        // {
+        //     return i & (~(1 << bit));
+        // }
+
+        // public bool bitSetValue(uint i, uint bit, bool value)
+        // {
+        //     if (value)
+        //     {
+        //         return i | (1 << bit);
+        //     }
+        //     else
+        //     {
+        //         return i & (~(1 << bit));
+        //     }
+        // }
     }
 }
