@@ -277,7 +277,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"{Util.HexN(tempBase, 8)}:");
                 for (int j = 0; j < cols; j++)
                 {
-                    uint val = Gba.Mem.Read8(tempBase);
+                    uint val = Gba.Mem.ReadDebug8(tempBase);
 
                     ImGui.SameLine();
                     ImGui.Selectable($"{HexN(val, 2)}");
@@ -422,6 +422,24 @@ namespace OptimeGBAEmulator
             ImGui.Checkbox("IRQ Disable", ref irqDisable);
             ImGui.Checkbox("FIQ Disable", ref fiqDisable);
             ImGui.Checkbox("Thumb State", ref thumbState);
+
+            ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
+            ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
+            ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
+            ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
+            ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
+            ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
+            ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
+
+            ImGui.Text("");
+
+            ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
+            ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
+            ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
+            ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
+            ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
+
+
             ImGui.EndChild();
             ImGui.End();
         }
