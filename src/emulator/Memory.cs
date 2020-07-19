@@ -4,10 +4,11 @@ namespace OptimeGBA
 {
     public class Memory
     {
+        GBA Gba;
 
         public Memory(GBA gba)
         {
-
+            Gba = gba;
         }
 
         public long EwramWrites = 0;
@@ -59,10 +60,10 @@ namespace OptimeGBA
             }
 
             // HWIO
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
                 HwioReads++;
-                return ReadHWIO(addr);
+                return ReadHWIO8(addr);
             }
 
             // Display Memory
@@ -142,9 +143,9 @@ namespace OptimeGBA
             }
 
             // HWIO
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
-                return ReadHWIO(addr);
+                return ReadHWIO8(addr);
             }
 
             // Display Memory
@@ -222,10 +223,10 @@ namespace OptimeGBA
             }
 
             // HWIO
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
                 HwioWrites++;
-                WriteHWIO(addr, val);
+                WriteHWIO8(addr, val);
             }
 
             // Display Memory
@@ -277,14 +278,77 @@ namespace OptimeGBA
             Write8(addr++, f3);
         }
 
-        public byte ReadHWIO(uint addr)
+        public byte ReadHWIO8(uint addr)
         {
-            throw new Exception("HWIO Read");
+            if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
+            {
+                return Gba.Lcd.Read8(addr);
+            }
+            else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
+            {
+
+            }
+            else if (addr >= 0x40000B0 && addr <= 0x40000E0) // DMA
+            {
+
+            }
+            else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
+            {
+
+            }
+            else if (addr >= 0x4000120 && addr <= 0x400012C) // Serial
+            {
+
+            }
+            else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
+            {
+
+            }
+            else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
+            {
+
+            }
+            else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
+            {
+
+            }
+            return 0;
         }
 
-        public byte WriteHWIO(uint addr, byte val)
+        public void WriteHWIO8(uint addr, byte val)
         {
-            throw new Exception("HWIO Write");
+            if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
+            {
+                Gba.Lcd.Write8(addr, val);
+            }
+            else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
+            {
+
+            }
+            else if (addr >= 0x40000B0 && addr <= 0x40000E0) // DMA
+            {
+
+            }
+            else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
+            {
+
+            }
+            else if (addr >= 0x4000120 && addr <= 0x400012C) // Serial
+            {
+
+            }
+            else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
+            {
+
+            }
+            else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
+            {
+
+            }
+            else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
+            {
+
+            }
         }
     }
 }

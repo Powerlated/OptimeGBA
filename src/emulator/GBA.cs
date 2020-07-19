@@ -8,6 +8,7 @@ namespace OptimeGBA
         public ARM7 Arm7;
         public Memory Mem;
         public Audio Audio;
+        public LCD Lcd;
 
         public uint[] registers = new uint[16];
         public Callback AudioCallback;
@@ -16,6 +17,7 @@ namespace OptimeGBA
             Arm7 = new ARM7(this);
             Mem = new Memory(this);
             Audio = new Audio(this);
+            Lcd = new LCD(this);
             AudioCallback = audioCallback;
         }
 

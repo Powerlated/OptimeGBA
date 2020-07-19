@@ -44,6 +44,16 @@ namespace OptimeGBA
             return (uint)(i | (uint)(1 << bit));
         }
 
+        public static byte BitSet(byte i, byte bit)
+        {
+            return (byte)(i | (byte)(1 << bit));
+        }
+
+        public static uint BitRange(uint i, byte start, byte end)
+        {
+            return (i >> start) & (0xFFFFFFFF >> (31 - end));
+        }
+
         // public bool bitReset(uint i, uint bit)
         // {
         //     return i & (~(1 << bit));

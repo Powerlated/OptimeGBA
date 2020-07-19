@@ -314,12 +314,26 @@ namespace OptimeGBA
                                 if (H)
                                 {
                                     LineDebug("Load signed halfword");
-                                    Error("UNIMPLEMENTED");
+
+                                    int val = (int)Gba.Mem.Read16(addr);
+                                    if ((val & BIT_15) != 0)
+                                    {
+                                        val -= (int)BIT_16;
+                                    }
+
+                                    SetReg(rd, (uint)val);
                                 }
                                 else
                                 {
                                     LineDebug("Load signed byte");
-                                    Error("UNIMPLEMENTED");
+
+                                    int val = (int)Gba.Mem.Read8(addr);
+                                    if ((val & BIT_7) != 0)
+                                    {
+                                        val -= (int)BIT_8;
+                                    }
+
+                                    SetReg(rd, (uint)val);
                                 }
                             }
                             else

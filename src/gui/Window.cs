@@ -7,6 +7,7 @@ using System.IO;
 using ImGuiNET;
 using ImGuiUtils;
 using static Util;
+using System.Collections.Generic;
 using OptimeGBA;
 
 namespace OptimeGBAEmulator
@@ -30,6 +31,8 @@ namespace OptimeGBAEmulator
 
             string file = System.IO.File.ReadAllText("./mgba-armwrestler-log.txt");
             Log = file.Split('\n');
+
+            SetupRegViewer();
         }
 
         protected override void OnResize(EventArgs e)
@@ -145,31 +148,11 @@ namespace OptimeGBAEmulator
             ImGui.End();
 
 
-
-            String logText = BuildLogText();
-            String emuText = BuildEmuText();
-
-            ImGui.Begin("Instruction Info");
-            if (LogIndex >= 0)
-                ImGui.Text(logText);
-            ImGui.Separator();
-            if (emuText != logText)
-            {
-                ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.0f, 0.0f, 1.0f), emuText);
-                Gba.Arm7.Errored = true;
-            }
-            else
-            {
-                ImGui.Text(emuText);
-            }
-
-            ImGui.Separator();
-            ImGui.Text(Gba.Arm7.Debug);
-            ImGui.End();
-
             DrawDebug();
             DrawMemoryViewer();
             DrawInstrViewer();
+            DrawInstrInfo();
+            DrawRegViewer();
 
             _controller.Render();
             GL.Flush();
@@ -339,6 +322,30 @@ namespace OptimeGBAEmulator
         int DebugStepFor = 0;
         byte[] text = new byte[4];
 
+        public void DrawInstrInfo()
+        {
+            String logText = BuildLogText();
+            String emuText = BuildEmuText();
+
+            ImGui.Begin("Instruction Info");
+            if (LogIndex >= 0)
+                ImGui.Text(logText);
+            ImGui.Separator();
+            if (emuText != logText)
+            {
+                ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.0f, 0.0f, 1.0f), emuText);
+                Gba.Arm7.Errored = true;
+            }
+            else
+            {
+                ImGui.Text(emuText);
+            }
+
+            ImGui.Separator();
+            ImGui.Text(Gba.Arm7.Debug);
+            ImGui.End();
+        }
+
         public void DrawDebug()
         {
             ImGui.Begin("Debug");
@@ -392,11 +399,6 @@ namespace OptimeGBAEmulator
                     Gba.Step();
                     LogIndex++;
                     DebugStepFor--;
-
-                    if (BuildEmuText() != BuildLogText())
-                    {
-                        Gba.Arm7.Errored = true;
-                    }
                 }
             }
 
@@ -491,6 +493,108 @@ namespace OptimeGBAEmulator
                     tempBase += 4;
                 }
             }
+        }
+
+        public List<Register> Registers = new List<Register>();
+        public class Register
+        {
+            public RegisterField[] Fields;
+            public uint Address;
+            public String Name;
+            public Register(String name, uint address, params RegisterField[] fields)
+            {
+                Fields = fields;
+                Address = address;
+                Name = name;
+            }
+        }
+        public class RegisterField
+        {
+            public byte Bit;
+            public byte EndBit; // Non-checkbox only
+            public String Name;
+            public bool Checkbox;
+
+            public RegisterField(String name, byte bit)
+            {
+                Name = name;
+                Bit = bit;
+                EndBit = 0;
+                Checkbox = true;
+            }
+
+            public RegisterField(String name, byte bit, byte endBit)
+            {
+                Name = name;
+                Bit = bit;
+                EndBit = endBit;
+                Checkbox = false;
+            }
+        }
+
+        public void SetupRegViewer()
+        {
+            Registers.Add(
+                new Register("DISPCNT - LCD Control", 0x4000000,
+                    new RegisterField[] {
+                        new RegisterField("BG Mode", 0, 2),
+                        new RegisterField("Reserved / CGB Mode", 3),
+                        new RegisterField("Display Frame Select", 4),
+                        new RegisterField("H-Blank Interval Form", 5),
+                        new RegisterField("OBJ Character VRAM Mapping", 6),
+                        new RegisterField("Forced Blank", 7),
+                        new RegisterField("Screen Display BG0", 8),
+                        new RegisterField("Screen Display BG1", 9),
+                        new RegisterField("Screen Display BG2", 10),
+                        new RegisterField("Screen Display BG3", 11),
+                        new RegisterField("Screen Display OBJ", 12),
+                        new RegisterField("Window 0 Display Flag", 13),
+                        new RegisterField("Window 1 Display Flag", 14),
+                        new RegisterField("OBJ Window Display Flag", 15),
+                    }
+                ));
+
+            RegViewerSelected = Registers[0];
+        }
+
+        Register RegViewerSelected;
+
+        public void DrawRegViewer()
+        {
+            ImGui.Begin("Register Viewer");
+            if (ImGui.BeginCombo("", RegViewerSelected.Name))
+            {
+                foreach (Register r in Registers)
+                {
+                    bool selected = r == RegViewerSelected;
+                    if (ImGui.Selectable(r.Name, selected))
+                    {
+                        RegViewerSelected = r;
+                    }
+                    if (selected)
+                    {
+                        ImGui.SetItemDefaultFocus();
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            uint value = Gba.Mem.ReadDebug32(RegViewerSelected.Address);
+            foreach (RegisterField f in RegViewerSelected.Fields)
+            {
+                if (f.Checkbox)
+                {
+                    bool ticked = Bits.BitTest(value, f.Bit);
+                    // ImGui.Text($"{f.Bit}");
+                    // ImGui.SameLine(); 
+                    ImGui.Checkbox(f.Name, ref ticked);
+                }
+                else
+                {
+                    ImGui.Text($" {Bits.BitRange(value, f.Bit, f.EndBit)}");
+                    ImGui.SameLine(); ImGui.Text(f.Name);
+                }
+            }
+            ImGui.End();
         }
     }
 }
