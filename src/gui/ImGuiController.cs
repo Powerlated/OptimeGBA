@@ -36,7 +36,7 @@ namespace ImGuiUtils
         public int _windowWidth;
         public int _windowHeight;
 
-        private System.Numerics.Vector2 _scaleFactor = System.Numerics.Vector2.One;
+        private System.Numerics.Vector2 _scaleFactor = new System.Numerics.Vector2(1, 1);
 
         /// <summary>
         /// Constructs a new ImGuiController.
@@ -230,7 +230,7 @@ void main()
 
             foreach (var c in PressedChars)
             {
-                io.AddInputCharacter(c);
+                io.AddInputCharacter(3);
             }
             PressedChars.Clear();
 
@@ -550,7 +550,9 @@ void main()
             Width = width;
             Height = height;
             InternalFormat = srgb ? Srgb8Alpha8 : SizedInternalFormat.Rgba8;
-            MipmapLevels = generateMipmaps == false ? 1 : (int)Math.Floor(Math.Log(Math.Max(Width, Height), 2));
+            // TODO: figure out what this line below does
+            // MipmapLevels = generateMipmaps == false ? 1 : (int)Math.Floor(Math.Log(Math.Max(Width, Height), 2));
+            MipmapLevels = 1;
 
             Util.CreateTexture(TextureTarget.Texture2D, Name, out GLTexture);
             GL.TextureStorage2D(GLTexture, MipmapLevels, InternalFormat, Width, Height);
