@@ -339,14 +339,17 @@ namespace OptimeGBA
                             offset = GetReg(rm);
                         }
 
-                        uint addr;
-                        if (U)
+                        uint addr = baseAddr;
+                        if (P)
                         {
-                            addr = baseAddr + offset;
-                        }
-                        else
-                        {
-                            addr = baseAddr - offset;
+                            if (U)
+                            {
+                                addr += offset;
+                            }
+                            else
+                            {
+                                addr -= offset;
+                            }
                         }
 
                         if (L)
@@ -409,6 +412,18 @@ namespace OptimeGBA
                                     LineDebug("Store halfword");
                                     Gba.Mem.Write16(addr, (ushort)GetReg(rd));
                                 }
+                            }
+                        }
+
+                        if (!P)
+                        {
+                            if (U)
+                            {
+                                addr = baseAddr + offset;
+                            }
+                            else
+                            {
+                                addr = baseAddr - offset;
                             }
                         }
 
@@ -798,7 +813,6 @@ namespace OptimeGBA
                         bool W = BitTest(ins, 21);
                         bool L = BitTest(ins, 20);
 
-                        uint addr;
                         uint offset;
                         if (BitTest(ins, 25))
                         {
@@ -827,13 +841,17 @@ namespace OptimeGBA
                             offset = ins & 0b111111111111;
                         }
 
-                        if (U)
+                        uint addr = rnValue;
+                        if (P)
                         {
-                            addr = rnValue + offset;
-                        }
-                        else
-                        {
-                            addr = rnValue - offset;
+                            if (U)
+                            {
+                                addr += offset;
+                            }
+                            else
+                            {
+                                addr -= offset;
+                            }
                         }
 
                         LineDebug($"Rn: R{rn}");
@@ -870,6 +888,18 @@ namespace OptimeGBA
 
                             LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
                             LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
+                        }
+
+                        if (!P)
+                        {
+                            if (U)
+                            {
+                                addr += offset;
+                            }
+                            else
+                            {
+                                addr -= offset;
+                            }
                         }
 
                         if (W || !P)

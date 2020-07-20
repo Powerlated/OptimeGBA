@@ -262,9 +262,9 @@ namespace OptimeGBA
             {
                 uint vramVal = Vram[vramBase];
 
-                Screen[screenBase + 0] = ProcessedPalettes[vramVal + 1,0];
-                Screen[screenBase + 1] = ProcessedPalettes[vramVal + 1,1];
-                Screen[screenBase + 2] = ProcessedPalettes[vramVal + 1,2];
+                Screen[screenBase + 0] = ProcessedPalettes[vramVal,0];
+                Screen[screenBase + 1] = ProcessedPalettes[vramVal,1];
+                Screen[screenBase + 2] = ProcessedPalettes[vramVal,2];
 
                 vramBase++;
                 screenBase += BYTES_PER_PIXEL; 
