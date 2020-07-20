@@ -119,6 +119,49 @@ namespace OptimeGBA
             Carry = true;
         }
 
+        public void FillPipelineArm()
+        {
+            while (Pipeline < 2)
+            {
+                byte f0 = Gba.Mem.Read8(R15++);
+                byte f1 = Gba.Mem.Read8(R15++);
+                byte f2 = Gba.Mem.Read8(R15++);
+                byte f3 = Gba.Mem.Read8(R15++);
+
+                ARMDecode = ARMFetch;
+                ARMFetch = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+
+                Pipeline++;
+            }
+        }
+
+        public void FillPipelineThumb()
+        {
+            while (Pipeline < 2)
+            {
+                byte f0 = Gba.Mem.Read8(R15++);
+                byte f1 = Gba.Mem.Read8(R15++);
+
+                THUMBDecode = THUMBFetch;
+                THUMBFetch = (ushort)((f1 << 8) | (f0 << 0));
+
+                Pipeline++;
+            }
+        }
+
+        public void FlushPipeline()
+        {
+            Pipeline = 0;
+            if (ThumbState)
+            {
+                FillPipelineThumb();
+            }
+            else
+            {
+                FillPipelineArm();
+            }
+        }
+
         public void Execute()
         {
             ResetDebug();
@@ -130,26 +173,11 @@ namespace OptimeGBA
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
 
                 // Fill the pipeline if it's not full
-                while (Pipeline < 2)
-                {
-                    byte f0 = Gba.Mem.Read8(R15++);
-                    byte f1 = Gba.Mem.Read8(R15++);
-                    byte f2 = Gba.Mem.Read8(R15++);
-                    byte f3 = Gba.Mem.Read8(R15++);
-
-                    ARMDecode = ARMFetch;
-                    ARMFetch = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
-
-                    Pipeline++;
-                }
-
-
+                FillPipelineArm();
 
                 uint ins = ARMDecode;
                 Pipeline--;
                 LastIns = ins;
-
-
 
                 LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
                 LineDebug($"Cond: ${ins >> 28:X}");
@@ -183,7 +211,7 @@ namespace OptimeGBA
                         }
 
                         R15 = (uint)(R15 + offset);
-                        Pipeline = 0;
+                        FlushPipeline();
                     }
                     else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
                     {
@@ -204,7 +232,7 @@ namespace OptimeGBA
                         }
 
                         R15 = (rmValue & 0xFFFFFFFE);
-                        Pipeline = 0;
+                        FlushPipeline();
                     }
                     else if ((ins & 0b1101101100000000000000000000) == 0b0001001000000000000000000000) // PSR Transfer (MRS, MSR)
                     {
@@ -270,7 +298,6 @@ namespace OptimeGBA
                     }
                     else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
                     {
-
                         uint rd = (ins >> 16) & 0xF;
                         uint rs = (ins >> 8) & 0xF;
                         uint rm = (ins >> 0) & 0xF;
@@ -304,7 +331,60 @@ namespace OptimeGBA
                     }
                     else if ((ins & 0b1111100000000000000011110000) == 0b0000100000000000000010010000) // Multiply Long
                     {
-                        // throw new Exception("Multiply Long");
+                        bool signed = BitTest(ins, 22);
+                        bool accumulate = BitTest(ins, 21);
+                        bool setFlags = BitTest(ins, 20);
+
+                        uint rdHi = (ins >> 16) & 0xF;
+                        uint rdLo = (ins >> 12) & 0xF;
+                        uint rs = (ins >> 8) & 0xF;
+                        uint rm = (ins >> 0) & 0xF;
+                        ulong rsVal = GetReg(rs);
+                        ulong rmVal = GetReg(rm);
+
+                        LineDebug("Multiply Long");
+
+                        ulong longLo;
+                        ulong longHi;
+                        if (accumulate)
+                        {
+                            LineDebug("Accumulate");
+
+                            longLo = (rmVal * rsVal) + GetReg(rdLo);
+                            longHi = ((rmVal * rsVal) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                        }
+                        else
+                        {
+                            LineDebug("No Accumulate");
+
+                            if (signed)
+                            {
+                                longLo = (ulong)((long)rmVal * (long)rsVal);
+                                longHi = (ulong)(((long)rmVal * (long)rsVal) >> 32);
+
+                                Error("signed mul");
+                            }
+                            else
+                            {
+                                longLo = (rmVal * rsVal);
+                                longHi = ((rmVal * rsVal) >> 32);
+                            }
+                        }
+
+                        LineDebug($"RdLo: R{rdLo}");
+                        LineDebug($"RdHi: R{rdHi}");
+                        LineDebug($"Rm: R{rm}");
+                        LineDebug($"Rs: R{rs}");
+
+
+                        SetReg(rdLo, (uint)longLo);
+                        SetReg(rdHi, (uint)longHi);
+
+                        if (setFlags)
+                        {
+                            Negative = BitTest((uint)longHi, 31);
+                            Zero = GetReg(rdLo) == 0 && GetReg(rdHi) == 0;
+                        }
                     }
                     else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
                     {
@@ -451,6 +531,7 @@ namespace OptimeGBA
                         // Shift by immediate or shift by register
 
                         uint shifterOperand = 0;
+                        bool shifterCarryOut = false;
 
                         if (immediate32)
                         {
@@ -473,30 +554,162 @@ namespace OptimeGBA
                             {
                                 // Immediate Shift
                                 shiftBits = (byte)((ins >> 7) & 0b11111);
+
+                                switch (shiftType)
+                                {
+                                    case 0b00:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = Carry;
+                                        }
+                                        else
+                                        {
+                                            shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                                        }
+                                        break;
+                                    case 0b01:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = 0;
+                                            shifterCarryOut = BitTest(rmVal, 31);
+                                        }
+                                        else
+                                        {
+                                            shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                                        }
+                                        break;
+                                    case 0b10:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterCarryOut = BitTest(rmVal, 31);
+                                            if (!BitTest(rmVal, 31))
+                                            {
+                                                shifterOperand = 0;
+                                            }
+                                            else
+                                            {
+                                                shifterOperand = 0xFFFFFFFF;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                                        }
+                                        break;
+                                    case 0b11:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = LogicalShiftLeft32(Carry ? 1U : 0, 31) | LogicalShiftRight32(rmVal, 1);
+                                            shifterCarryOut = BitTest(rmVal, 0);
+                                        }
+                                        else
+                                        {
+                                            shifterOperand = RotateRight32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                                        }
+                                        break;
+                                }
                             }
                             else
                             {
                                 // Register shift
                                 uint rs = (ins >> 8) & 0xF;
-                                shiftBits = (byte)(GetReg(rs) & 0b11111);
-                            }
+                                shiftBits = (byte)(GetReg(rs) & 0b11111111);
 
-                            switch (shiftType)
-                            {
-                                case 0b00:
-                                    shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
-                                    break;
-                                case 0b01:
-                                    shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
-                                    break;
-                                case 0b10:
-                                    shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
-                                    break;
-                                case 0b11:
-                                    shifterOperand = RotateRight32(rmVal, shiftBits);
-                                    break;
+                                switch (shiftType)
+                                {
+                                    case 0b00:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = Carry;
+                                        }
+                                        else if (shiftBits < 32)
+                                        {
+                                            shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                                        }
+                                        else if (shiftBits == 32)
+                                        {
+                                            shifterOperand = 0;
+                                            shifterCarryOut = BitTest(rmVal, 0);
+                                        }
+                                        else if (shiftBits > 32)
+                                        {
+                                            shifterOperand = 0;
+                                            shifterCarryOut = false;
+                                        }
+                                        break;
+                                    case 0b01:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = Carry;
+                                        }
+                                        else if (shiftBits < 32)
+                                        {
+                                            shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                                        }
+                                        else if (shiftBits == 32)
+                                        {
+                                            shifterOperand = 0;
+                                            shifterCarryOut = BitTest(rmVal, 0);
+                                        }
+                                        else if (shiftBits > 32)
+                                        {
+                                            shifterOperand = 0;
+                                            shifterCarryOut = false;
+                                        }
+                                        break;
+                                    case 0b10:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = Carry;
+                                        }
+                                        else if (shiftBits < 32)
+                                        {
+                                            shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                                        }
+                                        else if (shiftBits >= 32)
+                                        {
+                                            if (!BitTest(rmVal, 31))
+                                            {
+                                                shifterOperand = 0;
+                                                shifterCarryOut = false;
+                                            }
+                                            else
+                                            {
+                                                shifterOperand = 0xFFFFFFFF;
+                                                shifterCarryOut = true;
+                                            }
+                                        }
+                                        break;
+                                    case 0b11:
+                                        if (shiftBits == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = Carry;
+                                        }
+                                        else if ((shiftBits & 0b11111) == 0)
+                                        {
+                                            shifterOperand = rmVal;
+                                            shifterCarryOut = BitTest(rmVal, 31);
+                                        }
+                                        else if ((shiftBits & 0b11111) > 0)
+                                        {
+                                            shifterOperand = RotateRight32(rmVal, (byte)(shiftBits & 0b11111));
+                                            shifterCarryOut = BitTest(rmVal, (byte)((shiftBits & 0b11111) - 1));
+                                        }
+                                        break;
+                                }
                             }
-
                         }
 
                         LineDebug($"Rn: R{rn}");
@@ -515,12 +728,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
-                                        Carry = BitTest(final, 31);
+                                        Carry = shifterCarryOut;
                                     }
                                 }
                                 break;
@@ -535,12 +749,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
-                                        Carry = BitTest(final, 31);
+                                        Carry = shifterCarryOut;
                                     }
                                 }
                                 break;
@@ -555,6 +770,7 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
@@ -575,13 +791,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
-                                        Overflow = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // V
                                     }
                                 }
                                 break;
@@ -595,6 +811,7 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
@@ -616,12 +833,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
-                                        Carry = (shifterOperand + (!Carry ? 1U : 0U) > rnValue); // C
+                                        Carry = !(shifterOperand + (!Carry ? 1U : 0U) > rnValue); // C
                                         Overflow = (shifterOperand + (!Carry ? 1U : 0U) > rnValue); // V
                                     }
                                 }
@@ -637,12 +855,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
-                                        Carry = (rnValue + (!Carry ? 1U : 0U) > shifterOperand); // C
+                                        Carry = !(rnValue + (!Carry ? 1U : 0U) > shifterOperand); // C
                                         Overflow = (rnValue + (!Carry ? 1U : 0U) > shifterOperand); // V
                                     }
                                 }
@@ -656,6 +875,7 @@ namespace OptimeGBA
 
                                     Negative = BitTest(final, 31);
                                     Zero = final == 0;
+                                    Carry = shifterCarryOut;
                                 }
                                 break;
                             case 0x9: // TEQ
@@ -668,13 +888,13 @@ namespace OptimeGBA
                                     {
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
-                                        Carry = BitTest(shifterOperand, 31); // C
+                                        Carry = shifterCarryOut; // C
                                     }
                                 }
                                 break;
                             case 0xA: // CMP
-                                      // SBZ means should be zero, not relevant to the current code, just so you know
                                 {
+                                    // SBZ means should be zero, not relevant to the current code, just so you know
                                     LineDebug("CMP");
 
                                     uint reg = GetReg(rn);
@@ -699,7 +919,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
-                                        Overflow = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // V
+                                        Overflow = !((long)rnValue + (long)shifterOperand > 0xFFFFFFFFL); // V
                                     }
                                 }
                                 break;
@@ -714,12 +934,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
-                                        Carry = BitTest(final, 31);
+                                        Carry = shifterCarryOut;
                                     }
                                 }
                                 break;
@@ -732,8 +953,7 @@ namespace OptimeGBA
                                     {
                                         Negative = BitTest(shifterOperand, 31); // N
                                         Zero = shifterOperand == 0; // Z
-                                        Carry = BitTest(shifterOperand, 31); // C
-
+                                        Carry = shifterCarryOut; // C
 
                                         if (rd == 15)
                                         {
@@ -743,7 +963,7 @@ namespace OptimeGBA
 
                                     if (rd == 15)
                                     {
-                                        Pipeline = 0;
+                                        FlushPipeline();
                                     }
                                 }
                                 break;
@@ -756,12 +976,13 @@ namespace OptimeGBA
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
+                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
                                     }
                                     else if (setFlags)
                                     {
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
-                                        Carry = BitTest(final, 31); // C
+                                        Carry = shifterCarryOut; // C
                                     }
                                 }
                                 break;
@@ -774,7 +995,7 @@ namespace OptimeGBA
                                     {
                                         Negative = BitTest(~shifterOperand, 31); // N
                                         Zero = ~shifterOperand == 0; // Z
-                                        Carry = BitTest(~shifterOperand, 31); // C
+                                        Carry = shifterCarryOut; ; // C
 
 
                                         if (rd == 15)
@@ -785,7 +1006,7 @@ namespace OptimeGBA
 
                                     if (rd == 15)
                                     {
-                                        Pipeline = 0;
+                                        FlushPipeline();
                                     }
                                 }
                                 break;
@@ -997,16 +1218,7 @@ namespace OptimeGBA
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
 
                 // Fill the pipeline if it's not full
-                while (Pipeline < 2)
-                {
-                    byte f0 = Gba.Mem.Read8(R15++);
-                    byte f1 = Gba.Mem.Read8(R15++);
-
-                    THUMBDecode = THUMBFetch;
-                    THUMBFetch = (ushort)((f1 << 8) | (f0 << 0));
-
-                    Pipeline++;
-                }
+                FillPipelineThumb();
 
                 ushort ins = THUMBDecode;
                 Pipeline--;
@@ -1259,7 +1471,7 @@ namespace OptimeGBA
                         }
 
                         R15 = (uint)(R15 + offset);
-                        Pipeline = 0;
+                        FlushPipeline();
                     }
                     else
                     {
@@ -1313,7 +1525,7 @@ namespace OptimeGBA
                                 R14 = (R15 - 2) | 1;
                                 R15 = (uint)(oldR14 + (offset11 << 1));
                                 R15 &= 0xFFFFFFFE;
-                                Pipeline = 0;
+                                FlushPipeline();
                                 LineDebug($"Jump to ${Util.HexN(R15, 8)}");
                                 LineDebug("Stay in THUMB state");
                             }
@@ -1324,7 +1536,7 @@ namespace OptimeGBA
                                 R14 = (R15 - 2) | 1;
                                 R15 = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
                                 R15 &= 0xFFFFFFFE;
-                                Pipeline = 0;
+                                FlushPipeline();
                                 ThumbState = false;
                                 LineDebug($"Jump to ${Util.HexN(R15, 8)}");
                                 LineDebug("Exit THUMB state");
@@ -1578,7 +1790,7 @@ namespace OptimeGBA
 
                     ThumbState = BitTest(val, 0);
                     R15 = val & 0xFFFFFFFE;
-                    Pipeline = 0;
+                    FlushPipeline();
                 }
                 else
                 {

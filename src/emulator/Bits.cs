@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+
 namespace OptimeGBA
 {
     class Bits
@@ -34,21 +36,32 @@ namespace OptimeGBA
         public const uint BIT_29 = (1 << 29);
         public const uint BIT_30 = (1 << 30);
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool BitTest(uint i, byte bit)
         {
             return (i & (1 << bit)) != 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint BitSet(uint i, byte bit)
         {
             return (uint)(i | (uint)(1 << bit));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte BitSet(byte i, byte bit)
         {
             return (byte)(i | (byte)(1 << bit));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte BitClear(byte i, byte bit)
+        {
+            return (byte)(i & ~(byte)(1 << bit));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint BitRange(uint i, byte start, byte end)
         {
             return (i >> start) & (0xFFFFFFFF >> (31 - end));

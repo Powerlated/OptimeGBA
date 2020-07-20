@@ -9,6 +9,7 @@ namespace OptimeGBA
         public Memory Mem;
         public Audio Audio;
         public LCD Lcd;
+        public Keypad Keypad;
 
         public uint[] registers = new uint[16];
         public Callback AudioCallback;
@@ -18,6 +19,7 @@ namespace OptimeGBA
             Mem = new Memory(this);
             Audio = new Audio(this);
             Lcd = new LCD(this);
+            Keypad = new Keypad();
             AudioCallback = audioCallback;
         }
 

@@ -10,6 +10,7 @@ using static Util;
 using System.Collections.Generic;
 using System.Numerics;
 using OptimeGBA;
+using Gee.External.Capstone.Arm;
 
 namespace OptimeGBAEmulator
 {
@@ -25,6 +26,8 @@ namespace OptimeGBAEmulator
         int LogIndex = -0;
 
         GBA Gba;
+
+        CapstoneArmDisassembler Disassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
 
         public Game(int width, int height, string title, GBA gba) : base(width, height, GraphicsMode.Default, title)
         {
@@ -78,16 +81,16 @@ namespace OptimeGBAEmulator
             //     Exit();
             // }
 
-            if (input.IsKeyDown(Key.ControlLeft) && input.IsKeyDown(Key.R))
-            {
-
-            }
-
-            if (input.IsKeyDown(Key.ControlLeft) && input.IsKeyDown(Key.D))
-            {
-
-            }
-
+            Gba.Keypad.B = input.IsKeyDown(Key.Z);
+            Gba.Keypad.A = input.IsKeyDown(Key.X);
+            Gba.Keypad.Left = input.IsKeyDown(Key.Left);
+            Gba.Keypad.Up = input.IsKeyDown(Key.Up);
+            Gba.Keypad.Right = input.IsKeyDown(Key.Right);
+            Gba.Keypad.Down = input.IsKeyDown(Key.Down);
+            Gba.Keypad.Start = input.IsKeyDown(Key.Enter);
+            Gba.Keypad.Select = input.IsKeyDown(Key.BackSpace);
+            Gba.Keypad.L = input.IsKeyDown(Key.Q);
+            Gba.Keypad.R = input.IsKeyDown(Key.E);
             base.OnUpdateFrame(e);
         }
 
@@ -357,6 +360,10 @@ namespace OptimeGBAEmulator
             ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
             ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, 8)}");
 
+            if (ImGui.Button("Un-error"))
+            {
+                Gba.Arm7.Errored = false;
+            }
             if (ImGui.Button("Step"))
             {
                 Gba.Step();
@@ -511,11 +518,7 @@ namespace OptimeGBAEmulator
                 {
                     uint val = Gba.Mem.ReadDebug16(tempBase);
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)}";
-                    if (tempBase == Gba.Arm7.R15)
-                    {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 0.5f, 1.0f, 1.0f), s);
-                    }
-                    else if (tempBase == Gba.Arm7.R15 - 2)
+                    if (tempBase == Gba.Arm7.R15 - 2)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
@@ -528,12 +531,24 @@ namespace OptimeGBAEmulator
                 else
                 {
                     uint val = Gba.Mem.ReadDebug32(tempBase);
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)}";
-                    if (tempBase == Gba.Arm7.R15)
+                    Disassembler.EnableInstructionDetails = true;
+
+                    byte[] code = new byte[] {
+                            (byte)((val >> 0) & 0xFF),
+                            (byte)((val >> 8) & 0xFF),
+                            (byte)((val >> 16) & 0xFF),
+                            (byte)((val >> 24) & 0xFF),
+                        };
+
+                    String disasm = "";
+                    ArmInstruction[] instructions = Disassembler.Disassemble(code);
+                    foreach (ArmInstruction ins in instructions)
                     {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 0.5f, 1.0f, 1.0f), s);
+                        disasm = $"{ins.Mnemonic} {ins.Operand}";
                     }
-                    else if (tempBase == Gba.Arm7.R15 - 4)
+
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
+                    if (tempBase == Gba.Arm7.R15 - 4)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
@@ -642,7 +657,23 @@ namespace OptimeGBAEmulator
                         new RegisterField("V-Counter IRQ Enable", 5),
                         new RegisterField("V-Count Setting", 8, 15),
                }
-           ));
+            ));
+
+            Registers.Add(
+                new Register("KEYINPUT - Key Status", 0x4000130,
+                    new RegisterField[] {
+                        new RegisterField("Button A", 0),
+                        new RegisterField("Button B", 1),
+                        new RegisterField("Select", 2),
+                        new RegisterField("Start", 3),
+                        new RegisterField("Right", 4),
+                        new RegisterField("Left", 5),
+                        new RegisterField("Up", 6),
+                        new RegisterField("Down", 7),
+                        new RegisterField("Button R", 8),
+                        new RegisterField("Button L", 9),
+               }
+            ));
 
             RegViewerSelected = Registers[0];
         }

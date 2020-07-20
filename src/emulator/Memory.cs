@@ -315,10 +315,7 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
             {
-                switch (addr) {
-                    case 0x4000130: return 0x03;
-                    case 0x4000131: return 0xFF;
-                }
+                return Gba.Keypad.ReadHwio8(addr);
             }
             else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
             {
