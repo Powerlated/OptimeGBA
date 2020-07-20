@@ -188,14 +188,14 @@ namespace OptimeGBA
             return 0;
         }
 
-        public uint ReadDebug16(uint addr)
+        public ushort ReadDebug16(uint addr)
         {
             byte f0 = ReadDebug8(addr++);
             byte f1 = ReadDebug8(addr++);
 
-            uint u32 = (uint)((f1 << 8) | (f0 << 0));
+            ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
-            return u32;
+            return u16;
         }
 
         public uint ReadDebug32(uint addr)

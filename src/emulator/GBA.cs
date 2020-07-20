@@ -26,7 +26,7 @@ namespace OptimeGBA
         public uint Step() {
             Arm7.Execute();
             Tick(4);
-            return 8;
+            return 4;
         }
 
         void Tick(uint cycles) {

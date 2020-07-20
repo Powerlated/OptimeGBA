@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using static OptimeGBA.Bits;
 
 namespace OptimeGBA
@@ -359,10 +360,24 @@ namespace OptimeGBA
 
                             if (signed)
                             {
-                                longLo = (ulong)((long)rmVal * (long)rsVal);
-                                longHi = (ulong)(((long)rmVal * (long)rsVal) >> 32);
+                                long rmValExt = (long)rmVal;
+                                long rsValExt = (long)rsVal;
 
-                                Error("signed mul");
+                                const long sub = (1L << 32);
+
+                                if ((rmVal & (1u << 31)) != 0)
+                                {
+                                    rmValExt -= sub;
+                                    Error("RM EXT");
+                                }
+                                if ((rsVal & (1u << 31)) != 0)
+                                {
+                                    rsValExt -= sub;
+                                    Error("RS EXT");
+                                }
+
+                                longLo = (ulong)((rsValExt * rmValExt));
+                                longHi = (ulong)((rsValExt * rmValExt) >> 32);
                             }
                             else
                             {
@@ -1839,6 +1854,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetReg(uint reg)
         {
             switch (reg)
@@ -1867,7 +1883,7 @@ namespace OptimeGBA
 
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetReg(uint reg, uint val)
         {
             switch (reg)
@@ -1896,16 +1912,19 @@ namespace OptimeGBA
         }
 
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogicalShiftLeft32(uint n, byte bits)
         {
             return n << bits;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogicalShiftRight32(uint n, byte bits)
         {
             return n >> bits;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ArithmeticShiftRight32(uint n, byte bits)
         {
             uint logical = n >> bits;
@@ -1914,6 +1933,7 @@ namespace OptimeGBA
             return logical | (mask << (32 - bits));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint RotateRight32(uint n, byte bits)
         {
             return (n >> bits) | (n << (32 - bits));

@@ -27,7 +27,10 @@ namespace OptimeGBAEmulator
 
         GBA Gba;
 
-        CapstoneArmDisassembler Disassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
+        CapstoneArmDisassembler ArmDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
+        CapstoneArmDisassembler ThumbDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Thumb);
+
+        bool FrameStep = false;
 
         public Game(int width, int height, string title, GBA gba) : base(width, height, GraphicsMode.Default, title)
         {
@@ -87,30 +90,41 @@ namespace OptimeGBAEmulator
             Gba.Keypad.Up = input.IsKeyDown(Key.Up);
             Gba.Keypad.Right = input.IsKeyDown(Key.Right);
             Gba.Keypad.Down = input.IsKeyDown(Key.Down);
-            Gba.Keypad.Start = input.IsKeyDown(Key.Enter);
+            Gba.Keypad.Start = input.IsKeyDown(Key.Enter) || input.IsKeyDown(Key.KeypadEnter);
             Gba.Keypad.Select = input.IsKeyDown(Key.BackSpace);
             Gba.Keypad.L = input.IsKeyDown(Key.Q);
             Gba.Keypad.R = input.IsKeyDown(Key.E);
+
             base.OnUpdateFrame(e);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
+
+            if (FrameStep)
+            {
+                int num = 10000;
+                while (num > 0 && !Gba.Arm7.Errored)
+                {
+                    Gba.Step();
+                    num--;
+                }
+            }
+
             _controller.Update(this, (float)e.Time);
 
-            ImGui.Begin("It's a tileset");
-            ImGui.Text($"Pointer: {tsTexId}");
-            ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
-            ImGui.End();
+            // ImGui.Begin("It's a tileset");
+            // ImGui.Text($"Pointer: {tsTexId}");
+            // ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
+            // ImGui.End();
 
             DrawDisplay();
             DrawDebug();
-            DrawMemoryViewer();
             DrawInstrViewer();
             DrawInstrInfo();
             DrawRegViewer();
-
+            // DrawMemoryViewer();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -279,8 +293,50 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
+        public String DisasmThumb(ushort opcode)
+        {
+            ThumbDisassembler.EnableInstructionDetails = true;
+
+            byte[] code = new byte[] {
+                            (byte)((opcode >> 0) & 0xFF),
+                            (byte)((opcode >> 8) & 0xFF),
+                        };
+
+            String disasm = "";
+
+            ArmInstruction[] instructions = ThumbDisassembler.Disassemble(code);
+            foreach (ArmInstruction ins in instructions)
+            {
+                disasm = $"{ins.Mnemonic} {ins.Operand}";
+            }
+            return disasm;
+        }
+
+        public String DisasmArm(uint opcode)
+        {
+            ArmDisassembler.EnableInstructionDetails = true;
+
+            byte[] code = new byte[] {
+                            (byte)((opcode >> 0) & 0xFF),
+                            (byte)((opcode >> 8) & 0xFF),
+                            (byte)((opcode >> 16) & 0xFF),
+                            (byte)((opcode >> 24) & 0xFF),
+                        };
+
+            String disasm = "";
+
+            ArmInstruction[] instructions = ArmDisassembler.Disassemble(code);
+            foreach (ArmInstruction ins in instructions)
+            {
+                disasm = $"{ins.Mnemonic} {ins.Operand}";
+            }
+            return disasm;
+        }
+
         public String BuildEmuFullText()
         {
+            String disasm = Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns);
+
             String text = "";
             text += $"{HexN(Gba.Arm7.R0, 8)} ";
             text += $"{HexN(Gba.Arm7.R1, 8)} ";
@@ -299,8 +355,8 @@ namespace OptimeGBAEmulator
             text += $"{HexN(Gba.Arm7.R14, 8)} ";
             text += $"{HexN(Gba.Arm7.R15, 8)} ";
             text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ";
-            text += $"{(Gba.Arm7.ThumbState ? Pad(HexN(Gba.Arm7.LastIns, 4), 8, ' ') : HexN(Gba.Arm7.LastIns, 8))} ";
-            text += $"> {LogIndex + 1}";
+            text += $"{(Gba.Arm7.ThumbState ? "    " + HexN(Gba.Arm7.LastIns, 4) : HexN(Gba.Arm7.LastIns, 8))}: {disasm}";
+            // text += $"> {LogIndex + 1}";
             return text;
         }
 
@@ -359,6 +415,9 @@ namespace OptimeGBAEmulator
             ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
             ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
             ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, 8)}");
+            ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
+
+            ImGui.Text($"");
 
             if (ImGui.Button("Un-error"))
             {
@@ -368,21 +427,6 @@ namespace OptimeGBAEmulator
             {
                 Gba.Step();
                 LogIndex++;
-            }
-            if (ImGui.Button("Step Until Error"))
-            {
-                bool exit = false;
-                while (!Gba.Arm7.Errored && !exit)
-                {
-
-                    Gba.Step();
-                    LogIndex++;
-
-                    if (BuildEmuText() != BuildLogText())
-                    {
-                        exit = true;
-                    }
-                }
             }
             ImGui.InputText("", text, 4);
             ImGui.InputInt("", ref DebugStepFor);
@@ -405,17 +449,22 @@ namespace OptimeGBAEmulator
 
             if (ImGui.Button("Step 100000"))
             {
-                int num = 100000;
-                while (num > 0 && !Gba.Arm7.Errored)
+                using (StreamWriter file = new StreamWriter("log.txt"))
                 {
-                    Gba.Step();
+                    int num = 100000;
+                    while (num > 0 && !Gba.Arm7.Errored)
+                    {
+                        Gba.Step();
 
-                    // file.WriteLine(BuildEmuFullText());
+                        file.WriteLine(BuildEmuFullText());
 
-                    LogIndex++;
-                    num--;
+                        LogIndex++;
+                        num--;
+                    }
                 }
             }
+
+            ImGui.Checkbox("Frame Step", ref FrameStep);
 
             ImGui.NextColumn();
             ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
@@ -508,7 +557,7 @@ namespace OptimeGBAEmulator
         {
             uint back = Gba.Arm7.ThumbState ? 16U : 32U;
 
-            int rows = 64;
+            int rows = 32;
             uint tempBase = Gba.Arm7.R15 - back;
 
             ImGui.Begin("Instruction Viewer");
@@ -516,8 +565,10 @@ namespace OptimeGBAEmulator
             {
                 if (Gba.Arm7.ThumbState)
                 {
-                    uint val = Gba.Mem.ReadDebug16(tempBase);
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)}";
+                    ushort val = Gba.Mem.ReadDebug16(tempBase);
+                    String disasm = DisasmThumb(val);
+
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
                     if (tempBase == Gba.Arm7.R15 - 2)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
@@ -531,21 +582,7 @@ namespace OptimeGBAEmulator
                 else
                 {
                     uint val = Gba.Mem.ReadDebug32(tempBase);
-                    Disassembler.EnableInstructionDetails = true;
-
-                    byte[] code = new byte[] {
-                            (byte)((val >> 0) & 0xFF),
-                            (byte)((val >> 8) & 0xFF),
-                            (byte)((val >> 16) & 0xFF),
-                            (byte)((val >> 24) & 0xFF),
-                        };
-
-                    String disasm = "";
-                    ArmInstruction[] instructions = Disassembler.Disassemble(code);
-                    foreach (ArmInstruction ins in instructions)
-                    {
-                        disasm = $"{ins.Mnemonic} {ins.Operand}";
-                    }
+                    String disasm = DisasmArm(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
                     if (tempBase == Gba.Arm7.R15 - 4)

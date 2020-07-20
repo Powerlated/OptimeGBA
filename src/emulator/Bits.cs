@@ -43,6 +43,19 @@ namespace OptimeGBA
             return (i & (1 << bit)) != 0;
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool BitTest(ulong i, byte bit)
+        {
+            return (i & (1u << bit)) != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool BitTest(long i, byte bit)
+        {
+            return (i & (1u << bit)) != 0;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint BitSet(uint i, byte bit)
         {
