@@ -230,7 +230,7 @@ void main()
 
             foreach (var c in PressedChars)
             {
-                io.AddInputCharacter(3);
+                io.AddInputCharacter(c);
             }
             PressedChars.Clear();
 

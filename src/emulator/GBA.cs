@@ -23,12 +23,13 @@ namespace OptimeGBA
 
         public uint Step() {
             Arm7.Execute();
-            // Tick(8);
+            Tick(4);
             return 8;
         }
 
         void Tick(uint cycles) {
-            Audio.Tick(cycles);
+            Lcd.Tick(cycles);
+            // Audio.Tick(cycles);
         }
     }
 }

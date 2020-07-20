@@ -8,6 +8,7 @@ using ImGuiNET;
 using ImGuiUtils;
 using static Util;
 using System.Collections.Generic;
+using System.Numerics;
 using OptimeGBA;
 
 namespace OptimeGBAEmulator
@@ -93,72 +94,28 @@ namespace OptimeGBAEmulator
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-
-            Random r = new Random();
-
-            byte[] image = new byte[256 * 160 * 3];
-            for (var i = 0; i < image.Length; i++)
-            {
-                image[i] = (byte)r.Next();
-            }
-
-            gbTexId = 0;
-
-            // GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-            GL.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                PixelInternalFormat.Rgb,
-                240,
-                160,
-                0,
-                PixelFormat.Rgb,
-                PixelType.UnsignedByte,
-                image
-            );
-
-            // GL.ActiveTexture(TextureUnit.Texture0);
-            // GL.BindTexture(TextureTarget.Texture2D, tsTexId);
-            // GL.TexImage2D(
-            //     TextureTarget.Texture2D,
-            //     0,
-            //     PixelInternalFormat.Rgb,
-            //     256,
-            //     96,
-            //     0,
-            //     PixelFormat.Rgb,
-            //     PixelType.UnsignedByte,
-            //     tsPixels
-            // );
-
-            #region Draw Window
-            GL.ClearColor(1f, 1f, 1f, 1f);
-            GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             _controller.Update(this, (float)e.Time);
-
-            ImGui.Begin("Display");
-            ImGui.Text($"Pointer: {gbTexId}");
-            ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
-            ImGui.End();
 
             ImGui.Begin("It's a tileset");
             ImGui.Text($"Pointer: {tsTexId}");
             ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
             ImGui.End();
 
-
+            DrawDisplay();
             DrawDebug();
             DrawMemoryViewer();
             DrawInstrViewer();
             DrawInstrInfo();
             DrawRegViewer();
 
+
+            GL.ClearColor(1f, 1f, 1f, 1f);
+            GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
             _controller.Render();
             GL.Flush();
 
             Context.SwapBuffers();
-            #endregion
 
             // shader.Use();
 
@@ -319,6 +276,32 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
+        public String BuildEmuFullText()
+        {
+            String text = "";
+            text += $"{HexN(Gba.Arm7.R0, 8)} ";
+            text += $"{HexN(Gba.Arm7.R1, 8)} ";
+            text += $"{HexN(Gba.Arm7.R2, 8)} ";
+            text += $"{HexN(Gba.Arm7.R3, 8)} ";
+            text += $"{HexN(Gba.Arm7.R4, 8)} ";
+            text += $"{HexN(Gba.Arm7.R5, 8)} ";
+            text += $"{HexN(Gba.Arm7.R6, 8)} ";
+            text += $"{HexN(Gba.Arm7.R7, 8)} ";
+            text += $"{HexN(Gba.Arm7.R8, 8)} ";
+            text += $"{HexN(Gba.Arm7.R9, 8)} ";
+            text += $"{HexN(Gba.Arm7.R10, 8)} ";
+            text += $"{HexN(Gba.Arm7.R11, 8)} ";
+            text += $"{HexN(Gba.Arm7.R12, 8)} ";
+            text += $"{HexN(Gba.Arm7.R13, 8)} ";
+            text += $"{HexN(Gba.Arm7.R14, 8)} ";
+            text += $"{HexN(Gba.Arm7.R15, 8)} ";
+            text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ";
+            text += $"{(Gba.Arm7.ThumbState ? Pad(HexN(Gba.Arm7.LastIns, 4), 8, ' ') : HexN(Gba.Arm7.LastIns, 8))} ";
+            text += $"> {LogIndex + 1}";
+            return text;
+        }
+
+
         int DebugStepFor = 0;
         byte[] text = new byte[4];
 
@@ -334,7 +317,6 @@ namespace OptimeGBAEmulator
             if (emuText != logText)
             {
                 ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.0f, 0.0f, 1.0f), emuText);
-                Gba.Arm7.Errored = true;
             }
             else
             {
@@ -346,11 +328,16 @@ namespace OptimeGBAEmulator
             ImGui.End();
         }
 
+
         public void DrawDebug()
         {
             ImGui.Begin("Debug");
 
-            ImGui.BeginChild("Registers", new System.Numerics.Vector2(200, 1000));
+            ImGui.BeginGroup();
+
+            ImGui.Columns(3);
+
+            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
             ImGui.Text($"R0:  {Hex(Gba.Arm7.R0, 8)}");
             ImGui.Text($"R1:  {Hex(Gba.Arm7.R1, 8)}");
             ImGui.Text($"R2:  {Hex(Gba.Arm7.R2, 8)}");
@@ -377,7 +364,8 @@ namespace OptimeGBAEmulator
             }
             if (ImGui.Button("Step Until Error"))
             {
-                while (!Gba.Arm7.Errored)
+                bool exit = false;
+                while (!Gba.Arm7.Errored && !exit)
                 {
 
                     Gba.Step();
@@ -385,24 +373,31 @@ namespace OptimeGBAEmulator
 
                     if (BuildEmuText() != BuildLogText())
                     {
-                        Gba.Arm7.Errored = true;
+                        exit = true;
                     }
-
                 }
             }
-            ImGui.InputText("sdfdsffs", text, 4);
+            ImGui.InputText("", text, 4);
             ImGui.InputInt("", ref DebugStepFor);
-            ImGui.SameLine(); if (ImGui.Button("Step For"))
+            if (ImGui.Button("Step For"))
             {
-                while (DebugStepFor > 0)
+                using (StreamWriter file = new StreamWriter("log.txt"))
                 {
-                    Gba.Step();
-                    LogIndex++;
-                    DebugStepFor--;
+                    int num = DebugStepFor;
+                    while (num > 0 && !Gba.Arm7.Errored)
+                    {
+                        Gba.Step();
+
+                        file.WriteLine(BuildEmuFullText());
+
+                        LogIndex++;
+                        num--;
+                    }
                 }
             }
 
-            ImGui.EndChild();
+            ImGui.NextColumn();
+            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
             bool negative = Gba.Arm7.Negative;
             bool zero = Gba.Arm7.Zero;
@@ -413,9 +408,6 @@ namespace OptimeGBAEmulator
             bool fiqDisable = Gba.Arm7.FIQDisable;
             bool thumbState = Gba.Arm7.ThumbState;
 
-            ImGui.SameLine();
-
-            ImGui.BeginChild("CPSR Flags", new System.Numerics.Vector2(200, 1000));
             ImGui.Checkbox("Negative", ref negative);
             ImGui.Checkbox("Zero", ref zero);
             ImGui.Checkbox("Carry", ref carry);
@@ -441,8 +433,62 @@ namespace OptimeGBAEmulator
             ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
             ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
 
+            ImGui.EndGroup();
 
-            ImGui.EndChild();
+            ImGui.NextColumn();
+
+            ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
+            ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
+            ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
+
+
+            ImGui.Columns(1);
+            ImGui.Separator();
+
+            ImGui.Text("Palettes");
+
+            byte[] image = new byte[16 * 16 * 3];
+
+            for (int p = 0; p < 256; p++)
+            {
+                byte b0 = Gba.Lcd.Palettes[(p * 2) + 0];
+                byte b1 = Gba.Lcd.Palettes[(p * 2) + 1];
+
+                ushort data = (ushort)((b1 << 8) | b0);
+
+                byte r = (byte)((data >> 0) & 0b11111);
+                byte g = (byte)((data >> 5) & 0b11111);
+                byte b = (byte)((data >> 10) & 0b11111);
+
+                int imgBase = p * 3;
+                image[imgBase + 0] = (byte)(r * (255 / 31));
+                image[imgBase + 1] = (byte)(g * (255 / 31));
+                image[imgBase + 2] = (byte)(b * (255 / 31));
+            }
+
+            int texId = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, texId);
+
+            // TexParameter needed for something to display :)
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+
+            GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+            GL.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                PixelInternalFormat.Rgb,
+                16,
+                16,
+                0,
+                PixelFormat.Rgb,
+                PixelType.UnsignedByte,
+                image
+            );
+
+            // ImGui.Text($"Pointer: {texId}");
+            ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
+
             ImGui.End();
         }
 
@@ -493,6 +539,32 @@ namespace OptimeGBAEmulator
                     tempBase += 4;
                 }
             }
+        }
+
+        public void DrawDisplay()
+        {
+            Random r = new Random();
+
+            gbTexId = 0;
+
+            // GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2D, gbTexId);
+            GL.TexImage2D(
+                TextureTarget.Texture2D,
+                0,
+                PixelInternalFormat.Rgb,
+                240,
+                160,
+                0,
+                PixelFormat.Rgb,
+                PixelType.UnsignedByte,
+                Gba.Lcd.Screen
+            );
+
+
+            ImGui.Begin("Display");
+            ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
+            ImGui.End();
         }
 
         public List<Register> Registers = new List<Register>();
@@ -553,6 +625,19 @@ namespace OptimeGBAEmulator
                         new RegisterField("OBJ Window Display Flag", 15),
                     }
                 ));
+
+            Registers.Add(
+                new Register("DISPSTAT - General LCD Status", 0x4000004,
+                    new RegisterField[] {
+                        new RegisterField("V-Blank flag", 0),
+                        new RegisterField("H-Blank flag", 1),
+                        new RegisterField("V-Counter flag", 2),
+                        new RegisterField("V-Blank IRQ Enable", 3),
+                        new RegisterField("H-Blank IRQ Enable", 4),
+                        new RegisterField("V-Counter IRQ Enable", 5),
+                        new RegisterField("V-Count Setting", 8, 15),
+               }
+           ));
 
             RegViewerSelected = Registers[0];
         }

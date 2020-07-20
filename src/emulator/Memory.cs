@@ -73,19 +73,19 @@ namespace OptimeGBA
                 {
                     // Palette RAM
                     PaletteReads++;
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
                 else if (addr >= 0x06000000 && addr <= 0x06017FFF)
                 {
                     // VRAM
                     VramReads++;
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
                 else if (addr >= 0x07000000 && addr <= 0x070003FF)
                 {
                     // OAM
                     OamReads++;
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
             }
 
@@ -154,17 +154,17 @@ namespace OptimeGBA
                 if (addr >= 0x05000000 && addr <= 0x050003FF)
                 {
                     // Palette RAM
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
                 else if (addr >= 0x06000000 && addr <= 0x06017FFF)
                 {
                     // VRAM
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
                 else if (addr >= 0x07000000 && addr <= 0x070003FF)
                 {
                     // OAM
-                    return 0;
+                    return Gba.Lcd.Read8(addr);
                 }
             }
 
@@ -236,16 +236,19 @@ namespace OptimeGBA
                 {
                     // Palette RAM
                     PaletteWrites++;
+                    Gba.Lcd.Write8(addr, val);
                 }
                 else if (addr >= 0x06000000 && addr <= 0x06017FFF)
                 {
                     // VRAM
                     VramWrites++;
+                    Gba.Lcd.Write8(addr, val);
                 }
                 else if (addr >= 0x07000000 && addr <= 0x070003FF)
                 {
                     // OAM
                     OamWrites++;
+                    Gba.Lcd.Write8(addr, val);
                 }
             }
 
@@ -282,7 +285,7 @@ namespace OptimeGBA
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
             {
-                return Gba.Lcd.Read8(addr);
+                return Gba.Lcd.ReadHwio8(addr);
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
             {
@@ -302,7 +305,7 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
             {
-
+                return 0xFF; 
             }
             else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
             {
@@ -319,7 +322,7 @@ namespace OptimeGBA
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
             {
-                Gba.Lcd.Write8(addr, val);
+                Gba.Lcd.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
             {

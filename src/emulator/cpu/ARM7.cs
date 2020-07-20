@@ -206,10 +206,10 @@ namespace OptimeGBA
                     {
                         LineDebug("PSR Transfer (MRS, MSR)");
                         // MSR
-                        uint UnallocMask = 0x0FFFFF00;
+                        // uint UnallocMask = 0x0FFFFF00;
                         uint UserMask = 0xF0000000;
                         uint PrivMask = 0x0000000F;
-                        uint StateMask = 0x00000020;
+                        // uint StateMask = 0x00000020;
 
                         bool writeSPSR = BitTest(ins, 22);
 
@@ -379,7 +379,7 @@ namespace OptimeGBA
                         LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
 
                     }
-                    else if ((ins & 0b1110000000000000000000000000) == 0b0010000000000000000000000000) // Data Processing // ALU
+                    else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
                     {
                         // Bits 27, 26 are 0, so data processing / ALU
                         LineDebug("Data Processing / FSR Transfer");
@@ -390,19 +390,8 @@ namespace OptimeGBA
                         uint rn = (ins >> 16) & 0xF; // Rn
                         uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
 
-                        uint regShiftId = (ins >> 8) & 0b1111;
-                        uint immShift = (ins >> 7) & 0b11111;
-
                         // ----- When using register as 2nd operand -----
                         // Shift by immediate or shift by register
-                        bool shiftByReg = (ins & BIT_4) != 0;
-                        LineDebug($"Shift by reg: {shiftByReg}");
-
-                        uint op2Reg = ins & 0b1111;
-
-                        // ----- When using immediate as 2nd operand -----
-                        uint operandShift = (ins >> 8) & 0b1111;
-                        uint operand = ins & 0b11111111;
 
                         uint shifterOperand = 0;
 
@@ -419,7 +408,7 @@ namespace OptimeGBA
                         {
                             bool regShift = (ins & BIT_4) != 0;
 
-                            uint rm = ins & 0xF;
+                            uint rmVal = GetReg(ins & 0xF);
                             byte shiftBits;
                             uint shiftType = (ins >> 5) & 0b11;
 
@@ -438,16 +427,16 @@ namespace OptimeGBA
                             switch (shiftType)
                             {
                                 case 0b00:
-                                    shifterOperand = LogicalShiftLeft32(rm, shiftBits);
+                                    shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
                                     break;
                                 case 0b01:
-                                    shifterOperand = LogicalShiftRight32(rm, shiftBits);
+                                    shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
                                     break;
                                 case 0b10:
-                                    shifterOperand = ArithmeticShiftRight32(rm, shiftBits);
+                                    shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
                                     break;
                                 case 0b11:
-                                    shifterOperand = RotateRight32(rm, shiftBits);
+                                    shifterOperand = RotateRight32(rmVal, shiftBits);
                                     break;
                             }
 
@@ -478,6 +467,47 @@ namespace OptimeGBA
                                     }
                                 }
                                 break;
+                            case 0x1: // EOR
+                                {
+                                    LineDebug("EOR");
+
+                                    uint rnValue = GetReg(rn);
+
+                                    uint final = rnValue ^ shifterOperand;
+                                    SetReg(rd, final);
+                                    if (setFlags && rd == 15)
+                                    {
+                                        // TODO: CPSR = SPSR if current mode has SPSR
+                                    }
+                                    else if (setFlags)
+                                    {
+                                        Negative = BitTest(final, 31);
+                                        Zero = final == 0;
+                                        Carry = BitTest(final, 31);
+                                    }
+                                }
+                                break;
+                            case 0x2: // SUB
+                                {
+                                    LineDebug("SUB");
+
+                                    uint rnValue = GetReg(rn);
+                                    uint final = rnValue - shifterOperand;
+
+                                    SetReg(rd, final);
+                                    if (setFlags && rd == 15)
+                                    {
+                                        // TODO: CPSR = SPSR if current mode has SPSR
+                                    }
+                                    else if (setFlags)
+                                    {
+                                        Negative = BitTest(final, 31); // N
+                                        Zero = final == 0; // Z
+                                        Carry = (shifterOperand > rnValue); // C
+                                        Overflow = (shifterOperand > rnValue); // V
+                                    }
+                                }
+                                break;
                             case 0x4: // ADD
                                 {
                                     LineDebug("ADD");
@@ -495,6 +525,26 @@ namespace OptimeGBA
                                         Zero = final == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
                                         Overflow = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // V
+                                    }
+                                }
+                                break;
+                            case 0x5: // ADC
+                                {
+                                    LineDebug("ADC");
+
+                                    uint rnValue = GetReg(rn);
+                                    uint final = rnValue + shifterOperand + (Carry ? 1U : 0);
+                                    SetReg(rd, final);
+                                    if (setFlags && rd == 15)
+                                    {
+                                        // TODO: CPSR = SPSR if current mode has SPSR
+                                    }
+                                    else if (setFlags)
+                                    {
+                                        Negative = BitTest(final, 31); // N
+                                        Zero = final == 0; // Z
+                                        Carry = (long)rnValue + (long)shifterOperand + (Carry ? 1U : 0) > 0xFFFFFFFFL; // C
+                                        Overflow = (long)rnValue + (long)shifterOperand + (Carry ? 1U : 0) > 0xFFFFFFFFL; // V
                                     }
                                 }
                                 break;
@@ -517,6 +567,17 @@ namespace OptimeGBA
                                         Carry = (shifterOperand + (!Carry ? 1U : 0U) > rnValue); // C
                                         Overflow = (shifterOperand + (!Carry ? 1U : 0U) > rnValue); // V
                                     }
+                                }
+                                break;
+                            case 0x8: // TST
+                                {
+                                    LineDebug("TST");
+
+                                    uint rnValue = GetReg(rn);
+                                    uint final = rnValue & shifterOperand;
+
+                                    Negative = BitTest(final, 31);
+                                    Zero = final == 0;
                                 }
                                 break;
                             case 0x9: // TEQ
@@ -550,6 +611,26 @@ namespace OptimeGBA
                                     }
                                 }
                                 break;
+                            case 0xC: // ORR
+                                {
+                                    LineDebug("ORR");
+
+                                    uint rnValue = GetReg(rn);
+
+                                    uint final = rnValue | shifterOperand;
+                                    SetReg(rd, final);
+                                    if (setFlags && rd == 15)
+                                    {
+                                        // TODO: CPSR = SPSR if current mode has SPSR
+                                    }
+                                    else if (setFlags)
+                                    {
+                                        Negative = BitTest(final, 31);
+                                        Zero = final == 0;
+                                        Carry = BitTest(final, 31);
+                                    }
+                                }
+                                break;
                             case 0xD: // MOV
                                 {
                                     LineDebug("MOV");
@@ -566,6 +647,11 @@ namespace OptimeGBA
                                         {
                                             // TODO: Set CPSR to SPSR here
                                         }
+                                    }
+
+                                    if (rd == 15)
+                                    {
+                                        Pipeline = 0;
                                     }
                                 }
                                 break;
@@ -594,7 +680,7 @@ namespace OptimeGBA
 
 
                     }
-                    else if ((ins & 0b1100010000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
+                    else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
                     {
                         // LDR/STR (Load Register)/(Store Register)
                         LineDebug("LDR/STR (Load Register)/(Store Register)");
@@ -690,70 +776,73 @@ namespace OptimeGBA
                             SetReg(rn, addr);
                         }
                     }
-                    else if ((ins & 0b1110010100000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
+                    else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
                     {
                         LineDebug("LDM / STM");
 
-                        // TODO: Implement transferring user mode instead of current mode registers for other modes
+                        bool P = BitTest(ins, 24); // post-indexed / offset addressing 
+                        bool U = BitTest(ins, 23); // invert
+                        bool S = BitTest(ins, 22);
+                        bool W = BitTest(ins, 21);
+                        bool L = BitTest(ins, 20);
 
-
-                        bool load = BitTest(ins, 20);
-                        bool writebackBase = BitTest(ins, 21);
-                        bool transferUserModeInsteadOfModeRegisters = BitTest(ins, 22);
-                        if (transferUserModeInsteadOfModeRegisters && Mode != ARM7Mode.User) throw new Exception("FIXME pls");
-                        bool upwardsTransfer = BitTest(ins, 23);
-                        // Indicates that the word addressed by Rn is outside of memory locations addressed
-                        bool rnExclusive = BitTest(ins, 24);
+                        if (S && (Mode == ARM7Mode.System || Mode == ARM7Mode.User))
+                            throw new Exception("Implement CPSR transfer from SPSR for PC loads not in User and System mode.");
 
                         uint rn = (ins >> 16) & 0xF;
+
                         uint addr = GetReg(rn);
 
                         String regs = "";
 
-                        LineDebug(load ? "LOAD" : "STORE");
-
-                        for (uint r = 0; r < 16; r++)
+                        if (U)
                         {
-                            if (BitTest(ins, (byte)r))
+                            for (byte r = 0; r < 16; r++)
                             {
-                                regs += $"R{r} ";
-
-                                if (rnExclusive)
+                                if (BitTest(ins, r))
                                 {
-                                    if (upwardsTransfer)
-                                    {
-                                        addr += 4;
+                                    regs += $"R{r} ";
+
+                                    if (P) addr += 4;
+
+                                    if (L)
+                                    { // Load
+                                        SetReg(r, Gba.Mem.Read32(addr));
                                     }
                                     else
-                                    {
-                                        addr -= 4;
+                                    { // Store
+                                        Gba.Mem.Write32(addr, GetReg(r));
                                     }
-                                }
 
-                                if (load)
-                                {
-                                    SetReg(r, Gba.Mem.Read32(addr));
+                                    if (!P) addr += 4;
                                 }
-                                else
+                            }
+                        }
+                        else
+                        {
+                            for (byte r = 15; r > 0; r--)
+                            {
+                                if (BitTest(ins, r))
                                 {
-                                    Gba.Mem.Write32(addr, GetReg(r));
-                                }
+                                    regs += $"R{r} ";
 
-                                if (!rnExclusive)
-                                {
-                                    if (upwardsTransfer)
-                                    {
-                                        addr += 4;
+                                    if (P) addr -= 4;
+
+                                    if (L)
+                                    { // Load
+                                        SetReg(r, Gba.Mem.Read32(addr));
                                     }
                                     else
-                                    {
-                                        addr -= 4;
+                                    { // Store
+                                        Gba.Mem.Write32(addr, GetReg(r));
                                     }
+
+                                    if (!P) addr -= 4;
                                 }
                             }
                         }
 
-                        if (writebackBase)
+                        if (W)
                         {
                             SetReg(rn, addr);
                         }
@@ -785,6 +874,7 @@ namespace OptimeGBA
 
                 ushort ins = THUMBDecode;
                 Pipeline--;
+                LastIns = ins;
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
@@ -1375,8 +1465,24 @@ namespace OptimeGBA
                     return !Carry;
                 case 0x4: // Signed Negative, Minus, N=1
                     return Negative;
+                case 0x5: // Signed Positive or Zero, Plus, N=0
+                    return !Negative;
+                case 0x6: // Signed Overflow, V=1
+                    return Overflow;
+                case 0x7: // Signed No Overflow, V=0
+                    return !Overflow;
+                case 0x8: // Unsigned Higher, C=1 && Z=0
+                    return Carry && !Zero;
+                case 0x9: // Unsigned Lower or Same
+                    return !Carry || Zero;
+                case 0xA: // Signed Greater or Equal
+                    return Negative == Overflow;
+                case 0xB: // Signed Less Than
+                    return Negative != Overflow;
+                case 0xC: // Signed Greater Than
+                    return !Zero && Negative == Overflow;
                 case 0xD: // Signed less or Equal, Z=1 or N!=V
-                    return Zero || (Overflow != Negative);
+                    return Zero || (Negative != Overflow);
                 case 0xE: // Always
                     return true;
                 default:
