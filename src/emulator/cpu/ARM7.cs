@@ -351,8 +351,24 @@ namespace OptimeGBA
                         {
                             LineDebug("Accumulate");
 
-                            longLo = (rmVal * rsVal) + GetReg(rdLo);
-                            longHi = ((rmVal * rsVal) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                            if (signed)
+                            {
+                                long rmValExt = (long)rmVal;
+                                long rsValExt = (long)rsVal;
+
+                                const long sub = (1L << 32);
+
+                                if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
+                                if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
+
+                                longLo = (ulong)((rsValExt * rmValExt) + GetReg(rdLo));
+                                longHi = (ulong)((rsValExt * rmValExt) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                            }
+                            else
+                            {
+                                longLo = (rmVal * rsVal) + GetReg(rdLo);
+                                longHi = ((rmVal * rsVal) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                            }
                         }
                         else
                         {
@@ -365,16 +381,8 @@ namespace OptimeGBA
 
                                 const long sub = (1L << 32);
 
-                                if ((rmVal & (1u << 31)) != 0)
-                                {
-                                    rmValExt -= sub;
-                                    Error("RM EXT");
-                                }
-                                if ((rsVal & (1u << 31)) != 0)
-                                {
-                                    rsValExt -= sub;
-                                    Error("RS EXT");
-                                }
+                                if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
+                                if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
 
                                 longLo = (ulong)((rsValExt * rmValExt));
                                 longHi = (ulong)((rsValExt * rmValExt) >> 32);
@@ -561,14 +569,15 @@ namespace OptimeGBA
                         {
                             bool regShift = (ins & BIT_4) != 0;
 
-                            uint rmVal = GetReg(ins & 0xF);
+                            uint rm = ins & 0xF;
+                            uint rmVal = GetReg(rm);
                             byte shiftBits;
                             uint shiftType = (ins >> 5) & 0b11;
 
                             if (!regShift)
                             {
                                 // Immediate Shift
-                                shiftBits = (byte)((ins >> 7) & 0b11111);
+                                shiftBits = (byte)((ins >> 7)  & 0b11111);
 
                                 switch (shiftType)
                                 {
@@ -633,7 +642,14 @@ namespace OptimeGBA
                             {
                                 // Register shift
                                 uint rs = (ins >> 8) & 0xF;
-                                shiftBits = (byte)(GetReg(rs) & 0b11111111);
+                                uint rsVal = GetReg(rs);
+
+                                if (rs == 15) rsVal += 4;
+                                if (rm == 15) rmVal += 4;
+
+                                shiftBits = (byte)(rsVal & 0b11111111);
+
+        
 
                                 switch (shiftType)
                                 {
@@ -653,7 +669,7 @@ namespace OptimeGBA
                                             shifterOperand = 0;
                                             shifterCarryOut = BitTest(rmVal, 0);
                                         }
-                                        else if (shiftBits > 32)
+                                        else
                                         {
                                             shifterOperand = 0;
                                             shifterCarryOut = false;
@@ -675,7 +691,7 @@ namespace OptimeGBA
                                             shifterOperand = 0;
                                             shifterCarryOut = BitTest(rmVal, 0);
                                         }
-                                        else if (shiftBits > 32)
+                                        else
                                         {
                                             shifterOperand = 0;
                                             shifterCarryOut = false;
