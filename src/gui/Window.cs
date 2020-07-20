@@ -388,11 +388,25 @@ namespace OptimeGBAEmulator
                     {
                         Gba.Step();
 
-                        file.WriteLine(BuildEmuFullText());
+                        // file.WriteLine(BuildEmuFullText());
 
                         LogIndex++;
                         num--;
                     }
+                }
+            }
+
+            if (ImGui.Button("Step 100000"))
+            {
+                int num = 100000;
+                while (num > 0 && !Gba.Arm7.Errored)
+                {
+                    Gba.Step();
+
+                    // file.WriteLine(BuildEmuFullText());
+
+                    LogIndex++;
+                    num--;
                 }
             }
 
@@ -451,19 +465,10 @@ namespace OptimeGBAEmulator
 
             for (int p = 0; p < 256; p++)
             {
-                byte b0 = Gba.Lcd.Palettes[(p * 2) + 0];
-                byte b1 = Gba.Lcd.Palettes[(p * 2) + 1];
-
-                ushort data = (ushort)((b1 << 8) | b0);
-
-                byte r = (byte)((data >> 0) & 0b11111);
-                byte g = (byte)((data >> 5) & 0b11111);
-                byte b = (byte)((data >> 10) & 0b11111);
-
                 int imgBase = p * 3;
-                image[imgBase + 0] = (byte)(r * (255 / 31));
-                image[imgBase + 1] = (byte)(g * (255 / 31));
-                image[imgBase + 2] = (byte)(b * (255 / 31));
+                image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
+                image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
+                image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
             }
 
             int texId = GL.GenTexture();

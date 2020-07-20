@@ -44,11 +44,30 @@ namespace OptimeGBA
 
         // RGB, 24-bit
         public byte[] Screen = new byte[240 * 160 * 3];
+        const uint WIDTH = 240;
+        const uint HEIGHT = 160;
+        const uint BYTES_PER_PIXEL = 3;
 
         public byte[] Palettes = new byte[1024];
+        public byte[,] ProcessedPalettes = new byte[512, 3];
         public byte[] Vram = new byte[98304];
         public byte[] Oam = new byte[1024];
 
+        public void UpdatePalette(uint pal)
+        {
+            byte b0 = Palettes[(pal * 2) + 0];
+            byte b1 = Palettes[(pal * 2) + 1];
+
+            ushort data = (ushort)((b1 << 8) | b0);
+
+            byte r = (byte)((data >> 0) & 0b11111);
+            byte g = (byte)((data >> 5) & 0b11111);
+            byte b = (byte)((data >> 10) & 0b11111);
+
+            ProcessedPalettes[pal, 0] = (byte)(r * (255/31));
+            ProcessedPalettes[pal, 1] = (byte)(g * (255/31));
+            ProcessedPalettes[pal, 2] = (byte)(b * (255/31));
+        }
 
         public byte Read8(uint addr)
         {
@@ -72,6 +91,7 @@ namespace OptimeGBA
             if (addr >= 0x05000000 && addr <= 0x050003FF)
             {
                 Palettes[addr - 0x05000000] = val;
+                UpdatePalette((addr - 0x05000000) / 2);
             }
             else if (addr >= 0x06000000 && addr <= 0x06017FFF)
             {
@@ -216,7 +236,6 @@ namespace OptimeGBA
                         {
                             HBlank = true;
                             lcdEnum = LCDEnum.HBlank;
-                            RenderScanline();
                         }
                     }
                     break;
@@ -236,7 +255,20 @@ namespace OptimeGBA
 
         public void RenderMode4()
         {
+            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint vramBase = 0x0 + (VCount * WIDTH);
 
+            for (uint p = 0; p < WIDTH; p++)
+            {
+                uint vramVal = Vram[vramBase];
+
+                Screen[screenBase + 0] = ProcessedPalettes[vramVal + 1,0];
+                Screen[screenBase + 1] = ProcessedPalettes[vramVal + 1,1];
+                Screen[screenBase + 2] = ProcessedPalettes[vramVal + 1,2];
+
+                vramBase++;
+                screenBase += BYTES_PER_PIXEL; 
+            }
         }
     }
 }

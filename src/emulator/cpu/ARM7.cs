@@ -123,7 +123,7 @@ namespace OptimeGBA
         {
             ResetDebug();
 
-            if (!ThumbState)
+            if (!ThumbState) // ARM mode
             {
                 // Current Instruction Fetch
 
@@ -143,9 +143,13 @@ namespace OptimeGBA
                     Pipeline++;
                 }
 
+
+
                 uint ins = ARMDecode;
                 Pipeline--;
                 LastIns = ins;
+
+
 
                 LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
                 LineDebug($"Cond: ${ins >> 28:X}");
@@ -156,7 +160,7 @@ namespace OptimeGBA
 
                 if (conditionMet)
                 {
-                    if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000)
+                    if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
                     {
                         LineDebug("B | Branch");
                         // B
@@ -263,6 +267,44 @@ namespace OptimeGBA
                             Error("Attempted using SPSR MSR");
                         }
 
+                    }
+                    else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
+                    {
+
+                        uint rd = (ins >> 16) & 0xF;
+                        uint rs = (ins >> 8) & 0xF;
+                        uint rm = (ins >> 0) & 0xF;
+                        uint rsValue = GetReg(rs);
+                        uint rmValue = GetReg(rm);
+
+                        LineDebug($"R{rm} * R{rs}");
+                        LineDebug($"${Util.HexN(rmValue, 8)} * ${Util.HexN(rsValue, 8)}");
+
+                        bool setFlags = BitTest(ins, 20);
+
+                        uint final;
+                        if (BitTest(ins, 21))
+                        {
+                            uint rnValue = GetReg((ins >> 12) & 0xF);
+                            LineDebug("Multiply Accumulate");
+                            final = (rsValue * rmValue) + rnValue;
+                        }
+                        else
+                        {
+                            LineDebug("Multiply Regular");
+                            final = rsValue * rmValue;
+                        }
+                        SetReg(rd, final);
+
+                        if (setFlags)
+                        {
+                            Negative = BitTest(final, 31);
+                            Zero = final == 0;
+                        }
+                    }
+                    else if ((ins & 0b1111100000000000000011110000) == 0b0000100000000000000010010000) // Multiply Long
+                    {
+                        // throw new Exception("Multiply Long");
                     }
                     else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
                     {
@@ -569,6 +611,27 @@ namespace OptimeGBA
                                     }
                                 }
                                 break;
+                            case 0x7: // RSC
+                                {
+                                    LineDebug("RSC");
+
+                                    uint rnValue = GetReg(rn);
+                                    uint final = shifterOperand - rnValue - (!Carry ? 1U : 0U);
+
+                                    SetReg(rd, final);
+                                    if (setFlags && rd == 15)
+                                    {
+                                        // TODO: CPSR = SPSR if current mode has SPSR
+                                    }
+                                    else if (setFlags)
+                                    {
+                                        Negative = BitTest(final, 31); // N
+                                        Zero = final == 0; // Z
+                                        Carry = (rnValue + (!Carry ? 1U : 0U) > shifterOperand); // C
+                                        Overflow = (rnValue + (!Carry ? 1U : 0U) > shifterOperand); // V
+                                    }
+                                }
+                                break;
                             case 0x8: // TST
                                 {
                                     LineDebug("TST");
@@ -596,7 +659,6 @@ namespace OptimeGBA
                                 break;
                             case 0xA: // CMP
                                       // SBZ means should be zero, not relevant to the current code, just so you know
-
                                 {
                                     LineDebug("CMP");
 
@@ -608,6 +670,21 @@ namespace OptimeGBA
                                         Zero = aluOut == 0; // Z
                                         Carry = !(shifterOperand > reg); // C
                                         Overflow = shifterOperand > reg; // V
+                                    }
+                                }
+                                break;
+                            case 0xB: // CMN
+                                {
+                                    LineDebug("CMN");
+
+                                    uint rnValue = GetReg(rn);
+                                    uint aluOut = rnValue - ~shifterOperand;
+                                    if (setFlags)
+                                    {
+                                        Negative = BitTest(aluOut, 31); // N
+                                        Zero = aluOut == 0; // Z
+                                        Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
+                                        Overflow = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // V
                                     }
                                 }
                                 break;
@@ -670,6 +747,30 @@ namespace OptimeGBA
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
                                         Carry = BitTest(final, 31); // C
+                                    }
+                                }
+                                break;
+                            case 0xF: // MVN
+                                {
+                                    LineDebug("MVN");
+
+                                    SetReg(rd /*Rd*/, ~shifterOperand);
+                                    if (setFlags)
+                                    {
+                                        Negative = BitTest(~shifterOperand, 31); // N
+                                        Zero = ~shifterOperand == 0; // Z
+                                        Carry = BitTest(~shifterOperand, 31); // C
+
+
+                                        if (rd == 15)
+                                        {
+                                            // TODO: Set CPSR to SPSR here
+                                        }
+                                    }
+
+                                    if (rd == 15)
+                                    {
+                                        Pipeline = 0;
                                     }
                                 }
                                 break;
@@ -789,6 +890,10 @@ namespace OptimeGBA
                         if (S && (Mode == ARM7Mode.System || Mode == ARM7Mode.User))
                             throw new Exception("Implement CPSR transfer from SPSR for PC loads not in User and System mode.");
 
+                        LineDebug(L ? "Load" : "Store");
+                        LineDebug(P ? "No Include Base" : "Include Base");
+                        LineDebug(U ? "Upwards" : "Downwards");
+
                         uint rn = (ins >> 16) & 0xF;
 
                         uint addr = GetReg(rn);
@@ -820,8 +925,9 @@ namespace OptimeGBA
                         }
                         else
                         {
-                            for (byte r = 15; r > 0; r--)
+                            for (byte ri = 0; ri < 16; ri++)
                             {
+                                byte r = (byte)(ri ^ 0b1111);
                                 if (BitTest(ins, r))
                                 {
                                     regs += $"R{r} ";
@@ -856,7 +962,7 @@ namespace OptimeGBA
                 }
 
             }
-            else
+            else // THUMB mode
             {
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
 

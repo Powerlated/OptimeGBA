@@ -9,6 +9,16 @@ namespace OptimeGBA
         public Memory(GBA gba)
         {
             Gba = gba;
+
+            for (uint i = 0; i < Ewram.Length; i++)
+            {
+                Ewram[i] = 0x69;
+            }
+
+            for (uint i = 0; i < Iwram.Length; i++)
+            {
+                Iwram[i] = 0x69;
+            }
         }
 
         public long EwramWrites = 0;
@@ -305,7 +315,10 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
             {
-                return 0xFF; 
+                switch (addr) {
+                    case 0x4000130: return 0x03;
+                    case 0x4000131: return 0xFF;
+                }
             }
             else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
             {
