@@ -9,6 +9,7 @@
     <OldToolsVersion>Current</OldToolsVersion>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Gee.External.Capstone" Version="2.0.2" />
     <PackageReference Include="ImageSharp" Version="0.0.0" />
     <PackageReference Include="Imgui.net" Version="1.75.0" />
     <PackageReference Include="ManagedBass" Version="2.0.4" />

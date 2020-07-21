@@ -36,7 +36,7 @@ namespace OptimeGBAEmulator
         {
             Gba = gba;
 
-            string file = System.IO.File.ReadAllText("./mgba-armwrestler-log.txt");
+            string file = System.IO.File.ReadAllText("./mgba-fuzzer-log.txt");
             Log = file.Split('\n');
 
             SetupRegViewer();
@@ -428,6 +428,22 @@ namespace OptimeGBAEmulator
                 Gba.Step();
                 LogIndex++;
             }
+            if (ImGui.Button("Step Until Error"))
+            {
+                bool exit = false;
+                while (!Gba.Arm7.Errored && !exit)
+                {
+
+                    Gba.Step();
+                    LogIndex++;
+
+                    if (BuildEmuText() != BuildLogText())
+                    {
+                        exit = true;
+                    }
+                }
+            }
+
             ImGui.InputText("", text, 4);
             ImGui.InputInt("", ref DebugStepFor);
             if (ImGui.Button("Step For"))
