@@ -104,7 +104,7 @@ namespace OptimeGBAEmulator
 
             if (FrameStep)
             {
-                int num = 10000;
+                int num = 20000;
                 while (num > 0 && !Gba.Arm7.Errored)
                 {
                     Gba.Step();
@@ -414,7 +414,7 @@ namespace OptimeGBAEmulator
             ImGui.Text($"R14: {Hex(Gba.Arm7.R14, 8)}");
             ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
             ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
-            ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, 8)}");
+            ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
             ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
 
             ImGui.Text($"");

@@ -596,7 +596,8 @@ namespace OptimeGBA
                             SetReg(rn, addr);
                         }
 
-                        if (L) {
+                        if (L)
+                        {
                             SetReg(rd, loadVal);
                         }
 
@@ -1447,6 +1448,7 @@ namespace OptimeGBA
             {
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
 
+
                 // Fill the pipeline if it's not full
                 FillPipelineThumb();
 
@@ -1465,9 +1467,21 @@ namespace OptimeGBA
                     uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                     uint addr = rnValue + (immed5 * 4);
+                    if ((addr & 0b11) != 0)
+                    {
+                        // Misaligned
+                        uint readAddr = addr & ~0b11U;
+                        uint readVal = Gba.Mem.Read32(readAddr);
+                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                    }
+                    else
+                    {
+                        uint readVal = Gba.Mem.Read32(addr);
+                        SetReg(rd, readVal);
+                    }
+
                     LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
-                    SetReg(rd, Gba.Mem.Read32(addr));
                 }
                 else if ((ins & 0b1111111000000000) == 0b0101100000000000) // LDR (2)
                 {
@@ -1482,7 +1496,18 @@ namespace OptimeGBA
 
                     uint addr = rnVal + rmVal;
 
-                    SetReg(rd, Gba.Mem.Read32(addr));
+                    if ((addr & 0b11) != 0)
+                    {
+                        // Misaligned
+                        uint readAddr = addr & ~0b11U;
+                        uint readVal = Gba.Mem.Read32(readAddr);
+                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                    }
+                    else
+                    {
+                        uint readVal = Gba.Mem.Read32(addr);
+                        SetReg(rd, readVal);
+                    }
                 }
                 else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3)
                 {
@@ -1492,9 +1517,18 @@ namespace OptimeGBA
                     uint immed8 = (uint)((ins >> 0) & 0xFF);
 
                     uint addr = (R15 & 0xFFFFFFFC) + (immed8 * 4);
-                    LineDebug($"Addr: {Util.HexN(addr, 8)}");
-
-                    SetReg(rd, Gba.Mem.Read32(addr));
+                    if ((addr & 0b11) != 0)
+                    {
+                        // Misaligned
+                        uint readAddr = addr & ~0b11U;
+                        uint readVal = Gba.Mem.Read32(readAddr);
+                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                    }
+                    else
+                    {
+                        uint readVal = Gba.Mem.Read32(addr);
+                        SetReg(rd, readVal);
+                    }
                 }
                 else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4)
                 {
@@ -1505,8 +1539,18 @@ namespace OptimeGBA
                     uint rdVal = GetReg(rd);
 
                     uint addr = R13 + (immed8 * 4);
-
-                    SetReg(rd, Gba.Mem.Read32(addr));
+                    if ((addr & 0b11) != 0)
+                    {
+                        // Misaligned
+                        uint readAddr = addr & ~0b11U;
+                        uint readVal = Gba.Mem.Read32(readAddr);
+                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                    }
+                    else
+                    {
+                        uint readVal = Gba.Mem.Read32(addr);
+                        SetReg(rd, readVal);
+                    }
                 }
                 else if ((ins & 0b1111100000000000) == 0b0110000000000000) // STR (1)
                 {
@@ -1546,6 +1590,8 @@ namespace OptimeGBA
                 }
                 else if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
                 {
+                    bool usePc = BitTest(ins, 8);
+
                     if (BitTest(ins, 11))
                     {
                         LineDebug("POP");
@@ -1553,25 +1599,25 @@ namespace OptimeGBA
                         String regs = "";
                         uint addr = R13;
 
-                        if (BitTest(ins, 0)) { addr += 4; }
-                        if (BitTest(ins, 1)) { addr += 4; }
-                        if (BitTest(ins, 2)) { addr += 4; }
-                        if (BitTest(ins, 3)) { addr += 4; }
-                        if (BitTest(ins, 4)) { addr += 4; }
-                        if (BitTest(ins, 5)) { addr += 4; }
-                        if (BitTest(ins, 6)) { addr += 4; }
-                        if (BitTest(ins, 7)) { addr += 4; }
-                        if (BitTest(ins, 8)) { addr += 4; }
+                        if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; }
+                        if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; }
 
-                        if (BitTest(ins, 8)) { regs += "PC "; addr -= 4; R13 += 4; R15 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 7)) { regs += "R7 "; addr -= 4; R13 += 4; R7 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 6)) { regs += "R6 "; addr -= 4; R13 += 4; R6 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 5)) { regs += "R5 "; addr -= 4; R13 += 4; R5 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 4)) { regs += "R4 "; addr -= 4; R13 += 4; R4 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 3)) { regs += "R3 "; addr -= 4; R13 += 4; R3 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 2)) { regs += "R2 "; addr -= 4; R13 += 4; R2 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 1)) { regs += "R1 "; addr -= 4; R13 += 4; R1 = Gba.Mem.Read32(addr); }
-                        if (BitTest(ins, 0)) { regs += "R0 "; addr -= 4; R13 += 4; R0 = Gba.Mem.Read32(addr); }
+                        if (BitTest(ins, 8))
+                        {
+                            regs += "PC ";
+                            R15 = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
+                            LineDebug(Util.Hex(R15, 8));
+                            FlushPipeline();
+                            addr += 4;
+                        }
+
+                        R13 = addr;
 
                         LineDebug(regs);
                     }
@@ -1600,7 +1646,14 @@ namespace OptimeGBA
                         if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; R13 -= 4; }
                         if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; R13 -= 4; }
                         if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; R13 -= 4; }
-                        if (BitTest(ins, 8)) { regs += "LR "; Gba.Mem.Write32(addr, R14); addr += 4; R13 -= 4; }
+
+                        if (BitTest(ins, 8))
+                        {
+                            regs += "LR ";
+                            Gba.Mem.Write32(addr, R14);
+                            addr += 4;
+                            R13 -= 4;
+                        }
 
                         LineDebug(regs);
                     }
@@ -1762,7 +1815,7 @@ namespace OptimeGBA
                     Negative = BitTest(rdVal, 31);
                     Zero = rdVal == 0;
                 }
-                else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B
+                else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1)
                 {
                     LineDebug("B | Conditional Branch");
                     uint cond = (uint)((ins >> 8) & 0xF);
@@ -1790,6 +1843,24 @@ namespace OptimeGBA
                     {
                         LineDebug("Not Taken");
                     }
+                }
+                else if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2)
+                {
+                    LineDebug("B | Unconditional Branch");
+                    int signedImmed11 = (int)(ins & 0b11111111111) << 1;
+
+                    if ((signedImmed11 & BIT_11) != 0)
+                    {
+                        LineDebug("Backward Branch");
+                        signedImmed11 -= (int)BIT_12;
+                    }
+                    else
+                    {
+                        LineDebug("Forward Branch");
+                    }
+
+                    R15 = (uint)(R15 + signedImmed11);
+                    FlushPipeline();
                 }
                 else if ((ins & 0b1111100000000000) == 0b0010000000000000) // MOV
                 {
@@ -1918,7 +1989,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
-                    Overflow = CheckOverflow(rmVal, rnVal, final);
+                    Overflow = CheckOverflow(rnVal, rmVal, final);
                 }
                 else if ((ins & 0b1111111100000000) == 0b0100010000000000) // ADD (4)
                 {
@@ -2246,6 +2317,8 @@ namespace OptimeGBA
                 }
                 else if ((ins & 0b1111111111000000) == 0b0100000111000000) // ROR
                 {
+                    LineDebug("ROR");
+
                     uint rd = (uint)((ins >> 0) & 0b111);
                     uint rdVal = GetReg(rd);
                     uint rs = (uint)((ins >> 3) & 0b111);
@@ -2272,6 +2345,7 @@ namespace OptimeGBA
                 else if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1)
                 {
                     bool load = BitTest(ins, 11);
+                    LineDebug("STRH / LDRH (1)");
 
                     uint rd = (uint)((ins >> 0) & 0b111);
                     uint rn = (uint)((ins >> 3) & 0b111);
@@ -2283,11 +2357,47 @@ namespace OptimeGBA
 
                     if (load)
                     {
+                        LineDebug("Load");
                         SetReg(rd, Gba.Mem.Read16(addr));
                     }
                     else
                     {
+                        LineDebug("Store");
                         Gba.Mem.Write16(addr, (ushort)GetReg(rd));
+                    }
+                }
+                else if ((ins & 0b1111011000000000) == 0b0101001000000000) // STRH (2) / LDRH (2)
+                {
+                    bool load = BitTest(ins, 11);
+                    LineDebug("STRH / LDRH (2)");
+
+                    uint rd = (uint)((ins >> 0) & 0b111);
+                    uint rn = (uint)((ins >> 3) & 0b111);
+                    uint rnVal = GetReg(rn);
+                    uint rm = (uint)((ins >> 6) & 0b111);
+                    uint rmVal = GetReg(rm);
+
+                    uint addr = rnVal + rmVal;
+
+                    if (load)
+                    {
+                        LineDebug("Load");
+                        if ((addr & 1) != 0)
+                        {
+                            // Halfworld Misaligned
+                            SetReg(rd, Gba.Mem.Read16(RotateRight32(addr - 1, 8)));
+                        }
+                        else
+                        {
+                            // Halfword Aligned
+                            SetReg(rd, Gba.Mem.Read16(addr));
+                        }
+                    }
+                    else
+                    {
+                        LineDebug("Store");
+                        uint rdVal = GetReg(rd);
+                        Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
                     }
                 }
                 else if ((ins & 0b1111111111000000) == 0b0100000000000000) // AND
@@ -2305,7 +2415,7 @@ namespace OptimeGBA
                     Negative = BitTest(rdVal, 31);
                     Zero = rdVal == 0;
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100000001000000) // AND
+                else if ((ins & 0b1111111111000000) == 0b0100000001000000) // EOR
                 {
                     LineDebug("AND");
 
@@ -2314,7 +2424,7 @@ namespace OptimeGBA
                     uint rm = (uint)((ins >> 3) & 0b111);
                     uint rmVal = GetReg(rm);
 
-                    rdVal = rdVal | rmVal;
+                    rdVal = rdVal ^ rmVal;
                     SetReg(rd, rdVal);
 
                     Negative = BitTest(rdVal, 31);
@@ -2331,6 +2441,7 @@ namespace OptimeGBA
 
                     rdVal = (rmVal * rdVal);
                     SetReg(rd, rdVal);
+
                     Negative = BitTest(rdVal, 31);
                     Zero = rdVal == 0;
                 }
@@ -2379,6 +2490,90 @@ namespace OptimeGBA
                     else
                     {
                         Gba.Mem.Write8(addr, (byte)rdVal);
+                    }
+                }
+                else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
+                {
+                    LineDebug("REVSH");
+
+                    uint rd = (uint)((ins >> 0) & 0b111);
+                    uint rdVal = GetReg(rd);
+                    uint rn = (uint)((ins >> 3) & 0b111);
+                    uint rnVal = GetReg(rn);
+
+                    uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
+                    uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
+
+                    rdVal &= 0xFFFF0000;
+                    rdVal |= (rnValHalfUpper << 0);
+                    rdVal |= (rnValHalfLower << 8);
+
+                    // Sign Extend
+                    if (BitTest(rn, 7))
+                    {
+                        rdVal |= 0xFFFF0000;
+                    }
+                    else
+                    {
+                        rdVal &= 0x0000FFFF;
+                    }
+
+                    SetReg(rd, rdVal);
+                }
+                else if ((ins & 0b1111111111000000) == 0b0100001001000000) // NEG / RSB
+                {
+                    uint rd = (uint)((ins >> 0) & 0b111);
+                    uint rdVal = GetReg(rd);
+                    uint rm = (uint)((ins >> 3) & 0b111);
+                    uint rmVal = GetReg(rm);
+
+                    uint final = 0 - rmVal;
+
+                    SetReg(rd, final);
+
+                    Negative = BitTest(final, 31);
+                    Zero = final == 0;
+                    Carry = !(rm > 0);
+                    Overflow = CheckOverflow(0, rm, final);
+                }
+                else if ((ins & 0b1111011000000000) == 0b0101011000000000) // LDRSB / LDRSH
+                {
+                    uint rd = (uint)((ins >> 0) & 0b111);
+                    uint rdVal = GetReg(rd);
+                    uint rn = (uint)((ins >> 3) & 0b111);
+                    uint rnVal = GetReg(rn);
+                    uint rm = (uint)((ins >> 6) & 0b111);
+                    uint rmVal = GetReg(rm);
+
+                    bool halfword = BitTest(ins, 11); // As apposed to byte load.
+
+                    uint addr = rnVal + rmVal;
+
+                    if (halfword)
+                    {
+                        LineDebug("LDRSH");
+
+                        int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
+                        // Sign extend
+                        if ((readVal & BIT_15) != 0)
+                        {
+                            readVal -= (int)BIT_16;
+                        }
+
+                        SetReg(rd, (uint)readVal);
+                    }
+                    else
+                    {
+                        LineDebug("LDRSB");
+
+                        int readVal = (int)Gba.Mem.Read8(addr);
+                        // Sign extend
+                        if ((readVal & BIT_7) != 0)
+                        {
+                            readVal -= (int)BIT_8;
+                        }
+
+                        SetReg(rd, (uint)readVal);
                     }
                 }
                 else
@@ -2876,11 +3071,6 @@ namespace OptimeGBA
             LineDebug(s);
 
             Errored = true;
-        }
-
-        public static bool MsbDiff(uint val1, uint val2)
-        {
-            return BitTest(val1, 31) != BitTest(val2, 31);
         }
 
         public static bool CheckOverflow(uint val1, uint val2, uint result)
