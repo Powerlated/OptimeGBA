@@ -209,6 +209,7 @@ namespace OptimeGBA
                             if (VCount != 227)
                             {
                                 VCount++;
+                                VCounterMatch = VCount == VCountSetting;
                                 if (VCount > 159)
                                 {
                                     lcdEnum = LCDEnum.VBlank;
@@ -222,6 +223,7 @@ namespace OptimeGBA
                             else
                             {
                                 VCount = 0;
+                                VCounterMatch = VCount == VCountSetting;
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
 

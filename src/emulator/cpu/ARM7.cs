@@ -874,7 +874,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = !(shifterOperand > rnValue); // C
-                                        Overflow = CheckOverflow(rnValue, shifterOperand, aluOut); // V
+                                        Overflow = CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
                                     }
                                 }
                                 break;
@@ -896,7 +896,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = !(rnValue > shifterOperand); // C
-                                        Overflow = CheckOverflow(shifterOperand, rnValue, aluOut); // V
+                                        Overflow = CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
                                     }
                                 }
                                 break;
@@ -917,6 +917,7 @@ namespace OptimeGBA
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
+                                        Overflow = CheckOverflowAdd(rnValue, shifterOperand, final); // C
                                     }
                                 }
                                 break;
@@ -937,7 +938,7 @@ namespace OptimeGBA
                                         Negative = BitTest(final, 31); // N
                                         Zero = final == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand + (Carry ? 1U : 0) > 0xFFFFFFFFL; // C
-                                        Overflow = (long)rnValue + (long)shifterOperand + (Carry ? 1U : 0) > 0xFFFFFFFFL; // V
+                                        Overflow = CheckOverflowAdd(rnValue, shifterOperand + (Carry ? 1U : 0), final); // V
                                     }
                                 }
                                 break;
@@ -958,8 +959,8 @@ namespace OptimeGBA
                                     {
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
-                                        Carry = !(shifterOperand + (!Carry ? 1U : 0U) > rnValue); // C
-                                        Overflow = CheckOverflow(shifterOperand, rnValue + (!Carry ? 1U : 0), aluOut); // V
+                                        Carry = !((long)shifterOperand + (long)(!Carry ? 1U : 0) > rnValue); // C
+                                        Overflow = CheckOverflowSub(rnValue, shifterOperand + (!Carry ? 1U : 0), aluOut); // V
                                     }
                                 }
                                 break;
@@ -981,7 +982,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = !(rnValue + (!Carry ? 1U : 0U) > shifterOperand); // C
-                                        Overflow = CheckOverflow(shifterOperand, rnValue + (!Carry ? 1U : 0), aluOut); // V
+                                        Overflow = CheckOverflowSub(shifterOperand, rnValue + (!Carry ? 1U : 0), aluOut); // V
                                     }
                                 }
                                 break;
@@ -1023,7 +1024,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = rnValue >= shifterOperand; // C
-                                        Overflow = CheckOverflow(rnValue, shifterOperand, aluOut); // V
+                                        Overflow = CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
                                     }
                                 }
                                 break;
@@ -1038,7 +1039,7 @@ namespace OptimeGBA
                                         Negative = BitTest(aluOut, 31); // N
                                         Zero = aluOut == 0; // Z
                                         Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
-                                        Overflow = CheckOverflow(rnValue, ~shifterOperand, aluOut); // V
+                                        Overflow = CheckOverflowSub(rnValue, ~shifterOperand, aluOut); // V
                                     }
                                 }
                                 break;
@@ -1675,6 +1676,7 @@ namespace OptimeGBA
                         Carry = BitTest(rmValue, (byte)(32 - immed5));
                         SetReg(rd, LogicalShiftLeft32(rmValue, (byte)immed5));
                     }
+
                     Negative = BitTest(GetReg(rd), 31);
                     Zero = GetReg(rd) == 0;
 
@@ -1712,6 +1714,20 @@ namespace OptimeGBA
                     Negative = BitTest(rdValue, 31);
                     Zero = rdValue == 0;
                 }
+                else if ((ins & 0b1111111111000000) == 0b0100001011000000) // CMN
+                {
+                    LineDebug("CMN");
+
+                    uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
+                    uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+
+                    uint alu_out = rnVal + rmVal;
+
+                    Negative = BitTest(alu_out, 31);
+                    Zero = alu_out == 0;
+                    Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
+                    Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
+                }
                 else if ((ins & 0b1111100000000000) == 0b0010100000000000) // CMP (1)
                 {
                     LineDebug("CMP (1)");
@@ -1724,9 +1740,9 @@ namespace OptimeGBA
                     Negative = BitTest(alu_out, 31);
                     Zero = alu_out == 0;
                     Carry = !(immed8 > rnVal);
-                    Overflow = CheckOverflow(rnVal, immed8, alu_out);
+                    Overflow = CheckOverflowSub(rnVal, immed8, alu_out);
                 }
-                else if ((ins & 0b1111111110000000) == 0b0100001010000000) // CMP (2)
+                else if ((ins & 0b1111111111000000) == 0b0100001010000000) // CMP (2)
                 {
                     LineDebug("CMP (2)");
 
@@ -1738,7 +1754,7 @@ namespace OptimeGBA
                     Negative = BitTest(alu_out, 31);
                     Zero = alu_out == 0;
                     Carry = !(rmVal > rnVal);
-                    Overflow = CheckOverflow(rnVal, rmVal, alu_out);
+                    Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
                 }
                 else if ((ins & 0b1111111100000000) == 0b0100010100000000) // CMP (3)
                 {
@@ -1758,7 +1774,7 @@ namespace OptimeGBA
                     Negative = BitTest(alu_out, 31);
                     Zero = alu_out == 0;
                     Carry = !(rmVal > rnVal);
-                    Overflow = CheckOverflow(rnVal, rmVal, alu_out);
+                    Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
                 }
                 else if ((ins & 0b1111100000000000) == 0b0000100000000000) // LSR (1)
                 {
@@ -1803,6 +1819,7 @@ namespace OptimeGBA
                     else if ((rsVal & 0xFF) == 32)
                     {
                         Carry = BitTest(rdVal, 31);
+                        SetReg(rd, 0);
                     }
                     else
                     {
@@ -1942,7 +1959,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = rdVal == 0;
                     Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
-                    Overflow = CheckOverflow(rd, rm + (Carry ? 1U : 0), final);
+                    Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
                 }
                 else if ((ins & 0b1111111000000000) == 0b0001110000000000) // ADD (1)
                 {
@@ -1958,7 +1975,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
-                    Overflow = CheckOverflow(rnVal, immed3, final);
+                    Overflow = CheckOverflowAdd(rnVal, immed3, final);
                 }
                 else if ((ins & 0b1111100000000000) == 0b0011000000000000) // ADD (2)
                 {
@@ -1974,7 +1991,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
-                    Overflow = CheckOverflow(rdVal, immed8, final);
+                    Overflow = CheckOverflowAdd(rdVal, immed8, final);
                 }
                 else if ((ins & 0b1111111000000000) == 0b0001100000000000) // ADD (3)
                 {
@@ -1989,7 +2006,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
-                    Overflow = CheckOverflow(rnVal, rmVal, final);
+                    Overflow = CheckOverflowAdd(rnVal, rmVal, final);
                 }
                 else if ((ins & 0b1111111100000000) == 0b0100010000000000) // ADD (4)
                 {
@@ -2115,10 +2132,10 @@ namespace OptimeGBA
                     uint final = rdVal - rmVal - (!Carry ? 1U : 0);
                     SetReg(rd, final);
 
-                    Negative = BitTest(rdVal, 31);
+                    Negative = BitTest(final, 31);
                     Zero = rdVal == 0;
                     Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
-                    Overflow = CheckOverflow(rd, rm - (!Carry ? 1U : 0), final);
+                    Overflow = CheckOverflowSub(rdVal, rmVal - (!Carry ? 1U : 0), final);
                 }
                 else if ((ins & 0b1111111000000000) == 0b0001111000000000) // SUB (1)
                 {
@@ -2137,7 +2154,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = !(immed3 > rnVal);
-                    Overflow = CheckOverflow(rnVal, immed3, final);
+                    Overflow = CheckOverflowSub(rnVal, immed3, final);
                 }
                 else if ((ins & 0b1111100000000000) == 0b0011100000000000) // SUB (2)
                 {
@@ -2154,7 +2171,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = !(immed8 > rdVal);
-                    Overflow = CheckOverflow(rdVal, immed8, final);
+                    Overflow = CheckOverflowSub(rdVal, immed8, final);
                 }
                 else if ((ins & 0b1111111000000000) == 0b0001101000000000) // SUB (3)
                 {
@@ -2170,7 +2187,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = !(rmValue > rnValue);
-                    Overflow = CheckOverflow(rnValue, rmValue, final);
+                    Overflow = CheckOverflowSub(rnValue, rmValue, final);
                 }
                 else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
                 {
@@ -2409,11 +2426,11 @@ namespace OptimeGBA
                     uint rm = (uint)((ins >> 3) & 0b111);
                     uint rmVal = GetReg(rm);
 
-                    rdVal = rdVal & rmVal;
-                    SetReg(rd, rdVal);
+                    uint final = rdVal & rmVal;
+                    SetReg(rd, final);
 
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
+                    Negative = BitTest(final, 31);
+                    Zero = final == 0;
                 }
                 else if ((ins & 0b1111111111000000) == 0b0100000001000000) // EOR
                 {
@@ -2534,7 +2551,7 @@ namespace OptimeGBA
                     Negative = BitTest(final, 31);
                     Zero = final == 0;
                     Carry = !(rm > 0);
-                    Overflow = CheckOverflow(0, rm, final);
+                    Overflow = CheckOverflowSub(0, rm, final);
                 }
                 else if ((ins & 0b1111011000000000) == 0b0101011000000000) // LDRSB / LDRSH
                 {
@@ -3073,9 +3090,14 @@ namespace OptimeGBA
             Errored = true;
         }
 
-        public static bool CheckOverflow(uint val1, uint val2, uint result)
+        public static bool CheckOverflowSub(uint val1, uint val2, uint result)
         {
             return ((val1 ^ val2) & 0x80000000u) != 0 && ((val1 ^ result) & 0x80000000u) != 0;
+        }
+
+        public static bool CheckOverflowAdd(uint val1, uint val2, uint result)
+        {
+            return ((val1 ^ val2) & 0x80000000u) == 0 && ((val1 ^ result) & 0x80000000u) != 0;
         }
     }
 }
