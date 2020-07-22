@@ -417,6 +417,8 @@ namespace OptimeGBAEmulator
             ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
             ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
 
+            ImGui.Text($"Mode: {Gba.Arm7.Mode}");
+
             ImGui.Text($"");
 
             if (ImGui.Button("Un-error"))

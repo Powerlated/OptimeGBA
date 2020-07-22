@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
@@ -46,6 +47,7 @@ namespace OptimeGBA
 
         public byte[] Rom = new byte[33554432];
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
             // GBA Bios
@@ -110,6 +112,7 @@ namespace OptimeGBA
             return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read16(uint addr)
         {
             byte f0 = Read8(addr++);
@@ -120,6 +123,8 @@ namespace OptimeGBA
             return u32;
         }
 
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
             byte f0 = Read8(addr++);
@@ -132,6 +137,7 @@ namespace OptimeGBA
             return u32;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadDebug8(uint addr)
         {
             // GBA Bios
@@ -188,6 +194,7 @@ namespace OptimeGBA
             return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort ReadDebug16(uint addr)
         {
             byte f0 = ReadDebug8(addr++);
@@ -198,6 +205,7 @@ namespace OptimeGBA
             return u16;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ReadDebug32(uint addr)
         {
             byte f0 = ReadDebug8(addr++);
@@ -210,6 +218,7 @@ namespace OptimeGBA
             return u32;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             // GBA Bios
@@ -269,6 +278,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
             byte f0 = (byte)(val >> 0);
@@ -278,6 +288,7 @@ namespace OptimeGBA
             Write8(addr++, f1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
             byte f0 = (byte)(val >> 0);
@@ -291,6 +302,7 @@ namespace OptimeGBA
             Write8(addr++, f3);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadHWIO8(uint addr)
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
@@ -328,6 +340,7 @@ namespace OptimeGBA
             return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteHWIO8(uint addr, byte val)
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD

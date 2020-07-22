@@ -29,9 +29,10 @@ namespace OptimeGBAEmulator
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
             bios.CopyTo(Gba.Mem.Bios, 0);
 
-            byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
-            // byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/thumb.gba");
             rom.CopyTo(Gba.Mem.Rom, 0);
 
