@@ -1459,7 +1459,338 @@ namespace OptimeGBA
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
-                if ((ins & 0b1111100000000000) == 0b0110100000000000) // LDR (1)
+                if ((ins & 0b1111110000000000) == 0b0100000000000000)
+                { // Data Processing / ALU
+                    uint opcode = (uint)((ins >> 6) & 0xFU);
+                    switch (opcode)
+                    {
+                        case 0x0: // AND
+                            {
+                                LineDebug("AND");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rmVal = GetReg(rm);
+
+                                uint final = rdVal & rmVal;
+                                SetReg(rd, final);
+
+                                Negative = BitTest(final, 31);
+                                Zero = final == 0;
+                            }
+                            break;
+                        case 0x1: // EOR
+                            {
+                                LineDebug("AND");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rmVal = GetReg(rm);
+
+                                rdVal = rdVal ^ rmVal;
+                                SetReg(rd, rdVal);
+
+                                Negative = BitTest(rdVal, 31);
+                                Zero = rdVal == 0;
+                            }
+                            break;
+                        case 0x2: // LSL (2)
+                            {
+                                LineDebug("LSL (2) | Logical Shift Left");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdValue = GetReg((uint)((ins >> 0) & 0b111));
+                                uint rsValue = GetReg((uint)((ins >> 3) & 0b111));
+
+                                if ((rsValue & 0xFF) == 0)
+                                {
+                                    // Do nothing
+                                }
+                                else if ((rsValue & 0xFF) < 32)
+                                {
+                                    Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
+                                    rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
+                                }
+                                else if ((rsValue & 0xFF) == 32)
+                                {
+                                    Carry = BitTest(rdValue, 0);
+                                    rdValue = 0;
+                                }
+                                else
+                                {
+                                    Carry = false;
+                                    rdValue = 0;
+                                }
+
+                                SetReg(rd, rdValue);
+
+                                Negative = BitTest(rdValue, 31);
+                                Zero = rdValue == 0;
+                            }
+                            break;
+                        case 0x3: // LSR (2)
+                            {
+                                LineDebug("LSR (2)");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rs = (uint)((ins >> 3) & 0b111);
+
+                                uint rdVal = GetReg(rd);
+                                uint rsVal = GetReg(rs);
+
+                                if ((rsVal & 0xFF) == 0)
+                                {
+                                    // everything unaffected
+                                }
+                                else if ((rsVal & 0xFF) < 32)
+                                {
+                                    Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
+                                    SetReg(rd, LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF)));
+                                }
+                                else if ((rsVal & 0xFF) == 32)
+                                {
+                                    Carry = BitTest(rdVal, 31);
+                                    SetReg(rd, 0);
+                                }
+                                else
+                                {
+                                    Carry = false;
+                                    SetReg(rd, 0);
+                                }
+
+                                rdVal = GetReg(rd);
+
+                                Negative = BitTest(rdVal, 31);
+                                Zero = rdVal == 0;
+                            }
+                            break;
+                        case 0x4: // ASR (2)
+                            {
+                                LineDebug("ASR (2)");
+
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rs = (uint)((ins >> 3) & 0b111);
+                                uint rsVal = GetReg(rs);
+
+                                if ((rsVal & 0xFF) == 0)
+                                {
+                                    // Do nothing
+                                }
+                                else if ((rsVal & 0xFF) < 32)
+                                {
+                                    Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
+                                    rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                                }
+                                else
+                                {
+                                    Carry = BitTest(rdVal, 31);
+                                    if (!Carry)
+                                    {
+                                        rdVal = 0;
+                                    }
+                                    else
+                                    {
+                                        rdVal = 0xFFFFFFFF;
+                                    }
+                                }
+
+                                SetReg(rd, rdVal);
+
+                                Negative = BitTest(rdVal, 31);
+                                Zero = rdVal == 0;
+                            }
+                            break;
+                        case 0x5: // ADC
+                            {
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+
+                                uint rdVal = GetReg(rd);
+                                uint rmVal = GetReg(rm);
+
+                                uint final = rdVal + rmVal + (Carry ? 1U : 0);
+                                SetReg(rd, final);
+
+                                Negative = BitTest(final, 31);
+                                Zero = rdVal == 0;
+                                Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
+                                Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
+                            }
+                            break;
+                        case 0x6: // SBC
+                            {
+                                LineDebug("SBC");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+
+                                uint rdVal = GetReg(rd);
+                                uint rmVal = GetReg(rm);
+
+                                uint final = rdVal - rmVal - (!Carry ? 1U : 0);
+                                SetReg(rd, final);
+
+                                Negative = BitTest(final, 31);
+                                Zero = rdVal == 0;
+                                Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
+                                Overflow = CheckOverflowSub(rdVal, rmVal - (!Carry ? 1U : 0), final);
+                            }
+                            break;
+                        case 0x7: // ROR
+                            {
+                                LineDebug("ROR");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rs = (uint)((ins >> 3) & 0b111);
+                                uint rsVal = GetReg(rs);
+
+                                if ((rsVal & 0xFF) == 0)
+                                {
+                                    // Do nothing
+                                }
+                                else if ((rsVal & 0b11111) == 0)
+                                {
+                                    Carry = BitTest(rdVal, 31);
+                                }
+                                else
+                                {
+                                    Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
+                                    rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
+                                    SetReg(rd, rdVal);
+                                }
+
+                                Negative = BitTest(rdVal, 31);
+                                Zero = rdVal == 0;
+                            }
+                            break;
+                        case 0x8: // TST
+                            {
+                                LineDebug("TST");
+
+                                uint rn = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+
+                                uint rnValue = GetReg(rn);
+                                uint rmValue = GetReg(rm);
+
+                                uint final = rnValue & rmValue;
+
+                                Negative = BitTest(final, 31);
+                                Zero = final == 0;
+                            }
+                            break;
+                        case 0x9: // NEG / RSB
+                            {
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rmVal = GetReg(rm);
+
+                                uint final = 0 - rmVal;
+
+                                SetReg(rd, final);
+
+                                Negative = BitTest(final, 31);
+                                Zero = final == 0;
+                                Carry = !(rm > 0);
+                                Overflow = CheckOverflowSub(0, rm, final);
+                            }
+                            break;
+                        case 0xA: // CMP (2)
+                            {
+                                LineDebug("CMP (2)");
+
+                                uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
+                                uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+
+                                uint alu_out = rnVal - rmVal;
+
+                                Negative = BitTest(alu_out, 31);
+                                Zero = alu_out == 0;
+                                Carry = !(rmVal > rnVal);
+                                Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
+                            }
+                            break;
+                        case 0xB:  // CMN
+                            {
+                                LineDebug("CMN");
+
+                                uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
+                                uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+
+                                uint alu_out = rnVal + rmVal;
+
+                                Negative = BitTest(alu_out, 31);
+                                Zero = alu_out == 0;
+                                Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
+                                Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
+                            }
+                            break;
+                        case 0xC: // ORR
+                            {
+                                LineDebug("ORR");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+
+                                SetReg(rd, GetReg(rd) | GetReg(rm));
+                                Negative = BitTest(GetReg(rd), 31);
+                                Zero = GetReg(rd) == 0;
+                            }
+                            break;
+                        case 0xD: // MUL
+                            {
+                                LineDebug("MUL");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rdVal = GetReg(rd);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rmVal = GetReg(rm);
+
+                                rdVal = (rmVal * rdVal);
+                                SetReg(rd, rdVal);
+
+                                Negative = BitTest(rdVal, 31);
+                                Zero = rdVal == 0;
+                            }
+                            break;
+                        case 0xE: // BIC
+                            {
+                                LineDebug("BIC");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rdValue = GetReg(rd);
+                                uint rmValue = GetReg(rm);
+
+                                uint final = rdValue & (~rmValue);
+                                SetReg(rd, final);
+
+                                Negative = BitTest(final, 31);
+                                Zero = final == 0;
+                            }
+                            break;
+                        case 0xF: // MVN
+                            {
+                                LineDebug("MVN");
+
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rm = (uint)((ins >> 3) & 0b111);
+
+                                SetReg(rd, ~GetReg(rm));
+                                Negative = BitTest(GetReg(rd), 31);
+                                Zero = GetReg(rd) == 0;
+                            }
+                            break;
+
+                    }
+                }
+                else if ((ins & 0b1111100000000000) == 0b0110100000000000) // LDR (1)
                 {
                     LineDebug("LDR (1) | Base + Immediate");
 
@@ -1681,53 +2012,6 @@ namespace OptimeGBA
                     Zero = GetReg(rd) == 0;
 
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100000010000000) // LSL (2)
-                {
-                    LineDebug("LSL (2) | Logical Shift Left");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdValue = GetReg((uint)((ins >> 0) & 0b111));
-                    uint rsValue = GetReg((uint)((ins >> 3) & 0b111));
-
-                    if ((rsValue & 0xFF) == 0)
-                    {
-                        // Do nothing
-                    }
-                    else if ((rsValue & 0xFF) < 32)
-                    {
-                        Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
-                        rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
-                    }
-                    else if ((rsValue & 0xFF) == 32)
-                    {
-                        Carry = BitTest(rdValue, 0);
-                        rdValue = 0;
-                    }
-                    else
-                    {
-                        Carry = false;
-                        rdValue = 0;
-                    }
-
-                    SetReg(rd, rdValue);
-
-                    Negative = BitTest(rdValue, 31);
-                    Zero = rdValue == 0;
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001011000000) // CMN
-                {
-                    LineDebug("CMN");
-
-                    uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                    uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
-
-                    uint alu_out = rnVal + rmVal;
-
-                    Negative = BitTest(alu_out, 31);
-                    Zero = alu_out == 0;
-                    Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
-                    Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
-                }
                 else if ((ins & 0b1111100000000000) == 0b0010100000000000) // CMP (1)
                 {
                     LineDebug("CMP (1)");
@@ -1741,20 +2025,6 @@ namespace OptimeGBA
                     Zero = alu_out == 0;
                     Carry = !(immed8 > rnVal);
                     Overflow = CheckOverflowSub(rnVal, immed8, alu_out);
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001010000000) // CMP (2)
-                {
-                    LineDebug("CMP (2)");
-
-                    uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                    uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
-
-                    uint alu_out = rnVal - rmVal;
-
-                    Negative = BitTest(alu_out, 31);
-                    Zero = alu_out == 0;
-                    Carry = !(rmVal > rnVal);
-                    Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
                 }
                 else if ((ins & 0b1111111100000000) == 0b0100010100000000) // CMP (3)
                 {
@@ -1796,41 +2066,6 @@ namespace OptimeGBA
                         Carry = BitTest(rmVal, (byte)(immed5 - 1));
                         SetReg(rd, LogicalShiftRight32(rmVal, (byte)immed5));
                     }
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100000011000000) // LSR (2)
-                {
-                    LineDebug("LSR (2)");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rs = (uint)((ins >> 3) & 0b111);
-
-                    uint rdVal = GetReg(rd);
-                    uint rsVal = GetReg(rs);
-
-                    if ((rsVal & 0xFF) == 0)
-                    {
-                        // everything unaffected
-                    }
-                    else if ((rsVal & 0xFF) < 32)
-                    {
-                        Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                        SetReg(rd, LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF)));
-                    }
-                    else if ((rsVal & 0xFF) == 32)
-                    {
-                        Carry = BitTest(rdVal, 31);
-                        SetReg(rd, 0);
-                    }
-                    else
-                    {
-                        Carry = false;
-                        SetReg(rd, 0);
-                    }
-
-                    rdVal = GetReg(rd);
-
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
                 }
                 else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1)
                 {
@@ -1945,22 +2180,6 @@ namespace OptimeGBA
                             break;
                     }
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100000101000000) // ADC
-                {
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-
-                    uint rdVal = GetReg(rd);
-                    uint rmVal = GetReg(rm);
-
-                    uint final = rdVal + rmVal + (Carry ? 1U : 0);
-                    SetReg(rd, final);
-
-                    Negative = BitTest(final, 31);
-                    Zero = rdVal == 0;
-                    Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
-                    Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
-                }
                 else if ((ins & 0b1111111000000000) == 0b0001110000000000) // ADD (1)
                 {
                     LineDebug("ADD (1)");
@@ -2046,36 +2265,6 @@ namespace OptimeGBA
                     uint immed7 = (uint)(ins & 0b1111111);
                     R13 = R13 + (immed7 << 2);
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100001000000000) // TST
-                {
-                    LineDebug("TST");
-
-                    uint rn = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-
-                    uint rnValue = GetReg(rn);
-                    uint rmValue = GetReg(rm);
-
-                    uint final = rnValue & rmValue;
-
-                    Negative = BitTest(final, 31);
-                    Zero = final == 0;
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001110000000) // BIC
-                {
-                    LineDebug("BIC");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rdValue = GetReg(rd);
-                    uint rmValue = GetReg(rm);
-
-                    uint final = rdValue & (~rmValue);
-                    SetReg(rd, final);
-
-                    Negative = BitTest(final, 31);
-                    Zero = final == 0;
-                }
                 else if ((ins & 0b1111000000000000) == 0b1100000000000000) // LDMIA, STMIA
                 {
                     if (BitTest(ins, 11))
@@ -2118,24 +2307,6 @@ namespace OptimeGBA
 
                         LineDebug(regs);
                     }
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100000110000000) // SBC
-                {
-                    LineDebug("SBC");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-
-                    uint rdVal = GetReg(rd);
-                    uint rmVal = GetReg(rm);
-
-                    uint final = rdVal - rmVal - (!Carry ? 1U : 0);
-                    SetReg(rd, final);
-
-                    Negative = BitTest(final, 31);
-                    Zero = rdVal == 0;
-                    Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
-                    Overflow = CheckOverflowSub(rdVal, rmVal - (!Carry ? 1U : 0), final);
                 }
                 else if ((ins & 0b1111111000000000) == 0b0001111000000000) // SUB (1)
                 {
@@ -2225,43 +2396,6 @@ namespace OptimeGBA
                     Negative = BitTest(GetReg(rd), 31);
                     Zero = GetReg(rd) == 0;
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100000100000000) // ASR (2)
-                {
-                    LineDebug("ASR (2)");
-
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rs = (uint)((ins >> 3) & 0b111);
-                    uint rsVal = GetReg(rs);
-
-                    if ((rsVal & 0xFF) == 0)
-                    {
-                        // Do nothing
-                    }
-                    else if ((rsVal & 0xFF) < 32)
-                    {
-                        Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                        rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
-                    }
-                    else
-                    {
-                        Carry = BitTest(rdVal, 31);
-                        if (!Carry)
-                        {
-                            rdVal = 0;
-                        }
-                        else
-                        {
-                            rdVal = 0xFFFFFFFF;
-                        }
-                    }
-
-                    SetReg(rd, rdVal);
-
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
-                }
                 else if ((ins & 0b1111100000000000) == 0b0010000000000000) // MOV (1)
                 {
                     LineDebug("MOV (1)");
@@ -2298,28 +2432,6 @@ namespace OptimeGBA
 
                     SetReg(rd, GetReg(rm));
                 }
-                else if ((ins & 0b1111111111000000) == 0b0100001111000000) // MVN
-                {
-                    LineDebug("MVN");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-
-                    SetReg(rd, ~GetReg(rm));
-                    Negative = BitTest(GetReg(rd), 31);
-                    Zero = GetReg(rd) == 0;
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001100000000) // ORR
-                {
-                    LineDebug("ORR");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-
-                    SetReg(rd, GetReg(rd) | GetReg(rm));
-                    Negative = BitTest(GetReg(rd), 31);
-                    Zero = GetReg(rd) == 0;
-                }
                 else if ((ins & 0b1111111110000000) == 0b0100011100000000) // BX
                 {
                     LineDebug("BX | Optionally switch back to ARM state");
@@ -2331,33 +2443,6 @@ namespace OptimeGBA
                     ThumbState = BitTest(val, 0);
                     R15 = val & 0xFFFFFFFE;
                     FlushPipeline();
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100000111000000) // ROR
-                {
-                    LineDebug("ROR");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rs = (uint)((ins >> 3) & 0b111);
-                    uint rsVal = GetReg(rs);
-
-                    if ((rsVal & 0xFF) == 0)
-                    {
-                        // Do nothing
-                    }
-                    else if ((rsVal & 0b11111) == 0)
-                    {
-                        Carry = BitTest(rdVal, 31);
-                    }
-                    else
-                    {
-                        Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
-                        rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
-                        SetReg(rd, rdVal);
-                    }
-
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
                 }
                 else if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1)
                 {
@@ -2416,51 +2501,6 @@ namespace OptimeGBA
                         uint rdVal = GetReg(rd);
                         Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
                     }
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100000000000000) // AND
-                {
-                    LineDebug("AND");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rmVal = GetReg(rm);
-
-                    uint final = rdVal & rmVal;
-                    SetReg(rd, final);
-
-                    Negative = BitTest(final, 31);
-                    Zero = final == 0;
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100000001000000) // EOR
-                {
-                    LineDebug("AND");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rmVal = GetReg(rm);
-
-                    rdVal = rdVal ^ rmVal;
-                    SetReg(rd, rdVal);
-
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001101000000) // MUL
-                {
-                    LineDebug("MUL");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rmVal = GetReg(rm);
-
-                    rdVal = (rmVal * rdVal);
-                    SetReg(rd, rdVal);
-
-                    Negative = BitTest(rdVal, 31);
-                    Zero = rdVal == 0;
                 }
                 else if ((ins & 0b1111000000000000) == 0b0111000000000000) // LDRB / STRB (1)
                 {
@@ -2536,22 +2576,6 @@ namespace OptimeGBA
                     }
 
                     SetReg(rd, rdVal);
-                }
-                else if ((ins & 0b1111111111000000) == 0b0100001001000000) // NEG / RSB
-                {
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rdVal = GetReg(rd);
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rmVal = GetReg(rm);
-
-                    uint final = 0 - rmVal;
-
-                    SetReg(rd, final);
-
-                    Negative = BitTest(final, 31);
-                    Zero = final == 0;
-                    Carry = !(rm > 0);
-                    Overflow = CheckOverflowSub(0, rm, final);
                 }
                 else if ((ins & 0b1111011000000000) == 0b0101011000000000) // LDRSB / LDRSH
                 {
