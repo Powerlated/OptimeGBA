@@ -58,24 +58,31 @@ namespace OptimeGBA
             }
 
             // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x0203FFFF)
+            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
             {
                 EwramReads++;
-                return Ewram[addr - 0x02000000];
+                return Ewram[(addr - 0x02000000) & 0x3FFFF];
             }
 
             // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
             {
                 IwramReads++;
-                return Iwram[addr - 0x03000000];
+                return Iwram[(addr - 0x03000000) & 0x7FFF];
             }
 
             // HWIO
             else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
+                addr &= 0x400FFFF;
+
+                // using (System.IO.StreamWriter w = System.IO.File.AppendText("hwio.txt"))
+                // {
+                //     w.WriteLine($"ReadHWIO8: {Util.Hex(addr, 8)}");
+                // }
+
                 HwioReads++;
-                return ReadHWIO8(addr);
+                return ReadHwio8(addr);
             }
 
             // Display Memory
@@ -113,14 +120,14 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint Read16(uint addr)
+        public ushort Read16(uint addr)
         {
             byte f0 = Read8(addr++);
             byte f1 = Read8(addr++);
 
-            uint u32 = (uint)((f1 << 8) | (f0 << 0));
+            ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
-            return u32;
+            return u16;
         }
 
 
@@ -147,21 +154,23 @@ namespace OptimeGBA
             }
 
             // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x0203FFFF)
+            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
             {
-                return Ewram[addr - 0x02000000];
+                return Ewram[(addr - 0x02000000) & 0x3FFFF];
             }
 
             // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
             {
-                return Iwram[addr - 0x03000000];
+                return Iwram[(addr - 0x03000000) & 0x7FFF];
             }
 
             // HWIO
             else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
-                return ReadHWIO8(addr);
+                addr &= 0x400FFFF;
+
+                return ReadHwio8(addr);
             }
 
             // Display Memory
@@ -228,24 +237,31 @@ namespace OptimeGBA
             }
 
             // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x0203FFFF)
+            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
             {
                 EwramWrites++;
-                Ewram[addr - 0x02000000] = val;
+                Ewram[(addr - 0x02000000) & 0x3FFFF] = val;
             }
 
             // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03007FFF)
+            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
             {
                 IwramWrites++;
-                Iwram[addr - 0x03000000] = val;
+                Iwram[(addr - 0x03000000) & 0x7FFF] = val;
             }
 
             // HWIO
             else if (addr >= 0x04000000 && addr <= 0x040003FE)
             {
+                addr &= 0x400FFFF;
+
+                // using (System.IO.StreamWriter w = System.IO.File.AppendText("hwio.txt"))
+                // {
+                //     w.WriteLine($"WriteHWIO8: {Util.Hex(addr, 8)}");
+                // }
+
                 HwioWrites++;
-                WriteHWIO8(addr, val);
+                WriteHwio8(addr, val);
             }
 
             // Display Memory
@@ -303,7 +319,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte ReadHWIO8(uint addr)
+        public byte ReadHwio8(uint addr)
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
             {
@@ -311,11 +327,11 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
             {
-
+                return Gba.GbaAudio.ReadHwio8(addr);
             }
-            else if (addr >= 0x40000B0 && addr <= 0x40000E0) // DMA
+            else if (addr >= 0x40000B0 && addr <= 0x40000DF) // DMA
             {
-
+                return Gba.Dma.ReadHwio8(addr);
             }
             else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
             {
@@ -335,25 +351,26 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
             {
-
+                return Gba.HwControl.ReadHwio8(addr);
             }
             return 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void WriteHWIO8(uint addr, byte val)
+        public void WriteHwio8(uint addr, byte val)
         {
+
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
             {
                 Gba.Lcd.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
             {
-
+                Gba.GbaAudio.WriteHwio8(addr, val);
             }
-            else if (addr >= 0x40000B0 && addr <= 0x40000E0) // DMA
+            else if (addr >= 0x40000B0 && addr <= 0x40000DF) // DMA
             {
-
+                Gba.Dma.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
             {
@@ -373,7 +390,7 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
             {
-
+                Gba.HwControl.WriteHwio8(addr, val);
             }
         }
     }

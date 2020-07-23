@@ -7,9 +7,11 @@ namespace OptimeGBA
     {
         public ARM7 Arm7;
         public Memory Mem;
-        public Audio Audio;
+        public GBAAudio GbaAudio;
         public LCD Lcd;
+        public DMA Dma;
         public Keypad Keypad;
+        public HWControl HwControl;
 
         public uint[] registers = new uint[16];
         public Callback AudioCallback;
@@ -17,9 +19,12 @@ namespace OptimeGBA
         {
             Arm7 = new ARM7(this);
             Mem = new Memory(this);
-            Audio = new Audio(this);
+            GbaAudio = new GBAAudio(this);
             Lcd = new LCD(this);
             Keypad = new Keypad();
+            Dma = new DMA(this);
+            HwControl = new HWControl(this);
+
             AudioCallback = audioCallback;
         }
 
@@ -31,6 +36,7 @@ namespace OptimeGBA
 
         void Tick(uint cycles) {
             Lcd.Tick(cycles);
+            Dma.Tick(cycles);
             // Audio.Tick(cycles);
         }
     }

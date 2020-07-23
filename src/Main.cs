@@ -31,8 +31,8 @@ namespace OptimeGBAEmulator
 
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
-            // byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
-            byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/thumb.gba");
             rom.CopyTo(Gba.Mem.Rom, 0);
 
@@ -58,17 +58,17 @@ namespace OptimeGBAEmulator
 
         static void AudioReady()
         {
+                
+            // int bytes = sizeof(float) * Gba.Audio.AudioQueue.Length;
 
-            int bytes = sizeof(float) * Gba.Audio.AudioQueue.Length;
+            // IntPtr ptr = Marshal.AllocHGlobal(bytes);
 
-            IntPtr ptr = Marshal.AllocHGlobal(bytes);
+            // Marshal.Copy(Gba.Audio.AudioQueue, 0, ptr, Gba.Audio.AudioQueue.Length);
 
-            Marshal.Copy(Gba.Audio.AudioQueue, 0, ptr, Gba.Audio.AudioQueue.Length);
+            // Console.WriteLine("Outputting samples to SDL");
 
-            Console.WriteLine("Outputting samples to SDL");
-
-            SDL_QueueAudio(AudioDevice, ptr, (uint)bytes);
-            Marshal.FreeHGlobal(ptr);
+            // SDL_QueueAudio(AudioDevice, ptr, (uint)bytes);
+            // Marshal.FreeHGlobal(ptr);
         }
     }
 }

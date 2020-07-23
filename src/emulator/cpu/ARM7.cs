@@ -113,9 +113,9 @@ namespace OptimeGBA
             R1 = 0x000000EA;
             R15 = 0;
             // Boot BIOS
-            // R15 = 0x00000000;
+            R15 = 0x00000000;
             // Boot game
-            R15 = 0x08000000;
+            // R15 = 0x08000000;
 
             // Default Mode
             Mode = ARM7Mode.System;
@@ -261,8 +261,6 @@ namespace OptimeGBA
 
                         uint addr = GetReg(rn);
                         uint storeValue = GetReg(rm);
-
-
 
                         if (useByte)
                         {

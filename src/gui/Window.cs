@@ -124,7 +124,7 @@ namespace OptimeGBAEmulator
             DrawInstrViewer();
             DrawInstrInfo();
             DrawRegViewer();
-            // DrawMemoryViewer();
+            DrawMemoryViewer();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -164,11 +164,17 @@ namespace OptimeGBAEmulator
 
         static String[] baseNames = {
                     "BIOS",
+                    "EWRAM",
+                    "IWRAM",
+                    "VRAM",
                     "ROM",
                 };
 
         static uint[] baseAddrs = {
                 0x00000000,
+                0x02000000,
+                0x03000000,
+                0x06000000,
                 0x08000000
             };
 
@@ -529,6 +535,26 @@ namespace OptimeGBAEmulator
             ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
             ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
 
+            // Draw separator within column
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            drawList.AddLine(new System.Numerics.Vector2(pos.X - 9999, pos.Y), new System.Numerics.Vector2(pos.X + 9999, pos.Y), ImGui.GetColorU32(ImGuiCol.Border));
+
+            ImGui.Text("");
+            ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DMASAD, 8)}");
+            ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DMASAD, 8)}");
+            ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DMASAD, 8)}");
+            ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DMASAD, 8)}");
+            ImGui.Text("");
+            ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DMADAD, 8)}");
+            ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DMADAD, 8)}");
+            ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DMADAD, 8)}");
+            ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DMADAD, 8)}");
+            ImGui.Text("");
+            ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DMACNT_L, 4)}");
+            ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DMACNT_L, 4)}");
+            ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DMACNT_L, 4)}");
+            ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DMACNT_L, 4)}");
 
             ImGui.Columns(1);
             ImGui.Separator();
@@ -683,52 +709,85 @@ namespace OptimeGBAEmulator
         {
             Registers.Add(
                 new Register("DISPCNT - LCD Control", 0x4000000,
-                    new RegisterField[] {
-                        new RegisterField("BG Mode", 0, 2),
-                        new RegisterField("Reserved / CGB Mode", 3),
-                        new RegisterField("Display Frame Select", 4),
-                        new RegisterField("H-Blank Interval Form", 5),
-                        new RegisterField("OBJ Character VRAM Mapping", 6),
-                        new RegisterField("Forced Blank", 7),
-                        new RegisterField("Screen Display BG0", 8),
-                        new RegisterField("Screen Display BG1", 9),
-                        new RegisterField("Screen Display BG2", 10),
-                        new RegisterField("Screen Display BG3", 11),
-                        new RegisterField("Screen Display OBJ", 12),
-                        new RegisterField("Window 0 Display Flag", 13),
-                        new RegisterField("Window 1 Display Flag", 14),
-                        new RegisterField("OBJ Window Display Flag", 15),
-                    }
+                    new RegisterField("BG Mode", 0, 2),
+                    new RegisterField("Reserved / CGB Mode", 3),
+                    new RegisterField("Display Frame Select", 4),
+                    new RegisterField("H-Blank Interval Form", 5),
+                    new RegisterField("OBJ Character VRAM Mapping", 6),
+                    new RegisterField("Forced Blank", 7),
+                    new RegisterField("Screen Display BG0", 8),
+                    new RegisterField("Screen Display BG1", 9),
+                    new RegisterField("Screen Display BG2", 10),
+                    new RegisterField("Screen Display BG3", 11),
+                    new RegisterField("Screen Display OBJ", 12),
+                    new RegisterField("Window 0 Display Flag", 13),
+                    new RegisterField("Window 1 Display Flag", 14),
+                    new RegisterField("OBJ Window Display Flag", 15)
                 ));
 
             Registers.Add(
                 new Register("DISPSTAT - General LCD Status", 0x4000004,
-                    new RegisterField[] {
-                        new RegisterField("V-Blank flag", 0),
-                        new RegisterField("H-Blank flag", 1),
-                        new RegisterField("V-Counter flag", 2),
-                        new RegisterField("V-Blank IRQ Enable", 3),
-                        new RegisterField("H-Blank IRQ Enable", 4),
-                        new RegisterField("V-Counter IRQ Enable", 5),
-                        new RegisterField("V-Count Setting", 8, 15),
-               }
+                    new RegisterField("V-Blank flag", 0),
+                    new RegisterField("H-Blank flag", 1),
+                    new RegisterField("V-Counter flag", 2),
+                    new RegisterField("V-Blank IRQ Enable", 3),
+                    new RegisterField("H-Blank IRQ Enable", 4),
+                    new RegisterField("V-Counter IRQ Enable", 5),
+                    new RegisterField("V-Count Setting", 8, 15)
             ));
 
             Registers.Add(
                 new Register("KEYINPUT - Key Status", 0x4000130,
-                    new RegisterField[] {
-                        new RegisterField("Button A", 0),
-                        new RegisterField("Button B", 1),
-                        new RegisterField("Select", 2),
-                        new RegisterField("Start", 3),
-                        new RegisterField("Right", 4),
-                        new RegisterField("Left", 5),
-                        new RegisterField("Up", 6),
-                        new RegisterField("Down", 7),
-                        new RegisterField("Button R", 8),
-                        new RegisterField("Button L", 9),
-               }
+                    new RegisterField("Button A", 0),
+                    new RegisterField("Button B", 1),
+                    new RegisterField("Select", 2),
+                    new RegisterField("Start", 3),
+                    new RegisterField("Right", 4),
+                    new RegisterField("Left", 5),
+                    new RegisterField("Up", 6),
+                    new RegisterField("Down", 7),
+                    new RegisterField("Button R", 8),
+                    new RegisterField("Button L", 9)
             ));
+
+            uint[] dmaAddrs = { 0x40000BA, 0x40000C6, 0x40000D2, 0x40000DE };
+            for (uint r = 0; r < 4; r++)
+            {
+                Registers.Add(
+                    new Register($"DMA{r}CNT_H - DMA {r} Control", dmaAddrs[r],
+                        new RegisterField("Dest Addr Control", 5, 6),
+                        new RegisterField("Source Addr Control", 7, 8),
+                        new RegisterField("DMA Repeat", 9),
+                        new RegisterField("DMA 32-bit Mode", 10),
+                        new RegisterField("Game Pak DRQ", 11),
+                        new RegisterField("DMA Start Timing", 12, 13),
+                        new RegisterField("IRQ on Word Count Drain", 14),
+                        new RegisterField("DMA Enable", 15)
+                ));
+            }
+
+            uint[] ieIfAddrs = { 0x4000200, 0x4000202 };
+            String[] ieIfStrings = { "IE - Interrupt Enable", "IF - Interrupt Request" };
+            for (uint r = 0; r < 2; r++)
+            {
+                Registers.Add(
+                    new Register(ieIfStrings[r], ieIfAddrs[r],
+                        new RegisterField("LCD V-Blank", 0),
+                        new RegisterField("LCD H-Blank", 1),
+                        new RegisterField("LCD V-Counter Match", 2),
+                        new RegisterField("LCD Timer 0 Overflow", 3),
+                        new RegisterField("LCD Timer 1 Overflow", 4),
+                        new RegisterField("LCD Timer 2 Overflow", 5),
+                        new RegisterField("LCD Timer 3 Overflow", 6),
+                        new RegisterField("Serial", 7),
+                        new RegisterField("DMA 0", 8),
+                        new RegisterField("DMA 1", 9),
+                        new RegisterField("DMA 2", 10),
+                        new RegisterField("DMA 3", 11),
+                        new RegisterField("Keypad", 13),
+                        new RegisterField("Game Pak", 014
+                )));
+            }
 
             RegViewerSelected = Registers[0];
         }

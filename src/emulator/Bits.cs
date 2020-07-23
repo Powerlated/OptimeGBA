@@ -77,7 +77,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint BitRange(uint i, byte start, byte end)
         {
-            return (i >> start) & (0xFFFFFFFF >> (31 - end));
+            return (i >> start) & (0xFFFFFFFF >> (31 - (end - start)));
         }
 
         // public bool bitReset(uint i, uint bit)
