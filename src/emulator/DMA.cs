@@ -55,36 +55,36 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x00: // DMASAD B0
-                    val |= (byte)(DMASAD << 0);
+                    val = 0; // Write only
                     break;
                 case 0x01: // DMASAD B1
-                    val |= (byte)(DMASAD << 8);
+                    val = 0; // Write only
                     break;
                 case 0x02: // DMASAD B2
-                    val |= (byte)(DMASAD << 16);
+                    val = 0; // Write only
                     break;
                 case 0x03: // DMASAD B3
-                    val |= (byte)(DMASAD << 24);
+                    val = 0; // Write only
                     break;
 
                 case 0x04: // DMADAD B0
-                    val |= (byte)(DMADAD << 0);
+                    val = 0; // Write only
                     break;
                 case 0x05: // DMADAD B1
-                    val |= (byte)(DMADAD << 8);
+                    val = 0; // Write only
                     break;
                 case 0x06: // DMADAD B2
-                    val |= (byte)(DMADAD << 16);
+                    val = 0; // Write only
                     break;
                 case 0x07: // DMADAD B3
-                    val |= (byte)(DMADAD << 24);
+                    val = 0; // Write only
                     break;
 
                 case 0x08: // DMACNT_L B0
-                    val |= (byte)(DMACNT_L >> 0);
+                    val = 0; // Write only
                     break;
                 case 0x09: // DMACNT_L B1
-                    val |= (byte)(DMACNT_L >> 8);
+                    val = 0; // Write only
                     break;
                 case 0x0A: // DMACNT_H B0
                     val |= (byte)(GetControl() >> 0);
@@ -177,12 +177,12 @@ namespace OptimeGBA
         public uint GetControl()
         {
             uint val = 0;
-            val |= ((uint)DestAddrCtrl >> 5) & 0b11;
-            val |= ((uint)SrcAddrCtrl >> 7) & 0b11;
+            val |= ((uint)DestAddrCtrl & 0b11) << 5;
+            val |= ((uint)SrcAddrCtrl & 0b11) << 7;
             if (Repeat) val = BitSet(val, 9);
             if (TransferType) val = BitSet(val, 10);
             if (GamePakDRQ) val = BitSet(val, 11);
-            val |= ((uint)StartTiming >> 12) & 0b11;
+            val |= ((uint)StartTiming & 0b11) << 12;
             if (FinishedIRQ) val = BitSet(val, 14);
             if (Enabled) val = BitSet(val, 15);
 
@@ -309,7 +309,7 @@ namespace OptimeGBA
                         if (c.DmaLength == 0) c.DmaLength = 0x4000;
                     }
 
-                    uint origLength = c.DmaLength; 
+                    uint origLength = c.DmaLength;
 
                     for (; c.DmaLength > 0; c.DmaLength--)
                     {
@@ -355,7 +355,8 @@ namespace OptimeGBA
                     {
                         c.DmaLength = origLength;
 
-                        if (c.Repeat) {
+                        if (c.Repeat)
+                        {
                             c.DmaDest = origDestAddr;
                         }
                     }

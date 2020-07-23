@@ -64,9 +64,9 @@ namespace OptimeGBA
             byte g = (byte)((data >> 5) & 0b11111);
             byte b = (byte)((data >> 10) & 0b11111);
 
-            ProcessedPalettes[pal, 0] = (byte)(r * (255/31));
-            ProcessedPalettes[pal, 1] = (byte)(g * (255/31));
-            ProcessedPalettes[pal, 2] = (byte)(b * (255/31));
+            ProcessedPalettes[pal, 0] = (byte)(r * (255 / 31));
+            ProcessedPalettes[pal, 1] = (byte)(g * (255 / 31));
+            ProcessedPalettes[pal, 2] = (byte)(b * (255 / 31));
         }
 
         public byte Read8(uint addr)
@@ -137,6 +137,10 @@ namespace OptimeGBA
                     break;
                 case 0x4000005: // DISPSTAT B1
                     val |= VCountSetting;
+                    break;
+
+                case 0x4000006: // VCOUNT B0 - B1 only exists for Nintendo DS
+                    val |= (byte)VCount;
                     break;
             }
 
@@ -214,6 +218,17 @@ namespace OptimeGBA
                                 {
                                     lcdEnum = LCDEnum.VBlank;
                                     VBlank = true;
+
+                                    if (VCount == 160)
+                                    {
+                                        if (VBlankIrqEnable)
+                                        {
+                                            Gba.HwControl.FlagInterrupt(Interrupt.VBlank);
+                                            Console.WriteLine("Flag VBLANK");
+                                        }
+
+                                        TotalFrames++;
+                                    }
                                 }
                                 else
                                 {
@@ -226,8 +241,6 @@ namespace OptimeGBA
                                 VCounterMatch = VCount == VCountSetting;
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
-
-                                TotalFrames++;
                             }
                         }
                     }
@@ -249,6 +262,9 @@ namespace OptimeGBA
         {
             switch (Mode)
             {
+                case 3:
+                    RenderMode3();
+                    return;
                 case 4:
                     RenderMode4();
                     return;
@@ -264,12 +280,37 @@ namespace OptimeGBA
             {
                 uint vramVal = Vram[vramBase];
 
-                Screen[screenBase + 0] = ProcessedPalettes[vramVal,0];
-                Screen[screenBase + 1] = ProcessedPalettes[vramVal,1];
-                Screen[screenBase + 2] = ProcessedPalettes[vramVal,2];
+                Screen[screenBase + 0] = ProcessedPalettes[vramVal, 0];
+                Screen[screenBase + 1] = ProcessedPalettes[vramVal, 1];
+                Screen[screenBase + 2] = ProcessedPalettes[vramVal, 2];
 
                 vramBase++;
-                screenBase += BYTES_PER_PIXEL; 
+                screenBase += BYTES_PER_PIXEL;
+            }
+        }
+
+        public void RenderMode3()
+        {
+            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint vramBase = 0x0 + (VCount * WIDTH * 2);
+
+            for (uint p = 0; p < WIDTH; p++)
+            {
+                byte b0 = Vram[vramBase + 0];
+                byte b1 = Vram[vramBase + 1];
+
+                ushort data = (ushort)((b1 << 8) | b0);
+
+                byte r = (byte)((data >> 0) & 0b11111);
+                byte g = (byte)((data >> 5) & 0b11111);
+                byte b = (byte)((data >> 10) & 0b11111);
+
+                Screen[screenBase + 0] = (byte)(r * (255 / 31));
+                Screen[screenBase + 1] = (byte)(g * (255 / 31));
+                Screen[screenBase + 2] = (byte)(b * (255 / 31));
+
+                screenBase += BYTES_PER_PIXEL;
+                vramBase += 2;
             }
         }
     }

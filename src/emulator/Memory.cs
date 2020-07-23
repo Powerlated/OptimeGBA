@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
@@ -6,8 +7,9 @@ namespace OptimeGBA
     public class Memory
     {
         GBA Gba;
+        GbaRomProvider GbaRomProvider;
 
-        public Memory(GBA gba)
+        public Memory(GBA gba, GbaRomProvider gbaRomProvider)
         {
             Gba = gba;
 
@@ -20,7 +22,12 @@ namespace OptimeGBA
             {
                 Iwram[i] = 0x69;
             }
+
+            GbaRomProvider = gbaRomProvider;
         }
+
+        public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
+        public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
 
         public long EwramWrites = 0;
         public long IwramWrites = 0;
@@ -43,10 +50,6 @@ namespace OptimeGBA
         // Internal Work RAM
         public byte[] Iwram = new byte[32768];
 
-        public byte[] Bios = new byte[16384];
-
-        public byte[] Rom = new byte[33554432];
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
@@ -54,7 +57,7 @@ namespace OptimeGBA
             if (addr >= 0x00000000 && addr <= 0x00003FFF)
             {
                 BiosReads++;
-                return Bios[addr - 0x00000000];
+                return GbaRomProvider.Bios[addr - 0x00000000];
             }
 
             // External WRAM
@@ -76,10 +79,9 @@ namespace OptimeGBA
             {
                 addr &= 0x400FFFF;
 
-                // using (System.IO.StreamWriter w = System.IO.File.AppendText("hwio.txt"))
-                // {
-                //     w.WriteLine($"ReadHWIO8: {Util.Hex(addr, 8)}");
-                // }
+                uint count;
+                HwioReadLog.TryGetValue(addr, out count);
+                HwioReadLog[addr] = count + 1;
 
                 HwioReads++;
                 return ReadHwio8(addr);
@@ -112,7 +114,7 @@ namespace OptimeGBA
             else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
             {
                 RomReads++;
-                return Rom[addr - 0x08000000];
+                return GbaRomProvider.Rom[addr - 0x08000000];
             }
 
             // This should be open bus
@@ -150,7 +152,7 @@ namespace OptimeGBA
             // GBA Bios
             if (addr >= 0x00000000 && addr <= 0x00003FFF)
             {
-                return Bios[addr - 0x00000000];
+                return GbaRomProvider.Bios[addr - 0x00000000];
             }
 
             // External WRAM
@@ -196,7 +198,7 @@ namespace OptimeGBA
             // ROM
             else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
             {
-                return Rom[addr - 0x08000000];
+                return GbaRomProvider.Rom[addr - 0x08000000];
             }
 
             // This should be open bus
@@ -255,10 +257,9 @@ namespace OptimeGBA
             {
                 addr &= 0x400FFFF;
 
-                // using (System.IO.StreamWriter w = System.IO.File.AppendText("hwio.txt"))
-                // {
-                //     w.WriteLine($"WriteHWIO8: {Util.Hex(addr, 8)}");
-                // }
+                uint count;
+                HwioWriteLog.TryGetValue(addr, out count);
+                HwioWriteLog[addr] = count + 1;
 
                 HwioWrites++;
                 WriteHwio8(addr, val);

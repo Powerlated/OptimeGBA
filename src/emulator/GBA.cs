@@ -15,10 +15,10 @@ namespace OptimeGBA
 
         public uint[] registers = new uint[16];
         public Callback AudioCallback;
-        public GBA(Callback audioCallback)
+        public GBA(GbaRomProvider romProvider, Callback audioCallback)
         {
             Arm7 = new ARM7(this);
-            Mem = new Memory(this);
+            Mem = new Memory(this, romProvider);
             GbaAudio = new GBAAudio(this);
             Lcd = new LCD(this);
             Keypad = new Keypad();

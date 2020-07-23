@@ -23,18 +23,22 @@ namespace OptimeGBAEmulator
 
         public static void Main(string[] args)
         {
-            Gba = new GBA(AudioReady);
-
-
+            GbaRomProvider provider = new GbaRomProvider();
+            
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
-            bios.CopyTo(Gba.Mem.Bios, 0);
+            bios.CopyTo(provider.Bios, 0);
 
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
-            byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
-            // byte[] rom = System.IO.File.ReadAllBytes("roms/thumb.gba");
-            rom.CopyTo(Gba.Mem.Rom, 0);
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_demo.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_vsync.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon Pinball - Ruby & Sapphire (USA).gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            rom.CopyTo(provider.Rom, 0);
+
+            Gba = new GBA(provider, AudioReady);
 
             using (Game game = new Game(1600, 900, "Optime GBA", Gba))
             {
@@ -58,7 +62,7 @@ namespace OptimeGBAEmulator
 
         static void AudioReady()
         {
-                
+
             // int bytes = sizeof(float) * Gba.Audio.AudioQueue.Length;
 
             // IntPtr ptr = Marshal.AllocHGlobal(bytes);
