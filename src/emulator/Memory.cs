@@ -7,9 +7,9 @@ namespace OptimeGBA
     public class Memory
     {
         GBA Gba;
-        GbaRomProvider GbaRomProvider;
+        GbaProvider GbaRomProvider;
 
-        public Memory(GBA gba, GbaRomProvider gbaRomProvider)
+        public Memory(GBA gba, GbaProvider gbaRomProvider)
         {
             Gba = gba;
 
@@ -334,9 +334,9 @@ namespace OptimeGBA
             {
                 return Gba.Dma.ReadHwio8(addr);
             }
-            else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
+            else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
             {
-
+                return Gba.Timers.ReadHwio8(addr);
             }
             else if (addr >= 0x4000120 && addr <= 0x400012C) // Serial
             {
@@ -373,9 +373,9 @@ namespace OptimeGBA
             {
                 Gba.Dma.WriteHwio8(addr, val);
             }
-            else if (addr >= 0x4000100 && addr <= 0x4000110) // Timer
+            else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
             {
-
+                Gba.Timers.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000120 && addr <= 0x400012C) // Serial
             {

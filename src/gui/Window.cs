@@ -79,6 +79,19 @@ namespace OptimeGBAEmulator
             KeyboardState input = Keyboard.GetState();
 
 
+            if (FrameStep)
+            {
+                if (OptimeGBAEmulator.GetAudioSamplesInQueue() < 8192)
+                {
+                    int num = FrameIns;
+                    while (num > 0 && !Gba.Arm7.Errored)
+                    {
+                        Gba.Step();
+                        num--;
+                    }
+                }
+            }
+
             // if (input.IsKeyDown(Key.Escape))
             // {
             //     Exit();
@@ -98,19 +111,11 @@ namespace OptimeGBAEmulator
             base.OnUpdateFrame(e);
         }
 
+        const int FrameIns = 69905;
+
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-
-            if (FrameStep)
-            {
-                int num = 70224;
-                while (num > 0 && !Gba.Arm7.Errored)
-                {
-                    Gba.Step();
-                    num--;
-                }
-            }
 
             _controller.Update(this, (float)e.Time);
 
@@ -154,6 +159,12 @@ namespace OptimeGBAEmulator
             // GL.Flush();
             // Context.SwapBuffers();
 
+        }
+
+        public void ResetGba()
+        {
+            GbaProvider p = Gba.Provider;
+            Gba = new GBA(p);
         }
 
         static int MemoryViewerInit = 1;
@@ -383,25 +394,27 @@ namespace OptimeGBAEmulator
 
         public void DrawInstrInfo()
         {
-            String logText = BuildLogText();
-            String emuText = BuildEmuText();
-
-            ImGui.Begin("Instruction Info");
-            if (LogIndex >= 0)
-                ImGui.Text(logText);
-            ImGui.Separator();
-            if (emuText != logText)
+            if (ImGui.Begin("Instruction Info"))
             {
-                ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.0f, 0.0f, 1.0f), emuText);
-            }
-            else
-            {
-                ImGui.Text(emuText);
-            }
+                String logText = BuildLogText();
+                String emuText = BuildEmuText();
 
-            ImGui.Separator();
-            ImGui.Text(Gba.Arm7.Debug);
-            ImGui.End();
+                if (LogIndex >= 0)
+                    ImGui.Text(logText);
+                ImGui.Separator();
+                if (emuText != logText)
+                {
+                    ImGui.TextColored(new System.Numerics.Vector4(1.0f, 0.0f, 0.0f, 1.0f), emuText);
+                }
+                else
+                {
+                    ImGui.Text(emuText);
+                }
+
+                ImGui.Separator();
+                ImGui.Text(Gba.Arm7.Debug);
+                ImGui.End();
+            }
         }
 
 
@@ -411,7 +424,7 @@ namespace OptimeGBAEmulator
 
             ImGui.BeginGroup();
 
-            ImGui.Columns(3);
+            ImGui.Columns(4);
 
             ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
             ImGui.Text($"R0:  {Hex(Gba.Arm7.R0, 8)}");
@@ -439,6 +452,21 @@ namespace OptimeGBAEmulator
             // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
 
             ImGui.Text($"");
+
+            if (ImGui.Button("Reset"))
+            {
+                ResetGba();
+            }
+
+            if (ImGui.Button("Frame Advance"))
+            {
+                int num = FrameIns;
+                while (num > 0 && !Gba.Arm7.Errored)
+                {
+                    Gba.Step();
+                    num--;
+                }
+            }
 
             if (ImGui.Button("Un-error"))
             {
@@ -549,30 +577,56 @@ namespace OptimeGBAEmulator
 
             ImGui.NextColumn();
 
+            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
+
             ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
             ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
             ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
 
-            // Draw separator within column
-            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
-            drawList.AddLine(new System.Numerics.Vector2(pos.X - 9999, pos.Y), new System.Numerics.Vector2(pos.X + 9999, pos.Y), ImGui.GetColorU32(ImGuiCol.Border));
+            ImGuiColumnSeparator();
 
+            ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DmaSource, 8)}");
+            ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DmaSource, 8)}");
+            ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DmaSource, 8)}");
+            ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DmaSource, 8)}");
             ImGui.Text("");
-            ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DMASAD, 8)}");
-            ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DMASAD, 8)}");
-            ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DMASAD, 8)}");
-            ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DMASAD, 8)}");
+            ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DmaDest, 8)}");
+            ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DmaDest, 8)}");
+            ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DmaDest, 8)}");
+            ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DmaDest, 8)}");
             ImGui.Text("");
-            ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DMADAD, 8)}");
-            ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DMADAD, 8)}");
-            ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DMADAD, 8)}");
-            ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DMADAD, 8)}");
+            ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DmaLength, 4)}");
+            ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DmaLength, 4)}");
+            ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DmaLength, 4)}");
+            ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DmaLength, 4)}");
+
+            ImGuiColumnSeparator();
+
+            ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CounterVal, 4)}");
+            ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CounterVal, 4)}");
+            ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CounterVal, 4)}");
+            ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CounterVal, 4)}");
             ImGui.Text("");
-            ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DMACNT_L, 4)}");
-            ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DMACNT_L, 4)}");
-            ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DMACNT_L, 4)}");
-            ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DMACNT_L, 4)}");
+            ImGui.Text($"Timer 0 Reload: {Hex(Gba.Timers.T[0].ReloadVal, 4)}");
+            ImGui.Text($"Timer 1 Reload: {Hex(Gba.Timers.T[1].ReloadVal, 4)}");
+            ImGui.Text($"Timer 2 Reload: {Hex(Gba.Timers.T[2].ReloadVal, 4)}");
+            ImGui.Text($"Timer 3 Reload: {Hex(Gba.Timers.T[3].ReloadVal, 4)}");
+            ImGui.Text("");
+
+            String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
+
+            ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].Prescaler]}");
+            ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].Prescaler]}");
+            ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].Prescaler]}");
+            ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].Prescaler]}");
+
+            ImGui.NextColumn();
+            ImGui.Text($"FIFO A Current Byte: {Hex(Gba.GbaAudio.FifoACurrentByte, 2)}");
+            ImGui.Text($"FIFO B Current Byte: {Hex(Gba.GbaAudio.FifoBCurrentByte, 2)}");
+            ImGui.Text($"FIFO A Total Pops: {Hex(Gba.GbaAudio.FifoATotalPops, 2)}");
+            ImGui.Text($"FIFO B Total Pops: {Hex(Gba.GbaAudio.FifoBTotalPops, 2)}");
+            ImGui.Text($"FIFO A Empty Pops: {Hex(Gba.GbaAudio.FifoAEmptyPops, 2)}");
+            ImGui.Text($"FIFO B Empty Pops: {Hex(Gba.GbaAudio.FifoBEmptyPops, 2)}");
 
             ImGui.Columns(1);
             ImGui.Separator();
@@ -644,47 +698,62 @@ namespace OptimeGBAEmulator
             ImGui.End();
         }
 
+        public void ImGuiColumnSeparator()
+        {
+            ImGui.Dummy(new System.Numerics.Vector2(0.0f, 0.5f));
+
+            // Draw separator within column
+            ImDrawListPtr drawList = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            drawList.AddLine(new System.Numerics.Vector2(pos.X - 9999, pos.Y), new System.Numerics.Vector2(pos.X + 9999, pos.Y), ImGui.GetColorU32(ImGuiCol.Border));
+
+            ImGui.Dummy(new System.Numerics.Vector2(0.0f, 1f));
+        }
+
         public void DrawInstrViewer()
         {
-            uint back = Gba.Arm7.ThumbState ? 16U : 32U;
-
-            int rows = 32;
-            uint tempBase = Gba.Arm7.R15 - back;
-
-            ImGui.Begin("Instruction Viewer");
-            for (int i = 0; i < rows; i++)
+            if (ImGui.Begin("Instruction Viewer"))
             {
-                if (Gba.Arm7.ThumbState)
-                {
-                    ushort val = Gba.Mem.ReadDebug16(tempBase);
-                    String disasm = DisasmThumb(val);
+                uint back = Gba.Arm7.ThumbState ? 16U : 32U;
 
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                    if (tempBase == Gba.Arm7.R15 - 2)
+                int rows = 32;
+                uint tempBase = Gba.Arm7.R15 - back;
+
+
+                for (int i = 0; i < rows; i++)
+                {
+                    if (Gba.Arm7.ThumbState)
                     {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                        ushort val = Gba.Mem.ReadDebug16(tempBase);
+                        String disasm = DisasmThumb(val);
+
+                        String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
+                        if (tempBase == Gba.Arm7.R15 - 2)
+                        {
+                            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                        }
+                        else
+                        {
+                            ImGui.Text(s);
+                        }
+                        tempBase += 2;
                     }
                     else
                     {
-                        ImGui.Text(s);
-                    }
-                    tempBase += 2;
-                }
-                else
-                {
-                    uint val = Gba.Mem.ReadDebug32(tempBase);
-                    String disasm = DisasmArm(val);
+                        uint val = Gba.Mem.ReadDebug32(tempBase);
+                        String disasm = DisasmArm(val);
 
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                    if (tempBase == Gba.Arm7.R15 - 4)
-                    {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                        String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
+                        if (tempBase == Gba.Arm7.R15 - 4)
+                        {
+                            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                        }
+                        else
+                        {
+                            ImGui.Text(s);
+                        }
+                        tempBase += 4;
                     }
-                    else
-                    {
-                        ImGui.Text(s);
-                    }
-                    tempBase += 4;
                 }
             }
         }
@@ -836,6 +905,31 @@ namespace OptimeGBAEmulator
                 )));
             }
 
+            uint[] timerAddrs = { 0x4000102, 0x4000106, 0x400010A, 0x400010E };
+            for (uint r = 0; r < 4; r++)
+            {
+                Registers.Add(
+                    new Register($"TM{r}CNT_L - Timer {r} Control", timerAddrs[r],
+                        new RegisterField("Prescaler Selection", 0, 1),
+                        new RegisterField("Timer Cascade", 2),
+                        new RegisterField("Timer IRQ Enable", 6),
+                        new RegisterField("Timer Start / Stop", 7)
+                ));
+            }
+
+            Registers.Add(
+                new Register($"SOUNDCNT_H - DMA Sound Control", 0x4000082,
+                    new RegisterField("Sound # 1-4 Volume", 0, 1),
+                    new RegisterField("DMA Sound A Volume", 2, 2),
+                    new RegisterField("DMA Sound B Volume", 3, 3),
+                    new RegisterField("DMA Sound A Enable RIGHT", 8),
+                    new RegisterField("DMA Sound A Enable LEFT", 9),
+                    new RegisterField("DMA Sound A Timer Select", 10, 10),
+                    new RegisterField("DMA Sound B Enable RIGHT", 12),
+                    new RegisterField("DMA Sound B Enable LEFT", 13),
+                    new RegisterField("DMA Sound B Timer Select", 14, 14)
+            ));
+
             RegViewerSelected = Registers[0];
         }
 
@@ -843,57 +937,61 @@ namespace OptimeGBAEmulator
 
         public void DrawRegViewer()
         {
-            ImGui.Begin("Register Viewer");
-            if (ImGui.BeginCombo("", RegViewerSelected.Name))
+            if (ImGui.Begin("Register Viewer"))
             {
-                foreach (Register r in Registers)
+                if (ImGui.BeginCombo("", $"{Hex(RegViewerSelected.Address, 8)} {RegViewerSelected.Name}"))
                 {
-                    bool selected = r == RegViewerSelected;
-                    if (ImGui.Selectable(r.Name, selected))
+                    foreach (Register r in Registers)
                     {
-                        RegViewerSelected = r;
+                        bool selected = r == RegViewerSelected;
+                        if (ImGui.Selectable($"{Hex(r.Address, 8)} {r.Name}", selected))
+                        {
+                            RegViewerSelected = r;
+                        }
+                        if (selected)
+                        {
+                            ImGui.SetItemDefaultFocus();
+                        }
                     }
-                    if (selected)
+                    ImGui.EndCombo();
+                }
+
+                uint value = Gba.Mem.ReadDebug32(RegViewerSelected.Address);
+                foreach (RegisterField f in RegViewerSelected.Fields)
+                {
+                    if (f.Checkbox)
                     {
-                        ImGui.SetItemDefaultFocus();
+                        bool ticked = Bits.BitTest(value, f.Bit);
+                        // ImGui.Text($"{f.Bit}");
+                        // ImGui.SameLine(); 
+                        ImGui.Checkbox(f.Name, ref ticked);
+                    }
+                    else
+                    {
+                        ImGui.Text($" {Bits.BitRange(value, f.Bit, f.EndBit)}");
+                        ImGui.SameLine(); ImGui.Text(f.Name);
                     }
                 }
-                ImGui.EndCombo();
+                ImGui.End();
             }
-            uint value = Gba.Mem.ReadDebug32(RegViewerSelected.Address);
-            foreach (RegisterField f in RegViewerSelected.Fields)
-            {
-                if (f.Checkbox)
-                {
-                    bool ticked = Bits.BitTest(value, f.Bit);
-                    // ImGui.Text($"{f.Bit}");
-                    // ImGui.SameLine(); 
-                    ImGui.Checkbox(f.Name, ref ticked);
-                }
-                else
-                {
-                    ImGui.Text($" {Bits.BitRange(value, f.Bit, f.EndBit)}");
-                    ImGui.SameLine(); ImGui.Text(f.Name);
-                }
-            }
-            ImGui.End();
         }
 
         public void DrawHwioLog()
         {
-            ImGui.Begin("HWIO Log");
-
-            foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioReadLog)
+            if (ImGui.Begin("HWIO Log"))
             {
-                ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
-            }
-            ImGui.Separator();
-            foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioWriteLog)
-            {
-                ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
-            }
+                foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioReadLog)
+                {
+                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                }
+                ImGui.Separator();
+                foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioWriteLog)
+                {
+                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                }
 
-            ImGui.End();
+                ImGui.End();
+            }
         }
     }
 }

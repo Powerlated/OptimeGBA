@@ -452,7 +452,7 @@ namespace OptimeGBA
                     if (this.audioQueueAt >= this.audioQueue.Length)
                     {
                         this.audioQueueAt = 0;
-                        this.Gba.AudioCallback();
+                        // this.Gba.Provider.AudioCallback();
                         Console.WriteLine("Audio callback ");
                     }
                 }

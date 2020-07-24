@@ -321,7 +321,7 @@ void main()
             // Setup orthographic projection matrix into our constant buffer
             ImGuiIOPtr io = ImGui.GetIO();
             Matrix4 mvp = Matrix4.CreateOrthographicOffCenter(
-                -1.0f,
+                0.0f,
                 io.DisplaySize.X,
                 io.DisplaySize.Y,
                 0.0f,

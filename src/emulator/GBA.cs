@@ -1,31 +1,33 @@
-public delegate void Callback();
 
 namespace OptimeGBA
 {
 
     public class GBA
     {
+        public GbaProvider Provider;
+
         public ARM7 Arm7;
         public Memory Mem;
         public GBAAudio GbaAudio;
         public LCD Lcd;
         public DMA Dma;
         public Keypad Keypad;
+        public Timers Timers;
         public HWControl HwControl;
 
         public uint[] registers = new uint[16];
-        public Callback AudioCallback;
-        public GBA(GbaRomProvider romProvider, Callback audioCallback)
+        public GBA(GbaProvider provider)
         {
             Arm7 = new ARM7(this);
-            Mem = new Memory(this, romProvider);
+            Mem = new Memory(this, provider);
             GbaAudio = new GBAAudio(this);
             Lcd = new LCD(this);
             Keypad = new Keypad();
             Dma = new DMA(this);
+            Timers = new Timers(this);
             HwControl = new HWControl(this);
 
-            AudioCallback = audioCallback;
+            Provider = provider;
         }
 
         public uint Step() {
@@ -37,6 +39,9 @@ namespace OptimeGBA
         void Tick(uint cycles) {
             Lcd.Tick(cycles);
             Dma.Tick(cycles);
+            Timers.Tick(cycles);
+            GbaAudio.Tick(cycles);
+            
             // Audio.Tick(cycles);
         }
     }

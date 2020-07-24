@@ -224,7 +224,6 @@ namespace OptimeGBA
                                         if (VBlankIrqEnable)
                                         {
                                             Gba.HwControl.FlagInterrupt(Interrupt.VBlank);
-                                            Console.WriteLine("Flag VBLANK");
                                         }
 
                                         TotalFrames++;

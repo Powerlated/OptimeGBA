@@ -101,54 +101,54 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x00: // DMASAD B0
-                    DMASAD &= 0x000000FF;
+                    DMASAD &= 0xFFFFFF00;
                     DMASAD |= ((uint)val << 0);
                     break;
                 case 0x01: // DMASAD B1
-                    DMASAD &= 0x0000FF00;
+                    DMASAD &= 0xFFFF00FF;
                     DMASAD |= ((uint)val << 8);
                     break;
                 case 0x02: // DMASAD B2
-                    DMASAD &= 0x00FF0000;
+                    DMASAD &= 0xFF00FFFF;
                     DMASAD |= ((uint)val << 16);
                     break;
                 case 0x03: // DMASAD B3
-                    DMASAD &= 0xFF000000;
+                    DMASAD &= 0x00FFFFFF;
                     DMASAD |= ((uint)val << 24);
                     break;
 
                 case 0x04: // DMADAD B0
-                    DMADAD &= 0x000000FF;
+                    DMADAD &= 0xFFFFFF00;
                     DMADAD |= ((uint)val << 0);
                     break;
                 case 0x05: // DMADAD B1
-                    DMADAD &= 0x0000FF00;
+                    DMADAD &= 0xFFFF00FF;
                     DMADAD |= ((uint)val << 8);
                     break;
                 case 0x06: // DMADAD B2
-                    DMADAD &= 0x00FF0000;
+                    DMADAD &= 0xFF00FFFF;
                     DMADAD |= ((uint)val << 16);
                     break;
                 case 0x07: // DMADAD B3
-                    DMADAD &= 0xFF000000;
+                    DMADAD &= 0x00FFFFFF;
                     DMADAD |= ((uint)val << 24);
                     break;
 
                 case 0x08: // DMACNT_L B0
-                    DMACNT_L &= 0x00FF;
+                    DMACNT_L &= 0xFF00;
                     DMACNT_L |= ((uint)val << 0);
                     break;
                 case 0x09: // DMACNT_L B1
-                    DMACNT_L &= 0xFF00;
+                    DMACNT_L &= 0x00FF;
                     DMACNT_L |= ((uint)val << 8);
                     break;
                 case 0x0A: // DMACNT_H B0
-                    DMACNT_H &= 0x00FF;
+                    DMACNT_H &= 0xFF00;
                     DMACNT_H |= ((uint)val << 0);
                     UpdateControl();
                     break;
                 case 0x0B: // DMACNT_H B1
-                    DMACNT_H &= 0xFF00;
+                    DMACNT_H &= 0x00FF;
                     DMACNT_H |= ((uint)val << 8);
                     UpdateControl();
                     break;
@@ -277,6 +277,106 @@ namespace OptimeGBA
             ExecuteImmediates();
         }
 
+        public void ExecuteDma(DMAChannel c, uint ci)
+        {
+            // Least significant 28 (or 27????) bits
+            uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
+            uint destAddr = c.DmaDest & 0b1111111111111111111111111111;
+
+            uint origSrcAddr = srcAddr;
+            uint origDestAddr = destAddr;
+
+            if (ci == 3)
+            {
+                // DMA 3 is 16-bit length
+                c.DmaLength &= 0b1111111111111111;
+                // Value of zero is treated as maximum length
+                if (c.DmaLength == 0) c.DmaLength = 0x10000;
+            }
+            else
+            {
+                // DMA 0-2 are 14-bit length
+                c.DmaLength &= 0b11111111111111;
+                // Value of zero is treated as maximum length
+                if (c.DmaLength == 0) c.DmaLength = 0x4000;
+            }
+
+            uint origLength = c.DmaLength;
+
+            for (; c.DmaLength > 0; c.DmaLength--)
+            {
+                if (c.TransferType)
+                {
+                    Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
+
+                    switch (c.DestAddrCtrl)
+                    {
+                        case DMADestAddrCtrl.Increment: destAddr += 4; break;
+                        case DMADestAddrCtrl.Decrement: destAddr -= 4; break;
+                        case DMADestAddrCtrl.Fixed: break;
+                        case DMADestAddrCtrl.IncrementReload: destAddr += 4; break;
+                    }
+                    switch (c.SrcAddrCtrl)
+                    {
+                        case DMASrcAddrCtrl.Increment: srcAddr += 4; break;
+                        case DMASrcAddrCtrl.Decrement: srcAddr -= 4; break;
+                        case DMASrcAddrCtrl.Fixed: break;
+                    }
+                }
+                else
+                {
+                    Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
+
+                    switch (c.DestAddrCtrl)
+                    {
+                        case DMADestAddrCtrl.Increment: destAddr += 2; break;
+                        case DMADestAddrCtrl.Decrement: destAddr -= 2; break;
+                        case DMADestAddrCtrl.Fixed: break;
+                        case DMADestAddrCtrl.IncrementReload: destAddr += 2; break;
+                    }
+                    switch (c.SrcAddrCtrl)
+                    {
+                        case DMASrcAddrCtrl.Increment: srcAddr += 2; break;
+                        case DMASrcAddrCtrl.Decrement: srcAddr -= 2; break;
+                        case DMASrcAddrCtrl.Fixed: break;
+                    }
+                }
+            }
+
+            if (c.DestAddrCtrl == DMADestAddrCtrl.IncrementReload)
+            {
+                c.DmaLength = origLength;
+
+                if (c.Repeat)
+                {
+                    c.DmaDest = origDestAddr;
+                }
+            }
+        }
+
+        public void ExecuteSoundDma(DMAChannel c, uint ci)
+        {
+            // Least significant 28 (or 27????) bits
+            uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
+            uint destAddr = c.DmaDest & 0b1111111111111111111111111111;
+
+            // 4 units of 32bits (16 bytes) are transferred to FIFO_A or FIFO_B
+            for (uint i = 0; i < 4; i++)
+            {
+                Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
+
+                switch (c.SrcAddrCtrl)
+                {
+                    case DMASrcAddrCtrl.Increment: srcAddr += 2; break;
+                    case DMASrcAddrCtrl.Decrement: srcAddr -= 2; break;
+                    case DMASrcAddrCtrl.Fixed: break;
+                }
+            }
+
+            c.DmaSource = srcAddr;
+        }
+
+
         public void ExecuteImmediates()
         {
             for (uint ci = 0; ci < 4; ci++)
@@ -287,80 +387,23 @@ namespace OptimeGBA
                 {
                     c.Disable();
 
-                    // Least significant 28 (or 27????) bits
-                    uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
-                    uint destAddr = c.DmaDest & 0b1111111111111111111111111111;
-
-                    uint origSrcAddr = srcAddr;
-                    uint origDestAddr = destAddr;
-
-                    if (ci == 3)
-                    {
-                        // DMA 3 is 16-bit length
-                        c.DmaLength &= 0b1111111111111111;
-                        // Value of zero is treated as maximum length
-                        if (c.DmaLength == 0) c.DmaLength = 0x10000;
-                    }
-                    else
-                    {
-                        // DMA 0-2 are 14-bit length
-                        c.DmaLength &= 0b11111111111111;
-                        // Value of zero is treated as maximum length
-                        if (c.DmaLength == 0) c.DmaLength = 0x4000;
-                    }
-
-                    uint origLength = c.DmaLength;
-
-                    for (; c.DmaLength > 0; c.DmaLength--)
-                    {
-                        if (c.TransferType)
-                        {
-                            Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
-
-                            switch (c.DestAddrCtrl)
-                            {
-                                case DMADestAddrCtrl.Increment: destAddr += 4; break;
-                                case DMADestAddrCtrl.Decrement: destAddr -= 4; break;
-                                case DMADestAddrCtrl.Fixed: break;
-                                case DMADestAddrCtrl.IncrementReload: destAddr += 4; break;
-                            }
-                            switch (c.SrcAddrCtrl)
-                            {
-                                case DMASrcAddrCtrl.Increment: srcAddr += 4; break;
-                                case DMASrcAddrCtrl.Decrement: srcAddr -= 4; break;
-                                case DMASrcAddrCtrl.Fixed: break;
-                            }
-                        }
-                        else
-                        {
-                            Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
-
-                            switch (c.DestAddrCtrl)
-                            {
-                                case DMADestAddrCtrl.Increment: destAddr += 2; break;
-                                case DMADestAddrCtrl.Decrement: destAddr -= 2; break;
-                                case DMADestAddrCtrl.Fixed: break;
-                                case DMADestAddrCtrl.IncrementReload: destAddr += 2; break;
-                            }
-                            switch (c.SrcAddrCtrl)
-                            {
-                                case DMASrcAddrCtrl.Increment: srcAddr += 2; break;
-                                case DMASrcAddrCtrl.Decrement: srcAddr -= 2; break;
-                                case DMASrcAddrCtrl.Fixed: break;
-                            }
-                        }
-                    }
-
-                    if (c.DestAddrCtrl == DMADestAddrCtrl.IncrementReload)
-                    {
-                        c.DmaLength = origLength;
-
-                        if (c.Repeat)
-                        {
-                            c.DmaDest = origDestAddr;
-                        }
-                    }
+                    ExecuteDma(c, ci);
                 }
+            }
+        }
+
+        public void ExecuteFifoA()
+        {
+            if (Ch[1].StartTiming == DMAStartTiming.Special)
+            {
+                ExecuteSoundDma(Ch[1], 1);
+            }
+        }
+        public void ExecuteFifoB()
+        {
+            if (Ch[2].StartTiming == DMAStartTiming.Special)
+            {
+                ExecuteSoundDma(Ch[2], 2);
             }
         }
     }

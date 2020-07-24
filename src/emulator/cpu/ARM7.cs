@@ -209,6 +209,10 @@ namespace OptimeGBA
 
         public void Execute()
         {
+            if (R15 == 0x08000000) {
+                Error("R15 ROM Entry");
+            }
+
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
@@ -327,7 +331,7 @@ namespace OptimeGBA
                             SetReg(rd, readVal);
                         }
                     }
-                    else if ((ins & 0b1101101100000000000000000000) == 0b0001001000000000000000000000) // MSR
+                    else if ((ins & 0b1101101100001111000000000000) == 0b0001001000001111000000000000) // MSR
                     {
                         LineDebug("MSR");
                         // MSR
@@ -396,6 +400,25 @@ namespace OptimeGBA
                             // TODO: Add SPSR functionality to MSR
                             mask = byteMask & (UserMask | PrivMask | StateMask);
                             SetSPSR((GetSPSR() & ~mask) | (operand & mask));
+                        }
+                    }
+                    else if ((ins & 0b1111101111110000000000000000) == 0b0001000011110000000000000000) // MRS
+                    {
+                        LineDebug("MRS");
+
+                        bool useSPSR = BitTest(ins, 22);
+
+                        uint rd = (ins >> 12) & 0xF;
+
+                        if (useSPSR)
+                        {
+                            LineDebug("Rd from SPSR");
+                            SetReg(rd, GetSPSR());
+                        }
+                        else
+                        {
+                            LineDebug("Rd from CPSR");
+                            SetReg(rd, GetCPSR());
                         }
                     }
                     else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
@@ -1528,25 +1551,6 @@ namespace OptimeGBA
                         }
 
                         LineDebug(regs);
-                    }
-                    else if ((ins & 0b1111101100000000000000000000) == 0b0001000000000000000000000000) // MRS
-                    {
-                        LineDebug("MRS");
-
-                        bool useSPSR = BitTest(ins, 22);
-
-                        uint rd = (ins >> 12) & 0xF;
-
-                        if (useSPSR)
-                        {
-                            LineDebug("Rd from SPSR");
-                            SetReg(rd, GetSPSR());
-                        }
-                        else
-                        {
-                            LineDebug("Rd from CPSR");
-                            SetReg(rd, GetCPSR());
-                        }
                     }
                     else if ((ins & 0b1111000000000000000000000000) == 0b1111000000000000000000000000) // SWI - Software Interrupt
                     {
