@@ -2,3 +2,5 @@ bin/
 obj/
 roms/
 imgui.ini
+*.txt
+dmg_boot.bin

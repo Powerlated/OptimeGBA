@@ -170,7 +170,6 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000301: // HALTCNT
-                    Console.WriteLine("HALT");
                     if (BitTest(val, 7))
                     {
                         StopMode = true;

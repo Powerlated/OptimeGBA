@@ -32,14 +32,12 @@ namespace OptimeGBA
 
         public uint Step()
         {
-            uint cycles = 4;
+            uint cycles = 1;
             // uint cycles = 2;
-            if (!HwControl.HaltMode)
-            {
-                Arm7.Execute();
-                cycles = Arm7.PendingCycles;
-                Arm7.PendingCycles = 0;
-            }
+            Arm7.Execute();
+            cycles = Arm7.PendingCycles;
+            Arm7.PendingCycles = 0;
+
             Tick(cycles);
             return cycles;
         }

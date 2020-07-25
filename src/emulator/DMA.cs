@@ -308,7 +308,7 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
-                    Gba.Tick(ARM7.GetTiming32(srcAddr));
+                    // Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -327,7 +327,7 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
-                    Gba.Tick(ARM7.GetTiming8And16(srcAddr));
+                    // Gba.Tick(ARM7.GetTiming8And16(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -365,13 +365,37 @@ namespace OptimeGBA
             // 4 units of 32bits (16 bytes) are transferred to FIFO_A or FIFO_B
             for (uint i = 0; i < 4; i++)
             {
-                Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
-                Gba.Tick(ARM7.GetTiming8And16(srcAddr));
+                byte b0 = Gba.Mem.Read8(srcAddr + 0);
+                byte b1 = Gba.Mem.Read8(srcAddr + 1);
+                byte b2 = Gba.Mem.Read8(srcAddr + 2);
+                byte b3 = Gba.Mem.Read8(srcAddr + 3);
+                if (destAddr == 0x40000A0)
+                {
+                    Gba.GbaAudio.A.Insert(b0);
+                    Gba.GbaAudio.A.Insert(b1);
+                    Gba.GbaAudio.A.Insert(b2);
+                    Gba.GbaAudio.A.Insert(b3);
+                }
+                else if (destAddr == 0x40000A4)
+                {
+                    Gba.GbaAudio.B.Insert(b0);
+                    Gba.GbaAudio.B.Insert(b1);
+                    Gba.GbaAudio.B.Insert(b2);
+                    Gba.GbaAudio.B.Insert(b3);
+                }
+                else
+                {
+                    Gba.Mem.Write8(destAddr + 0, b0);
+                    Gba.Mem.Write8(destAddr + 1, b1);
+                    Gba.Mem.Write8(destAddr + 2, b2);
+                    Gba.Mem.Write8(destAddr + 3, b3);
+                }
+                Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                 switch (c.SrcAddrCtrl)
                 {
-                    case DMASrcAddrCtrl.Increment: srcAddr += 2; break;
-                    case DMASrcAddrCtrl.Decrement: srcAddr -= 2; break;
+                    case DMASrcAddrCtrl.Increment: srcAddr += 4; break;
+                    case DMASrcAddrCtrl.Decrement: srcAddr -= 4; break;
                     case DMASrcAddrCtrl.Fixed: break;
                 }
             }

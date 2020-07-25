@@ -216,11 +216,6 @@ namespace OptimeGBA
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
-                if (R0 >= 0x08000000)
-                {
-                    Error("IRQ, ENTERING IRQ MODE!");
-                }
-
                 SPSR_irq = GetCPSR();
                 SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
                 R14 = R15 - 4;
@@ -3283,12 +3278,12 @@ namespace OptimeGBA
             Debug += $"{s}\n";
         }
 
-        [Conditional("DEBUG")]
+        // [Conditional("DEBUG")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Error(String s)
         {
-            LineDebug("ERROR:");
-            LineDebug(s);
+            Debug += $"ERROR:\n";
+            Debug += $"{s}\n";
 
             Errored = true;
         }
@@ -3351,13 +3346,14 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming8And16(uint addr)
         {
+            return 1;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 2; // BIOS
                 case 0x1: return 2; // Unused
-                case 0x2: return 1; // EWRAM
+                case 0x2: return 6; // EWRAM
                 case 0x3: return 1; // IWRAM
-                case 0x4: return 2; // I/O Registers
+                case 0x4: return 1; // I/O Registers
                 case 0x5: return 1; // PPU Palettes
                 case 0x6: return 1; // PPU VRAM
                 case 0x7: return 1; // PPU OAM
@@ -3377,13 +3373,14 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming32(uint addr)
         {
+            return 1;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 4; // BIOS
                 case 0x1: return 4; // Unused
-                case 0x2: return 1; // EWRAM
+                case 0x2: return 3; // EWRAM
                 case 0x3: return 1; // IWRAM
-                case 0x4: return 4; // I/O Registers
+                case 0x4: return 1; // I/O Registers
                 case 0x5: return 1; // PPU Palettes
                 case 0x6: return 1; // PPU VRAM
                 case 0x7: return 1; // PPU OAM

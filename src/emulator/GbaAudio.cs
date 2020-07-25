@@ -11,15 +11,23 @@ namespace OptimeGBA
         public uint Bytes = 0;
         public uint TotalPops = 0;
         public uint EmptyPops = 0;
+        public uint FullInserts = 0;
+        public uint Collisions = 0;
         public byte CurrentByte = 0;
+
 
         public void Insert(byte data)
         {
             if (Bytes < 32)
             {
+                if (ReadPos == WritePos) Collisions++;
                 Bytes++;
                 Buffer[WritePos++] = data;
                 WritePos &= 31;
+            }
+            else
+            {
+                FullInserts++;
             }
         }
 
@@ -39,6 +47,13 @@ namespace OptimeGBA
             }
             return data;
         }
+
+        public void Reset()
+        {
+            Bytes = 0;
+            ReadPos = 0;
+            WritePos = 0;
+        }
     }
 
     public class GBAAudio
@@ -48,6 +63,8 @@ namespace OptimeGBA
         {
             Gba = gba;
         }
+
+        public GbAudio GbAudio = new GbAudio();
 
         public FifoChannel A = new FifoChannel();
         public FifoChannel B = new FifoChannel();
@@ -68,8 +85,12 @@ namespace OptimeGBA
         bool DmaSoundBEnableLeft = false; // 12
         bool DmaSoundBTimerSelect = false; // 13
 
+        bool MasterEnable = false;
+
         public byte ReadHwio8(uint addr)
         {
+
+
             byte val = 0;
             switch (addr)
             {
@@ -87,6 +108,19 @@ namespace OptimeGBA
                     if (DmaSoundBTimerSelect) val = BitSet(val, 14 - 8); // 14
                     break;
 
+                // Special case, because SOUNDCNT_X contains both GB Audio status and GBA audio status
+                case 0x4000084:
+                    // NR52
+                    byte i = 0;
+                    i |= 0b01110000;
+                    if (GbAudio.noise_enabled && GbAudio.noise_dacEnabled) i |= (byte)BIT_3;
+                    if (GbAudio.wave_enabled && GbAudio.wave_dacEnabled) i |= (byte)BIT_2;
+                    if (GbAudio.pulse2_enabled && GbAudio.pulse2_dacEnabled) i |= (byte)BIT_1;
+                    if (GbAudio.pulse1_enabled && GbAudio.pulse1_dacEnabled) i |= (byte)BIT_0;
+
+                    if (MasterEnable) i |= (byte)BIT_7;
+                    return i;
+
                 case 0x4000088: // SOUNDBIAS B0
                     val |= (byte)(BiasLevel << 1);
                     break;
@@ -96,11 +130,21 @@ namespace OptimeGBA
                     break;
             }
 
+            if (addr >= 0x4000060 && addr <= 0x400009F)
+            {
+                val = GbAudio.ReadHwio8(addr & 0xFF);
+            }
+
             return val;
         }
 
         public void WriteHwio8(uint addr, byte val)
         {
+            if (addr >= 0x4000060 && addr <= 0x400009F)
+            {
+                GbAudio.WriteHwio8(addr & 0xFF, val);
+            }
+
             switch (addr)
             {
                 case 0x4000082: // SOUNDCNT_H B0
@@ -112,11 +156,14 @@ namespace OptimeGBA
                     DmaSoundAEnableRight = BitTest(val, 8 - 8); // 8
                     DmaSoundAEnableLeft = BitTest(val, 9 - 8); // 9
                     DmaSoundATimerSelect = BitTest(val, 10 - 8); // 10
-                    if (BitTest(val, 11 - 8)) DmaSoundAReset();
+                    if (BitTest(val, 11 - 8)) A.Reset();
                     DmaSoundBEnableRight = BitTest(val, 12 - 8); // 12
                     DmaSoundBEnableLeft = BitTest(val, 13 - 8); // 13
                     DmaSoundBTimerSelect = BitTest(val, 14 - 8); // 14
-                    if (BitTest(val, 15 - 8)) DmaSoundBReset();
+                    if (BitTest(val, 15 - 8)) B.Reset();
+                    break;
+                case 0x4000084: // SOUNDCNT_X
+                    MasterEnable = BitTest(val, 7);
                     break;
                 case 0x4000088: // SOUNDBIAS B0
                     BiasLevel &= 0b110000000;
@@ -131,35 +178,30 @@ namespace OptimeGBA
                     break;
 
                 case 0x40000A0:
-                    A.Insert(val);
-                    break;
                 case 0x40000A1:
-                    A.Insert(val);
-                    break;
                 case 0x40000A2:
-                    A.Insert(val);
-                    break;
                 case 0x40000A3:
+                    // Gba.Arm7.Error("FIFO Insert");
                     A.Insert(val);
                     break;
 
                 case 0x40000A4:
-                    B.Insert(val);
-                    break;
                 case 0x40000A5:
-                    B.Insert(val);
-                    break;
                 case 0x40000A6:
-                    B.Insert(val);
-                    break;
                 case 0x40000A7:
+                    // Gba.Arm7.Error("FIFO Insert");
                     B.Insert(val);
                     break;
-
             }
         }
 
-        bool CollectSamples = true;
+        public bool CollectSamples = true;
+
+        public bool EnablePsg = true;
+        public bool EnableFifo = true;
+
+        const uint GbAudioMax = 16; // Each time this hits, tick GB audio by 4 GB T-cycles
+        uint GbAudioTimer = 0;
 
         const uint SampleMax = 512;
         uint SampleTimer = 0;
@@ -168,35 +210,55 @@ namespace OptimeGBA
         uint SampleBufferPos = 0;
         public void Tick(uint cycles)
         {
-            if (CollectSamples)
+            if (MasterEnable)
             {
-                SampleTimer += cycles;
-                if (SampleTimer >= SampleMax)
+                if (CollectSamples)
                 {
-                    SampleTimer -= SampleMax;
-
-                    short left = 0;
-                    short right = 0;
-
-                    short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
-                    short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
-                    if (DmaSoundAEnableLeft) left += a;
-                    if (DmaSoundBEnableLeft) left += a;
-                    if (DmaSoundAEnableRight) right += a;
-                    if (DmaSoundBEnableRight) right += a;
-
-                    SampleBuffer[SampleBufferPos + 0] = (short)(left * 64);
-                    SampleBuffer[SampleBufferPos + 1] = (short)(right * 64);
-                    SampleBufferPos += 2;
-
-                    if (SampleBufferPos > SampleBufferSize - 1)
+                    SampleTimer += cycles;
+                    if (SampleTimer >= SampleMax)
                     {
-                        if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
-                        SampleBufferPos = 0;
+                        SampleTimer -= SampleMax;
+
+                        short left = 0;
+                        short right = 0;
+
+                        if (EnablePsg)
+                        {
+                            left += GbAudio.Out1;
+                            right += GbAudio.Out2;
+                        }
+                        if (EnableFifo)
+                        {
+                            short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
+                            short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
+                            if (DmaSoundAEnableLeft) left += a;
+                            if (DmaSoundBEnableLeft) left += b;
+                            if (DmaSoundAEnableRight) right += a;
+                            if (DmaSoundBEnableRight) right += b;
+                        }
+
+                        SampleBuffer[SampleBufferPos + 0] = (short)(left * 64);
+                        SampleBuffer[SampleBufferPos + 1] = (short)(right * 64);
+                        SampleBufferPos += 2;
+
+                        if (SampleBufferPos >= SampleBufferSize)
+                        {
+                            if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
+                            SampleBufferPos = 0;
+                        }
                     }
+                }
+
+                GbAudioTimer += cycles;
+                if (GbAudioTimer >= GbAudioMax)
+                {
+                    GbAudioTimer -= GbAudioMax;
+
+                    GbAudio.Tick(4); // Tick 4 T-cycles
                 }
             }
         }
+
 
         public void TimerOverflowFifoA()
         {
@@ -213,17 +275,6 @@ namespace OptimeGBA
             {
                 Gba.Dma.ExecuteFifoB();
             }
-        }
-
-        public void DmaSoundAReset()
-        {
-            A.CurrentByte = 0;
-            A.Bytes = 0;
-        }
-        public void DmaSoundBReset()
-        {
-            B.CurrentByte = 0;
-            B.Bytes = 0;
         }
 
         // Called when Timer 0 or 1 overflows.

@@ -53,77 +53,51 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
-            // GBA Bios
-            if (addr >= 0x00000000 && addr <= 0x00003FFF)
+            switch ((addr >> 24) & 0xF)
             {
-                BiosReads++;
-                return GbaRomProvider.Bios[addr - 0x00000000];
-            }
+                case 0x0: // BIOS
+                    BiosReads++;
+                    return GbaRomProvider.Bios[(addr - 0x00000000) & 0x3FFF];
+                case 0x1: // Unused
+                    break;
+                case 0x2: // EWRAM
+                    EwramReads++;
+                    return Ewram[(addr - 0x02000000) & 0x3FFFF];
+                case 0x3: // IWRAM
+                    IwramReads++;
+                    return Iwram[(addr - 0x03000000) & 0x7FFF];
+                case 0x4: // I/O Registers
+                    addr &= 0x400FFFF;
 
-            // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
-            {
-                EwramReads++;
-                return Ewram[(addr - 0x02000000) & 0x3FFFF];
-            }
+                    uint count;
+                    HwioReadLog.TryGetValue(addr, out count);
+                    HwioReadLog[addr] = count + 1;
 
-            // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
-            {
-                IwramReads++;
-                return Iwram[(addr - 0x03000000) & 0x7FFF];
-            }
-
-            // HWIO
-            else if (addr >= 0x04000000 && addr <= 0x040003FE)
-            {
-                addr &= 0x400FFFF;
-
-                uint count;
-                HwioReadLog.TryGetValue(addr, out count);
-                HwioReadLog[addr] = count + 1;
-
-                HwioReads++;
-                return ReadHwio8(addr);
-            }
-
-            // Display Memory
-            else if (addr >= 0x05000000 && addr <= 0x07FFFFFF)
-            {
-                if (addr >= 0x05000000 && addr <= 0x050003FF)
-                {
-                    // Palette RAM
+                    HwioReads++;
+                    return ReadHwio8(addr);
+                case 0x5: // PPU Palettes
                     PaletteReads++;
                     return Gba.Lcd.Read8(addr);
-                }
-                else if (addr >= 0x06000000 && addr <= 0x06017FFF)
-                {
-                    // VRAM
+                case 0x6: // PPU VRAM
                     VramReads++;
                     return Gba.Lcd.Read8(addr);
-                }
-                else if (addr >= 0x07000000 && addr <= 0x070003FF)
-                {
-                    // OAM
+                case 0x7: // PPU OAM
                     OamReads++;
                     return Gba.Lcd.Read8(addr);
-                }
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                    RomReads++;
+                    return GbaRomProvider.Rom[addr - 0x08000000];
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                    return ReadFlash(addr);
+                case 0xF: // Game Pak SRAM/Flash
+                    break;
             }
 
-            // ROM
-            else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
-            {
-                RomReads++;
-                return GbaRomProvider.Rom[addr - 0x08000000];
-            }
-
-            // SRAM / Flash
-            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
-            {
-                return ReadFlash(addr);
-            }
-
-            // This should be open bus
             return 0;
         }
 
@@ -155,65 +129,43 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadDebug8(uint addr)
         {
-            // GBA Bios
-            if (addr >= 0x00000000 && addr <= 0x00003FFF)
+            switch ((addr >> 24) & 0xF)
             {
-                return GbaRomProvider.Bios[addr - 0x00000000];
-            }
+                case 0x0: // BIOS
+                    return GbaRomProvider.Bios[(addr - 0x00000000) & 0x3FFF];
+                case 0x1: // Unused
+                    break;
+                case 0x2: // EWRAM
+                    return Ewram[(addr - 0x02000000) & 0x3FFFF];
+                case 0x3: // IWRAM
+                    return Iwram[(addr - 0x03000000) & 0x7FFF];
+                case 0x4: // I/O Registers
+                    addr &= 0x400FFFF;
 
-            // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
-            {
-                return Ewram[(addr - 0x02000000) & 0x3FFFF];
-            }
+                    uint count;
+                    HwioReadLog.TryGetValue(addr, out count);
+                    HwioReadLog[addr] = count + 1;
 
-            // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
-            {
-                return Iwram[(addr - 0x03000000) & 0x7FFF];
-            }
-
-            // HWIO
-            else if (addr >= 0x04000000 && addr <= 0x040003FE)
-            {
-                addr &= 0x400FFFF;
-
-                return ReadHwio8(addr);
-            }
-
-            // Display Memory
-            else if (addr >= 0x05000000 && addr <= 0x07FFFFFF)
-            {
-                if (addr >= 0x05000000 && addr <= 0x050003FF)
-                {
-                    // Palette RAM
+                    return ReadHwio8(addr);
+                case 0x5: // PPU Palettes
                     return Gba.Lcd.Read8(addr);
-                }
-                else if (addr >= 0x06000000 && addr <= 0x06017FFF)
-                {
-                    // VRAM
+                case 0x6: // PPU VRAM
                     return Gba.Lcd.Read8(addr);
-                }
-                else if (addr >= 0x07000000 && addr <= 0x070003FF)
-                {
-                    // OAM
+                case 0x7: // PPU OAM
                     return Gba.Lcd.Read8(addr);
-                }
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                    return GbaRomProvider.Rom[addr - 0x08000000];
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                    return ReadFlash(addr);
+                case 0xF: // Game Pak SRAM/Flash
+                    break;
             }
 
-            // ROM
-            else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
-            {
-                return GbaRomProvider.Rom[addr - 0x08000000];
-            }
-
-            // SRAM / Flash
-            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
-            {
-                return ReadFlash(addr);
-            }
-
-            // This should be open bus
             return 0;
         }
 
@@ -244,72 +196,57 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
-            // GBA Bios
-            if (addr >= 0x00000000 && addr <= 0x00003FFF)
+            switch ((addr >> 24) & 0xF)
             {
-                return;
-            }
+                case 0x0: // BIOS
+                    break;
+                case 0x1: // Unused
+                    break;
+                case 0x2: // EWRAM
+                    EwramWrites++;
+                    Ewram[(addr - 0x02000000) & 0x3FFFF] = val;
+                    break;
+                case 0x3: // IWRAM
+                    IwramWrites++;
+                    Iwram[(addr - 0x03000000) & 0x7FFF] = val;
+                    break;
+                case 0x4: // I/O Registers
+                    addr &= 0x400FFFF;
 
-            // External WRAM
-            else if (addr >= 0x02000000 && addr <= 0x02FFFFFF)
-            {
-                EwramWrites++;
-                Ewram[(addr - 0x02000000) & 0x3FFFF] = val;
-            }
+                    uint count;
+                    HwioWriteLog.TryGetValue(addr, out count);
+                    HwioWriteLog[addr] = count + 1;
 
-            // Internal WRAM
-            else if (addr >= 0x03000000 && addr <= 0x03FFFFFF)
-            {
-                IwramWrites++;
-                Iwram[(addr - 0x03000000) & 0x7FFF] = val;
-            }
-
-            // HWIO
-            else if (addr >= 0x04000000 && addr <= 0x040003FE)
-            {
-                addr &= 0x400FFFF;
-
-                uint count;
-                HwioWriteLog.TryGetValue(addr, out count);
-                HwioWriteLog[addr] = count + 1;
-
-                HwioWrites++;
-                WriteHwio8(addr, val);
-            }
-
-            // Display Memory
-            else if (addr >= 0x05000000 && addr <= 0x07FFFFFF)
-            {
-                if (addr >= 0x05000000 && addr <= 0x050003FF)
-                {
-                    // Palette RAM
+                    HwioWrites++;
+                    WriteHwio8(addr, val);
+                    break;
+                case 0x5: // PPU Palettes
                     PaletteWrites++;
                     Gba.Lcd.Write8(addr, val);
-                }
-                else if (addr >= 0x06000000 && addr <= 0x06017FFF)
-                {
-                    // VRAM
+                    break;
+                case 0x6: // PPU VRAM
                     VramWrites++;
                     Gba.Lcd.Write8(addr, val);
-                }
-                else if (addr >= 0x07000000 && addr <= 0x070003FF)
-                {
-                    // OAM
+                    break;
+                case 0x7: // PPU OAM
                     OamWrites++;
                     Gba.Lcd.Write8(addr, val);
-                }
-            }
-
-            // ROM
-            else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
-            {
-                return;
-            }
-
-            // SRAM / Flash
-            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
-            {
-                WriteFlash(addr);
+                    break;
+                case 0x8: // Game Pak ROM/FlashROM 
+                    break;
+                case 0x9: // Game Pak ROM/FlashROM 
+                    break;
+                case 0xA: // Game Pak ROM/FlashROM 
+                    break;
+                case 0xB: // Game Pak ROM/FlashROM 
+                    break;
+                case 0xC: // Game Pak ROM/FlashROM 
+                    break;
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                case 0xF: // Game Pak SRAM/Flash
+                    WriteFlash(addr);
+                    break;
             }
         }
 
@@ -383,7 +320,7 @@ namespace OptimeGBA
             {
                 Gba.Lcd.WriteHwio8(addr, val);
             }
-            else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
+            else if (addr >= 0x4000060 && addr <= 0x40000A7) // Sound
             {
                 Gba.GbaAudio.WriteHwio8(addr, val);
             }

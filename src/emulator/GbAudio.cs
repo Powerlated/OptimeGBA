@@ -6,14 +6,12 @@ using OptimeGBA;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    public class Audio
+    public class GbAudio
     {
-        public GBA Gba;
-
         static byte[] SEVEN_BIT_NOISE = GenerateNoiseBuffer(true);
         static byte[] FIFTEEN_BIT_NOISE = GenerateNoiseBuffer(false);
         public static float[] DAC_TABLE = GenerateDACTable();
-        public static int SAMPLE_RATE = 65536;
+        public static int SAMPLE_RATE = 32768; // Digital mixing rate is 32768 Hz on GBA
         public static int SAMPLE_TIME_MAX = 4194304 / SAMPLE_RATE;
 
         readonly double CAPACITOR_FACTOR = Math.Pow(0.999958, (4194304 / SAMPLE_RATE)); // DMG
@@ -51,16 +49,9 @@ namespace OptimeGBA
             return waveTable;
         }
 
-        public Audio(GBA gba)
-        {
-            Gba = gba;
-        }
 
-        public float[] AudioQueue = new float[2048];
-        public bool AudioReady = false;
-        uint AudioQueuePointer = 0;
-        uint SampleTimer = 0;
-        readonly uint SampleAt = 16777216 / 65536;
+        public short Out1;
+        public short Out2;
 
         readonly static uint[][] PULSE_DUTY = new uint[][] {
             new uint[] {1, 1, 1, 1, 1, 1, 1, 0},
@@ -74,7 +65,7 @@ namespace OptimeGBA
         uint Pulse1_period = 8192;
         int Pulse1_timer;
 
-        bool enabled = false;
+        public bool enabled = false;
 
         int ticksEnvelopePulse1 = 0;
         int ticksEnvelopePulse2 = 0;
@@ -85,7 +76,7 @@ namespace OptimeGBA
 
         int frameSequencerStep = 0;
 
-        byte[] soundRegisters = new byte[64];
+        byte[] soundRegisters = new byte[65536];
 
         void advanceFrameSequencer()
         {
@@ -118,23 +109,23 @@ namespace OptimeGBA
         }
 
         // #region Channel params
-        bool pulse1_enabled = false;
-        int pulse1_width = 3;
-        bool pulse1_dacEnabled = false;
-        bool pulse1_lengthEnable = false;
-        int pulse1_lengthCounter = 0;
-        int pulse1_frequencyUpper = 0;
-        int pulse1_frequencyLower = 0;
-        int pulse1_volume = 0;
-        bool pulse1_volumeEnvelopeUp = false;
-        int pulse1_volumeEnvelopeSweep = 4;
-        int pulse1_volumeEnvelopeStart = 0;
-        bool pulse1_outputLeft = false;
-        bool pulse1_outputRight = false;
-        int pulse1_freqSweepPeriod = 0;
-        bool pulse1_freqSweepUp = false;
-        int pulse1_freqSweepShift = 0;
-        bool pulse1_updated = true;
+        public bool pulse1_enabled = false;
+        public int pulse1_width = 3;
+        public bool pulse1_dacEnabled = false;
+        public bool pulse1_lengthEnable = false;
+        public int pulse1_lengthCounter = 0;
+        public int pulse1_frequencyUpper = 0;
+        public int pulse1_frequencyLower = 0;
+        public int pulse1_volume = 0;
+        public bool pulse1_volumeEnvelopeUp = false;
+        public int pulse1_volumeEnvelopeSweep = 4;
+        public int pulse1_volumeEnvelopeStart = 0;
+        public bool pulse1_outputLeft = false;
+        public bool pulse1_outputRight = false;
+        public int pulse1_freqSweepPeriod = 0;
+        public bool pulse1_freqSweepUp = false;
+        public int pulse1_freqSweepShift = 0;
+        public bool pulse1_updated = true;
         void pulse1_trigger()
         {
             if (this.pulse1_lengthCounter == 0 || this.pulse1_lengthEnable == false)
@@ -158,20 +149,20 @@ namespace OptimeGBA
             return 131072 / (2048 - frequency);
         }
 
-        bool pulse2_enabled = false;
-        int pulse2_width = 3;
-        bool pulse2_dacEnabled = false;
-        bool pulse2_lengthEnable = false;
-        int pulse2_lengthCounter = 0;
-        int pulse2_frequencyUpper = 0;
-        int pulse2_frequencyLower = 0;
-        int pulse2_volume = 0;
-        bool pulse2_volumeEnvelopeUp = false;
-        int pulse2_volumeEnvelopeSweep = 4;
-        int pulse2_volumeEnvelopeStart = 0;
-        bool pulse2_outputLeft = false;
-        bool pulse2_outputRight = false;
-        bool pulse2_updated = true;
+        public bool pulse2_enabled = false;
+        public int pulse2_width = 3;
+        public bool pulse2_dacEnabled = false;
+        public bool pulse2_lengthEnable = false;
+        public int pulse2_lengthCounter = 0;
+        public int pulse2_frequencyUpper = 0;
+        public int pulse2_frequencyLower = 0;
+        public int pulse2_volume = 0;
+        public bool pulse2_volumeEnvelopeUp = false;
+        public int pulse2_volumeEnvelopeSweep = 4;
+        public int pulse2_volumeEnvelopeStart = 0;
+        public bool pulse2_outputLeft = false;
+        public bool pulse2_outputRight = false;
+        public bool pulse2_updated = true;
         void pulse2_trigger()
         {
             if (this.pulse2_lengthCounter == 0 || this.pulse2_lengthEnable == false)
@@ -192,38 +183,40 @@ namespace OptimeGBA
             return 131072 / (2048 - frequency);
         }
 
-        bool wave_enabled = false;
-        bool wave_dacEnabled = false;
-        bool wave_lengthEnable = true;
-        int wave_lengthCounter = 0;
-        int wave_frequencyUpper = 0;
-        int wave_frequencyLower = 0;
-        int wave_volume = 0;
-        int wave_oldVolume = 0;
-        byte[] wave_waveTable = new byte[32];
-        bool wave_waveTableUpdated = true;
-        bool wave_outputLeft = false;
-        bool wave_outputRight = false;
+        public bool wave_bank = false;
+        public bool wave_dimension = true;
+        public bool wave_enabled = false;
+        public bool wave_dacEnabled = false;
+        public bool wave_lengthEnable = true;
+        public int wave_lengthCounter = 0;
+        public int wave_frequencyUpper = 0;
+        public int wave_frequencyLower = 0;
+        public int wave_volume = 0;
+        public int wave_oldVolume = 0;
+        public byte[] wave_waveTable0 = new byte[32];
+        public byte[] wave_waveTable1 = new byte[32];
+        public bool wave_outputLeft = false;
+        public bool wave_outputRight = false;
         float wave_getFrequencyHz()
         {
             float frequency = (this.wave_frequencyUpper << 8) | this.wave_frequencyLower;
             return 65536 / (2048 - frequency);
         }
 
-        bool noise_enabled = false;
-        int noise_divisorCode = 0;
-        bool noise_lengthEnable = false;
-        int noise_lengthCounter = 0;
-        bool noise_dacEnabled = false;
-        int noise_volume = 0;
-        bool noise_volumeEnvelopeUp = false;
-        int noise_volumeEnvelopeSweep = 4;
-        int noise_volumeEnvelopeStart = 0;
-        bool noise_outputLeft = false;
-        bool noise_outputRight = false;
-        int noise_shiftClockFrequency = 0;
-        bool noise_counterStep = false;
-        int noise_envelopeSweep = 0;
+        public bool noise_enabled = false;
+        public int noise_divisorCode = 0;
+        public bool noise_lengthEnable = false;
+        public int noise_lengthCounter = 0;
+        public bool noise_dacEnabled = false;
+        public int noise_volume = 0;
+        public bool noise_volumeEnvelopeUp = false;
+        public int noise_volumeEnvelopeSweep = 4;
+        public int noise_volumeEnvelopeStart = 0;
+        public bool noise_outputLeft = false;
+        public bool noise_outputRight = false;
+        public int noise_shiftClockFrequency = 0;
+        public bool noise_counterStep = false;
+        public int noise_envelopeSweep = 0;
 
         // #endregion
 
@@ -232,15 +225,15 @@ namespace OptimeGBA
 
         bool vinLeftEnable = false;
         bool vinRightEnable = false;
-        int leftMasterVol = 0;
-        int rightMasterVol = 0;
-        int leftMasterVolMul = 0;
-        int rightMasterVolMul = 0;
+        public int leftMasterVol = 0;
+        public int rightMasterVol = 0;
+        public int leftMasterVolMul = 0;
+        public int rightMasterVolMul = 0;
 
-        byte pulse1Val = 0;
-        byte pulse2Val = 0;
-        byte waveVal = 0;
-        byte noiseVal = 0;
+        public byte pulse1Val = 0;
+        public byte pulse2Val = 0;
+        public byte waveVal = 0;
+        public byte noiseVal = 0;
 
         int pulse1Pos = 0;
         int pulse2Pos = 0;
@@ -251,10 +244,6 @@ namespace OptimeGBA
         int pulse2FreqTimer = 0;
         int waveFreqTimer = 0;
         int noiseFreqTimer = 0;
-
-        int sampleTimer = 0;
-        float[] audioQueue = new float[32768];
-        int audioQueueAt = 0;
 
         int pulse1Period = 0;
         int pulse2Period = 0;
@@ -332,7 +321,30 @@ namespace OptimeGBA
         void updateWaveVal()
         {
             int[] waveShift = new int[] { 4, 0, 1, 2 };
-            this.waveVal = (byte)(this.wave_enabled ? this.wave_waveTable[this.wavePos] >> waveShift[this.wave_volume] : 0);
+            if (this.wave_dimension)
+            {
+                if (this.wavePos < 32)
+                {
+                    int pos = this.wavePos - 0;
+                    this.waveVal = (byte)(this.wave_enabled ? this.wave_waveTable0[this.wavePos] >> waveShift[this.wave_volume] : 0);
+                }
+                else
+                {
+                    int pos = this.wavePos - 32;
+                    this.waveVal = (byte)(this.wave_enabled ? this.wave_waveTable1[this.wavePos] >> waveShift[this.wave_volume] : 0);
+                }
+            }
+            else
+            {
+                if (this.wave_bank)
+                {
+                    this.waveVal = (byte)(this.wave_enabled ? this.wave_waveTable1[this.wavePos] >> waveShift[this.wave_volume] : 0);
+                }
+                else
+                {
+                    this.waveVal = (byte)(this.wave_enabled ? this.wave_waveTable0[this.wavePos] >> waveShift[this.wave_volume] : 0);
+                }
+            }
         }
         void updateNoiseVal()
         {
@@ -341,9 +353,20 @@ namespace OptimeGBA
 
         uint pendingCycles = 0;
 
+        const uint FrameSequencerMax = 8192;
+        uint FrameSequencerTimer = 0;
+
         public void Tick(uint cycles)
         {
             this.pendingCycles += cycles;
+
+            this.FrameSequencerTimer += cycles;
+            if (this.FrameSequencerTimer >= FrameSequencerMax)
+            {
+                this.FrameSequencerTimer -= FrameSequencerMax;
+
+                this.advanceFrameSequencer();
+            }
 
             if (this.enabled)
             {
@@ -352,110 +375,99 @@ namespace OptimeGBA
                 if (this.wave_enabled) this.waveFreqTimer -= (int)cycles;
                 if (this.noise_enabled) this.noiseFreqTimer -= (int)cycles;
 
+                float in1 = 0;
+                float in2 = 0;
 
-                this.sampleTimer += (int)cycles;
-                // Sample at 65536 Hz
-                if (this.sampleTimer >= SAMPLE_TIME_MAX)
+                // Note: -1 value when disabled is the DAC DC offset
+
+                if (this.pulse1_dacEnabled)
                 {
-                    this.sampleTimer -= SAMPLE_TIME_MAX;
-
-
-                    float in1 = 0;
-                    float in2 = 0;
-
-                    // Note: -1 value when disabled is the DAC DC offset
-
-                    if (this.pulse1_dacEnabled && this.enable1Out)
+                    if (this.pulse1Period > 0)
                     {
-                        if (this.pulse1Period > 0)
+                        while (this.pulse1FreqTimer < 0)
                         {
-                            while (this.pulse1FreqTimer < 0)
-                            {
-                                this.pulse1FreqTimer += this.pulse1Period;
+                            this.pulse1FreqTimer += this.pulse1Period;
 
-                                this.pulse1Pos++;
-                                this.pulse1Pos &= 7;
+                            this.pulse1Pos++;
+                            this.pulse1Pos &= 7;
 
-                                this.updatePulse1Val();
-                            }
+                            this.updatePulse1Val();
                         }
-                        if (this.pulse1_outputLeft) in1 += DAC_TABLE[this.pulse1Val];
-                        if (this.pulse1_outputRight) in2 += DAC_TABLE[this.pulse1Val];
                     }
-                    if (this.pulse2_dacEnabled && this.enable2Out)
-                    {
-                        if (this.pulse2Period > 0)
-                        {
-                            while (this.pulse2FreqTimer < 0)
-                            {
-                                this.pulse2FreqTimer += this.pulse2Period;
-
-                                this.pulse2Pos++;
-                                this.pulse2Pos &= 7;
-
-                                this.updatePulse2Val();
-                            }
-                        }
-                        if (this.pulse2_outputLeft) in1 += DAC_TABLE[this.pulse2Val];
-                        if (this.pulse2_outputRight) in2 += DAC_TABLE[this.pulse2Val];
-                    }
-                    if (this.wave_dacEnabled && this.enable3Out)
-                    {
-                        if (this.wavePeriod > 0)
-                        {
-                            while (this.waveFreqTimer < 0)
-                            {
-                                this.waveFreqTimer += this.wavePeriod;
-
-                                this.wavePos++;
-                                this.wavePos &= 31;
-
-                                this.updateWaveVal();
-                            }
-                        }
-                        if (this.wave_outputLeft) in1 += DAC_TABLE[this.waveVal];
-                        if (this.wave_outputRight) in2 += DAC_TABLE[this.waveVal];
-                    }
-                    if (this.noise_dacEnabled && this.enable4Out)
-                    {
-                        if (this.noisePeriod > 0)
-                        {
-                            while (this.noiseFreqTimer < 0)
-                            {
-                                this.noiseFreqTimer += this.noisePeriod;
-
-                                this.noisePos++;
-                                this.noisePos &= 32767;
-
-                                this.updateNoiseVal();
-                            }
-                        }
-                        if (this.noise_outputLeft) in1 += DAC_TABLE[this.noiseVal];
-                        if (this.noise_outputRight) in2 += DAC_TABLE[this.noiseVal];
-                    }
-
-                    in1 *= this.leftMasterVolMul;
-                    in2 *= this.rightMasterVolMul;
-
-                    float out1 = in1 - this.capacitor1;
-                    float out2 = in2 - this.capacitor2;
-
-                    this.audioQueue[this.audioQueueAt + 0] = (float)(out1 * 0.25);
-                    this.audioQueue[this.audioQueueAt + 1] = (float)(out2 * 0.25);
-
-                    this.capacitor1 = (float)(in1 - out1 * CAPACITOR_FACTOR);
-                    this.capacitor2 = (float)(in2 - out2 * CAPACITOR_FACTOR);
-
-
-                    this.audioQueueAt += 2;
-
-                    if (this.audioQueueAt >= this.audioQueue.Length)
-                    {
-                        this.audioQueueAt = 0;
-                        // this.Gba.Provider.AudioCallback();
-                        Console.WriteLine("Audio callback ");
-                    }
+                    if (this.pulse1_outputLeft) in1 += this.pulse1Val;
+                    if (this.pulse1_outputRight) in2 += this.pulse1Val;
                 }
+                if (this.pulse2_dacEnabled)
+                {
+                    if (this.pulse2Period > 0)
+                    {
+                        while (this.pulse2FreqTimer < 0)
+                        {
+                            this.pulse2FreqTimer += this.pulse2Period;
+
+                            this.pulse2Pos++;
+                            this.pulse2Pos &= 7;
+
+                            this.updatePulse2Val();
+                        }
+                    }
+                    if (this.pulse2_outputLeft) in1 += this.pulse2Val;
+                    if (this.pulse2_outputRight) in2 += this.pulse2Val;
+                }
+                if (this.wave_dacEnabled)
+                {
+                    if (this.wavePeriod > 0)
+                    {
+                        while (this.waveFreqTimer < 0)
+                        {
+                            this.waveFreqTimer += this.wavePeriod;
+
+                            this.wavePos++;
+
+                            if (this.wave_dimension)
+                            {
+                                this.wavePos &= 63;
+                            }
+                            else
+                            {
+                                this.wavePos &= 31;
+                            }
+
+                            this.updateWaveVal();
+                        }
+                    }
+                    if (this.wave_outputLeft) in1 += this.waveVal;
+                    if (this.wave_outputRight) in2 += this.waveVal;
+                }
+                if (this.noise_dacEnabled)
+                {
+                    if (this.noisePeriod > 0)
+                    {
+                        while (this.noiseFreqTimer < 0)
+                        {
+                            this.noiseFreqTimer += this.noisePeriod;
+
+                            this.noisePos++;
+                            this.noisePos &= 32767;
+
+                            this.updateNoiseVal();
+                        }
+                    }
+                    if (this.noise_outputLeft) in1 += this.noiseVal;
+                    if (this.noise_outputRight) in2 += this.noiseVal;
+                }
+
+                in1 *= this.leftMasterVolMul;
+                in2 *= this.rightMasterVolMul;
+
+                float out1 = in1 - this.capacitor1;
+                float out2 = in2 - this.capacitor2;
+
+                Out1 = (short)(in1 * 8);
+                Out2 = (short)(in2 * 8);
+
+                this.capacitor1 = (float)(in1 - out1 * CAPACITOR_FACTOR);
+                this.capacitor2 = (float)(in2 - out2 * CAPACITOR_FACTOR);
             }
 
             // The wave sample is visible to the CPU, so it's gotta be updated immediately
@@ -644,26 +656,26 @@ namespace OptimeGBA
             }
         }
 
-        public void writeHwio(uint addr, byte value)
+        public void WriteHwio8(uint addr, byte value)
         {
             if (this.enabled)
             {
                 switch (addr)
                 {
                     // Pulse 1
-                    case 0xFF10: // NR10
+                    case 0x60: // NR10
                         this.pulse1_freqSweepPeriod = (value & 0b01110000) >> 4; // in 128ths of a second (0-7)
                         this.pulse1_freqSweepUp = ((value >> 3) & 1) == 0; // 0 == Add, 1 = Sub
                         this.pulse1_freqSweepShift = (value & 0b111); // 0-7; 
                         this.updatePulse1Val();
                         break;
-                    case 0xFF11: // NR11
+                    case 0x62: // NR11
                         this.pulse1_width = value >> 6;
                         this.pulse1_lengthCounter = 64 - (value & 0b111111);
                         this.pulse1Val = (byte)PULSE_DUTY[this.pulse1_width][this.pulse1Pos];
                         this.updatePulse1Val();
                         break;
-                    case 0xFF12: // NR12
+                    case 0x63: // NR12
                         {
                             bool newUp = ((value >> 3) & 1) == 1;
                             if (this.pulse1_enabled)
@@ -694,12 +706,12 @@ namespace OptimeGBA
                             this.updatePulse1Val();
                         }
                         break;
-                    case 0xFF13: // NR13 Low bits
+                    case 0x64: // NR13 Low bits
                         this.pulse1_frequencyLower = value;
                         this.calcPulse1Period();
                         this.updatePulse1Val();
                         break;
-                    case 0xFF14: // NR14
+                    case 0x65: // NR14
                         this.pulse1_frequencyUpper = value & 0b111;
                         this.pulse1_lengthEnable = ((value >> 6) & 1) != 0;
                         // If the next step does not clock the length counter
@@ -721,13 +733,13 @@ namespace OptimeGBA
                         break;
 
                     // Pulse 2
-                    case 0xFF16: // NR21
+                    case 0x68: // NR21
                         this.pulse2_width = value >> 6;
                         this.pulse2_lengthCounter = 64 - (value & 0b111111);
                         this.pulse2Val = (byte)PULSE_DUTY[this.pulse2_width][this.pulse2Pos];
                         this.updatePulse2Val();
                         break;
-                    case 0xFF17: // NR22
+                    case 0x69: // NR22
                         {
                             bool newUp = ((value >> 3) & 1) == 1;
 
@@ -759,12 +771,12 @@ namespace OptimeGBA
                         }
                         this.updatePulse2Val();
                         break;
-                    case 0xFF18: // NR23
+                    case 0x6C: // NR23
                         this.pulse2_frequencyLower = value;
                         this.calcPulse2Period();
                         this.updatePulse2Val();
                         break;
-                    case 0xFF19: // NR24
+                    case 0x6D: // NR24
                         this.pulse2_frequencyUpper = value & 0b111;
                         this.pulse2_lengthEnable = ((value >> 6) & 1) != 0;
                         // If the next step does not clock the length counter
@@ -786,25 +798,27 @@ namespace OptimeGBA
                         break;
 
                     // Wave
-                    case 0xFF1A: // NR30
-                        this.wave_dacEnabled = (value & 0x80) != 0;
+                    case 0x70: // NR30
+                        this.wave_dimension = BitTest(value, 5);
+                        this.wave_bank = BitTest(value, 6);
+                        this.wave_dacEnabled = BitTest(value, 7);
                         if (!this.wave_dacEnabled) this.wave_enabled = false;
                         this.updateWaveVal();
                         break;
-                    case 0xFF1B: // NR31
+                    case 0x72: // NR31
                         this.wave_lengthCounter = 256 - value;
                         this.updateWaveVal();
                         break;
-                    case 0xFF1C: // NR32
+                    case 0x73: // NR32
                         this.wave_volume = (value >> 5) & 0b11;
                         this.updateWaveVal();
                         break;
-                    case 0xFF1D: // NR33
+                    case 0x74: // NR33
                         this.wave_frequencyLower = value;
                         this.calcWavePeriod();
                         this.updateWaveVal();
                         break;
-                    case 0xFF1E: // NR34
+                    case 0x75: // NR34
                         this.wave_frequencyUpper = value & 0b111;
                         // If the next step does not clock the length counter
                         if (
@@ -828,11 +842,11 @@ namespace OptimeGBA
                         break;
 
                     // Noise
-                    case 0xFF20: // NR41
+                    case 0x78: // NR41
                         this.noise_lengthCounter = 64 - (value & 0b111111); // 6 bits
                         this.updateNoiseVal();
                         break;
-                    case 0xFF21: // NR42
+                    case 0x79: // NR42
                         this.noise_volume = (value >> 4) & 0xF;
                         this.noise_volumeEnvelopeStart = (value >> 4) & 0xF;
                         this.noise_volumeEnvelopeUp = ((value >> 3) & 1) == 1;
@@ -841,15 +855,15 @@ namespace OptimeGBA
                         if (!this.noise_dacEnabled) this.noise_enabled = false;
                         this.updateNoiseVal();
                         break;
-                    case 0xFF22: // NR43
+                    case 0x7C: // NR43
                         this.noise_shiftClockFrequency = (value >> 4) & 0xF;
                         this.noise_counterStep = ((value >> 3) & 1) != 0;
                         this.noise_divisorCode = (value & 0b111);
                         this.calcNoisePeriod();
                         this.updateNoiseVal();
                         break;
-                    case 0xFF23: // NR44
-                                 // If the next step does not clock the length counter
+                    case 0x7D: // NR44
+                               // If the next step does not clock the length counter
                         if (
                             ((this.frameSequencerStep + 1) & 7) == 1 ||
                             ((this.frameSequencerStep + 1) & 7) == 3 ||
@@ -869,7 +883,7 @@ namespace OptimeGBA
                         this.updateNoiseVal();
                         break;
 
-                    case 0xFF24: // NR50
+                    case 0x80: // NR50
                         this.vinLeftEnable = (value & BIT_7) != 0;
                         this.vinRightEnable = (value & BIT_3) != 0;
                         this.leftMasterVol = (value >> 4) & 0b111;
@@ -879,7 +893,7 @@ namespace OptimeGBA
                         break;
 
                     // Panning
-                    case 0xFF25:
+                    case 0x81: // NR51
                         this.noise_outputRight = (value & BIT_7) != 0;
                         this.wave_outputRight = (value & BIT_6) != 0;
                         this.pulse2_outputRight = (value & BIT_5) != 0;
@@ -889,42 +903,31 @@ namespace OptimeGBA
                         this.wave_outputLeft = (value & BIT_2) != 0;
                         this.pulse2_outputLeft = (value & BIT_1) != 0;
                         this.pulse1_outputLeft = (value & BIT_0) != 0;
-
                         break;
                 }
 
-                if (addr >= 0xFF30 && addr <= 0xFF3F)
+                if (addr >= 0x90 && addr <= 0x9F)
                 {
-                    uint BASE = 0xFF30;
-                    if (this.wave_enabled)
+                    addr -= 0x90;
+
+                    if (!this.wave_bank) // Non-selected wave bank will be written to
                     {
-                        // console.log(this.wavePos);
-                        // console.log(`Addr: ${hex(((0xFF30 + (this.wavePos >> 1))), 4)} Value: ${hex(value, 2)}`);
-                        this.update();
-                        this.soundRegisters[(0xFF30 + (this.wavePos >> 1)) - 0xFF10] = value;
+                        this.wave_waveTable1[(addr * 2) + 0] = (byte)(value >> 4);
+                        this.wave_waveTable1[(addr * 2) + 1] = (byte)(value & 0xF);
                     }
                     else
                     {
-                        this.soundRegisters[addr - 0xFF10] = value;
-                        if (this.wave_waveTable[((addr - BASE) * 2) + 0] != (value >> 4))
-                        {
-                            this.wave_waveTable[((addr - BASE) * 2) + 0] = (byte)(value >> 4);
-                            this.wave_waveTableUpdated = true;
-                        }
-                        if (this.wave_waveTable[((addr - BASE) * 2) + 1] != (value & 0xF))
-                        {
-                            this.wave_waveTable[((addr - BASE) * 2) + 1] = (byte)(value & 0xF);
-                            this.wave_waveTableUpdated = true;
-                        }
+                        this.wave_waveTable0[(addr * 2) + 0] = (byte)(value >> 4);
+                        this.wave_waveTable0[(addr * 2) + 1] = (byte)(value & 0xF);
                     }
                 }
                 else
                 {
-                    this.soundRegisters[addr - 0xFF10] = value;
+                    this.soundRegisters[addr - 0x60] = value;
                 }
             }
 
-            if (addr == 0xFF26)
+            if (addr == 0x84)
             {
                 // Control
                 if (((value >> 7) & 1) != 0)
@@ -932,9 +935,13 @@ namespace OptimeGBA
                     // writeDebug("Enabled sound");
                     this.enabled = true;
                     this.frameSequencerStep = 0;
+
+                    Console.WriteLine("Enabled PSGs!");
                 }
                 else
                 {
+                    Console.WriteLine("Disabled PSGs...");
+
                     // Disable and write zeros on everything upon main disabling
                     this.noise_enabled = false;
                     this.wave_enabled = false;
@@ -946,27 +953,27 @@ namespace OptimeGBA
                     this.pulse2_dacEnabled = false;
                     this.pulse1_dacEnabled = false;
 
-                    this.writeHwio(0xFF10, 0);
-                    this.writeHwio(0xFF11, 0);
-                    this.writeHwio(0xFF12, 0);
-                    this.writeHwio(0xFF13, 0);
-                    this.writeHwio(0xFF14, 0);
+                    this.WriteHwio8(0xFF10, 0);
+                    this.WriteHwio8(0xFF11, 0);
+                    this.WriteHwio8(0xFF12, 0);
+                    this.WriteHwio8(0xFF13, 0);
+                    this.WriteHwio8(0xFF14, 0);
 
-                    this.writeHwio(0xFF16, 0);
-                    this.writeHwio(0xFF17, 0);
-                    this.writeHwio(0xFF18, 0);
-                    this.writeHwio(0xFF19, 0);
+                    this.WriteHwio8(0xFF16, 0);
+                    this.WriteHwio8(0xFF17, 0);
+                    this.WriteHwio8(0xFF18, 0);
+                    this.WriteHwio8(0xFF19, 0);
 
-                    this.writeHwio(0xFF1A, 0);
-                    this.writeHwio(0xFF1B, 0);
-                    this.writeHwio(0xFF1C, 0);
-                    this.writeHwio(0xFF1D, 0);
-                    this.writeHwio(0xFF1D, 0);
+                    this.WriteHwio8(0xFF1A, 0);
+                    this.WriteHwio8(0xFF1B, 0);
+                    this.WriteHwio8(0xFF1C, 0);
+                    this.WriteHwio8(0xFF1D, 0);
+                    this.WriteHwio8(0xFF1D, 0);
 
-                    this.writeHwio(0xFF20, 0);
-                    this.writeHwio(0xFF21, 0);
-                    this.writeHwio(0xFF22, 0);
-                    this.writeHwio(0xFF23, 0);
+                    this.WriteHwio8(0xFF20, 0);
+                    this.WriteHwio8(0xFF21, 0);
+                    this.WriteHwio8(0xFF22, 0);
+                    this.WriteHwio8(0xFF23, 0);
 
                     this.pulse1Pos = 0;
                     this.pulse2Pos = 0;
@@ -989,28 +996,32 @@ namespace OptimeGBA
             this.update();
         }
 
-        byte readHwio(uint addr)
+        public byte ReadHwio8(uint addr)
         {
-            if (addr >= 0xFF10 && addr <= 0xFF3F)
+            if (addr >= 0x60 && addr <= 0x9F)
             {
-                byte i = this.soundRegisters[addr - 0xFF10];
+                byte i = this.soundRegisters[addr - 0x60];
 
                 if (addr >= 0xFF27 && addr <= 0xFF2F) return 0xFF;
 
-                if (addr >= 0xFF30 && addr <= 0xFF3F)
+                if (addr >= 0x90 && addr <= 0x9F)
                 {
-                    if (this.wave_enabled)
+                    uint tableAddr = addr - 0x90;
+                    if (!this.wave_bank) // Non-selected wave bank will be written to
                     {
-                        this.update();
-                        return this.soundRegisters[(0xFF30 + (this.wavePos >> 1)) - 0xFF10];
+                        byte upper = this.wave_waveTable1[(tableAddr * 2) + 0];
+                        byte lower = this.wave_waveTable1[(tableAddr * 2) + 1];
+                        return (byte)((upper << 4) | lower);
                     }
                     else
                     {
-                        return this.soundRegisters[addr - 0xFF10];
+                        byte upper = this.wave_waveTable0[(tableAddr * 2) + 0];
+                        byte lower = this.wave_waveTable0[(tableAddr * 2) + 1];
+                        return (byte)((upper << 4) | lower);
                     }
                 }
 
-                if (addr == 0xFF26)
+                if (addr == 0x84)
                 { // NR52
                     i = 0;
                     if (this.enabled) i |= (byte)BIT_7;
@@ -1024,50 +1035,50 @@ namespace OptimeGBA
 
                 switch (addr)
                 {
-                    case 0xFF10: i |= 0x80; break;
-                    case 0xFF11: i |= 0x3F; break;
-                    case 0xFF12: i |= 0x00; break;
-                    case 0xFF13: i |= 0xFF; break;
-                    case 0xFF14: i |= 0xBF; break;
+                    case 0x60: i |= 0x80; break; // NR10
+                    case 0x62: i |= 0x3F; break; // NR11
+                    case 0x63: i |= 0x00; break; // NR12
+                    case 0x64: i |= 0xFF; break; // NR13
+                    case 0x65: i |= 0xBF; break; // NR14
 
-                    case 0xFF15: i |= 0xFF; break;
-                    case 0xFF16: i |= 0x3F; break;
-                    case 0xFF17: i |= 0x00; break;
-                    case 0xFF18: i |= 0xFF; break;
-                    case 0xFF19: i |= 0xBF; break;
+                    case 0x66: i |= 0xFF; break; // Unused
+                    case 0x68: i |= 0x3F; break; // NR21
+                    case 0x69: i |= 0x00; break; // NR22
+                    case 0x6C: i |= 0xFF; break; // NR23
+                    case 0x6D: i |= 0xBF; break; // NR24
 
-                    case 0xFF1A: i |= 0x7F; break;
-                    case 0xFF1B: i |= 0xFF; break;
-                    case 0xFF1C: i |= 0x9F; break;
-                    case 0xFF1D: i |= 0xFF; break;
-                    case 0xFF1E: i |= 0xBF; break;
+                    case 0x70: i |= 0x7F; break; // NR30
+                    case 0x72: i |= 0xFF; break; // NR31
+                    case 0x73: i |= 0x9F; break; // NR32
+                    case 0x74: i |= 0xFF; break; // NR33
+                    case 0x75: i |= 0xBF; break; // NR34
 
-                    case 0xFF1F: i |= 0xFF; break;
-                    case 0xFF20: i |= 0xFF; break;
-                    case 0xFF21: i |= 0x00; break;
-                    case 0xFF22: i |= 0x00; break;
-                    case 0xFF23: i |= 0xBF; break;
+                    case 0x76: i |= 0xFF; break; // Unused
+                    case 0x78: i |= 0xFF; break; // NR41
+                    case 0x79: i |= 0x00; break; // NR42
+                    case 0x7C: i |= 0x00; break; // NR43
+                    case 0x7E: i |= 0xBF; break; // NR44
 
-                    case 0xFF24: i |= 0x00; break;
-                    case 0xFF25: i |= 0x00; break;
-                    case 0xFF26: i |= 0xFF; break;
+                    case 0x80: i |= 0x00; break;
+                    case 0x81: i |= 0x00; break;
+                    case 0x82: i |= 0xFF; break;
                 }
 
                 return i;
             }
 
-            // PCM12
-            if (addr == 0xFF76)
-            {
-                this.update();
-                return (byte)(this.pulse1Val | (this.pulse2Val << 4));
-            }
-            // PCM34
-            if (addr == 0xFF77)
-            {
-                this.update();
-                return (byte)(this.waveVal | (this.noiseVal << 4));
-            }
+            // // PCM12
+            // if (addr == 0xFF76)
+            // {
+            //     this.update();
+            //     return (byte)(this.pulse1Val | (this.pulse2Val << 4));
+            // }
+            // // PCM34
+            // if (addr == 0xFF77)
+            // {
+            //     this.update();
+            //     return (byte)(this.waveVal | (this.noiseVal << 4));
+            // }
 
             return 0xFF;
         }
@@ -1126,8 +1137,8 @@ namespace OptimeGBA
             this.wave_frequencyLower = 0;
             this.wave_volume = 0;
             this.wave_oldVolume = 0;
-            this.wave_waveTable = new byte[32];
-            this.wave_waveTableUpdated = true;
+            this.wave_waveTable0 = new byte[32];
+            this.wave_waveTable1 = new byte[32];
             this.wave_outputLeft = false;
             this.wave_outputRight = false;
             this.noise_enabled = false;
