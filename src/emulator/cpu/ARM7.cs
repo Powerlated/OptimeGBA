@@ -232,7 +232,6 @@ namespace OptimeGBA
 
             if (!ThumbState) // ARM mode
             {
-                R15 &= 0xFFFFFFFC;
                 // Current Instruction Fetch
 
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
@@ -1566,7 +1565,6 @@ namespace OptimeGBA
             }
             else // THUMB mode
             {
-                R15 &= 0xFFFFFFFE;
                 LineDebug($"R15: ${Util.HexN(R15, 4)}");
 
                 // Fill the pipeline if it's not full
@@ -1578,678 +1576,892 @@ namespace OptimeGBA
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
-                if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
+                switch ((ins >> 13) & 0b111)
                 {
-                    // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rn = rd;
-                    uint rm = (uint)((ins >> 3) & 0b111);
-                    uint rs = rm;
-
-                    uint opcode = (uint)((ins >> 6) & 0xFU);
-                    switch (opcode)
-                    {
-
-                        case 0x0: // AND
+                    case 0b000: // Shift by immediate, Add/subtract register, Add/subtract immediate
+                        {
+                            switch ((ins >> 11) & 0b11)
                             {
-                                LineDebug("AND");
-
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                uint final = rdVal & rmVal;
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                            }
-                            break;
-                        case 0x1: // EOR
-                            {
-                                LineDebug("EOR");
-
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                rdVal = rdVal ^ rmVal;
-                                SetReg(rd, rdVal);
-
-                                Negative = BitTest(rdVal, 31);
-                                Zero = rdVal == 0;
-                            }
-                            break;
-                        case 0x2: // LSL (2)
-                            {
-                                LineDebug("LSL (2) | Logical Shift Left");
-
-                                uint rdValue = GetReg((uint)((ins >> 0) & 0b111));
-                                uint rsValue = GetReg((uint)((ins >> 3) & 0b111));
-
-                                if ((rsValue & 0xFF) == 0)
-                                {
-                                    // Do nothing
-                                }
-                                else if ((rsValue & 0xFF) < 32)
-                                {
-                                    Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
-                                    rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
-                                }
-                                else if ((rsValue & 0xFF) == 32)
-                                {
-                                    Carry = BitTest(rdValue, 0);
-                                    rdValue = 0;
-                                }
-                                else
-                                {
-                                    Carry = false;
-                                    rdValue = 0;
-                                }
-
-                                SetReg(rd, rdValue);
-
-                                Negative = BitTest(rdValue, 31);
-                                Zero = rdValue == 0;
-                            }
-                            break;
-                        case 0x3: // LSR (2)
-                            {
-                                LineDebug("LSR (2)");
-
-                                uint rdVal = GetReg(rd);
-                                uint rsVal = GetReg(rs);
-
-                                if ((rsVal & 0xFF) == 0)
-                                {
-                                    // everything unaffected
-                                }
-                                else if ((rsVal & 0xFF) < 32)
-                                {
-                                    Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                                    SetReg(rd, LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF)));
-                                }
-                                else if ((rsVal & 0xFF) == 32)
-                                {
-                                    Carry = BitTest(rdVal, 31);
-                                    SetReg(rd, 0);
-                                }
-                                else
-                                {
-                                    Carry = false;
-                                    SetReg(rd, 0);
-                                }
-
-                                rdVal = GetReg(rd);
-
-                                Negative = BitTest(rdVal, 31);
-                                Zero = rdVal == 0;
-                            }
-                            break;
-                        case 0x4: // ASR (2)
-                            {
-                                LineDebug("ASR (2)");
-
-
-                                uint rdVal = GetReg(rd);
-                                uint rsVal = GetReg(rs);
-
-                                if ((rsVal & 0xFF) == 0)
-                                {
-                                    // Do nothing
-                                }
-                                else if ((rsVal & 0xFF) < 32)
-                                {
-                                    Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                                    rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
-                                }
-                                else
-                                {
-                                    Carry = BitTest(rdVal, 31);
-                                    if (!Carry)
+                                case 0b00: // LSL (1)
                                     {
-                                        rdVal = 0;
-                                    }
-                                    else
-                                    {
-                                        rdVal = 0xFFFFFFFF;
-                                    }
-                                }
+                                        LineDebug("LSL (1) | Logical Shift Left");
 
-                                SetReg(rd, rdVal);
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
 
-                                Negative = BitTest(rdVal, 31);
-                                Zero = rdVal == 0;
-                            }
-                            break;
-                        case 0x5: // ADC
-                            {
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                uint final = rdVal + rmVal + (Carry ? 1U : 0);
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = rdVal == 0;
-                                Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
-                                Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
-                            }
-                            break;
-                        case 0x6: // SBC
-                            {
-                                LineDebug("SBC");
-
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                uint final = rdVal - rmVal - (!Carry ? 1U : 0);
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                                Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
-                                Overflow = CheckOverflowSub(rdVal, rmVal + (!Carry ? 1U : 0), final);
-                            }
-                            break;
-                        case 0x7: // ROR
-                            {
-                                LineDebug("ROR");
-
-                                uint rdVal = GetReg(rd);
-                                uint rsVal = GetReg(rs);
-
-                                if ((rsVal & 0xFF) == 0)
-                                {
-                                    // Do nothing
-                                }
-                                else if ((rsVal & 0b11111) == 0)
-                                {
-                                    Carry = BitTest(rdVal, 31);
-                                }
-                                else
-                                {
-                                    Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
-                                    rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
-                                    SetReg(rd, rdVal);
-                                }
-
-                                Negative = BitTest(rdVal, 31);
-                                Zero = rdVal == 0;
-                            }
-                            break;
-                        case 0x8: // TST
-                            {
-                                LineDebug("TST");
-
-                                uint rnValue = GetReg(rn);
-                                uint rmValue = GetReg(rm);
-
-                                uint final = rnValue & rmValue;
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                            }
-                            break;
-                        case 0x9: // NEG / RSB
-                            {
-                                LineDebug("NEG / RSB");
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                uint final = 0 - rmVal;
-
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                                Carry = !(rmVal > 0);
-                                Overflow = CheckOverflowSub(0, rmVal, final);
-                            }
-                            break;
-                        case 0xA: // CMP (2)
-                            {
-                                LineDebug("CMP (2)");
-
-                                uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                                uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
-
-                                uint alu_out = rnVal - rmVal;
-
-                                Negative = BitTest(alu_out, 31);
-                                Zero = alu_out == 0;
-                                Carry = !(rmVal > rnVal);
-                                Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
-                            }
-                            break;
-                        case 0xB:  // CMN
-                            {
-                                LineDebug("CMN");
-
-                                uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                                uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
-
-                                uint alu_out = rnVal + rmVal;
-
-                                Negative = BitTest(alu_out, 31);
-                                Zero = alu_out == 0;
-                                Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
-                                Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
-                            }
-                            break;
-                        case 0xC: // ORR
-                            {
-                                LineDebug("ORR");
-
-                                SetReg(rd, GetReg(rd) | GetReg(rm));
-                                Negative = BitTest(GetReg(rd), 31);
-                                Zero = GetReg(rd) == 0;
-                            }
-                            break;
-                        case 0xD: // MUL
-                            {
-                                LineDebug("MUL");
-
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                rdVal = (rmVal * rdVal);
-                                SetReg(rd, rdVal);
-
-                                Negative = BitTest(rdVal, 31);
-                                Zero = rdVal == 0;
-                            }
-                            break;
-                        case 0xE: // BIC
-                            {
-                                LineDebug("BIC");
-
-                                uint rdValue = GetReg(rd);
-                                uint rmValue = GetReg(rm);
-
-                                uint final = rdValue & (~rmValue);
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                            }
-                            break;
-                        case 0xF: // MVN
-                            {
-                                LineDebug("MVN");
-
-                                SetReg(rd, ~GetReg(rm));
-                                Negative = BitTest(GetReg(rd), 31);
-                                Zero = GetReg(rd) == 0;
-                            }
-                            break;
-
-                    }
-                }
-                else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
-                {
-                    switch ((ins >> 8) & 0b11)
-                    {
-                        case 0b00: // ADD (4)
-                            {
-                                LineDebug("ADD (4)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rm = (uint)((ins >> 3) & 0b111);
-                                rd += BitTest(ins, 7) ? BIT_3 : 0;
-                                rm += BitTest(ins, 6) ? BIT_3 : 0;
-                                uint rdVal = GetReg(rd);
-                                uint rmVal = GetReg(rm);
-
-                                uint final = rdVal + rmVal;
-                                SetReg(rd, final);
-
-                                if (rd == 15)
-                                {
-                                    FlushPipeline();
-                                }
-                            }
-                            break;
-                        case 0b01: // CMP (3)
-                            {
-                                LineDebug("CMP (3)");
-
-                                uint rn = (uint)((ins >> 0) & 0b111);
-                                uint rm = (uint)((ins >> 3) & 0b111);
-
-                                rn += BitTest(ins, 7) ? BIT_3 : 0;
-                                rm += BitTest(ins, 6) ? BIT_3 : 0;
-
-                                uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
-
-                                uint alu_out = rnVal - rmVal;
-
-                                Negative = BitTest(alu_out, 31);
-                                Zero = alu_out == 0;
-                                Carry = !(rmVal > rnVal);
-                                Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
-                            }
-                            break;
-                        case 0b10:// MOV (3)
-                            {
-                                LineDebug("MOV (3)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rm = (uint)((ins >> 3) & 0b111);
-                                rd += BitTest(ins, 7) ? BIT_3 : 0;
-                                rm += BitTest(ins, 6) ? BIT_3 : 0;
-
-                                SetReg(rd, GetReg(rm));
-
-                                if (rd == 15)
-                                {
-                                    R15 &= 0xFFFFFFFE;
-                                    FlushPipeline();
-                                }
-                            }
-                            break;
-                        case 0b11: // BX
-                            {
-                                LineDebug("BX | Optionally switch back to ARM state");
-
-                                uint rm = (uint)((ins >> 3) & 0xF); // High bit is technically an H bit, but can be ignored here
-                                uint val = GetReg(rm);
-                                LineDebug($"R{rm}");
-
-                                ThumbState = BitTest(val, 0);
-                                R15 = val & 0xFFFFFFFE;
-                                FlushPipeline();
-                            }
-                            break;
-                    }
-                }
-                else if ((ins & 0b1110000000000000) == 0b0000000000000000) // Shift by immediate, Add/subtract register, Add/subtract immediate
-                {
-                    switch ((ins >> 11) & 0b11)
-                    {
-                        case 0b00: // LSL (1)
-                            {
-                                LineDebug("LSL (1) | Logical Shift Left");
-
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
-
-                                if (immed5 == 0)
-                                {
-                                    SetReg(rd, rmValue);
-                                }
-                                else
-                                {
-                                    Carry = BitTest(rmValue, (byte)(32 - immed5));
-                                    SetReg(rd, LogicalShiftLeft32(rmValue, (byte)immed5));
-                                }
-
-                                Negative = BitTest(GetReg(rd), 31);
-                                Zero = GetReg(rd) == 0;
-                            }
-                            break;
-                        case 0b01: // LSR (1)
-                            {
-                                LineDebug("LSR (1)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rm = (uint)((ins >> 3) & 0b111);
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                uint rmVal = GetReg(rm);
-
-                                uint final;
-                                if (immed5 == 0)
-                                {
-                                    Carry = BitTest(rmVal, 31);
-                                    final = 0;
-                                }
-                                else
-                                {
-                                    Carry = BitTest(rmVal, (byte)(immed5 - 1));
-                                    final = LogicalShiftRight32(rmVal, (byte)immed5);
-                                }
-
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                            }
-                            break;
-                        case 0b10: // ASR (1)
-                            {
-                                LineDebug("ASR (1)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                if (immed5 == 0)
-                                {
-                                    Carry = BitTest(rmValue, 31);
-                                    if (BitTest(rmValue, 31))
-                                    {
-                                        SetReg(rd, 0xFFFFFFFF);
-                                    }
-                                    else
-                                    {
-                                        SetReg(rd, 0);
-                                    }
-                                }
-                                else
-                                {
-                                    Carry = BitTest(rmValue, (byte)(immed5 - 1));
-                                    SetReg(rd, ArithmeticShiftRight32(rmValue, (byte)immed5));
-                                }
-
-                                Negative = BitTest(GetReg(rd), 31);
-                                Zero = GetReg(rd) == 0;
-                            }
-                            break;
-                        case 0b11: // Add/subtract/compare/move immediate
-                            {
-                                switch ((ins >> 9) & 0b11)
-                                {
-                                    case 0b00: // ADD (3)
+                                        if (immed5 == 0)
                                         {
-                                            LineDebug("ADD (3)");
+                                            SetReg(rd, rmValue);
+                                        }
+                                        else
+                                        {
+                                            Carry = BitTest(rmValue, (byte)(32 - immed5));
+                                            SetReg(rd, LogicalShiftLeft32(rmValue, (byte)immed5));
+                                        }
 
-                                            uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
-                                            uint rmVal = GetReg((uint)((ins >> 6) & 0b111));
-                                            uint final = rnVal + rmVal;
+                                        Negative = BitTest(GetReg(rd), 31);
+                                        Zero = GetReg(rd) == 0;
+                                    }
+                                    break;
+                                case 0b01: // LSR (1)
+                                    {
+                                        LineDebug("LSR (1)");
 
-                                            SetReg(rd, final);
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                            Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
-                                            Overflow = CheckOverflowAdd(rnVal, rmVal, final);
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rm = (uint)((ins >> 3) & 0b111);
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        uint rmVal = GetReg(rm);
+
+                                        uint final;
+                                        if (immed5 == 0)
+                                        {
+                                            Carry = BitTest(rmVal, 31);
+                                            final = 0;
+                                        }
+                                        else
+                                        {
+                                            Carry = BitTest(rmVal, (byte)(immed5 - 1));
+                                            final = LogicalShiftRight32(rmVal, (byte)immed5);
+                                        }
+
+                                        SetReg(rd, final);
+
+                                        Negative = BitTest(final, 31);
+                                        Zero = final == 0;
+                                    }
+                                    break;
+                                case 0b10: // ASR (1)
+                                    {
+                                        LineDebug("ASR (1)");
+
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        if (immed5 == 0)
+                                        {
+                                            Carry = BitTest(rmValue, 31);
+                                            if (BitTest(rmValue, 31))
+                                            {
+                                                SetReg(rd, 0xFFFFFFFF);
+                                            }
+                                            else
+                                            {
+                                                SetReg(rd, 0);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            Carry = BitTest(rmValue, (byte)(immed5 - 1));
+                                            SetReg(rd, ArithmeticShiftRight32(rmValue, (byte)immed5));
+                                        }
+
+                                        Negative = BitTest(GetReg(rd), 31);
+                                        Zero = GetReg(rd) == 0;
+                                    }
+                                    break;
+                                case 0b11: // Add/subtract/compare/move immediate
+                                    {
+                                        switch ((ins >> 9) & 0b11)
+                                        {
+                                            case 0b00: // ADD (3)
+                                                {
+                                                    LineDebug("ADD (3)");
+
+                                                    uint rd = (uint)((ins >> 0) & 0b111);
+                                                    uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
+                                                    uint rmVal = GetReg((uint)((ins >> 6) & 0b111));
+                                                    uint final = rnVal + rmVal;
+
+                                                    SetReg(rd, final);
+                                                    Negative = BitTest(final, 31);
+                                                    Zero = final == 0;
+                                                    Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
+                                                    Overflow = CheckOverflowAdd(rnVal, rmVal, final);
+                                                }
+                                                break;
+                                            case 0b01: // SUB (3)
+                                                {
+                                                    LineDebug("SUB (3)");
+
+                                                    uint rd = (uint)((ins >> 0) & 0b111);
+                                                    uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
+                                                    uint rmValue = GetReg((uint)((ins >> 6) & 0b111));
+
+                                                    uint final = rnValue - rmValue;
+                                                    SetReg(rd, final);
+
+                                                    Negative = BitTest(final, 31);
+                                                    Zero = final == 0;
+                                                    Carry = !(rmValue > rnValue);
+                                                    Overflow = CheckOverflowSub(rnValue, rmValue, final);
+                                                }
+                                                break;
+                                            case 0b10: // ADD (1) // MOV (2)
+                                                {
+                                                    LineDebug("ADD (1)");
+
+                                                    uint rd = (uint)((ins >> 0) & 0b111);
+                                                    uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
+                                                    uint immed3 = (uint)((ins >> 6) & 0b111);
+
+                                                    uint final = rnVal + immed3;
+
+                                                    SetReg(rd, final);
+                                                    Negative = BitTest(final, 31);
+                                                    Zero = final == 0;
+                                                    Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
+                                                    Overflow = CheckOverflowAdd(rnVal, immed3, final);
+
+                                                    if (rd == 15) FlushPipeline();
+                                                }
+                                                break;
+                                            case 0b11: // SUB (1)
+                                                {
+                                                    LineDebug("SUB (1)");
+
+                                                    uint rd = (uint)((ins >> 0) & 0b111);
+                                                    uint rn = (uint)((ins >> 3) & 0b111);
+                                                    uint immed3 = (uint)((ins >> 6) & 0b111);
+
+                                                    uint rdVal = GetReg(rd);
+                                                    uint rnVal = GetReg(rn);
+
+                                                    uint final = rnVal - immed3;
+                                                    SetReg(rd, final);
+
+                                                    Negative = BitTest(final, 31);
+                                                    Zero = final == 0;
+                                                    Carry = !(immed3 > rnVal);
+                                                    Overflow = CheckOverflowSub(rnVal, immed3, final);
+                                                }
+                                                break;
                                         }
                                         break;
-                                    case 0b01: // SUB (3)
+                                    }
+                            }
+                        }
+                        break;
+                    case 0b001: // Add/subtract/compare/move immediate
+                        {
+                            uint rd = (uint)((ins >> 8) & 0b111);
+                            uint immed8 = ins & 0xFFu;
+
+                            switch ((ins >> 11) & 0b11)
+                            {
+                                case 0b00: // MOV (1)
+                                    {
+                                        LineDebug("MOV | Move large immediate to register");
+
+                                        SetReg(rd, immed8);
+
+                                        Negative = false;
+                                        Zero = immed8 == 0;
+                                    }
+                                    break;
+                                case 0b01: // CMP (1)
+                                    {
+                                        LineDebug("CMP (1)");
+
+                                        uint rnVal = GetReg(rd);
+                                        uint alu_out = rnVal - immed8;
+
+                                        Negative = BitTest(alu_out, 31);
+                                        Zero = alu_out == 0;
+                                        Carry = !(immed8 > rnVal);
+                                        Overflow = CheckOverflowSub(rnVal, immed8, alu_out);
+                                    }
+                                    break;
+                                case 0b10: // ADD (2)
+                                    {
+                                        LineDebug("ADD (2)");
+
+                                        uint rdVal = GetReg(rd);
+                                        uint final = rdVal + immed8;
+
+                                        SetReg(rd, final);
+                                        Negative = BitTest(final, 31);
+                                        Zero = final == 0;
+                                        Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
+                                        Overflow = CheckOverflowAdd(rdVal, immed8, final);
+                                    }
+                                    break;
+                                case 0b11: // SUB (2)
+                                    {
+                                        LineDebug("SUB (2)");
+
+                                        uint rdVal = GetReg(rd);
+
+                                        uint final = rdVal - immed8;
+                                        SetReg(rd, final);
+
+                                        Negative = BitTest(final, 31);
+                                        Zero = final == 0;
+                                        Carry = !(immed8 > rdVal);
+                                        Overflow = CheckOverflowSub(rdVal, immed8, final);
+                                    }
+                                    break;
+                            }
+                        }
+                        break;
+                    case 0b010:
+                        {
+                            if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
+                            {
+                                // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rn = rd;
+                                uint rm = (uint)((ins >> 3) & 0b111);
+                                uint rs = rm;
+
+                                uint opcode = (uint)((ins >> 6) & 0xFU);
+                                switch (opcode)
+                                {
+
+                                    case 0x0: // AND
                                         {
-                                            LineDebug("SUB (3)");
+                                            LineDebug("AND");
 
-                                            uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
-                                            uint rmValue = GetReg((uint)((ins >> 6) & 0b111));
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
 
-                                            uint final = rnValue - rmValue;
+                                            uint final = rdVal & rmVal;
                                             SetReg(rd, final);
 
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
-                                            Carry = !(rmValue > rnValue);
-                                            Overflow = CheckOverflowSub(rnValue, rmValue, final);
                                         }
                                         break;
-                                    case 0b10: // ADD (1) // MOV (2)
+                                    case 0x1: // EOR
                                         {
-                                            LineDebug("ADD (1)");
+                                            LineDebug("EOR");
 
-                                            uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
-                                            uint immed3 = (uint)((ins >> 6) & 0b111);
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
 
-                                            uint final = rnVal + immed3;
+                                            rdVal = rdVal ^ rmVal;
+                                            SetReg(rd, rdVal);
 
+                                            Negative = BitTest(rdVal, 31);
+                                            Zero = rdVal == 0;
+                                        }
+                                        break;
+                                    case 0x2: // LSL (2)
+                                        {
+                                            LineDebug("LSL (2) | Logical Shift Left");
+
+                                            uint rdValue = GetReg((uint)((ins >> 0) & 0b111));
+                                            uint rsValue = GetReg((uint)((ins >> 3) & 0b111));
+
+                                            if ((rsValue & 0xFF) == 0)
+                                            {
+                                                // Do nothing
+                                            }
+                                            else if ((rsValue & 0xFF) < 32)
+                                            {
+                                                Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
+                                                rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
+                                            }
+                                            else if ((rsValue & 0xFF) == 32)
+                                            {
+                                                Carry = BitTest(rdValue, 0);
+                                                rdValue = 0;
+                                            }
+                                            else
+                                            {
+                                                Carry = false;
+                                                rdValue = 0;
+                                            }
+
+                                            SetReg(rd, rdValue);
+
+                                            Negative = BitTest(rdValue, 31);
+                                            Zero = rdValue == 0;
+                                        }
+                                        break;
+                                    case 0x3: // LSR (2)
+                                        {
+                                            LineDebug("LSR (2)");
+
+                                            uint rdVal = GetReg(rd);
+                                            uint rsVal = GetReg(rs);
+
+                                            if ((rsVal & 0xFF) == 0)
+                                            {
+                                                // everything unaffected
+                                            }
+                                            else if ((rsVal & 0xFF) < 32)
+                                            {
+                                                Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
+                                                SetReg(rd, LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF)));
+                                            }
+                                            else if ((rsVal & 0xFF) == 32)
+                                            {
+                                                Carry = BitTest(rdVal, 31);
+                                                SetReg(rd, 0);
+                                            }
+                                            else
+                                            {
+                                                Carry = false;
+                                                SetReg(rd, 0);
+                                            }
+
+                                            rdVal = GetReg(rd);
+
+                                            Negative = BitTest(rdVal, 31);
+                                            Zero = rdVal == 0;
+                                        }
+                                        break;
+                                    case 0x4: // ASR (2)
+                                        {
+                                            LineDebug("ASR (2)");
+
+
+                                            uint rdVal = GetReg(rd);
+                                            uint rsVal = GetReg(rs);
+
+                                            if ((rsVal & 0xFF) == 0)
+                                            {
+                                                // Do nothing
+                                            }
+                                            else if ((rsVal & 0xFF) < 32)
+                                            {
+                                                Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
+                                                rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                                            }
+                                            else
+                                            {
+                                                Carry = BitTest(rdVal, 31);
+                                                if (!Carry)
+                                                {
+                                                    rdVal = 0;
+                                                }
+                                                else
+                                                {
+                                                    rdVal = 0xFFFFFFFF;
+                                                }
+                                            }
+
+                                            SetReg(rd, rdVal);
+
+                                            Negative = BitTest(rdVal, 31);
+                                            Zero = rdVal == 0;
+                                        }
+                                        break;
+                                    case 0x5: // ADC
+                                        {
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint final = rdVal + rmVal + (Carry ? 1U : 0);
                                             SetReg(rd, final);
+
+                                            Negative = BitTest(final, 31);
+                                            Zero = rdVal == 0;
+                                            Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
+                                            Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
+                                        }
+                                        break;
+                                    case 0x6: // SBC
+                                        {
+                                            LineDebug("SBC");
+
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint final = rdVal - rmVal - (!Carry ? 1U : 0);
+                                            SetReg(rd, final);
+
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
-                                            Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
-                                            Overflow = CheckOverflowAdd(rnVal, immed3, final);
-
-                                            if (rd == 15) FlushPipeline();
+                                            Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
+                                            Overflow = CheckOverflowSub(rdVal, rmVal + (!Carry ? 1U : 0), final);
                                         }
                                         break;
-                                    case 0b11: // SUB (1)
+                                    case 0x7: // ROR
                                         {
-                                            LineDebug("SUB (1)");
+                                            LineDebug("ROR");
+
+                                            uint rdVal = GetReg(rd);
+                                            uint rsVal = GetReg(rs);
+
+                                            if ((rsVal & 0xFF) == 0)
+                                            {
+                                                // Do nothing
+                                            }
+                                            else if ((rsVal & 0b11111) == 0)
+                                            {
+                                                Carry = BitTest(rdVal, 31);
+                                            }
+                                            else
+                                            {
+                                                Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
+                                                rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
+                                                SetReg(rd, rdVal);
+                                            }
+
+                                            Negative = BitTest(rdVal, 31);
+                                            Zero = rdVal == 0;
+                                        }
+                                        break;
+                                    case 0x8: // TST
+                                        {
+                                            LineDebug("TST");
+
+                                            uint rnValue = GetReg(rn);
+                                            uint rmValue = GetReg(rm);
+
+                                            uint final = rnValue & rmValue;
+
+                                            Negative = BitTest(final, 31);
+                                            Zero = final == 0;
+                                        }
+                                        break;
+                                    case 0x9: // NEG / RSB
+                                        {
+                                            LineDebug("NEG / RSB");
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint final = 0 - rmVal;
+
+                                            SetReg(rd, final);
+
+                                            Negative = BitTest(final, 31);
+                                            Zero = final == 0;
+                                            Carry = !(rmVal > 0);
+                                            Overflow = CheckOverflowSub(0, rmVal, final);
+                                        }
+                                        break;
+                                    case 0xA: // CMP (2)
+                                        {
+                                            LineDebug("CMP (2)");
+
+                                            uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
+                                            uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+
+                                            uint alu_out = rnVal - rmVal;
+
+                                            Negative = BitTest(alu_out, 31);
+                                            Zero = alu_out == 0;
+                                            Carry = !(rmVal > rnVal);
+                                            Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
+                                        }
+                                        break;
+                                    case 0xB:  // CMN
+                                        {
+                                            LineDebug("CMN");
+
+                                            uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
+                                            uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+
+                                            uint alu_out = rnVal + rmVal;
+
+                                            Negative = BitTest(alu_out, 31);
+                                            Zero = alu_out == 0;
+                                            Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
+                                            Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
+                                        }
+                                        break;
+                                    case 0xC: // ORR
+                                        {
+                                            LineDebug("ORR");
+
+                                            SetReg(rd, GetReg(rd) | GetReg(rm));
+                                            Negative = BitTest(GetReg(rd), 31);
+                                            Zero = GetReg(rd) == 0;
+                                        }
+                                        break;
+                                    case 0xD: // MUL
+                                        {
+                                            LineDebug("MUL");
+
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
+
+                                            rdVal = (rmVal * rdVal);
+                                            SetReg(rd, rdVal);
+
+                                            Negative = BitTest(rdVal, 31);
+                                            Zero = rdVal == 0;
+                                        }
+                                        break;
+                                    case 0xE: // BIC
+                                        {
+                                            LineDebug("BIC");
+
+                                            uint rdValue = GetReg(rd);
+                                            uint rmValue = GetReg(rm);
+
+                                            uint final = rdValue & (~rmValue);
+                                            SetReg(rd, final);
+
+                                            Negative = BitTest(final, 31);
+                                            Zero = final == 0;
+                                        }
+                                        break;
+                                    case 0xF: // MVN
+                                        {
+                                            LineDebug("MVN");
+
+                                            SetReg(rd, ~GetReg(rm));
+                                            Negative = BitTest(GetReg(rd), 31);
+                                            Zero = GetReg(rd) == 0;
+                                        }
+                                        break;
+
+                                }
+                            }
+                            else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
+                            {
+                                switch ((ins >> 8) & 0b11)
+                                {
+                                    case 0b00: // ADD (4)
+                                        {
+                                            LineDebug("ADD (4)");
 
                                             uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rn = (uint)((ins >> 3) & 0b111);
-                                            uint immed3 = (uint)((ins >> 6) & 0b111);
+                                            uint rm = (uint)((ins >> 3) & 0b111);
+                                            rd += BitTest(ins, 7) ? BIT_3 : 0;
+                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
+                                            uint rdVal = GetReg(rd);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint final = rdVal + rmVal;
+                                            SetReg(rd, final);
+
+                                            if (rd == 15)
+                                            {
+                                                FlushPipeline();
+                                            }
+                                        }
+                                        break;
+                                    case 0b01: // CMP (3)
+                                        {
+                                            LineDebug("CMP (3)");
+
+                                            uint rn = (uint)((ins >> 0) & 0b111);
+                                            uint rm = (uint)((ins >> 3) & 0b111);
+
+                                            rn += BitTest(ins, 7) ? BIT_3 : 0;
+                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
+
+                                            uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint alu_out = rnVal - rmVal;
+
+                                            Negative = BitTest(alu_out, 31);
+                                            Zero = alu_out == 0;
+                                            Carry = !(rmVal > rnVal);
+                                            Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
+                                        }
+                                        break;
+                                    case 0b10:// MOV (3)
+                                        {
+                                            LineDebug("MOV (3)");
+
+                                            uint rd = (uint)((ins >> 0) & 0b111);
+                                            uint rm = (uint)((ins >> 3) & 0b111);
+                                            rd += BitTest(ins, 7) ? BIT_3 : 0;
+                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
+
+                                            SetReg(rd, GetReg(rm));
+
+                                            if (rd == 15)
+                                            {
+                                                R15 &= 0xFFFFFFFE;
+                                                FlushPipeline();
+                                            }
+                                        }
+                                        break;
+                                    case 0b11: // BX
+                                        {
+                                            LineDebug("BX | Optionally switch back to ARM state");
+
+                                            uint rm = (uint)((ins >> 3) & 0xF); // High bit is technically an H bit, but can be ignored here
+                                            uint val = GetReg(rm);
+                                            LineDebug($"R{rm}");
+
+                                            ThumbState = BitTest(val, 0);
+                                            R15 = val & 0xFFFFFFFE;
+                                            FlushPipeline();
+                                        }
+                                        break;
+                                }
+                            }
+                            else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
+                            {
+                                LineDebug("LDR (3) | PC Relative, 8-bit Immediate");
+
+                                uint rd = (uint)((ins >> 8) & 0b111);
+                                uint immed8 = (uint)((ins >> 0) & 0xFF);
+
+                                uint addr = (R15 & 0xFFFFFFFC) + (immed8 * 4);
+                                if ((addr & 0b11) != 0)
+                                {
+                                    // Misaligned
+                                    uint readAddr = addr & ~0b11U;
+                                    uint readVal = Gba.Mem.Read32(readAddr);
+                                    SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                }
+                                else
+                                {
+                                    uint readVal = Gba.Mem.Read32(addr);
+                                    SetReg(rd, readVal);
+                                }
+                            }
+                            else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
+                            {
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rn = (uint)((ins >> 3) & 0b111);
+                                uint rm = (uint)((ins >> 6) & 0b111);
+
+                                switch ((ins >> 9) & 0b111)
+                                {
+                                    case 0b000: // STR (2)
+                                        {
+                                            LineDebug("STR (2)");
+                                            uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint addr = rnVal + rmVal;
+                                            Gba.Mem.Write32(addr, GetReg(rd));
+                                        }
+                                        break;
+                                    case 0b001: // STRH (2)
+                                    case 0b101: // LDRH (2)
+                                        {
+                                            bool load = BitTest(ins, 11);
+                                            LineDebug("STRH / LDRH (2)");
+
+                                            uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint addr = rnVal + rmVal;
+
+                                            if (load)
+                                            {
+                                                LineDebug("Load");
+                                                if ((addr & 1) != 0)
+                                                {
+                                                    // Halfworld Misaligned
+                                                    SetReg(rd, Gba.Mem.Read16(RotateRight32(addr - 1, 8)));
+                                                }
+                                                else
+                                                {
+                                                    // Halfword Aligned
+                                                    SetReg(rd, Gba.Mem.Read16(addr));
+                                                }
+                                            }
+                                            else
+                                            {
+                                                LineDebug("Store");
+                                                uint rdVal = GetReg(rd);
+                                                Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
+                                            }
+                                        }
+                                        break;
+                                    case 0b010: // STRB (2)
+                                    case 0b110: // LDRB (2)
+                                        {
+                                            uint rdVal = GetReg(rd);
+                                            uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
+
+                                            uint addr = rnVal + rmVal;
+
+                                            bool load = BitTest(ins, 11);
+
+                                            if (load)
+                                            {
+                                                LineDebug("LDRB (2)");
+                                                SetReg(rd, Gba.Mem.Read8(addr));
+                                            }
+                                            else
+                                            {
+                                                LineDebug("STRB (2)");
+                                                Gba.Mem.Write8(addr, (byte)rdVal);
+                                            }
+                                        }
+                                        break;
+                                    case 0b011: // LDRSB
+                                    case 0b111: // LDRSH
+                                        {
+                                            uint rdVal = GetReg(rd);
+                                            uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
+
+                                            bool halfword = BitTest(ins, 11); // As apposed to byte load.
+
+                                            uint addr = rnVal + rmVal;
+
+                                            if (halfword)
+                                            {
+                                                LineDebug("LDRSH");
+
+                                                int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
+                                                // Sign extend
+                                                if ((readVal & BIT_15) != 0)
+                                                {
+                                                    readVal -= (int)BIT_16;
+                                                }
+
+                                                SetReg(rd, (uint)readVal);
+                                            }
+                                            else
+                                            {
+                                                LineDebug("LDRSB");
+
+                                                int readVal = (int)Gba.Mem.Read8(addr);
+                                                // Sign extend
+                                                if ((readVal & BIT_7) != 0)
+                                                {
+                                                    readVal -= (int)BIT_8;
+                                                }
+
+                                                SetReg(rd, (uint)readVal);
+                                            }
+                                        }
+                                        break;
+                                    case 0b100: // LDR (2)
+                                        {
+                                            LineDebug("LDR (2)");
 
                                             uint rdVal = GetReg(rd);
                                             uint rnVal = GetReg(rn);
+                                            uint rmVal = GetReg(rm);
 
-                                            uint final = rnVal - immed3;
-                                            SetReg(rd, final);
+                                            uint addr = rnVal + rmVal;
 
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                            Carry = !(immed3 > rnVal);
-                                            Overflow = CheckOverflowSub(rnVal, immed3, final);
+                                            if ((addr & 0b11) != 0)
+                                            {
+                                                // Misaligned
+                                                uint readAddr = addr & ~0b11U;
+                                                uint readVal = Gba.Mem.Read32(readAddr);
+                                                SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                            }
+                                            else
+                                            {
+                                                uint readVal = Gba.Mem.Read32(addr);
+                                                SetReg(rd, readVal);
+                                            }
                                         }
                                         break;
+                                    default:
+                                        Error("Load/store register offset invalid opcode");
+                                        break;
                                 }
-                                break;
                             }
-                    }
-                }
-                else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
-                {
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rn = (uint)((ins >> 3) & 0b111);
-                    uint rm = (uint)((ins >> 6) & 0b111);
+                        }
+                        break;
+                    case 0b011: // Load/store word/byte immediate offset
+                        {
 
-                    switch ((ins >> 9) & 0b111)
-                    {
-                        case 0b000: // STR (2)
+                            switch ((ins >> 11) & 0b11)
                             {
-                                LineDebug("STR (2)");
-                                uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
+                                case 0b01: // LDR (1)
+                                    {
+                                        LineDebug("LDR (1) | Base + Immediate");
 
-                                uint addr = rnVal + rmVal;
-                                Gba.Mem.Write32(addr, GetReg(rd));
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        uint addr = rnValue + (immed5 * 4);
+
+                                        // Misaligned
+                                        uint readAddr = addr & ~0b11U;
+                                        uint readVal = Gba.Mem.Read32(readAddr);
+                                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+
+                                        LineDebug($"Addr: {Util.HexN(addr, 8)}");
+
+                                    }
+                                    break;
+                                case 0b00: // STR (1)
+                                    {
+                                        LineDebug("STR (1)");
+
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        uint addr = rnValue + (immed5 * 4);
+                                        LineDebug($"Addr: {Util.HexN(addr, 8)}");
+
+                                        Gba.Mem.Write32(addr, GetReg(rd));
+                                    }
+                                    break;
+                                case 0b10: // STRB (1)
+                                    {
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rdVal = GetReg(rd);
+                                        uint rn = (uint)((ins >> 3) & 0b111);
+                                        uint rnVal = GetReg(rn);
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        uint addr = rnVal + immed5;
+
+                                        LineDebug("STRB (1)");
+                                        Gba.Mem.Write8(addr, (byte)rdVal);
+                                    }
+                                    break;
+                                case 0b11: // LDRB (1)
+                                    {
+
+                                        uint rd = (uint)((ins >> 0) & 0b111);
+                                        uint rdVal = GetReg(rd);
+                                        uint rn = (uint)((ins >> 3) & 0b111);
+                                        uint rnVal = GetReg(rn);
+                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                        uint addr = rnVal + immed5;
+
+                                        LineDebug("LDRB (1)");
+                                        SetReg(rd, Gba.Mem.Read8(addr));
+                                    }
+                                    break;
                             }
-                            break;
-                        case 0b001: // STRH (2)
-                        case 0b101: // LDRH (2)
+                        }
+                        break;
+                    case 0b100:
+                        {
+                            if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
                             {
                                 bool load = BitTest(ins, 11);
-                                LineDebug("STRH / LDRH (2)");
+                                LineDebug("STRH / LDRH (1)");
 
+                                uint rd = (uint)((ins >> 0) & 0b111);
+                                uint rn = (uint)((ins >> 3) & 0b111);
                                 uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
 
-                                uint addr = rnVal + rmVal;
+                                uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+                                uint addr = rnVal + (immed5 * 2);
 
                                 if (load)
                                 {
                                     LineDebug("Load");
-                                    if ((addr & 1) != 0)
-                                    {
-                                        // Halfworld Misaligned
-                                        SetReg(rd, Gba.Mem.Read16(RotateRight32(addr - 1, 8)));
-                                    }
-                                    else
-                                    {
-                                        // Halfword Aligned
-                                        SetReg(rd, Gba.Mem.Read16(addr));
-                                    }
+                                    SetReg(rd, Gba.Mem.Read16(addr));
                                 }
                                 else
                                 {
                                     LineDebug("Store");
-                                    uint rdVal = GetReg(rd);
-                                    Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
+                                    Gba.Mem.Write16(addr, (ushort)GetReg(rd));
                                 }
                             }
-                            break;
-                        case 0b010: // STRB (2)
-                        case 0b110: // LDRB (2)
+                            else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
                             {
+                                LineDebug("LDR (4)");
+
+                                uint immed8 = (uint)((ins >> 0) & 0xFF);
+                                uint rd = (uint)((ins >> 8) & 0b111);
                                 uint rdVal = GetReg(rd);
-                                uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
 
-                                uint addr = rnVal + rmVal;
-
-                                bool load = BitTest(ins, 11);
-
-                                if (load)
-                                {
-                                    LineDebug("LDRB (2)");
-                                    SetReg(rd, Gba.Mem.Read8(addr));
-                                }
-                                else
-                                {
-                                    LineDebug("STRB (2)");
-                                    Gba.Mem.Write8(addr, (byte)rdVal);
-                                }
-                            }
-                            break;
-                        case 0b011: // LDRSB
-                        case 0b111: // LDRSH
-                            {
-                                uint rdVal = GetReg(rd);
-                                uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
-
-                                bool halfword = BitTest(ins, 11); // As apposed to byte load.
-
-                                uint addr = rnVal + rmVal;
-
-                                if (halfword)
-                                {
-                                    LineDebug("LDRSH");
-
-                                    int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
-                                    // Sign extend
-                                    if ((readVal & BIT_15) != 0)
-                                    {
-                                        readVal -= (int)BIT_16;
-                                    }
-
-                                    SetReg(rd, (uint)readVal);
-                                }
-                                else
-                                {
-                                    LineDebug("LDRSB");
-
-                                    int readVal = (int)Gba.Mem.Read8(addr);
-                                    // Sign extend
-                                    if ((readVal & BIT_7) != 0)
-                                    {
-                                        readVal -= (int)BIT_8;
-                                    }
-
-                                    SetReg(rd, (uint)readVal);
-                                }
-                            }
-                            break;
-                        case 0b100: // LDR (2)
-                            {
-                                LineDebug("LDR (2)");
-
-                                uint rdVal = GetReg(rd);
-                                uint rnVal = GetReg(rn);
-                                uint rmVal = GetReg(rm);
-
-                                uint addr = rnVal + rmVal;
-
+                                uint addr = R13 + (immed8 * 4);
                                 if ((addr & 0b11) != 0)
                                 {
                                     // Misaligned
@@ -2263,512 +2475,320 @@ namespace OptimeGBA
                                     SetReg(rd, readVal);
                                 }
                             }
-                            break;
-                        default:
-                            Error("Load/store register offset invalid opcode");
-                            break;
-                    }
-                }
-                else if ((ins & 0b1110000000000000) == 0b0010000000000000) // Add/subtract/compare/move immediate
-                {
-                    uint rd = (uint)((ins >> 8) & 0b111);
-                    uint immed8 = ins & 0xFFu;
-
-                    switch ((ins >> 11) & 0b11)
-                    {
-                        case 0b00: // MOV (1)
+                            else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
                             {
-                                LineDebug("MOV | Move large immediate to register");
+                                LineDebug("STR (3)");
 
-                                SetReg(rd, immed8);
+                                uint immed8 = (uint)((ins >> 0) & 0xFF);
+                                uint rd = (uint)((ins >> 8) & 0b111);
 
-                                Negative = false;
-                                Zero = immed8 == 0;
-                            }
-                            break;
-                        case 0b01: // CMP (1)
-                            {
-                                LineDebug("CMP (1)");
-
-                                uint rnVal = GetReg(rd);
-                                uint alu_out = rnVal - immed8;
-
-                                Negative = BitTest(alu_out, 31);
-                                Zero = alu_out == 0;
-                                Carry = !(immed8 > rnVal);
-                                Overflow = CheckOverflowSub(rnVal, immed8, alu_out);
-                            }
-                            break;
-                        case 0b10: // ADD (2)
-                            {
-                                LineDebug("ADD (2)");
-
-                                uint rdVal = GetReg(rd);
-                                uint final = rdVal + immed8;
-
-                                SetReg(rd, final);
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                                Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
-                                Overflow = CheckOverflowAdd(rdVal, immed8, final);
-                            }
-                            break;
-                        case 0b11: // SUB (2)
-                            {
-                                LineDebug("SUB (2)");
-
-                                uint rdVal = GetReg(rd);
-
-                                uint final = rdVal - immed8;
-                                SetReg(rd, final);
-
-                                Negative = BitTest(final, 31);
-                                Zero = final == 0;
-                                Carry = !(immed8 > rdVal);
-                                Overflow = CheckOverflowSub(rdVal, immed8, final);
-                            }
-                            break;
-                    }
-                }
-                else if ((ins & 0b1111000000000000) == 0b1011000000000000) // Miscellaneous (categorized like in the ARM reference manual)
-                {
-                    if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
-                    {
-                        bool usePc = BitTest(ins, 8);
-
-                        if (BitTest(ins, 11))
-                        {
-                            LineDebug("POP");
-
-                            String regs = "";
-                            uint addr = R13;
-
-                            if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; }
-                            if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; }
-
-                            if (BitTest(ins, 8))
-                            {
-                                regs += "PC ";
-                                R15 = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
-                                FlushPipeline();
-                                LineDebug(Util.Hex(R15, 8));
-                                addr += 4;
-                            }
-
-                            R13 = addr;
-
-                            LineDebug(regs);
-                        }
-                        else
-                        {
-                            LineDebug("PUSH");
-
-                            String regs = "";
-                            uint addr = R13;
-
-                            if (BitTest(ins, 0)) { addr -= 4; }
-                            if (BitTest(ins, 1)) { addr -= 4; }
-                            if (BitTest(ins, 2)) { addr -= 4; }
-                            if (BitTest(ins, 3)) { addr -= 4; }
-                            if (BitTest(ins, 4)) { addr -= 4; }
-                            if (BitTest(ins, 5)) { addr -= 4; }
-                            if (BitTest(ins, 6)) { addr -= 4; }
-                            if (BitTest(ins, 7)) { addr -= 4; }
-                            if (BitTest(ins, 8)) { addr -= 4; }
-
-                            if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; R13 -= 4; }
-                            if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; R13 -= 4; }
-
-                            if (BitTest(ins, 8))
-                            {
-                                regs += "LR ";
-                                Gba.Mem.Write32(addr, R14);
-                                addr += 4;
-                                R13 -= 4;
-                            }
-
-                            LineDebug(regs);
-                        }
-                    }
-                    else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)
-                    {
-                        LineDebug("ADD (7)");
-                        uint immed7 = (uint)(ins & 0b1111111);
-                        R13 = R13 + (immed7 << 2);
-                    }
-                    else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
-                    {
-                        LineDebug("SUB (4)");
-
-                        uint immed7 = (uint)(ins & 0b1111111);
-                        R13 = R13 - (immed7 << 2);
-                    }
-                    else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
-                    {
-                        LineDebug("REVSH");
-
-                        uint rd = (uint)((ins >> 0) & 0b111);
-                        uint rdVal = GetReg(rd);
-                        uint rn = (uint)((ins >> 3) & 0b111);
-                        uint rnVal = GetReg(rn);
-
-                        uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
-                        uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
-
-                        rdVal &= 0xFFFF0000;
-                        rdVal |= (rnValHalfUpper << 0);
-                        rdVal |= (rnValHalfLower << 8);
-
-                        // Sign Extend
-                        if (BitTest(rn, 7))
-                        {
-                            rdVal |= 0xFFFF0000;
-                        }
-                        else
-                        {
-                            rdVal &= 0x0000FFFF;
-                        }
-
-                        SetReg(rd, rdVal);
-                    }
-                }
-                else if ((ins & 0b1110000000000000) == 0b0110000000000000) // Load/store word/byte immediate offset
-                {
-                    switch ((ins >> 11) & 0b11)
-                    {
-                        case 0b01: // LDR (1)
-                            {
-                                LineDebug("LDR (1) | Base + Immediate");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                uint addr = rnValue + (immed5 * 4);
-                                if ((addr & 0b11) != 0)
-                                {
-                                    // Misaligned
-                                    uint readAddr = addr & ~0b11U;
-                                    uint readVal = Gba.Mem.Read32(readAddr);
-                                    SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
-                                }
-                                else
-                                {
-                                    uint readVal = Gba.Mem.Read32(addr);
-                                    SetReg(rd, readVal);
-                                }
-
-                                LineDebug($"Addr: {Util.HexN(addr, 8)}");
-
-                            }
-                            break;
-                        case 0b00: // STR (1)
-                            {
-                                LineDebug("STR (1)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                uint addr = rnValue + (immed5 * 4);
-                                LineDebug($"Addr: {Util.HexN(addr, 8)}");
-
+                                uint addr = R13 + (immed8 * 4);
                                 Gba.Mem.Write32(addr, GetReg(rd));
                             }
-                            break;
-                        case 0b10: // STRB (1)
-                        case 0b11: // LDRB (1)
+                        }
+                        break;
+                    case 0b101:
+                        {
+                            if ((ins & 0b1111000000000000) == 0b1011000000000000) // Miscellaneous (categorized like in the ARM reference manual)
                             {
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rdVal = GetReg(rd);
-                                uint rn = (uint)((ins >> 3) & 0b111);
-                                uint rnVal = GetReg(rn);
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                uint addr = rnVal + immed5;
-
-                                bool load = BitTest(ins, 11);
-
-                                if (load)
+                                if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
                                 {
-                                    LineDebug("LDRB (1)");
-                                    SetReg(rd, Gba.Mem.Read8(addr));
+                                    bool usePc = BitTest(ins, 8);
+
+                                    if (BitTest(ins, 11))
+                                    {
+                                        LineDebug("POP");
+
+                                        String regs = "";
+                                        uint addr = R13;
+
+                                        if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; }
+
+                                        if (BitTest(ins, 8))
+                                        {
+                                            regs += "PC ";
+                                            R15 = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
+                                            FlushPipeline();
+                                            LineDebug(Util.Hex(R15, 8));
+                                            addr += 4;
+                                        }
+
+                                        R13 = addr;
+
+                                        LineDebug(regs);
+                                    }
+                                    else
+                                    {
+                                        LineDebug("PUSH");
+
+                                        String regs = "";
+                                        uint addr = R13;
+
+                                        if (BitTest(ins, 0)) { addr -= 4; }
+                                        if (BitTest(ins, 1)) { addr -= 4; }
+                                        if (BitTest(ins, 2)) { addr -= 4; }
+                                        if (BitTest(ins, 3)) { addr -= 4; }
+                                        if (BitTest(ins, 4)) { addr -= 4; }
+                                        if (BitTest(ins, 5)) { addr -= 4; }
+                                        if (BitTest(ins, 6)) { addr -= 4; }
+                                        if (BitTest(ins, 7)) { addr -= 4; }
+                                        if (BitTest(ins, 8)) { addr -= 4; }
+
+                                        if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; R13 -= 4; }
+
+                                        if (BitTest(ins, 8))
+                                        {
+                                            regs += "LR ";
+                                            Gba.Mem.Write32(addr, R14);
+                                            addr += 4;
+                                            R13 -= 4;
+                                        }
+
+                                        LineDebug(regs);
+                                    }
+                                }
+                                else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)
+                                {
+                                    LineDebug("ADD (7)");
+                                    uint immed7 = (uint)(ins & 0b1111111);
+                                    R13 = R13 + (immed7 << 2);
+                                }
+                                else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
+                                {
+                                    LineDebug("SUB (4)");
+
+                                    uint immed7 = (uint)(ins & 0b1111111);
+                                    R13 = R13 - (immed7 << 2);
+                                }
+                                else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
+                                {
+                                    LineDebug("REVSH");
+
+                                    uint rd = (uint)((ins >> 0) & 0b111);
+                                    uint rdVal = GetReg(rd);
+                                    uint rn = (uint)((ins >> 3) & 0b111);
+                                    uint rnVal = GetReg(rn);
+
+                                    uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
+                                    uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
+
+                                    rdVal &= 0xFFFF0000;
+                                    rdVal |= (rnValHalfUpper << 0);
+                                    rdVal |= (rnValHalfLower << 8);
+
+                                    // Sign Extend
+                                    if (BitTest(rn, 7))
+                                    {
+                                        rdVal |= 0xFFFF0000;
+                                    }
+                                    else
+                                    {
+                                        rdVal &= 0x0000FFFF;
+                                    }
+
+                                    SetReg(rd, rdVal);
+                                }
+                            }
+                            else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
+                            {
+                                LineDebug("ADD (5)");
+
+                                uint immed8 = (uint)(ins & 0xFF);
+                                uint rd = (uint)((ins >> 8) & 0b111);
+
+                                SetReg(rd, (R15 & 0xFFFFFFFC) + (immed8 * 4));
+                            }
+                            else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
+                            {
+                                LineDebug("ADD (6)");
+
+                                uint immed8 = (uint)(ins & 0xFF);
+                                uint rd = (uint)((ins >> 8) & 0b111);
+
+                                SetReg(rd, R13 + (immed8 << 2));
+                            }
+                        }
+                        break;
+                    case 0b110:
+                        {
+                            if ((ins & 0b1111000000000000) == 0b1100000000000000) // LDMIA, STMIA - Load/Store Multiple
+                            {
+                                if (BitTest(ins, 11))
+                                {
+                                    LineDebug("LDMIA | Load Multiple Increment After");
+
+                                    uint rn = (uint)((ins >> 8) & 0b111);
+                                    uint addr = GetReg(rn);
+
+                                    String regs = "";
+
+                                    if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+
+                                    LineDebug(regs);
                                 }
                                 else
                                 {
-                                    LineDebug("STRB (1)");
-                                    Gba.Mem.Write8(addr, (byte)rdVal);
+                                    LineDebug("STMIA | Store Multiple Increment After");
+
+                                    uint rn = (uint)((ins >> 8) & 0b111);
+                                    uint addr = GetReg(rn);
+
+                                    String regs = "";
+
+                                    if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+
+                                    LineDebug(regs);
                                 }
                             }
-                            break;
-                    }
-                }
-                else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
-                {
-                    LineDebug("LDR (3) | PC Relative, 8-bit Immediate");
-
-                    uint rd = (uint)((ins >> 8) & 0b111);
-                    uint immed8 = (uint)((ins >> 0) & 0xFF);
-
-                    uint addr = (R15 & 0xFFFFFFFC) + (immed8 * 4);
-                    if ((addr & 0b11) != 0)
-                    {
-                        // Misaligned
-                        uint readAddr = addr & ~0b11U;
-                        uint readVal = Gba.Mem.Read32(readAddr);
-                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
-                    }
-                    else
-                    {
-                        uint readVal = Gba.Mem.Read32(addr);
-                        SetReg(rd, readVal);
-                    }
-                }
-                else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
-                {
-                    LineDebug("LDR (4)");
-
-                    uint immed8 = (uint)((ins >> 0) & 0xFF);
-                    uint rd = (uint)((ins >> 8) & 0b111);
-                    uint rdVal = GetReg(rd);
-
-                    uint addr = R13 + (immed8 * 4);
-                    if ((addr & 0b11) != 0)
-                    {
-                        // Misaligned
-                        uint readAddr = addr & ~0b11U;
-                        uint readVal = Gba.Mem.Read32(readAddr);
-                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
-                    }
-                    else
-                    {
-                        uint readVal = Gba.Mem.Read32(addr);
-                        SetReg(rd, readVal);
-                    }
-                }
-                else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
-                {
-                    LineDebug("STR (3)");
-
-                    uint immed8 = (uint)((ins >> 0) & 0xFF);
-                    uint rd = (uint)((ins >> 8) & 0b111);
-
-                    uint addr = R13 + (immed8 * 4);
-                    Gba.Mem.Write32(addr, GetReg(rd));
-                }
-                else if ((ins & 0b1111111100000000) == 0b1101111100000000) // SWI - Software Interrupt
-                {
-                    SPSR_svc = GetCPSR();
-                    SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-                    R14 = R15 - 2;
-                    ThumbState = false; // Back to ARM state
-                    IRQDisable = true;
-
-                    R15 = VectorSoftwareInterrupt;
-                    FlushPipeline();
-                }
-                else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
-                {
-                    LineDebug("B | Conditional Branch");
-                    uint cond = (uint)((ins >> 8) & 0xF);
-                    bool condition = CheckCondition(cond);
-
-                    if (condition)
-                    {
-                        // B
-                        int offset = (int)(ins & 0xFF) << 1;
-                        // Signed with Two's Complement
-                        if ((offset & BIT_8) != 0)
-                        {
-                            LineDebug("Taken, Backward Branch");
-                            offset -= (int)BIT_9;
-                        }
-                        else
-                        {
-                            LineDebug("Taken, Forward Branch");
-                        }
-
-                        R15 = (uint)(R15 + offset);
-                        FlushPipeline();
-                    }
-                    else
-                    {
-                        LineDebug("Not Taken");
-                    }
-                }
-                else if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2) - Unconditional
-                {
-                    LineDebug("B | Unconditional Branch");
-                    int signedImmed11 = (int)(ins & 0b11111111111) << 1;
-
-                    if ((signedImmed11 & BIT_11) != 0)
-                    {
-                        LineDebug("Backward Branch");
-                        signedImmed11 -= (int)BIT_12;
-                    }
-                    else
-                    {
-                        LineDebug("Forward Branch");
-                    }
-
-                    R15 = (uint)(R15 + signedImmed11);
-                    FlushPipeline();
-                }
-                else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
-                {
-                    LineDebug("BL, BLX | Branch With Link (And Exchange)");
-
-                    uint H = (uint)((ins >> 11) & 0b11);
-                    int offset11 = ins & 0b11111111111;
-
-                    switch (H)
-                    {
-                        case 0b10:
+                            else if ((ins & 0b1111111100000000) == 0b1101111100000000) // SWI - Software Interrupt
                             {
-                                offset11 <<= 12;
+                                SPSR_svc = GetCPSR();
+                                SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
+                                R14 = R15 - 2;
+                                ThumbState = false; // Back to ARM state
+                                IRQDisable = true;
 
-                                // Sign extend
-                                if ((offset11 & BIT_22) != 0)
+                                R15 = VectorSoftwareInterrupt;
+                                FlushPipeline();
+                            }
+                            else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
+                            {
+                                LineDebug("B | Conditional Branch");
+                                uint cond = (uint)((ins >> 8) & 0xF);
+                                bool condition = CheckCondition(cond);
+
+                                if (condition)
                                 {
-                                    LineDebug("Negative");
-                                    offset11 -= (int)BIT_23;
+                                    // B
+                                    int offset = (int)(ins & 0xFF) << 1;
+                                    // Signed with Two's Complement
+                                    if ((offset & BIT_8) != 0)
+                                    {
+                                        LineDebug("Taken, Backward Branch");
+                                        offset -= (int)BIT_9;
+                                    }
+                                    else
+                                    {
+                                        LineDebug("Taken, Forward Branch");
+                                    }
+
+                                    R15 = (uint)(R15 + offset);
+                                    FlushPipeline();
                                 }
                                 else
                                 {
-                                    LineDebug("Positive");
+                                    LineDebug("Not Taken");
+                                }
+                            }
+                        }
+                        break;
+                    case 0b111:
+                        {
+                            if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2) - Unconditional
+                            {
+                                LineDebug("B | Unconditional Branch");
+                                int signedImmed11 = (int)(ins & 0b11111111111) << 1;
+
+                                if ((signedImmed11 & BIT_11) != 0)
+                                {
+                                    LineDebug("Backward Branch");
+                                    signedImmed11 -= (int)BIT_12;
+                                }
+                                else
+                                {
+                                    LineDebug("Forward Branch");
                                 }
 
-                                LineDebug($"offset11: {offset11}");
-                                R14 = (uint)(R15 + offset11);
-                                LineDebug("Upper fill");
-                            }
-                            break;
-                        case 0b11:
-                            {
-                                uint oldR14 = R14;
-                                R14 = (R15 - 2) | 1;
-                                R15 = (uint)(oldR14 + (offset11 << 1));
-                                R15 &= 0xFFFFFFFE;
+                                R15 = (uint)(R15 + signedImmed11);
                                 FlushPipeline();
-                                LineDebug($"Jump to ${Util.HexN(R15, 8)}");
-                                LineDebug("Stay in THUMB state");
                             }
-                            break;
-                        case 0b01:
+                            else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
                             {
-                                uint oldR14 = R14;
-                                R14 = (R15 - 2) | 1;
-                                R15 = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
-                                R15 &= 0xFFFFFFFE;
-                                FlushPipeline();
-                                ThumbState = false;
-                                LineDebug($"Jump to ${Util.HexN(R15, 8)}");
-                                LineDebug("Exit THUMB state");
+                                LineDebug("BL, BLX | Branch With Link (And Exchange)");
+
+                                uint H = (uint)((ins >> 11) & 0b11);
+                                int offset11 = ins & 0b11111111111;
+
+                                switch (H)
+                                {
+                                    case 0b10:
+                                        {
+                                            offset11 <<= 12;
+
+                                            // Sign extend
+                                            if ((offset11 & BIT_22) != 0)
+                                            {
+                                                LineDebug("Negative");
+                                                offset11 -= (int)BIT_23;
+                                            }
+                                            else
+                                            {
+                                                LineDebug("Positive");
+                                            }
+
+                                            LineDebug($"offset11: {offset11}");
+                                            R14 = (uint)(R15 + offset11);
+                                            LineDebug("Upper fill");
+                                        }
+                                        break;
+                                    case 0b11:
+                                        {
+                                            uint oldR14 = R14;
+                                            R14 = (R15 - 2) | 1;
+                                            R15 = (uint)(oldR14 + (offset11 << 1));
+                                            R15 &= 0xFFFFFFFE;
+                                            FlushPipeline();
+                                            LineDebug($"Jump to ${Util.HexN(R15, 8)}");
+                                            LineDebug("Stay in THUMB state");
+                                        }
+                                        break;
+                                    case 0b01:
+                                        {
+                                            uint oldR14 = R14;
+                                            R14 = (R15 - 2) | 1;
+                                            R15 = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
+                                            R15 &= 0xFFFFFFFE;
+                                            FlushPipeline();
+                                            ThumbState = false;
+                                            LineDebug($"Jump to ${Util.HexN(R15, 8)}");
+                                            LineDebug("Exit THUMB state");
+                                        }
+                                        break;
+                                }
                             }
-                            break;
-                    }
-                }
-                else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
-                {
-                    LineDebug("ADD (5)");
-
-                    uint immed8 = (uint)(ins & 0xFF);
-                    uint rd = (uint)((ins >> 8) & 0b111);
-
-                    SetReg(rd, (R15 & 0xFFFFFFFC) + (immed8 * 4));
-                }
-                else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
-                {
-                    LineDebug("ADD (6)");
-
-                    uint immed8 = (uint)(ins & 0xFF);
-                    uint rd = (uint)((ins >> 8) & 0b111);
-
-                    SetReg(rd, R13 + (immed8 << 2));
-                }
-                else if ((ins & 0b1111000000000000) == 0b1100000000000000) // LDMIA, STMIA - Load/Store Multiple
-                {
-                    if (BitTest(ins, 11))
-                    {
-                        LineDebug("LDMIA | Load Multiple Increment After");
-
-                        uint rn = (uint)((ins >> 8) & 0b111);
-                        uint addr = GetReg(rn);
-
-                        String regs = "";
-
-                        if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-
-                        LineDebug(regs);
-                    }
-                    else
-                    {
-                        LineDebug("STMIA | Store Multiple Increment After");
-
-                        uint rn = (uint)((ins >> 8) & 0b111);
-                        uint addr = GetReg(rn);
-
-                        String regs = "";
-
-                        if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                        if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-
-                        LineDebug(regs);
-                    }
-                }
-                else if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
-                {
-                    bool load = BitTest(ins, 11);
-                    LineDebug("STRH / LDRH (1)");
-
-                    uint rd = (uint)((ins >> 0) & 0b111);
-                    uint rn = (uint)((ins >> 3) & 0b111);
-                    uint rnVal = GetReg(rn);
-
-                    uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                    uint addr = rnVal + (immed5 * 2);
-
-                    if (load)
-                    {
-                        LineDebug("Load");
-                        SetReg(rd, Gba.Mem.Read16(addr));
-                    }
-                    else
-                    {
-                        LineDebug("Store");
-                        Gba.Mem.Write16(addr, (ushort)GetReg(rd));
-                    }
-                }
-                else
-                {
-                    Error("Unknown THUMB instruction");
+                        }
+                        break;
+                    default:
+                        Error("Unknown THUMB instruction");
+                        break;
                 }
             }
         }
