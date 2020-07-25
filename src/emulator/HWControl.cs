@@ -30,6 +30,9 @@ namespace OptimeGBA
             Gba = gba;
         }
 
+        public bool StopMode;
+        public bool HaltMode;
+
         public bool IME = false;
 
         public bool IE_VBlank;
@@ -167,7 +170,15 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000301: // HALTCNT
-                    // Gba.Arm7.Error("HALTCNT write");
+                    Console.WriteLine("HALT");
+                    if (BitTest(val, 7))
+                    {
+                        StopMode = true;
+                    }
+                    else
+                    {
+                        // HaltMode = true;
+                    }
                     break;
             }
         }
@@ -210,31 +221,53 @@ namespace OptimeGBA
         }
 
         public bool AvailableAndEnabled = false;
+        public bool Available;
 
         public void CheckAndFireInterrupts()
         {
-            bool available = false;
-            if (IF_VBlank && IE_VBlank) { available = true; }
-            if (IF_HBlank && IE_HBlank) { available = true; }
-            if (IF_VCounterMatch && IE_VCounterMatch) { available = true; }
-            if (IF_Timer0Overflow && IE_Timer0Overflow) { available = true; }
-            if (IF_Timer1Overflow && IE_Timer1Overflow) { available = true; }
-            if (IF_Timer2Overflow && IE_Timer2Overflow) { available = true; }
-            if (IF_Timer3Overflow && IE_Timer3Overflow) { available = true; }
-            if (IF_Serial && IE_Serial) { available = true; }
-            if (IF_DMA0 && IE_DMA0) { available = true; }
-            if (IF_DMA1 && IE_DMA1) { available = true; }
-            if (IF_DMA2 && IE_DMA2) { available = true; }
-            if (IF_DMA3 && IE_DMA3) { available = true; }
-            if (IF_Keypad && IE_Keypad) { available = true; }
-            if (IF_GamePak && IE_GamePak) { available = true; }
+            Available = false;
+            if (IF_VBlank && IE_VBlank) { Available = true; }
+            if (IF_HBlank && IE_HBlank) { Available = true; }
+            if (IF_VCounterMatch && IE_VCounterMatch) { Available = true; }
+            if (IF_Timer0Overflow && IE_Timer0Overflow) { Available = true; }
+            if (IF_Timer1Overflow && IE_Timer1Overflow) { Available = true; }
+            if (IF_Timer2Overflow && IE_Timer2Overflow) { Available = true; }
+            if (IF_Timer3Overflow && IE_Timer3Overflow) { Available = true; }
+            if (IF_Serial && IE_Serial) { Available = true; }
+            if (IF_DMA0 && IE_DMA0) { Available = true; }
+            if (IF_DMA1 && IE_DMA1) { Available = true; }
+            if (IF_DMA2 && IE_DMA2) { Available = true; }
+            if (IF_DMA3 && IE_DMA3) { Available = true; }
+            if (IF_Keypad && IE_Keypad) { Available = true; }
+            if (IF_GamePak && IE_GamePak) { Available = true; }
+
+            if (Available) HaltMode = false;
 
             // if (available && IME && !AvailableAndEnabled)
             // {
             //     Gba.Arm7.IRQ = true;
             // }
-            AvailableAndEnabled = available && IME;
+            AvailableAndEnabled = Available && IME;
+        }
 
+        public bool CheckAvailable()
+        {
+            if (IF_VBlank && IE_VBlank) { return true; }
+            if (IF_HBlank && IE_HBlank) { return true; }
+            if (IF_VCounterMatch && IE_VCounterMatch) { return true; }
+            if (IF_Timer0Overflow && IE_Timer0Overflow) { return true; }
+            if (IF_Timer1Overflow && IE_Timer1Overflow) { return true; }
+            if (IF_Timer2Overflow && IE_Timer2Overflow) { return true; }
+            if (IF_Timer3Overflow && IE_Timer3Overflow) { return true; }
+            if (IF_Serial && IE_Serial) { return true; }
+            if (IF_DMA0 && IE_DMA0) { return true; }
+            if (IF_DMA1 && IE_DMA1) { return true; }
+            if (IF_DMA2 && IE_DMA2) { return true; }
+            if (IF_DMA3 && IE_DMA3) { return true; }
+            if (IF_Keypad && IE_Keypad) { return true; }
+            if (IF_GamePak && IE_GamePak) { return true; }
+
+            return false;
         }
     }
 }

@@ -104,13 +104,16 @@ namespace OptimeGBA
 
         public bool PipelineDirty = false;
 
+        public uint PendingCycles = 0;
+        public uint LastPendingCycles = 0;
+
         // DEBUG INFO
         public uint LastIns;
 
         public ARM7(GBA gba)
         {
             bool bootBios = false;
-            bootBios = true;
+            // bootBios = true;
 
             Gba = gba;
 
@@ -160,13 +163,9 @@ namespace OptimeGBA
 
         public void FetchPipelineArm()
         {
-            byte f0 = Gba.Mem.Read8(R15++);
-            byte f1 = Gba.Mem.Read8(R15++);
-            byte f2 = Gba.Mem.Read8(R15++);
-            byte f3 = Gba.Mem.Read8(R15++);
-
             ARMDecode = ARMFetch;
-            ARMFetch = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+            ARMFetch = Read32(R15);
+            R15 += 4;
 
             Pipeline++;
         }
@@ -181,11 +180,10 @@ namespace OptimeGBA
 
         public void FetchPipelineThumb()
         {
-            byte f0 = Gba.Mem.Read8(R15++);
-            byte f1 = Gba.Mem.Read8(R15++);
 
             THUMBDecode = THUMBFetch;
-            THUMBFetch = (ushort)((f1 << 8) | (f0 << 0));
+            THUMBFetch = Read16(R15);
+            R15 += 2;
 
             Pipeline++;
         }
@@ -209,10 +207,6 @@ namespace OptimeGBA
 
         public void Execute()
         {
-            if (R15 == 0x08000000) {
-                Error("R15 ROM Entry");
-            }
-
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
@@ -222,6 +216,11 @@ namespace OptimeGBA
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
+                if (R0 >= 0x08000000)
+                {
+                    Error("IRQ, ENTERING IRQ MODE!");
+                }
+
                 SPSR_irq = GetCPSR();
                 SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
                 R14 = R15 - 4;
@@ -3271,18 +3270,21 @@ namespace OptimeGBA
         public String Debug = "";
 
         [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetDebug()
         {
             Debug = "";
         }
 
         [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LineDebug(String s)
         {
             Debug += $"{s}\n";
         }
 
         [Conditional("DEBUG")]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Error(String s)
         {
             LineDebug("ERROR:");
@@ -3301,6 +3303,101 @@ namespace OptimeGBA
         public static bool CheckOverflowAdd(uint val1, uint val2, uint result)
         {
             return ((val1 ^ val2) & 0x80000000u) == 0 && ((val1 ^ result) & 0x80000000u) != 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public byte Read8(uint addr)
+        {
+            PendingCycles += GetTiming8And16(addr);
+            return Gba.Mem.Read8(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ushort Read16(uint addr)
+        {
+            PendingCycles += GetTiming8And16(addr);
+            return Gba.Mem.Read16(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint Read32(uint addr)
+        {
+            PendingCycles += GetTiming32(addr);
+            return Gba.Mem.Read32(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write8(uint addr, byte val)
+        {
+            PendingCycles += GetTiming8And16(addr);
+            Gba.Mem.Write8(addr, val);
+        }
+
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write16(uint addr, ushort val)
+        {
+            PendingCycles += GetTiming8And16(addr);
+            Gba.Mem.Write16(addr, val);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Write32(uint addr, uint val)
+        {
+            PendingCycles += GetTiming32(addr);
+            Gba.Mem.Write32(addr, val);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint GetTiming8And16(uint addr)
+        {
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: return 2; // BIOS
+                case 0x1: return 2; // Unused
+                case 0x2: return 1; // EWRAM
+                case 0x3: return 1; // IWRAM
+                case 0x4: return 2; // I/O Registers
+                case 0x5: return 1; // PPU Palettes
+                case 0x6: return 1; // PPU VRAM
+                case 0x7: return 1; // PPU OAM
+                case 0x8: return 2; // Game Pak ROM/FlashROM 
+                case 0x9: return 2; // Game Pak ROM/FlashROM 
+                case 0xA: return 2; // Game Pak ROM/FlashROM 
+                case 0xB: return 2; // Game Pak ROM/FlashROM 
+                case 0xC: return 2; // Game Pak ROM/FlashROM 
+                case 0xD: return 2; // Game Pak SRAM/Flash
+                case 0xE: return 2; // Game Pak SRAM/Flash
+                case 0xF: return 2; // Game Pak SRAM/Flash
+            }
+
+            return 1;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint GetTiming32(uint addr)
+        {
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: return 4; // BIOS
+                case 0x1: return 4; // Unused
+                case 0x2: return 1; // EWRAM
+                case 0x3: return 1; // IWRAM
+                case 0x4: return 4; // I/O Registers
+                case 0x5: return 1; // PPU Palettes
+                case 0x6: return 1; // PPU VRAM
+                case 0x7: return 1; // PPU OAM
+                case 0x8: return 4; // Game Pak ROM/FlashROM 
+                case 0x9: return 4; // Game Pak ROM/FlashROM 
+                case 0xA: return 4; // Game Pak ROM/FlashROM 
+                case 0xB: return 4; // Game Pak ROM/FlashROM 
+                case 0xC: return 4; // Game Pak ROM/FlashROM 
+                case 0xD: return 4; // Game Pak SRAM/Flash
+                case 0xE: return 4; // Game Pak SRAM/Flash
+                case 0xF: return 4; // Game Pak SRAM/Flash
+            }
+
+            return 1;
         }
     }
 }

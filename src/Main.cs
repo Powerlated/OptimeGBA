@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using System.IO;
+using System.Drawing;
 using static SDL2.SDL;
 using OpenGL;
 using OptimeGBA;
@@ -29,10 +30,10 @@ namespace OptimeGBAEmulator
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
-            byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_demo.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_demo.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_vsync.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon Pinball - Ruby & Sapphire (USA).gba");
-            // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
 
             GbaProvider provider = new GbaProvider(bios, rom, new AudioCallback(AudioReady));
             GBA gba = new GBA(provider);
@@ -40,12 +41,16 @@ namespace OptimeGBAEmulator
             using (Game game = new Game(1600, 900, "Optime GBA", gba))
             {
                 SetupSDL();
+
+                game.Icon = new Icon("icon.ico", new Size(32, 32));
+
                 // Run takes a double, which is how many frames per second it should strive to reach.
                 // You can leave that out and it'll just update as fast as the hardware will allow it.
                 game.VSync = OpenTK.VSyncMode.On;
-                game.Run(60.0, 60.0);
+                game.Run(0.0, 60.0);
             }
 
+            Environment.Exit(0);
         }
 
         public static void SetupSDL()
@@ -74,8 +79,9 @@ namespace OptimeGBAEmulator
             Marshal.FreeHGlobal(ptr);
         }
 
-        public static uint GetAudioSamplesInQueue() {
-            return SDL_GetQueuedAudioSize(AudioDevice) / 2;
+        public static uint GetAudioSamplesInQueue()
+        {
+            return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
     }
 }

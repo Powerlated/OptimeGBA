@@ -117,6 +117,12 @@ namespace OptimeGBA
                 return GbaRomProvider.Rom[addr - 0x08000000];
             }
 
+            // SRAM / Flash
+            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
+            {
+                return ReadFlash(addr);
+            }
+
             // This should be open bus
             return 0;
         }
@@ -199,6 +205,12 @@ namespace OptimeGBA
             else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
             {
                 return GbaRomProvider.Rom[addr - 0x08000000];
+            }
+
+            // SRAM / Flash
+            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
+            {
+                return ReadFlash(addr);
             }
 
             // This should be open bus
@@ -292,6 +304,12 @@ namespace OptimeGBA
             else if (addr >= 0x08000000 && addr <= 0x09FFFFFF)
             {
                 return;
+            }
+
+            // SRAM / Flash
+            else if (addr >= 0x0E000000 && addr <= 0x0E00FFFF)
+            {
+                WriteFlash(addr);
             }
         }
 
@@ -393,6 +411,22 @@ namespace OptimeGBA
             {
                 Gba.HwControl.WriteHwio8(addr, val);
             }
+        }
+
+        public byte ReadFlash(uint addr)
+        {
+            switch (addr)
+            {
+                // Stub out Flash
+                case 0x0E000000: return 0x62;
+                case 0x0E000001: return 0x13;
+            }
+            return 0;
+        }
+
+        public void WriteFlash(uint addr)
+        {
+            return;
         }
     }
 }

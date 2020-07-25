@@ -214,6 +214,7 @@ namespace OptimeGBA
                             {
                                 VCount++;
                                 VCounterMatch = VCount == VCountSetting;
+                                if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 if (VCount > 159)
                                 {
                                     lcdEnum = LCDEnum.VBlank;
@@ -238,6 +239,7 @@ namespace OptimeGBA
                             {
                                 VCount = 0;
                                 VCounterMatch = VCount == VCountSetting;
+                                if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
                             }

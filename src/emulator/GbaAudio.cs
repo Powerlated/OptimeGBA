@@ -3,6 +3,44 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
+    public class FifoChannel
+    {
+        public byte[] Buffer = new byte[32];
+        public uint ReadPos = 0;
+        public uint WritePos = 0;
+        public uint Bytes = 0;
+        public uint TotalPops = 0;
+        public uint EmptyPops = 0;
+        public byte CurrentByte = 0;
+
+        public void Insert(byte data)
+        {
+            if (Bytes < 32)
+            {
+                Bytes++;
+                Buffer[WritePos++] = data;
+                WritePos &= 31;
+            }
+        }
+
+        public byte Pop()
+        {
+            byte data = 0;
+            TotalPops++;
+            if (Bytes > 0)
+            {
+                Bytes--;
+                data = Buffer[ReadPos++];
+                ReadPos &= 31;
+            }
+            else
+            {
+                EmptyPops++;
+            }
+            return data;
+        }
+    }
+
     public class GBAAudio
     {
         GBA Gba;
@@ -11,22 +49,8 @@ namespace OptimeGBA
             Gba = gba;
         }
 
-        public byte[] FifoABuffer = new byte[32];
-        public uint FifoAReadPos = 0;
-        public uint FifoAWritePos = 0;
-        public uint FifoABytes = 0;
-        public byte[] FifoBBuffer = new byte[32];
-        public uint FifoBReadPos = 0;
-        public uint FifoBWritePos = 0;
-        public uint FifoBBytes = 0;
-
-        public uint FifoATotalPops = 0;
-        public uint FifoBTotalPops = 0;
-        public uint FifoAEmptyPops = 0;
-        public uint FifoBEmptyPops = 0;
-
-        public byte FifoACurrentByte = 0;
-        public byte FifoBCurrentByte = 0;
+        public FifoChannel A = new FifoChannel();
+        public FifoChannel B = new FifoChannel();
 
         uint BiasLevel = 0x100;
         uint AmplitudeRes;
@@ -107,29 +131,29 @@ namespace OptimeGBA
                     break;
 
                 case 0x40000A0:
-                    InsertFifoA(val);
+                    A.Insert(val);
                     break;
                 case 0x40000A1:
-                    InsertFifoA(val);
+                    A.Insert(val);
                     break;
                 case 0x40000A2:
-                    InsertFifoA(val);
+                    A.Insert(val);
                     break;
                 case 0x40000A3:
-                    InsertFifoA(val);
+                    A.Insert(val);
                     break;
 
                 case 0x40000A4:
-                    InsertFifoB(val);
+                    B.Insert(val);
                     break;
                 case 0x40000A5:
-                    InsertFifoB(val);
+                    B.Insert(val);
                     break;
                 case 0x40000A6:
-                    InsertFifoB(val);
+                    B.Insert(val);
                     break;
                 case 0x40000A7:
-                    InsertFifoB(val);
+                    B.Insert(val);
                     break;
 
             }
@@ -139,7 +163,7 @@ namespace OptimeGBA
 
         const uint SampleMax = 512;
         uint SampleTimer = 0;
-        const uint SampleBufferSize = 512;
+        const uint SampleBufferSize = 128;
         short[] SampleBuffer = new short[SampleBufferSize];
         uint SampleBufferPos = 0;
         public void Tick(uint cycles)
@@ -154,8 +178,8 @@ namespace OptimeGBA
                     short left = 0;
                     short right = 0;
 
-                    short a = (short)(DmaSoundAVolume ? (sbyte)FifoACurrentByte * 2 : (sbyte)FifoACurrentByte * 1);
-                    short b = (short)(DmaSoundBVolume ? (sbyte)FifoBCurrentByte * 2 : (sbyte)FifoBCurrentByte * 1);
+                    short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
+                    short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
                     if (DmaSoundAEnableLeft) left += a;
                     if (DmaSoundBEnableLeft) left += a;
                     if (DmaSoundAEnableRight) right += a;
@@ -167,77 +191,25 @@ namespace OptimeGBA
 
                     if (SampleBufferPos > SampleBufferSize - 1)
                     {
-                        Gba.Provider.AudioCallback(SampleBuffer);
+                        if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
                         SampleBufferPos = 0;
                     }
                 }
             }
         }
 
-        public void InsertFifoA(byte data)
-        {
-            if (FifoABytes < 32)
-            {
-                FifoABytes++;
-                FifoABuffer[FifoAWritePos++] = data;
-                FifoAWritePos &= 31;
-            }
-        }
-        public void InsertFifoB(byte data)
-        {
-            if (FifoBBytes < 32)
-            {
-                FifoBBytes++;
-                FifoBBuffer[FifoBWritePos++] = data;
-                FifoBWritePos &= 31;
-            }
-        }
-
-        public byte PopFifoA()
-        {
-            byte data = 0;
-            if (FifoABytes > 0)
-            {
-                FifoABytes--;
-                data = FifoABuffer[FifoAReadPos++];
-                FifoAReadPos &= 31;
-                FifoATotalPops++;
-            }
-            else
-            {
-                FifoAEmptyPops++;
-            }
-            return data;
-        }
-        public byte PopFifoB()
-        {
-            byte data = 0;
-            if (FifoBBytes > 0)
-            {
-                FifoBBytes--;
-                data = FifoBBuffer[FifoBReadPos++];
-                FifoBReadPos &= 31;
-                FifoBTotalPops++;
-            }
-            else
-            {
-                FifoBEmptyPops++;
-            }
-            return data;
-        }
-
         public void TimerOverflowFifoA()
         {
-            FifoACurrentByte = PopFifoA();
-            if (FifoABytes <= 16)
+            A.CurrentByte = A.Pop();
+            if (A.Bytes <= 16)
             {
                 Gba.Dma.ExecuteFifoA();
             }
         }
         public void TimerOverflowFifoB()
         {
-            FifoBCurrentByte = PopFifoB();
-            if (FifoBBytes <= 16)
+            B.CurrentByte = B.Pop();
+            if (B.Bytes <= 16)
             {
                 Gba.Dma.ExecuteFifoB();
             }
@@ -245,13 +217,13 @@ namespace OptimeGBA
 
         public void DmaSoundAReset()
         {
-            FifoACurrentByte = 0;
-            FifoABytes = 0;
+            A.CurrentByte = 0;
+            A.Bytes = 0;
         }
         public void DmaSoundBReset()
         {
-            FifoBCurrentByte = 0;
-            FifoBBytes = 0;
+            B.CurrentByte = 0;
+            B.Bytes = 0;
         }
 
         // Called when Timer 0 or 1 overflows.

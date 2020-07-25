@@ -8,6 +8,7 @@ namespace OptimeGBA
         public byte[] Rom = new byte[33554432];
 
         public AudioCallback AudioCallback;
+        public bool OutputAudio = true;
 
         public GbaProvider(byte[] bios, byte[] rom, AudioCallback audioCallback)
         {

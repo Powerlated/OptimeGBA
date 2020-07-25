@@ -161,7 +161,7 @@ namespace OptimeGBA
             {
                 Timer t = T[ti];
 
-                if (t.CountUpTiming) throw new Exception("Implement timer cascading");
+                // if (t.CountUpTiming) throw new Exception("Implement timer cascading");
 
                 if (t.Enabled)
                 {

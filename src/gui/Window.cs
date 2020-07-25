@@ -1,10 +1,12 @@
 using OpenTK;
 using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
+using System.Drawing;
 using OpenTK.Input;
 using System;
 using System.IO;
 using ImGuiNET;
+using System.Threading;
 using ImGuiUtils;
 using static Util;
 using System.Collections.Generic;
@@ -26,6 +28,26 @@ namespace OptimeGBAEmulator
         int LogIndex = -0;
 
         GBA Gba;
+        Thread EmulationThread;
+        ManualResetEvent ThreadSync = new ManualResetEvent(false);
+
+        public void EmulationThreadHandler()
+        {
+            while (true)
+            {
+                ThreadSync.Reset();
+                ThreadSync.WaitOne();
+                while (OptimeGBAEmulator.GetAudioSamplesInQueue() < 8192 && !Gba.Arm7.Errored)
+                {
+                    int num = FrameIns;
+                    while (num > 0 && !Gba.Arm7.Errored)
+                    {
+                        Gba.Step();
+                        num--;
+                    }
+                }
+            }
+        }
 
         CapstoneArmDisassembler ArmDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
         CapstoneArmDisassembler ThumbDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Thumb);
@@ -35,6 +57,8 @@ namespace OptimeGBAEmulator
         public Game(int width, int height, string title, GBA gba) : base(width, height, GraphicsMode.Default, title)
         {
             Gba = gba;
+            EmulationThread = new Thread(EmulationThreadHandler);
+            EmulationThread.Start();
 
             string file = System.IO.File.ReadAllText("./swi_demo.txt");
             Log = file.Split('\n');
@@ -78,18 +102,18 @@ namespace OptimeGBAEmulator
         {
             KeyboardState input = Keyboard.GetState();
 
-
             if (FrameStep)
             {
-                if (OptimeGBAEmulator.GetAudioSamplesInQueue() < 8192)
-                {
-                    int num = FrameIns;
-                    while (num > 0 && !Gba.Arm7.Errored)
-                    {
-                        Gba.Step();
-                        num--;
-                    }
-                }
+
+                ThreadSync.Set();
+                // {
+                //     int num = 70224/2;
+                //     while (num > 0 && !Gba.Arm7.Errored)
+                //     {
+                //         Gba.Step();
+                //         num--;
+                //     }
+                // }
             }
 
             // if (input.IsKeyDown(Key.Escape))
@@ -130,8 +154,7 @@ namespace OptimeGBAEmulator
             DrawInstrInfo();
             DrawRegViewer();
             DrawMemoryViewer();
-
-            DrawHwioLog();
+            // DrawHwioLog();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -199,7 +222,6 @@ namespace OptimeGBAEmulator
 
             if (ImGui.Begin("Memory Viewer"))
             {
-
                 if (ImGui.BeginCombo("", $"{baseNames[MemoryViewerCurrent]}: {Hex(baseAddrs[MemoryViewerCurrent], 8)}"))
                 {
                     for (int n = 0; n < baseNames.Length; n++)
@@ -417,12 +439,8 @@ namespace OptimeGBAEmulator
             }
         }
 
-
         public void DrawDebug()
         {
-            ImGui.Begin("Debug");
-
-            ImGui.BeginGroup();
 
             ImGui.Columns(4);
 
@@ -448,6 +466,7 @@ namespace OptimeGBAEmulator
             ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
 
             ImGui.Text($"Mode: {Gba.Arm7.Mode}");
+            ImGui.Text($"Last Cycles: {Gba.Arm7.LastPendingCycles}");
 
             // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
 
@@ -571,9 +590,8 @@ namespace OptimeGBAEmulator
             ImGui.Text("");
             bool ticked = Gba.HwControl.IME;
             ImGui.Checkbox("IME", ref ticked);
-
-
-            ImGui.EndGroup();
+            bool halted = Gba.HwControl.HaltMode;
+            ImGui.Checkbox("Halt Mode", ref halted);
 
             ImGui.NextColumn();
 
@@ -615,18 +633,18 @@ namespace OptimeGBAEmulator
 
             String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
 
-            ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].Prescaler]}");
-            ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].Prescaler]}");
-            ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].Prescaler]}");
-            ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].Prescaler]}");
+            ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].PrescalerSel]}");
+            ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].PrescalerSel]}");
+            ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].PrescalerSel]}");
+            ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].PrescalerSel]}");
 
             ImGui.NextColumn();
-            ImGui.Text($"FIFO A Current Byte: {Hex(Gba.GbaAudio.FifoACurrentByte, 2)}");
-            ImGui.Text($"FIFO B Current Byte: {Hex(Gba.GbaAudio.FifoBCurrentByte, 2)}");
-            ImGui.Text($"FIFO A Total Pops: {Hex(Gba.GbaAudio.FifoATotalPops, 2)}");
-            ImGui.Text($"FIFO B Total Pops: {Hex(Gba.GbaAudio.FifoBTotalPops, 2)}");
-            ImGui.Text($"FIFO A Empty Pops: {Hex(Gba.GbaAudio.FifoAEmptyPops, 2)}");
-            ImGui.Text($"FIFO B Empty Pops: {Hex(Gba.GbaAudio.FifoBEmptyPops, 2)}");
+            ImGui.Text($"FIFO A Current Byte: {Gba.GbaAudio.A.CurrentByte}");
+            ImGui.Text($"FIFO B Current Byte: {Gba.GbaAudio.B.CurrentByte}");
+            ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
+            ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
+            ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
+            ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
 
             ImGui.Columns(1);
             ImGui.Separator();
@@ -696,6 +714,7 @@ namespace OptimeGBAEmulator
             ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
 
             ImGui.End();
+
         }
 
         public void ImGuiColumnSeparator()
@@ -760,28 +779,29 @@ namespace OptimeGBAEmulator
 
         public void DrawDisplay()
         {
-            Random r = new Random();
+            if (ImGui.Begin("Display"))
+            {
+                Random r = new Random();
 
-            gbTexId = 0;
+                gbTexId = 0;
 
-            // GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-            GL.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                PixelInternalFormat.Rgb,
-                240,
-                160,
-                0,
-                PixelFormat.Rgb,
-                PixelType.UnsignedByte,
-                Gba.Lcd.Screen
-            );
+                // GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, gbTexId);
+                GL.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    PixelInternalFormat.Rgb,
+                    240,
+                    160,
+                    0,
+                    PixelFormat.Rgb,
+                    PixelType.UnsignedByte,
+                    Gba.Lcd.Screen
+                );
 
-
-            ImGui.Begin("Display");
-            ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
-            ImGui.End();
+                ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
+                ImGui.End();
+            }
         }
 
         public List<Register> Registers = new List<Register>();

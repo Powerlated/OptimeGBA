@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Threading;
 using System.IO;
-using ManagedBass;
 
 namespace DMSharpEmulator
 {

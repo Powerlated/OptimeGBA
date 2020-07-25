@@ -30,18 +30,27 @@ namespace OptimeGBA
             Provider = provider;
         }
 
-        public uint Step() {
-            Arm7.Execute();
-            Tick(4);
-            return 4;
+        public uint Step()
+        {
+            uint cycles = 4;
+            // uint cycles = 2;
+            if (!HwControl.HaltMode)
+            {
+                Arm7.Execute();
+                cycles = Arm7.PendingCycles;
+                Arm7.PendingCycles = 0;
+            }
+            Tick(cycles);
+            return cycles;
         }
 
-        void Tick(uint cycles) {
+        public void Tick(uint cycles)
+        {
             Lcd.Tick(cycles);
             Dma.Tick(cycles);
             Timers.Tick(cycles);
             GbaAudio.Tick(cycles);
-            
+
             // Audio.Tick(cycles);
         }
     }
