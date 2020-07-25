@@ -38,14 +38,16 @@ namespace OptimeGBA
             cycles = Arm7.PendingCycles;
             Arm7.PendingCycles = 0;
 
-            Tick(cycles);
+            Lcd.Tick(cycles);
+            Timers.Tick(cycles);
+            GbaAudio.Tick(cycles);
+
             return cycles;
         }
 
         public void Tick(uint cycles)
         {
             Lcd.Tick(cycles);
-            Dma.Tick(cycles);
             Timers.Tick(cycles);
             GbaAudio.Tick(cycles);
 

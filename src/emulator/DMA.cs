@@ -252,29 +252,28 @@ namespace OptimeGBA
             if (addr >= 0x40000B0 && addr <= 0x40000BB)
             {
                 Ch[0].WriteHwio8(addr - 0x40000B0, val);
+                ExecuteImmediate(0);
                 return;
             }
             else if (addr >= 0x40000BC && addr <= 0x40000C7)
             {
                 Ch[1].WriteHwio8(addr - 0x40000BC, val);
+                ExecuteImmediate(1);
                 return;
             }
             else if (addr >= 0x40000C8 && addr <= 0x40000D3)
             {
                 Ch[2].WriteHwio8(addr - 0x40000C8, val);
+                ExecuteImmediate(2);
                 return;
             }
             else if (addr >= 0x40000D4 && addr <= 0x40000DF)
             {
                 Ch[3].WriteHwio8(addr - 0x40000D4, val);
+                ExecuteImmediate(3);
                 return;
             }
             throw new Exception("This shouldn't happen.");
-        }
-
-        public void Tick(uint cycles)
-        {
-            ExecuteImmediates();
         }
 
         public void ExecuteDma(DMAChannel c, uint ci)
@@ -404,18 +403,15 @@ namespace OptimeGBA
         }
 
 
-        public void ExecuteImmediates()
+        public void ExecuteImmediate(uint ci)
         {
-            for (uint ci = 0; ci < 4; ci++)
+            DMAChannel c = Ch[ci];
+
+            if (c.Enabled && c.StartTiming == DMAStartTiming.Immediately)
             {
-                DMAChannel c = Ch[ci];
+                c.Disable();
 
-                if (c.Enabled && c.StartTiming == DMAStartTiming.Immediately)
-                {
-                    c.Disable();
-
-                    ExecuteDma(c, ci);
-                }
+                ExecuteDma(c, ci);
             }
         }
 

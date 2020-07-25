@@ -35,22 +35,7 @@ namespace OptimeGBA
         public const uint VectorFIQ = 0x1C;
 
         GBA Gba;
-        public uint R0;
-        public uint R1;
-        public uint R2;
-        public uint R3;
-        public uint R5;
-        public uint R4;
-        public uint R6;
-        public uint R7;
-        public uint R8;
-        public uint R9;
-        public uint R10;
-        public uint R11;
-        public uint R12;
-        public uint R13;
-        public uint R14;
-        public uint R15;
+        public uint[] R = new uint[16];
 
         public uint R8usr;
         public uint R9usr;
@@ -120,12 +105,12 @@ namespace OptimeGBA
             if (bootBios)
             {
                 // Boot BIOS
-                R15 = 0x00000000;
+                R[15] = 0x00000000;
             }
             else
             {
                 // Boot game
-                R15 = 0x08000000;
+                R[15] = 0x08000000;
             }
 
             // Default Mode
@@ -136,7 +121,7 @@ namespace OptimeGBA
             R13usr = 0x03007F00;
 
             // Default Stack Pointer
-            R13 = R13usr;
+            R[13] = R13usr;
 
             if (!bootBios)
             {
@@ -149,8 +134,8 @@ namespace OptimeGBA
             Zero = true;
             Carry = true;
 
-            R0 = 0x08000000;
-            R1 = 0x000000EA;
+            R[0] = 0x08000000;
+            R[1] = 0x000000EA;
         }
 
         public void FillPipelineArm()
@@ -164,8 +149,8 @@ namespace OptimeGBA
         public void FetchPipelineArm()
         {
             ARMDecode = ARMFetch;
-            ARMFetch = Read32(R15);
-            R15 += 4;
+            ARMFetch = Read32(R[15]);
+            R[15] += 4;
 
             Pipeline++;
         }
@@ -182,8 +167,8 @@ namespace OptimeGBA
         {
 
             THUMBDecode = THUMBFetch;
-            THUMBFetch = Read16(R15);
-            R15 += 2;
+            THUMBFetch = Read16(R[15]);
+            R[15] += 2;
 
             Pipeline++;
         }
@@ -193,12 +178,12 @@ namespace OptimeGBA
             Pipeline = 0;
             if (ThumbState)
             {
-                R15 &= 0xFFFFFFFE;
+                R[15] &= 0xFFFFFFFE;
                 FetchPipelineThumb();
             }
             else
             {
-                R15 &= 0xFFFFFFFC;
+                R[15] &= 0xFFFFFFFC;
                 FetchPipelineArm();
             }
 
@@ -218,12 +203,12 @@ namespace OptimeGBA
             {
                 SPSR_irq = GetCPSR();
                 SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
-                R14 = R15 - 4;
+                R[14] = R[15] - 4;
                 ThumbState = false; // Back to ARM state
                 IRQDisable = true;
                 FIQDisable = true;
 
-                R15 = VectorIRQ;
+                R[15] = VectorIRQ;
                 FlushPipeline();
 
                 // Error("IRQ, ENTERING IRQ MODE!");
@@ -234,7 +219,7 @@ namespace OptimeGBA
             {
                 // Current Instruction Fetch
 
-                LineDebug($"R15: ${Util.HexN(R15, 4)}");
+                LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
                 // Fill the pipeline if it's not full
                 FillPipelineArm();
@@ -271,10 +256,10 @@ namespace OptimeGBA
                         // Link - store return address in R14
                         if ((ins & BIT_24) != 0)
                         {
-                            R14 = R15 - 4;
+                            R[14] = R[15] - 4;
                         }
 
-                        R15 = (uint)(R15 + offset);
+                        R[15] = (uint)(R[15] + offset);
                         FlushPipeline();
                     }
                     else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
@@ -283,7 +268,7 @@ namespace OptimeGBA
                         LineDebug("BX");
 
                         uint rm = ins & 0xF;
-                        uint rmValue = GetReg(rm);
+                        uint rmValue = R[rm];
 
                         ThumbState = BitTest(rmValue, 0);
                         if (ThumbState)
@@ -295,7 +280,7 @@ namespace OptimeGBA
                             LineDebug("Switch to ARM State");
                         }
 
-                        R15 = (rmValue & 0xFFFFFFFE);
+                        R[15] = (rmValue & 0xFFFFFFFE);
                         FlushPipeline();
                     }
                     else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB
@@ -306,22 +291,22 @@ namespace OptimeGBA
                         uint rd = (ins >> 12) & 0xF;
                         uint rn = (ins >> 16) & 0xF;
 
-                        uint addr = GetReg(rn);
-                        uint storeValue = GetReg(rm);
+                        uint addr = R[rn];
+                        uint storeValue = R[rm];
 
                         if (useByte)
                         {
                             LineDebug("SWPB");
                             byte readVal = Gba.Mem.Read8(addr);
                             Gba.Mem.Write8(addr, (byte)storeValue);
-                            SetReg(rd, readVal);
+                            R[rd] = readVal;
                         }
                         else
                         {
                             LineDebug("SWP");
                             uint readVal = Gba.Mem.Read32(addr);
                             Gba.Mem.Write32(addr, storeValue);
-                            SetReg(rd, readVal);
+                            R[rd] = readVal;
                         }
                     }
                     else if ((ins & 0b1101101100001111000000000000) == 0b0001001000001111000000000000) // MSR
@@ -354,7 +339,7 @@ namespace OptimeGBA
                         }
                         else
                         {
-                            operand = GetReg(ins & 0xF);
+                            operand = R[ins & 0xF];
                         }
 
                         uint byteMask =
@@ -406,12 +391,12 @@ namespace OptimeGBA
                         if (useSPSR)
                         {
                             LineDebug("Rd from SPSR");
-                            SetReg(rd, GetSPSR());
+                            R[rd] = GetSPSR();
                         }
                         else
                         {
                             LineDebug("Rd from CPSR");
-                            SetReg(rd, GetCPSR());
+                            R[rd] = GetCPSR();
                         }
                     }
                     else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
@@ -419,8 +404,8 @@ namespace OptimeGBA
                         uint rd = (ins >> 16) & 0xF;
                         uint rs = (ins >> 8) & 0xF;
                         uint rm = (ins >> 0) & 0xF;
-                        uint rsValue = GetReg(rs);
-                        uint rmValue = GetReg(rm);
+                        uint rsValue = R[rs];
+                        uint rmValue = R[rm];
 
                         LineDebug($"R{rm} * R{rs}");
                         LineDebug($"${Util.HexN(rmValue, 8)} * ${Util.HexN(rsValue, 8)}");
@@ -430,7 +415,7 @@ namespace OptimeGBA
                         uint final;
                         if (BitTest(ins, 21))
                         {
-                            uint rnValue = GetReg((ins >> 12) & 0xF);
+                            uint rnValue = R[(ins >> 12) & 0xF];
                             LineDebug("Multiply Accumulate");
                             final = (rsValue * rmValue) + rnValue;
                         }
@@ -439,7 +424,7 @@ namespace OptimeGBA
                             LineDebug("Multiply Regular");
                             final = rsValue * rmValue;
                         }
-                        SetReg(rd, final);
+                        R[rd] = final;
 
                         if (setFlags)
                         {
@@ -457,8 +442,8 @@ namespace OptimeGBA
                         uint rdLo = (ins >> 12) & 0xF;
                         uint rs = (ins >> 8) & 0xF;
                         uint rm = (ins >> 0) & 0xF;
-                        ulong rsVal = GetReg(rs);
-                        ulong rmVal = GetReg(rm);
+                        ulong rsVal = R[rs];
+                        ulong rmVal = R[rm];
 
                         LineDebug("Multiply Long");
 
@@ -479,14 +464,14 @@ namespace OptimeGBA
                                 if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
                                 if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
 
-                                longLo = (ulong)(((rsValExt * rmValExt) & 0xFFFFFFFF) + GetReg(rdLo));
-                                longHi = (ulong)((rsValExt * rmValExt) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                                longLo = (ulong)(((rsValExt * rmValExt) & 0xFFFFFFFF) + R[rdLo]);
+                                longHi = (ulong)((rsValExt * rmValExt) >> 32) + R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
                             }
                             else
                             {
                                 // UMLAL
-                                longLo = ((rsVal * rmVal) & 0xFFFFFFFF) + GetReg(rdLo);
-                                longHi = ((rsVal * rmVal) >> 32) + GetReg(rdHi) + (longLo > 0xFFFFFFFF ? 1U : 0);
+                                longLo = ((rsVal * rmVal) & 0xFFFFFFFF) + R[rdLo];
+                                longHi = ((rsVal * rmVal) >> 32) + R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
                             }
                         }
                         else
@@ -520,14 +505,13 @@ namespace OptimeGBA
                         LineDebug($"Rm: R{rm}");
                         LineDebug($"Rs: R{rs}");
 
-
-                        SetReg(rdLo, (uint)longLo);
-                        SetReg(rdHi, (uint)longHi);
+                        R[rdLo] = (uint)longLo;
+                        R[rdHi] = (uint)longHi;
 
                         if (setFlags)
                         {
                             Negative = BitTest((uint)longHi, 31);
-                            Zero = GetReg(rdLo) == 0 && GetReg(rdHi) == 0;
+                            Zero = R[rdLo] == 0 && R[rdHi] == 0;
                         }
                     }
                     else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
@@ -548,7 +532,7 @@ namespace OptimeGBA
                         uint rd = (ins >> 12) & 0xF;
                         uint rn = (ins >> 16) & 0xF;
 
-                        uint baseAddr = GetReg(rn);
+                        uint baseAddr = R[rn];
 
                         uint offset;
                         if (immediateOffset)
@@ -561,7 +545,7 @@ namespace OptimeGBA
                         {
                             LineDebug("Register Offset");
                             uint rm = ins & 0xF;
-                            offset = GetReg(rm);
+                            offset = R[rm];
                         }
 
                         uint addr = baseAddr;
@@ -636,7 +620,7 @@ namespace OptimeGBA
                                 if (H)
                                 {
                                     LineDebug("Store halfword");
-                                    Gba.Mem.Write16(addr, (ushort)GetReg(rd));
+                                    Gba.Mem.Write16(addr, (ushort)R[rd]);
                                 }
                             }
                         }
@@ -655,12 +639,12 @@ namespace OptimeGBA
 
                         if (W || !P)
                         {
-                            SetReg(rn, addr);
+                            R[rn] = addr;
                         }
 
                         if (L)
                         {
-                            SetReg(rd, loadVal);
+                            R[rd] = loadVal;
                         }
 
                         LineDebug($"Writeback: {(W ? "Yes" : "No")}");
@@ -706,7 +690,7 @@ namespace OptimeGBA
                             bool regShift = (ins & BIT_4) != 0;
 
                             uint rm = ins & 0xF;
-                            uint rmVal = GetReg(rm);
+                            uint rmVal = R[rm];
                             byte shiftBits;
                             uint shiftType = (ins >> 5) & 0b11;
 
@@ -779,7 +763,7 @@ namespace OptimeGBA
                             {
                                 // Register shift
                                 uint rs = (ins >> 8) & 0xF;
-                                uint rsVal = GetReg(rs);
+                                uint rsVal = R[rs];
 
                                 if (rs == 15) rsVal += 4;
                                 if (rm == 15) rmVal += 4;
@@ -887,10 +871,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("AND");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
 
                                     uint final = rnValue & shifterOperand;
-                                    SetReg(rd, final);
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -908,10 +892,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("EOR");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
 
                                     uint final = rnValue ^ shifterOperand;
-                                    SetReg(rd, final);
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -929,10 +913,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("SUB");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = rnValue - shifterOperand;
 
-                                    SetReg(rd, aluOut);
+                                    R[rd] = aluOut;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -954,10 +938,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("RSB");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = shifterOperand - rnValue;
 
-                                    SetReg(rd, aluOut);
+                                    R[rd] = aluOut;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -976,9 +960,9 @@ namespace OptimeGBA
                                 {
                                     LineDebug("ADD");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint final = rnValue + shifterOperand;
-                                    SetReg(rd, final);
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -997,9 +981,9 @@ namespace OptimeGBA
                                 {
                                     LineDebug("ADC");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint final = rnValue + shifterOperand + (Carry ? 1U : 0);
-                                    SetReg(rd, final);
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -1018,10 +1002,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("SBC");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = rnValue - shifterOperand - (!Carry ? 1U : 0U);
 
-                                    SetReg(rd, aluOut);
+                                    R[rd] = aluOut;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -1040,10 +1024,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("RSC");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = shifterOperand - rnValue - (!Carry ? 1U : 0U);
 
-                                    SetReg(rd, aluOut);
+                                    R[rd] = aluOut;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -1062,7 +1046,7 @@ namespace OptimeGBA
                                 {
                                     LineDebug("TST");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint final = rnValue & shifterOperand;
 
                                     Negative = BitTest(final, 31);
@@ -1074,7 +1058,7 @@ namespace OptimeGBA
                                 {
                                     LineDebug("TEQ");
 
-                                    uint reg = GetReg(rn);
+                                    uint reg = R[rn];
                                     uint aluOut = reg ^ shifterOperand;
                                     if (setFlags)
                                     {
@@ -1089,7 +1073,7 @@ namespace OptimeGBA
                                     // SBZ means should be zero, not relevant to the current code, just so you know
                                     LineDebug("CMP");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = rnValue - shifterOperand;
                                     if (setFlags)
                                     {
@@ -1104,7 +1088,7 @@ namespace OptimeGBA
                                 {
                                     LineDebug("CMN");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
                                     uint aluOut = rnValue + shifterOperand;
                                     if (setFlags)
                                     {
@@ -1119,10 +1103,10 @@ namespace OptimeGBA
                                 {
                                     LineDebug("ORR");
 
-                                    uint rnValue = GetReg(rn);
+                                    uint rnValue = R[rn];
 
                                     uint final = rnValue | shifterOperand;
-                                    SetReg(rd, final);
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -1140,7 +1124,7 @@ namespace OptimeGBA
                                 {
                                     LineDebug("MOV");
 
-                                    SetReg(rd /*Rd*/, shifterOperand);
+                                    R[rd] /*Rd*/ = shifterOperand;
                                     if (setFlags)
                                     {
                                         Negative = BitTest(shifterOperand, 31); // N
@@ -1163,8 +1147,8 @@ namespace OptimeGBA
                                 {
                                     LineDebug("BIC");
 
-                                    uint final = GetReg(rn) & ~shifterOperand;
-                                    SetReg(rd, final);
+                                    uint final = R[rn] & ~shifterOperand;
+                                    R[rd] = final;
                                     if (setFlags && rd == 15)
                                     {
                                         // TODO: CPSR = SPSR if current mode has SPSR
@@ -1182,7 +1166,7 @@ namespace OptimeGBA
                                 {
                                     LineDebug("MVN");
 
-                                    SetReg(rd /*Rd*/, ~shifterOperand);
+                                    R[rd] /*Rd*/ = ~shifterOperand;
                                     if (setFlags)
                                     {
                                         Negative = BitTest(~shifterOperand, 31); // N
@@ -1217,7 +1201,7 @@ namespace OptimeGBA
 
                         uint rn = (ins >> 16) & 0xF;
                         uint rd = (ins >> 12) & 0xF;
-                        uint rnValue = GetReg(rn);
+                        uint rnValue = R[rn];
 
                         bool registerOffset = BitTest(ins, 25);
                         bool P = BitTest(ins, 24); // post-indexed / offset addressing 
@@ -1232,7 +1216,7 @@ namespace OptimeGBA
                         {
                             // Register offset
                             LineDebug($"Register Offset");
-                            uint rmVal = GetReg(ins & 0xF);
+                            uint rmVal = R[ins & 0xF];
 
                             if ((ins & 0b111111110000) == 0b000000000000)
                             {
@@ -1351,7 +1335,7 @@ namespace OptimeGBA
                         }
                         else
                         {
-                            uint storeVal = GetReg(rd);
+                            uint storeVal = R[rd];
                             if (B)
                             {
                                 Gba.Mem.Write8(addr, (byte)storeVal);
@@ -1379,14 +1363,14 @@ namespace OptimeGBA
 
                         if (W || !P)
                         {
-                            SetReg(rn, addr);
+                            R[rn] = addr;
                         }
 
                         // Register loading happens after writeback, so if writeback register and Rd are the same, 
                         // the writeback value would be overwritten by Rd.
                         if (L)
                         {
-                            SetReg(rd, loadVal);
+                            R[rd] = loadVal;
 
                             if (rd == 15) FlushPipeline();
                         }
@@ -1421,7 +1405,7 @@ namespace OptimeGBA
 
                         uint rn = (ins >> 16) & 0xF;
 
-                        uint addr = GetReg(rn);
+                        uint addr = R[rn];
 
                         String regs = "";
 
@@ -1445,17 +1429,17 @@ namespace OptimeGBA
                                         { // Load
                                             if (r != 15)
                                             {
-                                                SetReg(r, Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                                                R[r] = Gba.Mem.Read32(addr & 0xFFFFFFFC);
                                             }
                                             else
                                             {
-                                                R15 = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                                 FlushPipeline();
                                             }
                                         }
                                         else
                                         { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, GetReg(r));
+                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, R[r]);
                                         }
                                     }
                                     else
@@ -1468,7 +1452,7 @@ namespace OptimeGBA
                                             }
                                             else
                                             {
-                                                R15 = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                                 FlushPipeline();
                                             }
                                         }
@@ -1500,17 +1484,17 @@ namespace OptimeGBA
                                         { // Load
                                             if (r != 15)
                                             {
-                                                SetReg(r, Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                                                R[r] = Gba.Mem.Read32(addr & 0xFFFFFFFC);
                                             }
                                             else
                                             {
-                                                R15 = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                                 FlushPipeline();
                                             }
                                         }
                                         else
                                         { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, GetReg(r));
+                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, R[r]);
                                         }
                                     }
                                     else
@@ -1523,7 +1507,7 @@ namespace OptimeGBA
                                             }
                                             else
                                             {
-                                                R15 = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                                 FlushPipeline();
                                             }
                                         }
@@ -1540,7 +1524,7 @@ namespace OptimeGBA
 
                         if (W && !disableWriteback)
                         {
-                            SetReg(rn, addr);
+                            R[rn] = addr;
                         }
 
                         LineDebug(regs);
@@ -1549,11 +1533,11 @@ namespace OptimeGBA
                     {
                         SPSR_svc = GetCPSR();
                         SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-                        R14 = R15 - 4;
+                        R[14] = R[15] - 4;
                         ThumbState = false; // Back to ARM state
                         IRQDisable = true;
 
-                        R15 = VectorSoftwareInterrupt;
+                        R[15] = VectorSoftwareInterrupt;
                         FlushPipeline();
                     }
                     else
@@ -1565,7 +1549,7 @@ namespace OptimeGBA
             }
             else // THUMB mode
             {
-                LineDebug($"R15: ${Util.HexN(R15, 4)}");
+                LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
                 // Fill the pipeline if it's not full
                 FillPipelineThumb();
@@ -1588,20 +1572,20 @@ namespace OptimeGBA
 
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint rmValue = R[(uint)((ins >> 3) & 0b111)];
 
                                         if (immed5 == 0)
                                         {
-                                            SetReg(rd, rmValue);
+                                            R[rd] = rmValue;
                                         }
                                         else
                                         {
                                             Carry = BitTest(rmValue, (byte)(32 - immed5));
-                                            SetReg(rd, LogicalShiftLeft32(rmValue, (byte)immed5));
+                                            R[rd] = LogicalShiftLeft32(rmValue, (byte)immed5);
                                         }
 
-                                        Negative = BitTest(GetReg(rd), 31);
-                                        Zero = GetReg(rd) == 0;
+                                        Negative = BitTest(R[rd], 31);
+                                        Zero = R[rd] == 0;
                                     }
                                     break;
                                 case 0b01: // LSR (1)
@@ -1612,7 +1596,7 @@ namespace OptimeGBA
                                         uint rm = (uint)((ins >> 3) & 0b111);
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
-                                        uint rmVal = GetReg(rm);
+                                        uint rmVal = R[rm];
 
                                         uint final;
                                         if (immed5 == 0)
@@ -1626,7 +1610,7 @@ namespace OptimeGBA
                                             final = LogicalShiftRight32(rmVal, (byte)immed5);
                                         }
 
-                                        SetReg(rd, final);
+                                        R[rd] = final;
 
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
@@ -1637,7 +1621,7 @@ namespace OptimeGBA
                                         LineDebug("ASR (1)");
 
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rmValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint rmValue = R[(uint)((ins >> 3) & 0b111)];
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                                         if (immed5 == 0)
@@ -1645,21 +1629,21 @@ namespace OptimeGBA
                                             Carry = BitTest(rmValue, 31);
                                             if (BitTest(rmValue, 31))
                                             {
-                                                SetReg(rd, 0xFFFFFFFF);
+                                                R[rd] = 0xFFFFFFFF;
                                             }
                                             else
                                             {
-                                                SetReg(rd, 0);
+                                                R[rd] = 0;
                                             }
                                         }
                                         else
                                         {
                                             Carry = BitTest(rmValue, (byte)(immed5 - 1));
-                                            SetReg(rd, ArithmeticShiftRight32(rmValue, (byte)immed5));
+                                            R[rd] = ArithmeticShiftRight32(rmValue, (byte)immed5);
                                         }
 
-                                        Negative = BitTest(GetReg(rd), 31);
-                                        Zero = GetReg(rd) == 0;
+                                        Negative = BitTest(R[rd], 31);
+                                        Zero = R[rd] == 0;
                                     }
                                     break;
                                 case 0b11: // Add/subtract/compare/move immediate
@@ -1671,11 +1655,11 @@ namespace OptimeGBA
                                                     LineDebug("ADD (3)");
 
                                                     uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
-                                                    uint rmVal = GetReg((uint)((ins >> 6) & 0b111));
+                                                    uint rnVal = R[(uint)((ins >> 3) & 0b111)];
+                                                    uint rmVal = R[(uint)((ins >> 6) & 0b111)];
                                                     uint final = rnVal + rmVal;
 
-                                                    SetReg(rd, final);
+                                                    R[rd] = final;
                                                     Negative = BitTest(final, 31);
                                                     Zero = final == 0;
                                                     Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
@@ -1687,11 +1671,11 @@ namespace OptimeGBA
                                                     LineDebug("SUB (3)");
 
                                                     uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
-                                                    uint rmValue = GetReg((uint)((ins >> 6) & 0b111));
+                                                    uint rnValue = R[(uint)((ins >> 3) & 0b111)];
+                                                    uint rmValue = R[(uint)((ins >> 6) & 0b111)];
 
                                                     uint final = rnValue - rmValue;
-                                                    SetReg(rd, final);
+                                                    R[rd] = final;
 
                                                     Negative = BitTest(final, 31);
                                                     Zero = final == 0;
@@ -1704,12 +1688,12 @@ namespace OptimeGBA
                                                     LineDebug("ADD (1)");
 
                                                     uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnVal = GetReg((uint)((ins >> 3) & 0b111));
+                                                    uint rnVal = R[(uint)((ins >> 3) & 0b111)];
                                                     uint immed3 = (uint)((ins >> 6) & 0b111);
 
                                                     uint final = rnVal + immed3;
 
-                                                    SetReg(rd, final);
+                                                    R[rd] = final;
                                                     Negative = BitTest(final, 31);
                                                     Zero = final == 0;
                                                     Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
@@ -1726,11 +1710,11 @@ namespace OptimeGBA
                                                     uint rn = (uint)((ins >> 3) & 0b111);
                                                     uint immed3 = (uint)((ins >> 6) & 0b111);
 
-                                                    uint rdVal = GetReg(rd);
-                                                    uint rnVal = GetReg(rn);
+                                                    uint rdVal = R[rd];
+                                                    uint rnVal = R[rn];
 
                                                     uint final = rnVal - immed3;
-                                                    SetReg(rd, final);
+                                                    R[rd] = final;
 
                                                     Negative = BitTest(final, 31);
                                                     Zero = final == 0;
@@ -1755,7 +1739,7 @@ namespace OptimeGBA
                                     {
                                         LineDebug("MOV | Move large immediate to register");
 
-                                        SetReg(rd, immed8);
+                                        R[rd] = immed8;
 
                                         Negative = false;
                                         Zero = immed8 == 0;
@@ -1765,7 +1749,7 @@ namespace OptimeGBA
                                     {
                                         LineDebug("CMP (1)");
 
-                                        uint rnVal = GetReg(rd);
+                                        uint rnVal = R[rd];
                                         uint alu_out = rnVal - immed8;
 
                                         Negative = BitTest(alu_out, 31);
@@ -1778,10 +1762,10 @@ namespace OptimeGBA
                                     {
                                         LineDebug("ADD (2)");
 
-                                        uint rdVal = GetReg(rd);
+                                        uint rdVal = R[rd];
                                         uint final = rdVal + immed8;
 
-                                        SetReg(rd, final);
+                                        R[rd] = final;
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
                                         Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
@@ -1792,10 +1776,10 @@ namespace OptimeGBA
                                     {
                                         LineDebug("SUB (2)");
 
-                                        uint rdVal = GetReg(rd);
+                                        uint rdVal = R[rd];
 
                                         uint final = rdVal - immed8;
-                                        SetReg(rd, final);
+                                        R[rd] = final;
 
                                         Negative = BitTest(final, 31);
                                         Zero = final == 0;
@@ -1824,11 +1808,11 @@ namespace OptimeGBA
                                         {
                                             LineDebug("AND");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             uint final = rdVal & rmVal;
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
@@ -1838,11 +1822,11 @@ namespace OptimeGBA
                                         {
                                             LineDebug("EOR");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             rdVal = rdVal ^ rmVal;
-                                            SetReg(rd, rdVal);
+                                            R[rd] = rdVal;
 
                                             Negative = BitTest(rdVal, 31);
                                             Zero = rdVal == 0;
@@ -1852,8 +1836,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("LSL (2) | Logical Shift Left");
 
-                                            uint rdValue = GetReg((uint)((ins >> 0) & 0b111));
-                                            uint rsValue = GetReg((uint)((ins >> 3) & 0b111));
+                                            uint rdValue = R[(uint)((ins >> 0) & 0b111)];
+                                            uint rsValue = R[(uint)((ins >> 3) & 0b111)];
 
                                             if ((rsValue & 0xFF) == 0)
                                             {
@@ -1875,7 +1859,7 @@ namespace OptimeGBA
                                                 rdValue = 0;
                                             }
 
-                                            SetReg(rd, rdValue);
+                                            R[rd] = rdValue;
 
                                             Negative = BitTest(rdValue, 31);
                                             Zero = rdValue == 0;
@@ -1885,8 +1869,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("LSR (2)");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rsVal = GetReg(rs);
+                                            uint rdVal = R[rd];
+                                            uint rsVal = R[rs];
 
                                             if ((rsVal & 0xFF) == 0)
                                             {
@@ -1895,20 +1879,20 @@ namespace OptimeGBA
                                             else if ((rsVal & 0xFF) < 32)
                                             {
                                                 Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                                                SetReg(rd, LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF)));
+                                                R[rd] = LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
                                             }
                                             else if ((rsVal & 0xFF) == 32)
                                             {
                                                 Carry = BitTest(rdVal, 31);
-                                                SetReg(rd, 0);
+                                                R[rd] = 0;
                                             }
                                             else
                                             {
                                                 Carry = false;
-                                                SetReg(rd, 0);
+                                                R[rd] = 0;
                                             }
 
-                                            rdVal = GetReg(rd);
+                                            rdVal = R[rd];
 
                                             Negative = BitTest(rdVal, 31);
                                             Zero = rdVal == 0;
@@ -1919,8 +1903,8 @@ namespace OptimeGBA
                                             LineDebug("ASR (2)");
 
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rsVal = GetReg(rs);
+                                            uint rdVal = R[rd];
+                                            uint rsVal = R[rs];
 
                                             if ((rsVal & 0xFF) == 0)
                                             {
@@ -1944,7 +1928,7 @@ namespace OptimeGBA
                                                 }
                                             }
 
-                                            SetReg(rd, rdVal);
+                                            R[rd] = rdVal;
 
                                             Negative = BitTest(rdVal, 31);
                                             Zero = rdVal == 0;
@@ -1952,11 +1936,11 @@ namespace OptimeGBA
                                         break;
                                     case 0x5: // ADC
                                         {
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             uint final = rdVal + rmVal + (Carry ? 1U : 0);
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             Negative = BitTest(final, 31);
                                             Zero = rdVal == 0;
@@ -1968,11 +1952,11 @@ namespace OptimeGBA
                                         {
                                             LineDebug("SBC");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             uint final = rdVal - rmVal - (!Carry ? 1U : 0);
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
@@ -1984,8 +1968,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("ROR");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rsVal = GetReg(rs);
+                                            uint rdVal = R[rd];
+                                            uint rsVal = R[rs];
 
                                             if ((rsVal & 0xFF) == 0)
                                             {
@@ -1999,7 +1983,7 @@ namespace OptimeGBA
                                             {
                                                 Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
                                                 rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
-                                                SetReg(rd, rdVal);
+                                                R[rd] = rdVal;
                                             }
 
                                             Negative = BitTest(rdVal, 31);
@@ -2010,8 +1994,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("TST");
 
-                                            uint rnValue = GetReg(rn);
-                                            uint rmValue = GetReg(rm);
+                                            uint rnValue = R[rn];
+                                            uint rmValue = R[rm];
 
                                             uint final = rnValue & rmValue;
 
@@ -2022,12 +2006,12 @@ namespace OptimeGBA
                                     case 0x9: // NEG / RSB
                                         {
                                             LineDebug("NEG / RSB");
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             uint final = 0 - rmVal;
 
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
@@ -2039,8 +2023,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("CMP (2)");
 
-                                            uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                                            uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+                                            uint rnVal = R[(uint)((ins >> 0) & 0b111)];
+                                            uint rmVal = R[(uint)((ins >> 3) & 0b111)];
 
                                             uint alu_out = rnVal - rmVal;
 
@@ -2054,8 +2038,8 @@ namespace OptimeGBA
                                         {
                                             LineDebug("CMN");
 
-                                            uint rnVal = GetReg((uint)((ins >> 0) & 0b111));
-                                            uint rmVal = GetReg((uint)((ins >> 3) & 0b111));
+                                            uint rnVal = R[(uint)((ins >> 0) & 0b111)];
+                                            uint rmVal = R[(uint)((ins >> 3) & 0b111)];
 
                                             uint alu_out = rnVal + rmVal;
 
@@ -2069,20 +2053,20 @@ namespace OptimeGBA
                                         {
                                             LineDebug("ORR");
 
-                                            SetReg(rd, GetReg(rd) | GetReg(rm));
-                                            Negative = BitTest(GetReg(rd), 31);
-                                            Zero = GetReg(rd) == 0;
+                                            R[rd] = R[rd] | R[rm];
+                                            Negative = BitTest(R[rd], 31);
+                                            Zero = R[rd] == 0;
                                         }
                                         break;
                                     case 0xD: // MUL
                                         {
                                             LineDebug("MUL");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             rdVal = (rmVal * rdVal);
-                                            SetReg(rd, rdVal);
+                                            R[rd] = rdVal;
 
                                             Negative = BitTest(rdVal, 31);
                                             Zero = rdVal == 0;
@@ -2092,11 +2076,11 @@ namespace OptimeGBA
                                         {
                                             LineDebug("BIC");
 
-                                            uint rdValue = GetReg(rd);
-                                            uint rmValue = GetReg(rm);
+                                            uint rdValue = R[rd];
+                                            uint rmValue = R[rm];
 
                                             uint final = rdValue & (~rmValue);
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             Negative = BitTest(final, 31);
                                             Zero = final == 0;
@@ -2106,9 +2090,9 @@ namespace OptimeGBA
                                         {
                                             LineDebug("MVN");
 
-                                            SetReg(rd, ~GetReg(rm));
-                                            Negative = BitTest(GetReg(rd), 31);
-                                            Zero = GetReg(rd) == 0;
+                                            R[rd] = ~R[rm];
+                                            Negative = BitTest(R[rd], 31);
+                                            Zero = R[rd] == 0;
                                         }
                                         break;
 
@@ -2126,11 +2110,11 @@ namespace OptimeGBA
                                             uint rm = (uint)((ins >> 3) & 0b111);
                                             rd += BitTest(ins, 7) ? BIT_3 : 0;
                                             rm += BitTest(ins, 6) ? BIT_3 : 0;
-                                            uint rdVal = GetReg(rd);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rmVal = R[rm];
 
                                             uint final = rdVal + rmVal;
-                                            SetReg(rd, final);
+                                            R[rd] = final;
 
                                             if (rd == 15)
                                             {
@@ -2148,8 +2132,8 @@ namespace OptimeGBA
                                             rn += BitTest(ins, 7) ? BIT_3 : 0;
                                             rm += BitTest(ins, 6) ? BIT_3 : 0;
 
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             uint alu_out = rnVal - rmVal;
 
@@ -2168,11 +2152,11 @@ namespace OptimeGBA
                                             rd += BitTest(ins, 7) ? BIT_3 : 0;
                                             rm += BitTest(ins, 6) ? BIT_3 : 0;
 
-                                            SetReg(rd, GetReg(rm));
+                                            R[rd] = R[rm];
 
                                             if (rd == 15)
                                             {
-                                                R15 &= 0xFFFFFFFE;
+                                                R[15] &= 0xFFFFFFFE;
                                                 FlushPipeline();
                                             }
                                         }
@@ -2182,11 +2166,11 @@ namespace OptimeGBA
                                             LineDebug("BX | Optionally switch back to ARM state");
 
                                             uint rm = (uint)((ins >> 3) & 0xF); // High bit is technically an H bit, but can be ignored here
-                                            uint val = GetReg(rm);
+                                            uint val = R[rm];
                                             LineDebug($"R{rm}");
 
                                             ThumbState = BitTest(val, 0);
-                                            R15 = val & 0xFFFFFFFE;
+                                            R[15] = val & 0xFFFFFFFE;
                                             FlushPipeline();
                                         }
                                         break;
@@ -2199,18 +2183,18 @@ namespace OptimeGBA
                                 uint rd = (uint)((ins >> 8) & 0b111);
                                 uint immed8 = (uint)((ins >> 0) & 0xFF);
 
-                                uint addr = (R15 & 0xFFFFFFFC) + (immed8 * 4);
+                                uint addr = (R[15] & 0xFFFFFFFC) + (immed8 * 4);
                                 if ((addr & 0b11) != 0)
                                 {
                                     // Misaligned
                                     uint readAddr = addr & ~0b11U;
                                     uint readVal = Gba.Mem.Read32(readAddr);
-                                    SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                    R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
                                 }
                                 else
                                 {
                                     uint readVal = Gba.Mem.Read32(addr);
-                                    SetReg(rd, readVal);
+                                    R[rd] = readVal;
                                 }
                             }
                             else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
@@ -2224,11 +2208,11 @@ namespace OptimeGBA
                                     case 0b000: // STR (2)
                                         {
                                             LineDebug("STR (2)");
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             uint addr = rnVal + rmVal;
-                                            Gba.Mem.Write32(addr, GetReg(rd));
+                                            Gba.Mem.Write32(addr, R[rd]);
                                         }
                                         break;
                                     case 0b001: // STRH (2)
@@ -2237,8 +2221,8 @@ namespace OptimeGBA
                                             bool load = BitTest(ins, 11);
                                             LineDebug("STRH / LDRH (2)");
 
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             uint addr = rnVal + rmVal;
 
@@ -2248,18 +2232,18 @@ namespace OptimeGBA
                                                 if ((addr & 1) != 0)
                                                 {
                                                     // Halfworld Misaligned
-                                                    SetReg(rd, Gba.Mem.Read16(RotateRight32(addr - 1, 8)));
+                                                    R[rd] = Gba.Mem.Read16(RotateRight32(addr - 1, 8));
                                                 }
                                                 else
                                                 {
                                                     // Halfword Aligned
-                                                    SetReg(rd, Gba.Mem.Read16(addr));
+                                                    R[rd] = Gba.Mem.Read16(addr);
                                                 }
                                             }
                                             else
                                             {
                                                 LineDebug("Store");
-                                                uint rdVal = GetReg(rd);
+                                                uint rdVal = R[rd];
                                                 Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
                                             }
                                         }
@@ -2267,9 +2251,9 @@ namespace OptimeGBA
                                     case 0b010: // STRB (2)
                                     case 0b110: // LDRB (2)
                                         {
-                                            uint rdVal = GetReg(rd);
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             uint addr = rnVal + rmVal;
 
@@ -2278,7 +2262,7 @@ namespace OptimeGBA
                                             if (load)
                                             {
                                                 LineDebug("LDRB (2)");
-                                                SetReg(rd, Gba.Mem.Read8(addr));
+                                                R[rd] = Gba.Mem.Read8(addr);
                                             }
                                             else
                                             {
@@ -2290,9 +2274,9 @@ namespace OptimeGBA
                                     case 0b011: // LDRSB
                                     case 0b111: // LDRSH
                                         {
-                                            uint rdVal = GetReg(rd);
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             bool halfword = BitTest(ins, 11); // As apposed to byte load.
 
@@ -2309,7 +2293,7 @@ namespace OptimeGBA
                                                     readVal -= (int)BIT_16;
                                                 }
 
-                                                SetReg(rd, (uint)readVal);
+                                                R[rd] = (uint)readVal;
                                             }
                                             else
                                             {
@@ -2322,7 +2306,7 @@ namespace OptimeGBA
                                                     readVal -= (int)BIT_8;
                                                 }
 
-                                                SetReg(rd, (uint)readVal);
+                                                R[rd] = (uint)readVal;
                                             }
                                         }
                                         break;
@@ -2330,9 +2314,9 @@ namespace OptimeGBA
                                         {
                                             LineDebug("LDR (2)");
 
-                                            uint rdVal = GetReg(rd);
-                                            uint rnVal = GetReg(rn);
-                                            uint rmVal = GetReg(rm);
+                                            uint rdVal = R[rd];
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
 
                                             uint addr = rnVal + rmVal;
 
@@ -2341,12 +2325,12 @@ namespace OptimeGBA
                                                 // Misaligned
                                                 uint readAddr = addr & ~0b11U;
                                                 uint readVal = Gba.Mem.Read32(readAddr);
-                                                SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                                R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
                                             }
                                             else
                                             {
                                                 uint readVal = Gba.Mem.Read32(addr);
-                                                SetReg(rd, readVal);
+                                                R[rd] = readVal;
                                             }
                                         }
                                         break;
@@ -2367,7 +2351,7 @@ namespace OptimeGBA
                                         LineDebug("LDR (1) | Base + Immediate");
 
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint rnValue = R[(uint)((ins >> 3) & 0b111)];
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                                         uint addr = rnValue + (immed5 * 4);
@@ -2375,7 +2359,7 @@ namespace OptimeGBA
                                         // Misaligned
                                         uint readAddr = addr & ~0b11U;
                                         uint readVal = Gba.Mem.Read32(readAddr);
-                                        SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                        R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
                                         LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
@@ -2386,21 +2370,21 @@ namespace OptimeGBA
                                         LineDebug("STR (1)");
 
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rnValue = GetReg((uint)((ins >> 3) & 0b111));
+                                        uint rnValue = R[(uint)((ins >> 3) & 0b111)];
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                                         uint addr = rnValue + (immed5 * 4);
                                         LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
-                                        Gba.Mem.Write32(addr, GetReg(rd));
+                                        Gba.Mem.Write32(addr, R[rd]);
                                     }
                                     break;
                                 case 0b10: // STRB (1)
                                     {
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rdVal = GetReg(rd);
+                                        uint rdVal = R[rd];
                                         uint rn = (uint)((ins >> 3) & 0b111);
-                                        uint rnVal = GetReg(rn);
+                                        uint rnVal = R[rn];
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                                         uint addr = rnVal + immed5;
@@ -2413,15 +2397,15 @@ namespace OptimeGBA
                                     {
 
                                         uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rdVal = GetReg(rd);
+                                        uint rdVal = R[rd];
                                         uint rn = (uint)((ins >> 3) & 0b111);
-                                        uint rnVal = GetReg(rn);
+                                        uint rnVal = R[rn];
                                         uint immed5 = (uint)((ins >> 6) & 0b11111);
 
                                         uint addr = rnVal + immed5;
 
                                         LineDebug("LDRB (1)");
-                                        SetReg(rd, Gba.Mem.Read8(addr));
+                                        R[rd] = Gba.Mem.Read8(addr);
                                     }
                                     break;
                             }
@@ -2436,7 +2420,7 @@ namespace OptimeGBA
 
                                 uint rd = (uint)((ins >> 0) & 0b111);
                                 uint rn = (uint)((ins >> 3) & 0b111);
-                                uint rnVal = GetReg(rn);
+                                uint rnVal = R[rn];
 
                                 uint immed5 = (uint)((ins >> 6) & 0b11111);
 
@@ -2445,12 +2429,12 @@ namespace OptimeGBA
                                 if (load)
                                 {
                                     LineDebug("Load");
-                                    SetReg(rd, Gba.Mem.Read16(addr));
+                                    R[rd] = Gba.Mem.Read16(addr);
                                 }
                                 else
                                 {
                                     LineDebug("Store");
-                                    Gba.Mem.Write16(addr, (ushort)GetReg(rd));
+                                    Gba.Mem.Write16(addr, (ushort)R[rd]);
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
@@ -2459,20 +2443,20 @@ namespace OptimeGBA
 
                                 uint immed8 = (uint)((ins >> 0) & 0xFF);
                                 uint rd = (uint)((ins >> 8) & 0b111);
-                                uint rdVal = GetReg(rd);
+                                uint rdVal = R[rd];
 
-                                uint addr = R13 + (immed8 * 4);
+                                uint addr = R[13] + (immed8 * 4);
                                 if ((addr & 0b11) != 0)
                                 {
                                     // Misaligned
                                     uint readAddr = addr & ~0b11U;
                                     uint readVal = Gba.Mem.Read32(readAddr);
-                                    SetReg(rd, RotateRight32(readVal, (byte)((addr & 0b11) * 8)));
+                                    R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
                                 }
                                 else
                                 {
                                     uint readVal = Gba.Mem.Read32(addr);
-                                    SetReg(rd, readVal);
+                                    R[rd] = readVal;
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
@@ -2482,8 +2466,8 @@ namespace OptimeGBA
                                 uint immed8 = (uint)((ins >> 0) & 0xFF);
                                 uint rd = (uint)((ins >> 8) & 0b111);
 
-                                uint addr = R13 + (immed8 * 4);
-                                Gba.Mem.Write32(addr, GetReg(rd));
+                                uint addr = R[13] + (immed8 * 4);
+                                Gba.Mem.Write32(addr, R[rd]);
                             }
                         }
                         break;
@@ -2500,27 +2484,27 @@ namespace OptimeGBA
                                         LineDebug("POP");
 
                                         String regs = "";
-                                        uint addr = R13;
+                                        uint addr = R[13];
 
-                                        if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 0)) { regs += "R0 "; R[0] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 1)) { regs += "R1 "; R[1] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 2)) { regs += "R2 "; R[2] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 3)) { regs += "R3 "; R[3] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 4)) { regs += "R4 "; R[4] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 5)) { regs += "R5 "; R[5] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 6)) { regs += "R6 "; R[6] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 7)) { regs += "R7 "; R[7] = Gba.Mem.Read32(addr); addr += 4; }
 
                                         if (BitTest(ins, 8))
                                         {
                                             regs += "PC ";
-                                            R15 = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
+                                            R[15] = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
                                             FlushPipeline();
-                                            LineDebug(Util.Hex(R15, 8));
+                                            LineDebug(Util.Hex(R[15], 8));
                                             addr += 4;
                                         }
 
-                                        R13 = addr;
+                                        R[13] = addr;
 
                                         LineDebug(regs);
                                     }
@@ -2529,7 +2513,7 @@ namespace OptimeGBA
                                         LineDebug("PUSH");
 
                                         String regs = "";
-                                        uint addr = R13;
+                                        uint addr = R[13];
 
                                         if (BitTest(ins, 0)) { addr -= 4; }
                                         if (BitTest(ins, 1)) { addr -= 4; }
@@ -2541,21 +2525,21 @@ namespace OptimeGBA
                                         if (BitTest(ins, 7)) { addr -= 4; }
                                         if (BitTest(ins, 8)) { addr -= 4; }
 
-                                        if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; R13 -= 4; }
-                                        if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; R13 -= 4; }
+                                        if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R[0]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R[1]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R[2]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R[3]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R[4]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R[5]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R[6]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R[7]); addr += 4; R[13] -= 4; }
 
                                         if (BitTest(ins, 8))
                                         {
                                             regs += "LR ";
-                                            Gba.Mem.Write32(addr, R14);
+                                            Gba.Mem.Write32(addr, R[14]);
                                             addr += 4;
-                                            R13 -= 4;
+                                            R[13] -= 4;
                                         }
 
                                         LineDebug(regs);
@@ -2565,23 +2549,23 @@ namespace OptimeGBA
                                 {
                                     LineDebug("ADD (7)");
                                     uint immed7 = (uint)(ins & 0b1111111);
-                                    R13 = R13 + (immed7 << 2);
+                                    R[13] = R[13] + (immed7 << 2);
                                 }
                                 else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
                                 {
                                     LineDebug("SUB (4)");
 
                                     uint immed7 = (uint)(ins & 0b1111111);
-                                    R13 = R13 - (immed7 << 2);
+                                    R[13] = R[13] - (immed7 << 2);
                                 }
                                 else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
                                 {
                                     LineDebug("REVSH");
 
                                     uint rd = (uint)((ins >> 0) & 0b111);
-                                    uint rdVal = GetReg(rd);
+                                    uint rdVal = R[rd];
                                     uint rn = (uint)((ins >> 3) & 0b111);
-                                    uint rnVal = GetReg(rn);
+                                    uint rnVal = R[rn];
 
                                     uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
                                     uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
@@ -2600,7 +2584,7 @@ namespace OptimeGBA
                                         rdVal &= 0x0000FFFF;
                                     }
 
-                                    SetReg(rd, rdVal);
+                                    R[rd] = rdVal;
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
@@ -2610,7 +2594,7 @@ namespace OptimeGBA
                                 uint immed8 = (uint)(ins & 0xFF);
                                 uint rd = (uint)((ins >> 8) & 0b111);
 
-                                SetReg(rd, (R15 & 0xFFFFFFFC) + (immed8 * 4));
+                                R[rd] = (R[15] & 0xFFFFFFFC) + (immed8 * 4);
                             }
                             else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
                             {
@@ -2619,7 +2603,7 @@ namespace OptimeGBA
                                 uint immed8 = (uint)(ins & 0xFF);
                                 uint rd = (uint)((ins >> 8) & 0b111);
 
-                                SetReg(rd, R13 + (immed8 << 2));
+                                R[rd] = R[13] + (immed8 << 2);
                             }
                         }
                         break;
@@ -2632,18 +2616,18 @@ namespace OptimeGBA
                                     LineDebug("LDMIA | Load Multiple Increment After");
 
                                     uint rn = (uint)((ins >> 8) & 0b111);
-                                    uint addr = GetReg(rn);
+                                    uint addr = R[rn];
 
                                     String regs = "";
 
-                                    if (BitTest(ins, 0)) { regs += "R0 "; R0 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 1)) { regs += "R1 "; R1 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 2)) { regs += "R2 "; R2 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 3)) { regs += "R3 "; R3 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 4)) { regs += "R4 "; R4 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 5)) { regs += "R5 "; R5 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 6)) { regs += "R6 "; R6 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 7)) { regs += "R7 "; R7 = Gba.Mem.Read32(addr); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 0)) { regs += "R0 "; R[0] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 1)) { regs += "R1 "; R[1] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 2)) { regs += "R2 "; R[2] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 3)) { regs += "R3 "; R[3] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 4)) { regs += "R4 "; R[4] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 5)) { regs += "R5 "; R[5] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 6)) { regs += "R6 "; R[6] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 7)) { regs += "R7 "; R[7] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
 
                                     LineDebug(regs);
                                 }
@@ -2652,18 +2636,18 @@ namespace OptimeGBA
                                     LineDebug("STMIA | Store Multiple Increment After");
 
                                     uint rn = (uint)((ins >> 8) & 0b111);
-                                    uint addr = GetReg(rn);
+                                    uint addr = R[rn];
 
                                     String regs = "";
 
-                                    if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R0); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R1); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R2); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R3); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R4); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R5); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R6); addr += 4; SetReg(rn, GetReg(rn) + 4); }
-                                    if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R7); addr += 4; SetReg(rn, GetReg(rn) + 4); }
+                                    if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R[0]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R[1]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R[2]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R[3]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R[4]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R[5]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R[6]); addr += 4; R[rn] = R[rn] + 4; }
+                                    if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R[7]); addr += 4; R[rn] = R[rn] + 4; }
 
                                     LineDebug(regs);
                                 }
@@ -2672,11 +2656,11 @@ namespace OptimeGBA
                             {
                                 SPSR_svc = GetCPSR();
                                 SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-                                R14 = R15 - 2;
+                                R[14] = R[15] - 2;
                                 ThumbState = false; // Back to ARM state
                                 IRQDisable = true;
 
-                                R15 = VectorSoftwareInterrupt;
+                                R[15] = VectorSoftwareInterrupt;
                                 FlushPipeline();
                             }
                             else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
@@ -2700,7 +2684,7 @@ namespace OptimeGBA
                                         LineDebug("Taken, Forward Branch");
                                     }
 
-                                    R15 = (uint)(R15 + offset);
+                                    R[15] = (uint)(R[15] + offset);
                                     FlushPipeline();
                                 }
                                 else
@@ -2727,7 +2711,7 @@ namespace OptimeGBA
                                     LineDebug("Forward Branch");
                                 }
 
-                                R15 = (uint)(R15 + signedImmed11);
+                                R[15] = (uint)(R[15] + signedImmed11);
                                 FlushPipeline();
                             }
                             else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
@@ -2755,30 +2739,30 @@ namespace OptimeGBA
                                             }
 
                                             LineDebug($"offset11: {offset11}");
-                                            R14 = (uint)(R15 + offset11);
+                                            R[14] = (uint)(R[15] + offset11);
                                             LineDebug("Upper fill");
                                         }
                                         break;
                                     case 0b11:
                                         {
-                                            uint oldR14 = R14;
-                                            R14 = (R15 - 2) | 1;
-                                            R15 = (uint)(oldR14 + (offset11 << 1));
-                                            R15 &= 0xFFFFFFFE;
+                                            uint oldR14 = R[14];
+                                            R[14] = (R[15] - 2) | 1;
+                                            R[15] = (uint)(oldR14 + (offset11 << 1));
+                                            R[15] &= 0xFFFFFFFE;
                                             FlushPipeline();
-                                            LineDebug($"Jump to ${Util.HexN(R15, 8)}");
+                                            LineDebug($"Jump to ${Util.HexN(R[15], 8)}");
                                             LineDebug("Stay in THUMB state");
                                         }
                                         break;
                                     case 0b01:
                                         {
-                                            uint oldR14 = R14;
-                                            R14 = (R15 - 2) | 1;
-                                            R15 = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
-                                            R15 &= 0xFFFFFFFE;
+                                            uint oldR14 = R[14];
+                                            R[14] = (R[15] - 2) | 1;
+                                            R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
+                                            R[15] &= 0xFFFFFFFE;
                                             FlushPipeline();
                                             ThumbState = false;
-                                            LineDebug($"Jump to ${Util.HexN(R15, 8)}");
+                                            LineDebug($"Jump to ${Util.HexN(R[15], 8)}");
                                             LineDebug("Exit THUMB state");
                                         }
                                         break;
@@ -2834,63 +2818,6 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint GetReg(uint reg)
-        {
-            switch (reg)
-            {
-                case 0x0: return R0;
-                case 0x1: return R1;
-                case 0x2: return R2;
-                case 0x3: return R3;
-                case 0x4: return R4;
-                case 0x5: return R5;
-                case 0x6: return R6;
-                case 0x7: return R7;
-                case 0x8: return R8;
-                case 0x9: return R9;
-                case 0xA: return R10;
-                case 0xB: return R11;
-                case 0xC: return R12;
-                case 0xD: return R13;
-                case 0xE: return R14;
-                case 0xF: return R15;
-
-                default:
-                    Error($"Invalid GetReg: {reg}");
-                    return 0;
-            }
-
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetReg(uint reg, uint val)
-        {
-            switch (reg)
-            {
-                case 0x0: R0 = val; break;
-                case 0x1: R1 = val; break;
-                case 0x2: R2 = val; break;
-                case 0x3: R3 = val; break;
-                case 0x4: R4 = val; break;
-                case 0x5: R5 = val; break;
-                case 0x6: R6 = val; break;
-                case 0x7: R7 = val; break;
-                case 0x8: R8 = val; break;
-                case 0x9: R9 = val; break;
-                case 0xA: R10 = val; break;
-                case 0xB: R11 = val; break;
-                case 0xC: R12 = val; break;
-                case 0xD: R13 = val; break;
-                case 0xE: R14 = val; break;
-                case 0xF: R15 = val; PipelineDirty = true; break;
-
-                default:
-                    Error($"Invalid SetReg: {reg}");
-                    return;
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetUserReg(uint reg)
         {
             if (Mode == ARM7Mode.User && Mode == ARM7Mode.OldUser && Mode == ARM7Mode.System)
@@ -2900,14 +2827,14 @@ namespace OptimeGBA
 
             switch (reg)
             {
-                case 0x0: return R0;
-                case 0x1: return R1;
-                case 0x2: return R2;
-                case 0x3: return R3;
-                case 0x4: return R4;
-                case 0x5: return R5;
-                case 0x6: return R6;
-                case 0x7: return R7;
+                case 0x0: return R[0];
+                case 0x1: return R[1];
+                case 0x2: return R[2];
+                case 0x3: return R[3];
+                case 0x4: return R[4];
+                case 0x5: return R[5];
+                case 0x6: return R[6];
+                case 0x7: return R[7];
                 case 0x8: return R8usr;
                 case 0x9: return R9usr;
                 case 0xA: return R10usr;
@@ -2915,10 +2842,10 @@ namespace OptimeGBA
                 case 0xC: return R12usr;
                 case 0xD: return R13usr;
                 case 0xE: return R14usr;
-                case 0xF: return R15;
+                case 0xF: return R[15];
 
                 default:
-                    Error($"Invalid GetReg: {reg}");
+                    Error($"Invalid R: {reg}");
                     return 0;
             }
 
@@ -2934,14 +2861,14 @@ namespace OptimeGBA
 
             switch (reg)
             {
-                case 0x0: R0 = val; break;
-                case 0x1: R1 = val; break;
-                case 0x2: R2 = val; break;
-                case 0x3: R3 = val; break;
-                case 0x4: R4 = val; break;
-                case 0x5: R5 = val; break;
-                case 0x6: R6 = val; break;
-                case 0x7: R7 = val; break;
+                case 0x0: R[0] = val; break;
+                case 0x1: R[1] = val; break;
+                case 0x2: R[2] = val; break;
+                case 0x3: R[3] = val; break;
+                case 0x4: R[4] = val; break;
+                case 0x5: R[5] = val; break;
+                case 0x6: R[6] = val; break;
+                case 0x7: R[7] = val; break;
                 case 0x8: R8usr = val; break;
                 case 0x9: R9usr = val; break;
                 case 0xA: R10usr = val; break;
@@ -2949,10 +2876,10 @@ namespace OptimeGBA
                 case 0xC: R12usr = val; break;
                 case 0xD: R13usr = val; break;
                 case 0xE: R14usr = val; break;
-                case 0xF: R15 = val; PipelineDirty = true; break;
+                case 0xF: R[15] = val; PipelineDirty = true; break;
 
                 default:
-                    Error($"Invalid SetReg: {reg}");
+                    Error($"Invalid R: {reg}");
                     return;
             }
         }
@@ -3078,71 +3005,71 @@ namespace OptimeGBA
                 case ARM7Mode.User:
                 case ARM7Mode.OldUser:
                 case ARM7Mode.System:
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13usr = R13;
-                    R14usr = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13usr = R[13];
+                    R14usr = R[14];
                     LineDebug("Saved Registers: User / System");
                     break;
 
                 case ARM7Mode.FIQ:
                 case ARM7Mode.OldFIQ:
-                    R8fiq = R8;
-                    R9fiq = R9;
-                    R10fiq = R10;
-                    R11fiq = R11;
-                    R12fiq = R12;
-                    R13fiq = R13;
-                    R14fiq = R14;
+                    R8fiq = R[8];
+                    R9fiq = R[9];
+                    R10fiq = R[10];
+                    R11fiq = R[11];
+                    R12fiq = R[12];
+                    R13fiq = R[13];
+                    R14fiq = R[14];
                     LineDebug("Saved Registers: FIQ");
                     break;
 
                 case ARM7Mode.Supervisor:
                 case ARM7Mode.OldSupervisor:
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13svc = R13;
-                    R14svc = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13svc = R[13];
+                    R14svc = R[14];
                     LineDebug("Saved Registers: Supervisor");
                     break;
 
                 case ARM7Mode.Abort:
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13abt = R13;
-                    R14abt = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13abt = R[13];
+                    R14abt = R[14];
                     LineDebug("Saved Registers: Abort");
                     break;
 
                 case ARM7Mode.IRQ:
                 case ARM7Mode.OldIRQ:
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13irq = R13;
-                    R14irq = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13irq = R[13];
+                    R14irq = R[14];
                     LineDebug("Saved Registers: IRQ");
                     break;
 
                 case ARM7Mode.Undefined:
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13und = R13;
-                    R14und = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13und = R[13];
+                    R14und = R[14];
                     LineDebug("Saved Registers: Undefined");
                     break;
             }
@@ -3151,124 +3078,124 @@ namespace OptimeGBA
             {
                 case 0x00:
                     Mode = ARM7Mode.OldUser;
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13usr = R13;
-                    R14usr = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13usr = R[13];
+                    R14usr = R[14];
                     LineDebug($"Mode Switch: OldUser");
                     break;
                 case 0x01:
                     Mode = ARM7Mode.OldFIQ;
-                    R8 = R8fiq;
-                    R9 = R9fiq;
-                    R10 = R10fiq;
-                    R11 = R11fiq;
-                    R12 = R12fiq;
-                    R13 = R13fiq;
-                    R14 = R14fiq;
+                    R[8] = R8fiq;
+                    R[9] = R9fiq;
+                    R[10] = R10fiq;
+                    R[11] = R11fiq;
+                    R[12] = R12fiq;
+                    R[13] = R13fiq;
+                    R[14] = R14fiq;
                     LineDebug($"Mode Switch: OldFIQ");
                     break;
                 case 0x02:
                     Mode = ARM7Mode.OldIRQ;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13irq;
-                    R14 = R14irq;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13irq;
+                    R[14] = R14irq;
                     LineDebug($"Mode Switch: OldIRQ");
                     break;
                 case 0x03:
                     Mode = ARM7Mode.OldSupervisor;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13svc;
-                    R14 = R14svc;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13svc;
+                    R[14] = R14svc;
                     LineDebug($"Mode Switch: OldSupervisor");
                     break;
 
                 case 0x10:
                     Mode = ARM7Mode.User;
-                    R8usr = R8;
-                    R9usr = R9;
-                    R10usr = R10;
-                    R11usr = R11;
-                    R12usr = R12;
-                    R13usr = R13;
-                    R14usr = R14;
+                    R8usr = R[8];
+                    R9usr = R[9];
+                    R10usr = R[10];
+                    R11usr = R[11];
+                    R12usr = R[12];
+                    R13usr = R[13];
+                    R14usr = R[14];
                     LineDebug($"Mode Switch: User");
                     break;
                 case 0x11:
                     Mode = ARM7Mode.FIQ;
-                    R8 = R8fiq;
-                    R9 = R9fiq;
-                    R10 = R10fiq;
-                    R11 = R11fiq;
-                    R12 = R12fiq;
-                    R13 = R13fiq;
-                    R14 = R14fiq;
+                    R[8] = R8fiq;
+                    R[9] = R9fiq;
+                    R[10] = R10fiq;
+                    R[11] = R11fiq;
+                    R[12] = R12fiq;
+                    R[13] = R13fiq;
+                    R[14] = R14fiq;
                     LineDebug($"Mode Switch: FIQ");
                     break;
                 case 0x12:
                     Mode = ARM7Mode.IRQ;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13irq;
-                    R14 = R14irq;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13irq;
+                    R[14] = R14irq;
                     LineDebug($"Mode Switch: IRQ");
                     break;
                 case 0x13:
                     Mode = ARM7Mode.Supervisor;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13svc;
-                    R14 = R14svc;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13svc;
+                    R[14] = R14svc;
                     LineDebug($"Mode Switch: Supervisor");
                     break;
                 case 0x17:
                     Mode = ARM7Mode.Abort;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13abt;
-                    R14 = R14abt;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13abt;
+                    R[14] = R14abt;
                     LineDebug($"Mode Switch: Abort");
                     break;
                 case 0x1B:
                     Mode = ARM7Mode.Undefined;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13und;
-                    R14 = R14und;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13und;
+                    R[14] = R14und;
                     LineDebug($"Mode Switch: Undefined");
                     break;
                 case 0x1F:
                     Mode = ARM7Mode.System;
-                    R8 = R8usr;
-                    R9 = R9usr;
-                    R10 = R10usr;
-                    R11 = R11usr;
-                    R12 = R12usr;
-                    R13 = R13usr;
-                    R14 = R14usr;
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13usr;
+                    R[14] = R14usr;
                     LineDebug($"Mode Switch: System");
                     break;
                 default:

@@ -34,6 +34,7 @@ namespace OptimeGBAEmulator
             // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_vsync.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon Pinball - Ruby & Sapphire (USA).gba");
             byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
 
             GbaProvider provider = new GbaProvider(bios, rom, new AudioCallback(AudioReady));
             GBA gba = new GBA(provider);

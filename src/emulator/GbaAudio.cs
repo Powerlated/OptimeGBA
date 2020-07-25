@@ -210,52 +210,50 @@ namespace OptimeGBA
         uint SampleBufferPos = 0;
         public void Tick(uint cycles)
         {
-            if (MasterEnable)
+
+            SampleTimer += cycles;
+            if (SampleTimer >= SampleMax)
             {
-                if (CollectSamples)
+                SampleTimer -= SampleMax;
+
+                short left = 0;
+                short right = 0;
+
+                if (MasterEnable)
                 {
-                    SampleTimer += cycles;
-                    if (SampleTimer >= SampleMax)
+                    if (EnablePsg)
                     {
-                        SampleTimer -= SampleMax;
-
-                        short left = 0;
-                        short right = 0;
-
-                        if (EnablePsg)
-                        {
-                            left += GbAudio.Out1;
-                            right += GbAudio.Out2;
-                        }
-                        if (EnableFifo)
-                        {
-                            short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
-                            short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
-                            if (DmaSoundAEnableLeft) left += a;
-                            if (DmaSoundBEnableLeft) left += b;
-                            if (DmaSoundAEnableRight) right += a;
-                            if (DmaSoundBEnableRight) right += b;
-                        }
-
-                        SampleBuffer[SampleBufferPos + 0] = (short)(left * 64);
-                        SampleBuffer[SampleBufferPos + 1] = (short)(right * 64);
-                        SampleBufferPos += 2;
-
-                        if (SampleBufferPos >= SampleBufferSize)
-                        {
-                            if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
-                            SampleBufferPos = 0;
-                        }
+                        left += GbAudio.Out1;
+                        right += GbAudio.Out2;
+                    }
+                    if (EnableFifo)
+                    {
+                        short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
+                        short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
+                        if (DmaSoundAEnableLeft) left += a;
+                        if (DmaSoundBEnableLeft) left += b;
+                        if (DmaSoundAEnableRight) right += a;
+                        if (DmaSoundBEnableRight) right += b;
                     }
                 }
 
-                GbAudioTimer += cycles;
-                if (GbAudioTimer >= GbAudioMax)
-                {
-                    GbAudioTimer -= GbAudioMax;
+                SampleBuffer[SampleBufferPos + 0] = (short)(left * 64);
+                SampleBuffer[SampleBufferPos + 1] = (short)(right * 64);
+                SampleBufferPos += 2;
 
-                    GbAudio.Tick(4); // Tick 4 T-cycles
+                if (SampleBufferPos >= SampleBufferSize)
+                {
+                    if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
+                    SampleBufferPos = 0;
                 }
+            }
+
+            GbAudioTimer += cycles;
+            if (GbAudioTimer >= GbAudioMax)
+            {
+                GbAudioTimer -= GbAudioMax;
+
+                GbAudio.Tick(4); // Tick 4 T-cycles
             }
         }
 

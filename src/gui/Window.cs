@@ -58,6 +58,7 @@ namespace OptimeGBAEmulator
         {
             Gba = gba;
             EmulationThread = new Thread(EmulationThreadHandler);
+            EmulationThread.Name = "Emulation Core";
             EmulationThread.Start();
 
             string file = System.IO.File.ReadAllText("./swi_demo.txt");
@@ -322,22 +323,22 @@ namespace OptimeGBAEmulator
         public String BuildEmuText()
         {
             String text = "";
-            text += $"{HexN(Gba.Arm7.R0, 8)} ";
-            text += $"{HexN(Gba.Arm7.R1, 8)} ";
-            text += $"{HexN(Gba.Arm7.R2, 8)} ";
-            text += $"{HexN(Gba.Arm7.R3, 8)} ";
-            text += $"{HexN(Gba.Arm7.R4, 8)} ";
-            text += $"{HexN(Gba.Arm7.R5, 8)} ";
-            text += $"{HexN(Gba.Arm7.R6, 8)} ";
-            text += $"{HexN(Gba.Arm7.R7, 8)} ";
-            text += $"{HexN(Gba.Arm7.R8, 8)} ";
-            text += $"{HexN(Gba.Arm7.R9, 8)} ";
-            text += $"{HexN(Gba.Arm7.R10, 8)} ";
-            text += $"{HexN(Gba.Arm7.R11, 8)} ";
-            text += $"{HexN(Gba.Arm7.R12, 8)} ";
-            text += $"{HexN(Gba.Arm7.R13, 8)} ";
-            text += $"{HexN(Gba.Arm7.R14, 8)} ";
-            text += $"{HexN(Gba.Arm7.R15, 8)} ";
+            text += $"{HexN(Gba.Arm7.R[0], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[1], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[2], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[3], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[4], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[5], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[6], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[7], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[8], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[9], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[10], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[11], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[12], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[13], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[14], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[15], 8)} ";
             text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} ";
             String emuText = text.Substring(0, 135) + text.Substring(144, 14) + $" {LogIndex + 1}";
             return emuText;
@@ -388,22 +389,22 @@ namespace OptimeGBAEmulator
             String disasm = Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns);
 
             String text = "";
-            text += $"{HexN(Gba.Arm7.R0, 8)} ";
-            text += $"{HexN(Gba.Arm7.R1, 8)} ";
-            text += $"{HexN(Gba.Arm7.R2, 8)} ";
-            text += $"{HexN(Gba.Arm7.R3, 8)} ";
-            text += $"{HexN(Gba.Arm7.R4, 8)} ";
-            text += $"{HexN(Gba.Arm7.R5, 8)} ";
-            text += $"{HexN(Gba.Arm7.R6, 8)} ";
-            text += $"{HexN(Gba.Arm7.R7, 8)} ";
-            text += $"{HexN(Gba.Arm7.R8, 8)} ";
-            text += $"{HexN(Gba.Arm7.R9, 8)} ";
-            text += $"{HexN(Gba.Arm7.R10, 8)} ";
-            text += $"{HexN(Gba.Arm7.R11, 8)} ";
-            text += $"{HexN(Gba.Arm7.R12, 8)} ";
-            text += $"{HexN(Gba.Arm7.R13, 8)} ";
-            text += $"{HexN(Gba.Arm7.R14, 8)} ";
-            text += $"{HexN(Gba.Arm7.R15, 8)} ";
+            text += $"{HexN(Gba.Arm7.R[0], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[1], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[2], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[3], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[4], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[5], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[6], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[7], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[8], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[9], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[10], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[11], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[12], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[13], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[14], 8)} ";
+            text += $"{HexN(Gba.Arm7.R[15], 8)} ";
             text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ";
             text += $"{(Gba.Arm7.ThumbState ? "    " + HexN(Gba.Arm7.LastIns, 4) : HexN(Gba.Arm7.LastIns, 8))}: {disasm}";
             // text += $"> {LogIndex + 1}";
@@ -445,22 +446,22 @@ namespace OptimeGBAEmulator
             ImGui.Columns(4);
 
             ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-            ImGui.Text($"R0:  {Hex(Gba.Arm7.R0, 8)}");
-            ImGui.Text($"R1:  {Hex(Gba.Arm7.R1, 8)}");
-            ImGui.Text($"R2:  {Hex(Gba.Arm7.R2, 8)}");
-            ImGui.Text($"R3:  {Hex(Gba.Arm7.R3, 8)}");
-            ImGui.Text($"R4:  {Hex(Gba.Arm7.R4, 8)}");
-            ImGui.Text($"R5:  {Hex(Gba.Arm7.R5, 8)}");
-            ImGui.Text($"R6:  {Hex(Gba.Arm7.R6, 8)}");
-            ImGui.Text($"R7:  {Hex(Gba.Arm7.R7, 8)}");
-            ImGui.Text($"R8:  {Hex(Gba.Arm7.R8, 8)}");
-            ImGui.Text($"R9:  {Hex(Gba.Arm7.R9, 8)}");
-            ImGui.Text($"R10: {Hex(Gba.Arm7.R10, 8)}");
-            ImGui.Text($"R11: {Hex(Gba.Arm7.R11, 8)}");
-            ImGui.Text($"R12: {Hex(Gba.Arm7.R12, 8)}");
-            ImGui.Text($"R13: {Hex(Gba.Arm7.R13, 8)}");
-            ImGui.Text($"R14: {Hex(Gba.Arm7.R14, 8)}");
-            ImGui.Text($"R15: {Hex(Gba.Arm7.R15, 8)}");
+            ImGui.Text($"R0:  {Hex(Gba.Arm7.R[0], 8)}");
+            ImGui.Text($"R1:  {Hex(Gba.Arm7.R[1], 8)}");
+            ImGui.Text($"R2:  {Hex(Gba.Arm7.R[2], 8)}");
+            ImGui.Text($"R3:  {Hex(Gba.Arm7.R[3], 8)}");
+            ImGui.Text($"R4:  {Hex(Gba.Arm7.R[4], 8)}");
+            ImGui.Text($"R5:  {Hex(Gba.Arm7.R[5], 8)}");
+            ImGui.Text($"R6:  {Hex(Gba.Arm7.R[6], 8)}");
+            ImGui.Text($"R7:  {Hex(Gba.Arm7.R[7], 8)}");
+            ImGui.Text($"R8:  {Hex(Gba.Arm7.R[8], 8)}");
+            ImGui.Text($"R9:  {Hex(Gba.Arm7.R[9], 8)}");
+            ImGui.Text($"R10: {Hex(Gba.Arm7.R[10], 8)}");
+            ImGui.Text($"R11: {Hex(Gba.Arm7.R[11], 8)}");
+            ImGui.Text($"R12: {Hex(Gba.Arm7.R[12], 8)}");
+            ImGui.Text($"R13: {Hex(Gba.Arm7.R[13], 8)}");
+            ImGui.Text($"R14: {Hex(Gba.Arm7.R[14], 8)}");
+            ImGui.Text($"R15: {Hex(Gba.Arm7.R[15], 8)}");
             ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
             ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
             ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
@@ -784,7 +785,7 @@ namespace OptimeGBAEmulator
                 uint back = Gba.Arm7.ThumbState ? 16U : 32U;
 
                 int rows = 32;
-                uint tempBase = Gba.Arm7.R15 - back;
+                uint tempBase = Gba.Arm7.R[15] - back;
 
 
                 for (int i = 0; i < rows; i++)
@@ -795,7 +796,7 @@ namespace OptimeGBAEmulator
                         String disasm = DisasmThumb(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                        if (tempBase == Gba.Arm7.R15 - 2)
+                        if (tempBase == Gba.Arm7.R[15] - 2)
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -811,7 +812,7 @@ namespace OptimeGBAEmulator
                         String disasm = DisasmArm(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                        if (tempBase == Gba.Arm7.R15 - 4)
+                        if (tempBase == Gba.Arm7.R[15] - 4)
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }

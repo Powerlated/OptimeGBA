@@ -1,4 +1,5 @@
 using static OptimeGBA.Bits;
+using System.Threading;
 using System;
 
 namespace OptimeGBA
@@ -9,6 +10,10 @@ namespace OptimeGBA
         public LCD(GBA gba)
         {
             Gba = gba;
+
+            RenderThread = new Thread(RenderThreadFunction);
+            RenderThread.Name = "Emulation Render Thread";
+            RenderThread.Start();
         }
 
         public enum LCDEnum
@@ -16,22 +21,26 @@ namespace OptimeGBA
             Drawing, HBlank, VBlank
         }
 
+        public Thread RenderThread;
+        public ManualResetEventSlim RenderThreadSync = new ManualResetEventSlim(true);
+        public ManualResetEventSlim RenderThreadWait = new ManualResetEventSlim(true);
+        public bool RenderingDone = false;
 
         // DISPCNT
-        uint Mode;
-        bool CgbMode;
-        bool DisplayFrameSelect;
-        bool HBlankIntervalFree;
-        bool ObjCharacterVramMapping;
-        bool ForcedBlank;
-        bool ScreenDisplayBg0;
-        bool ScreenDisplayBg1;
-        bool ScreenDisplayBg2;
-        bool ScreenDisplayBg3;
-        bool ScreenDisplayObj;
-        bool Window0DisplayFlag;
-        bool Window1DisplayFlag;
-        bool ObjWindowDisplayFlag;
+        public uint Mode;
+        public bool CgbMode;
+        public bool DisplayFrameSelect;
+        public bool HBlankIntervalFree;
+        public bool ObjCharacterVramMapping;
+        public bool ForcedBlank;
+        public bool ScreenDisplayBg0;
+        public bool ScreenDisplayBg1;
+        public bool ScreenDisplayBg2;
+        public bool ScreenDisplayBg3;
+        public bool ScreenDisplayObj;
+        public bool Window0DisplayFlag;
+        public bool Window1DisplayFlag;
+        public bool ObjWindowDisplayFlag;
 
         // DISPSTAT
         public bool VBlank;
@@ -198,7 +207,6 @@ namespace OptimeGBA
                         {
                             lcdEnum = LCDEnum.HBlank;
                             HBlank = true;
-                            RenderScanline();
                         }
                     }
                     break;
@@ -209,6 +217,11 @@ namespace OptimeGBA
                             CycleCount = 0;
 
                             HBlank = false;
+
+                            if (VCount < 160)
+                            {
+                                WaitForRenderingFinish();
+                            }
 
                             if (VCount != 227)
                             {
@@ -233,6 +246,7 @@ namespace OptimeGBA
                                 else
                                 {
                                     lcdEnum = LCDEnum.Drawing;
+                                    ActivateRenderThread();
                                 }
                             }
                             else
@@ -242,6 +256,7 @@ namespace OptimeGBA
                                 if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
+                                ActivateRenderThread();
                             }
                         }
                     }
@@ -256,6 +271,33 @@ namespace OptimeGBA
                     }
                     break;
 
+            }
+        }
+
+        public void ActivateRenderThread()
+        {
+            RenderingDone = false;
+            RenderThreadSync.Set();
+        }
+
+        public void WaitForRenderingFinish()
+        {
+            if (!RenderingDone)
+            {
+                RenderThreadWait.Wait();
+                RenderThreadWait.Reset();
+            }
+        }
+
+        public void RenderThreadFunction()
+        {
+            while (true)
+            {
+                RenderThreadSync.Wait();
+                RenderThreadSync.Reset();
+                RenderScanline();
+                RenderThreadWait.Set();
+                RenderingDone = true;
             }
         }
 
