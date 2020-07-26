@@ -9,6 +9,9 @@ namespace OptimeGBA
         GBA Gba;
         GbaProvider GbaRomProvider;
 
+        public byte[] Bios = new byte[16384];
+        public byte[] Rom = new byte[33554432];
+
         public Memory(GBA gba, GbaProvider gbaRomProvider)
         {
             Gba = gba;
@@ -85,12 +88,12 @@ namespace OptimeGBA
                     OamReads++;
                     return Gba.Lcd.Read8(addr);
                 case 0x8: // Game Pak ROM/FlashROM 
+                    RomReads++;
+                    return GbaRomProvider.Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
-                    RomReads++;
-                    return GbaRomProvider.Rom[addr - 0x08000000];
                 case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                     return ReadFlash(addr);
@@ -154,11 +157,11 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     return Gba.Lcd.Read8(addr);
                 case 0x8: // Game Pak ROM/FlashROM 
+                    return GbaRomProvider.Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
-                    return GbaRomProvider.Rom[addr - 0x08000000];
                 case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                     return ReadFlash(addr);
