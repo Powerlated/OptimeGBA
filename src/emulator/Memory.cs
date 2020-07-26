@@ -78,13 +78,16 @@ namespace OptimeGBA
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
                     PaletteReads++;
-                    return Gba.Lcd.Read8(addr);
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
                     VramReads++;
-                    return Gba.Lcd.Read8(addr);
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    return Gba.Lcd.Vram[addr];
                 case 0x7: // PPU OAM
                     OamReads++;
-                    return Gba.Lcd.Read8(addr);
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    return Gba.Lcd.Oam[addr];
                 case 0x8: // Game Pak ROM/FlashROM 
                     RomReads++;
                     return Rom[addr - 0x08000000];
@@ -124,18 +127,35 @@ namespace OptimeGBA
                         return *(ushort*)(ptr + addr);
                     }
                 case 0x3: // IWRAM
-                    EwramReads += 2;
+                    IwramReads += 2;
                     addr = (addr - 0x03000000) & 0x7FFF;
                     fixed (byte* ptr = Iwram)
                     {
                         return *(ushort*)(ptr + addr);
                     }
                 case 0x4: // I/O Registers
+                    goto default;
                 case 0x5: // PPU Palettes
-                    goto default;
+                    PaletteReads += 2;
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Palettes)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
                 case 0x6: // PPU VRAM
+                    VramReads += 2;
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    fixed (byte* ptr = Gba.Lcd.Vram)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
                 case 0x7: // PPU OAM
-                    goto default;
+                    OamReads += 2;
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Oam)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -192,17 +212,35 @@ namespace OptimeGBA
                         return *(uint*)(ptr + addr);
                     }
                 case 0x3: // IWRAM
-                    EwramReads += 4;
+                    IwramReads += 4;
                     addr = (addr - 0x03000000) & 0x7FFF;
                     fixed (byte* ptr = Iwram)
                     {
                         return *(uint*)(ptr + addr);
                     }
                 case 0x4: // I/O Registers
-                case 0x5: // PPU Palettes
-                case 0x6: // PPU VRAM
-                case 0x7: // PPU OAM
                     goto default;
+                case 0x5: // PPU Palettes
+                    PaletteReads += 4;
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Palettes)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
+                case 0x6: // PPU VRAM
+                    VramReads += 4;
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    fixed (byte* ptr = Gba.Lcd.Vram)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
+                case 0x7: // PPU OAM
+                    OamReads += 4;
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Oam)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -260,9 +298,14 @@ namespace OptimeGBA
 
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    return Gba.Lcd.Vram[addr];
                 case 0x7: // PPU OAM
-                    return Gba.Lcd.Read8(addr);
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    return Gba.Lcd.Oam[addr];
                 case 0x8: // Game Pak ROM/FlashROM 
                     return Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -332,16 +375,20 @@ namespace OptimeGBA
                     break;
                 case 0x5: // PPU Palettes
                     PaletteWrites++;
-                    Gba.Lcd.Write8(addr, val);
-                    break;
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    Gba.Lcd.UpdatePalette(addr / 2);
+                    Gba.Lcd.Palettes[addr] = val;
+                    return;
                 case 0x6: // PPU VRAM
                     VramWrites++;
-                    Gba.Lcd.Write8(addr, val);
-                    break;
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    Gba.Lcd.Vram[addr] = val;
+                    return;
                 case 0x7: // PPU OAM
                     OamWrites++;
-                    Gba.Lcd.Write8(addr, val);
-                    break;
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    Gba.Lcd.Oam[addr] = val;
+                    return;
                 case 0x8: // Game Pak ROM/FlashROM 
                     break;
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -377,7 +424,7 @@ namespace OptimeGBA
                         return;
                     }
                 case 0x3: // IWRAM
-                    EwramWrites += 2;
+                    IwramWrites += 2;
                     addr = (addr - 0x03000000) & 0x7FFF;
                     fixed (byte* ptr = Iwram)
                     {
@@ -385,10 +432,32 @@ namespace OptimeGBA
                         return;
                     }
                 case 0x4: // I/O Registers
-                case 0x5: // PPU Palettes
-                case 0x6: // PPU VRAM
-                case 0x7: // PPU OAM
                     goto default;
+                case 0x5: // PPU Palettes
+                    PaletteWrites += 2;
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    Gba.Lcd.UpdatePalette(addr / 2);
+                    fixed (byte* ptr = Gba.Lcd.Palettes)
+                    {
+                        *(ushort*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x6: // PPU VRAM
+                    VramWrites += 2;
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    fixed (byte* ptr = Gba.Lcd.Vram)
+                    {
+                        *(ushort*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x7: // PPU OAM
+                    OamWrites += 2;
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Oam)
+                    {
+                        *(ushort*)(ptr + addr) = val;
+                        return;
+                    }
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -426,7 +495,7 @@ namespace OptimeGBA
                         return;
                     }
                 case 0x3: // IWRAM
-                    EwramWrites += 4;
+                    IwramWrites += 4;
                     addr = (addr - 0x03000000) & 0x7FFF;
                     fixed (byte* ptr = Iwram)
                     {
@@ -434,10 +503,32 @@ namespace OptimeGBA
                         return;
                     }
                 case 0x4: // I/O Registers
-                case 0x5: // PPU Palettes
-                case 0x6: // PPU VRAM
-                case 0x7: // PPU OAM
                     goto default;
+                case 0x5: // PPU Palettes
+                    PaletteWrites += 4;
+                    addr = (addr - 0x05000000) & 0x3FF;
+                    Gba.Lcd.UpdatePalette(addr / 2);
+                    fixed (byte* ptr = Gba.Lcd.Palettes)
+                    {
+                        *(uint*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x6: // PPU VRAM
+                    VramWrites += 4;
+                    addr = (addr - 0x06000000) & 0x1FFFF;
+                    fixed (byte* ptr = Gba.Lcd.Vram)
+                    {
+                        *(uint*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x7: // PPU OAM
+                    OamWrites += 4;
+                    addr = (addr - 0x07000000) & 0x3FF;
+                    fixed (byte* ptr = Gba.Lcd.Oam)
+                    {
+                        *(uint*)(ptr + addr) = val;
+                        return;
+                    }
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
