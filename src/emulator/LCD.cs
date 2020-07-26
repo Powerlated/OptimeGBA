@@ -78,39 +78,6 @@ namespace OptimeGBA
             ProcessedPalettes[pal, 2] = (byte)(b * (255 / 31));
         }
 
-        public byte Read8(uint addr)
-        {
-            if (addr >= 0x05000000 && addr <= 0x050003FF)
-            {
-                return Palettes[addr - 0x05000000];
-            }
-            else if (addr >= 0x06000000 && addr <= 0x06017FFF)
-            {
-                return Vram[addr - 0x06000000];
-            }
-            else if (addr >= 0x07000000 && addr <= 0x070003FF)
-            {
-                return Oam[addr - 0x07000000];
-            }
-            return 0;
-        }
-
-        public void Write8(uint addr, byte val)
-        {
-            if (addr >= 0x05000000 && addr <= 0x050003FF)
-            {
-                Palettes[addr - 0x05000000] = val;
-                UpdatePalette((addr - 0x05000000) / 2);
-            }
-            else if (addr >= 0x06000000 && addr <= 0x06017FFF)
-            {
-                Vram[addr - 0x06000000] = val;
-            }
-            else if (addr >= 0x07000000 && addr <= 0x070003FF)
-            {
-                Oam[addr - 0x07000000] = val;
-            }
-        }
 
         public byte ReadHwio8(uint addr)
         {
@@ -198,6 +165,7 @@ namespace OptimeGBA
         public LCDEnum lcdEnum;
         public void Tick(uint cycles)
         {
+            // This is called every 16 cycles
             CycleCount += cycles;
             switch (lcdEnum)
             {
@@ -214,7 +182,7 @@ namespace OptimeGBA
                     {
                         if (CycleCount >= 1232)
                         {
-                            CycleCount = 0;
+                            CycleCount -= 1232;
 
                             HBlank = false;
 

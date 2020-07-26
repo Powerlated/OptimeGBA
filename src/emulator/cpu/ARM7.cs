@@ -192,12 +192,14 @@ namespace OptimeGBA
 
         public void Execute()
         {
+            #if DEBUG
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
                 return;
             }
             ResetDebug();
+            #endif
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
@@ -3293,7 +3295,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming8And16(uint addr)
         {
-            return 1;
+            return 2;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 2; // BIOS
@@ -3320,7 +3322,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming32(uint addr)
         {
-            return 1;
+            return 2;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 4; // BIOS

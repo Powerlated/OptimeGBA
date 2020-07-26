@@ -42,7 +42,7 @@ namespace OptimeGBAEmulator
                     int num = FrameIns;
                     while (num > 0 && !Gba.Arm7.Errored)
                     {
-                        Gba.Step();
+                        Gba.BigStep();
                         num--;
                     }
                 }
@@ -136,7 +136,7 @@ namespace OptimeGBAEmulator
             base.OnUpdateFrame(e);
         }
 
-        const int FrameIns = 69905;
+        const int FrameIns = 70224;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
@@ -443,327 +443,330 @@ namespace OptimeGBAEmulator
         public void DrawDebug()
         {
 
-            ImGui.Columns(4);
-
-            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-            ImGui.Text($"R0:  {Hex(Gba.Arm7.R[0], 8)}");
-            ImGui.Text($"R1:  {Hex(Gba.Arm7.R[1], 8)}");
-            ImGui.Text($"R2:  {Hex(Gba.Arm7.R[2], 8)}");
-            ImGui.Text($"R3:  {Hex(Gba.Arm7.R[3], 8)}");
-            ImGui.Text($"R4:  {Hex(Gba.Arm7.R[4], 8)}");
-            ImGui.Text($"R5:  {Hex(Gba.Arm7.R[5], 8)}");
-            ImGui.Text($"R6:  {Hex(Gba.Arm7.R[6], 8)}");
-            ImGui.Text($"R7:  {Hex(Gba.Arm7.R[7], 8)}");
-            ImGui.Text($"R8:  {Hex(Gba.Arm7.R[8], 8)}");
-            ImGui.Text($"R9:  {Hex(Gba.Arm7.R[9], 8)}");
-            ImGui.Text($"R10: {Hex(Gba.Arm7.R[10], 8)}");
-            ImGui.Text($"R11: {Hex(Gba.Arm7.R[11], 8)}");
-            ImGui.Text($"R12: {Hex(Gba.Arm7.R[12], 8)}");
-            ImGui.Text($"R13: {Hex(Gba.Arm7.R[13], 8)}");
-            ImGui.Text($"R14: {Hex(Gba.Arm7.R[14], 8)}");
-            ImGui.Text($"R15: {Hex(Gba.Arm7.R[15], 8)}");
-            ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
-            ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
-            ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
-
-            ImGui.Text($"Mode: {Gba.Arm7.Mode}");
-            ImGui.Text($"Last Cycles: {Gba.Arm7.LastPendingCycles}");
-
-            // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
-
-            ImGui.Text($"");
-
-            if (ImGui.Button("Reset"))
+            if (ImGui.Begin("Debug"))
             {
-                ResetGba();
-            }
+                ImGui.Columns(4);
 
-            if (ImGui.Button("Frame Advance"))
-            {
-                int num = FrameIns;
-                while (num > 0 && !Gba.Arm7.Errored)
+                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
+                ImGui.Text($"R0:  {Hex(Gba.Arm7.R[0], 8)}");
+                ImGui.Text($"R1:  {Hex(Gba.Arm7.R[1], 8)}");
+                ImGui.Text($"R2:  {Hex(Gba.Arm7.R[2], 8)}");
+                ImGui.Text($"R3:  {Hex(Gba.Arm7.R[3], 8)}");
+                ImGui.Text($"R4:  {Hex(Gba.Arm7.R[4], 8)}");
+                ImGui.Text($"R5:  {Hex(Gba.Arm7.R[5], 8)}");
+                ImGui.Text($"R6:  {Hex(Gba.Arm7.R[6], 8)}");
+                ImGui.Text($"R7:  {Hex(Gba.Arm7.R[7], 8)}");
+                ImGui.Text($"R8:  {Hex(Gba.Arm7.R[8], 8)}");
+                ImGui.Text($"R9:  {Hex(Gba.Arm7.R[9], 8)}");
+                ImGui.Text($"R10: {Hex(Gba.Arm7.R[10], 8)}");
+                ImGui.Text($"R11: {Hex(Gba.Arm7.R[11], 8)}");
+                ImGui.Text($"R12: {Hex(Gba.Arm7.R[12], 8)}");
+                ImGui.Text($"R13: {Hex(Gba.Arm7.R[13], 8)}");
+                ImGui.Text($"R14: {Hex(Gba.Arm7.R[14], 8)}");
+                ImGui.Text($"R15: {Hex(Gba.Arm7.R[15], 8)}");
+                ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
+                ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
+
+                ImGui.Text($"Mode: {Gba.Arm7.Mode}");
+                ImGui.Text($"Last Cycles: {Gba.Arm7.LastPendingCycles}");
+
+                // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
+
+                ImGui.Text($"");
+
+                if (ImGui.Button("Reset"))
                 {
-                    Gba.Step();
-                    num--;
+                    ResetGba();
                 }
-            }
 
-            if (ImGui.Button("Un-error"))
-            {
-                Gba.Arm7.Errored = false;
-            }
-            if (ImGui.Button("Step"))
-            {
-                Gba.Step();
-                LogIndex++;
-            }
-            if (ImGui.Button("Step Until Error"))
-            {
-                bool exit = false;
-                while (!Gba.Arm7.Errored && !exit)
+                if (ImGui.Button("Frame Advance"))
                 {
+                    int num = FrameIns;
+                    while (num > 0 && !Gba.Arm7.Errored)
+                    {
+                        Gba.Step();
+                        num--;
+                    }
+                }
 
+                if (ImGui.Button("Un-error"))
+                {
+                    Gba.Arm7.Errored = false;
+                }
+                if (ImGui.Button("Step"))
+                {
                     Gba.Step();
                     LogIndex++;
-
-                    if (BuildEmuText() != BuildLogText())
-                    {
-                        exit = true;
-                    }
                 }
-            }
-
-            ImGui.InputText("", text, 4);
-            ImGui.InputInt("", ref DebugStepFor);
-            if (ImGui.Button("Step For"))
-            {
-                using (StreamWriter file = new StreamWriter("log.txt"))
+                if (ImGui.Button("Step Until Error"))
                 {
-                    int num = DebugStepFor;
-                    while (num > 0 && !Gba.Arm7.Errored)
+                    bool exit = false;
+                    while (!Gba.Arm7.Errored && !exit)
                     {
+
                         Gba.Step();
-
-                        // file.WriteLine(BuildEmuFullText());
-
                         LogIndex++;
-                        num--;
+
+                        if (BuildEmuText() != BuildLogText())
+                        {
+                            exit = true;
+                        }
                     }
                 }
-            }
 
-            if (ImGui.Button("Step 100000"))
-            {
-                using (StreamWriter file = new StreamWriter("log.txt"))
+                ImGui.InputText("", text, 4);
+                ImGui.InputInt("", ref DebugStepFor);
+                if (ImGui.Button("Step For"))
                 {
-                    int num = 100000;
-                    while (num > 0 && !Gba.Arm7.Errored)
+                    using (StreamWriter file = new StreamWriter("log.txt"))
                     {
-                        Gba.Step();
+                        int num = DebugStepFor;
+                        while (num > 0 && !Gba.Arm7.Errored)
+                        {
+                            Gba.Step();
 
-                        file.WriteLine(BuildEmuFullText());
+                            // file.WriteLine(BuildEmuFullText());
 
-                        LogIndex++;
-                        num--;
+                            LogIndex++;
+                            num--;
+                        }
                     }
                 }
+
+                if (ImGui.Button("Step 100000"))
+                {
+                    using (StreamWriter file = new StreamWriter("log.txt"))
+                    {
+                        int num = 100000;
+                        while (num > 0 && !Gba.Arm7.Errored)
+                        {
+                            Gba.Step();
+
+                            file.WriteLine(BuildEmuFullText());
+
+                            LogIndex++;
+                            num--;
+                        }
+                    }
+                }
+
+                ImGui.Checkbox("Frame Step", ref FrameStep);
+                // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
+
+                ImGui.NextColumn();
+                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
+
+                bool negative = Gba.Arm7.Negative;
+                bool zero = Gba.Arm7.Zero;
+                bool carry = Gba.Arm7.Carry;
+                bool overflow = Gba.Arm7.Overflow;
+                bool sticky = Gba.Arm7.Sticky;
+                bool irqDisable = Gba.Arm7.IRQDisable;
+                bool fiqDisable = Gba.Arm7.FIQDisable;
+                bool thumbState = Gba.Arm7.ThumbState;
+
+                ImGui.Checkbox("Negative", ref negative);
+                ImGui.Checkbox("Zero", ref zero);
+                ImGui.Checkbox("Carry", ref carry);
+                ImGui.Checkbox("Overflow", ref overflow);
+                ImGui.Checkbox("Sticky", ref sticky);
+                ImGui.Checkbox("IRQ Disable", ref irqDisable);
+                ImGui.Checkbox("FIQ Disable", ref fiqDisable);
+                ImGui.Checkbox("Thumb State", ref thumbState);
+
+                ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
+                ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
+                ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
+                ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
+                ImGui.Text($"HWIO Reads: {Gba.Mem.HwioReads}");
+                ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
+                ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
+                ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
+                ImGui.Text("");
+                ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
+                ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
+                ImGui.Text($"HWIO Writes: {Gba.Mem.HwioWrites}");
+                ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
+                ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
+                ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
+                ImGui.Text("");
+                bool ticked = Gba.HwControl.IME;
+                ImGui.Checkbox("IME", ref ticked);
+                bool halted = Gba.HwControl.HaltMode;
+                ImGui.Checkbox("Halt Mode", ref halted);
+
+                ImGui.NextColumn();
+
+                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
+
+                ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
+                ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
+                ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DmaSource, 8)}");
+                ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DmaSource, 8)}");
+                ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DmaSource, 8)}");
+                ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DmaSource, 8)}");
+                ImGui.Text("");
+                ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DmaDest, 8)}");
+                ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DmaDest, 8)}");
+                ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DmaDest, 8)}");
+                ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DmaDest, 8)}");
+                ImGui.Text("");
+                ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DmaLength, 4)}");
+                ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DmaLength, 4)}");
+                ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DmaLength, 4)}");
+                ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DmaLength, 4)}");
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CounterVal, 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CounterVal, 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CounterVal, 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CounterVal, 4)}");
+                ImGui.Text("");
+                ImGui.Text($"Timer 0 Reload: {Hex(Gba.Timers.T[0].ReloadVal, 4)}");
+                ImGui.Text($"Timer 1 Reload: {Hex(Gba.Timers.T[1].ReloadVal, 4)}");
+                ImGui.Text($"Timer 2 Reload: {Hex(Gba.Timers.T[2].ReloadVal, 4)}");
+                ImGui.Text($"Timer 3 Reload: {Hex(Gba.Timers.T[3].ReloadVal, 4)}");
+                ImGui.Text("");
+
+                String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
+
+                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].PrescalerSel]}");
+                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].PrescalerSel]}");
+                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].PrescalerSel]}");
+                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].PrescalerSel]}");
+
+                ImGui.NextColumn();
+                ImGui.Text($"FIFO A Current Bytes: {Gba.GbaAudio.A.Bytes}");
+                ImGui.Text($"FIFO B Current Bytes: {Gba.GbaAudio.B.Bytes}");
+                ImGui.Text($"FIFO A Collisions: {Gba.GbaAudio.A.Collisions}");
+                ImGui.Text($"FIFO B Collisions: {Gba.GbaAudio.B.Collisions}");
+                ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
+                ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
+                ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
+                ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
+                ImGui.Text($"FIFO A Full Inserts: {Gba.GbaAudio.A.FullInserts}");
+                ImGui.Text($"FIFO B Full Inserts: {Gba.GbaAudio.B.FullInserts}");
+                ImGui.Text("");
+                ImGui.Text($"PSG A Output Value: {Gba.GbaAudio.GbAudio.Out1}");
+                ImGui.Text($"PSG B Output Value: {Gba.GbaAudio.GbAudio.Out2}");
+                ImGui.Text("");
+                ImGui.Text($"Left Master Volume: {Gba.GbaAudio.GbAudio.leftMasterVol}");
+                ImGui.Text($"Right Master Volume: {Gba.GbaAudio.GbAudio.rightMasterVol}");
+                ImGui.Text("");
+                ImGui.Text($"Pulse 1 Current Value: {Gba.GbaAudio.GbAudio.pulse1Val}");
+                ImGui.Text($"Pulse 2 Current Value: {Gba.GbaAudio.GbAudio.pulse2Val}");
+                ImGui.Text($"Wave Current Value: {Gba.GbaAudio.GbAudio.waveVal}");
+                ImGui.Text($"Noise Current Value: {Gba.GbaAudio.GbAudio.noiseVal}");
+                ImGui.Text("");
+                // ImGui.Text($"Pulse 1 Enabled: {Gba.GbaAudio.GbAudio.pulse1_enabled}");
+                // ImGui.Text($"Pulse 1 Width: {Gba.GbaAudio.GbAudio.pulse1_width}");
+                // ImGui.Text($"Pulse 1 DAC Enabled: {Gba.GbaAudio.GbAudio.pulse1_dacEnabled}");
+                // ImGui.Text($"Pulse 1 Length Enable: {Gba.GbaAudio.GbAudio.pulse1_lengthEnable}");
+                // ImGui.Text($"Pulse 1 Length Counter: {Gba.GbaAudio.GbAudio.pulse1_lengthCounter}");
+                // ImGui.Text($"Pulse 1 Frequency Upper: {Gba.GbaAudio.GbAudio.pulse1_frequencyUpper}");
+                // ImGui.Text($"Pulse 1 Frequency Lower: {Gba.GbaAudio.GbAudio.pulse1_frequencyLower}");
+                // ImGui.Text($"Pulse 1 Volume: {Gba.GbaAudio.GbAudio.pulse1_volume}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Up: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeUp}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Sweep: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeSweep}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Start: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeStart}");
+                // ImGui.Text($"Pulse 1 Output Left: {Gba.GbaAudio.GbAudio.pulse1_outputLeft}");
+                // ImGui.Text($"Pulse 1 Output Right: {Gba.GbaAudio.GbAudio.pulse1_outputRight}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Period: {Gba.GbaAudio.GbAudio.pulse1_freqSweepPeriod}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Up: {Gba.GbaAudio.GbAudio.pulse1_freqSweepUp}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Gba.GbaAudio.GbAudio.pulse1_freqSweepShift}");
+                // ImGui.Text($"Pulse 1 Updated: {Gba.GbaAudio.GbAudio.pulse1_updated}");
+                // ImGui.Text("");
+                ImGui.Text($"Wave Bank: {Gba.GbaAudio.GbAudio.wave_bank}");
+                ImGui.Text($"Wave Dimension: {Gba.GbaAudio.GbAudio.wave_dimension}");
+                ImGui.Text($"Wave Enabled: {Gba.GbaAudio.GbAudio.wave_enabled}");
+                ImGui.Text($"Wave DAC Enabled: {Gba.GbaAudio.GbAudio.wave_dacEnabled}");
+                ImGui.Text($"Wave Length Enable: {Gba.GbaAudio.GbAudio.wave_lengthEnable}");
+                ImGui.Text($"Wave Length Counter: {Gba.GbaAudio.GbAudio.wave_lengthCounter}");
+                ImGui.Text($"Wave Frequency Upper: {Gba.GbaAudio.GbAudio.wave_frequencyUpper}");
+                ImGui.Text($"Wave Frequency Lower: {Gba.GbaAudio.GbAudio.wave_frequencyLower}");
+                ImGui.Text($"Wave Volume: {Gba.GbaAudio.GbAudio.wave_volume}");
+                ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
+                ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
+
+                ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
+                ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
+
+                ImGui.Columns(1);
+                ImGui.Separator();
+
+                ImGui.Text("Palettes");
+
+                byte[] image = new byte[16 * 16 * 3];
+
+                for (int p = 0; p < 256; p++)
+                {
+                    int imgBase = p * 3;
+                    image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
+                    image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
+                    image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
+                }
+
+                int texId = GL.GenTexture();
+                GL.BindTexture(TextureTarget.Texture2D, texId);
+
+                // TexParameter needed for something to display :)
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+
+                GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+                GL.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    PixelInternalFormat.Rgb,
+                    16,
+                    16,
+                    0,
+                    PixelFormat.Rgb,
+                    PixelType.UnsignedByte,
+                    image
+                );
+
+                // ImGui.Text($"Pointer: {texId}");
+                ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
+
+                for (int p = 0; p < 256; p++)
+                {
+                    int imgBase = p * 3;
+                    image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p + 256, 0];
+                    image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p + 256, 1];
+                    image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p + 256, 2];
+                }
+
+                texId = GL.GenTexture();
+                GL.BindTexture(TextureTarget.Texture2D, texId);
+
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+
+                GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+                GL.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    PixelInternalFormat.Rgb,
+                    16,
+                    16,
+                    0,
+                    PixelFormat.Rgb,
+                    PixelType.UnsignedByte,
+                    image
+                );
+
+                ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
+
+                ImGui.End();
+
             }
-
-            ImGui.Checkbox("Frame Step", ref FrameStep);
-            // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
-
-            ImGui.NextColumn();
-            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
-
-            bool negative = Gba.Arm7.Negative;
-            bool zero = Gba.Arm7.Zero;
-            bool carry = Gba.Arm7.Carry;
-            bool overflow = Gba.Arm7.Overflow;
-            bool sticky = Gba.Arm7.Sticky;
-            bool irqDisable = Gba.Arm7.IRQDisable;
-            bool fiqDisable = Gba.Arm7.FIQDisable;
-            bool thumbState = Gba.Arm7.ThumbState;
-
-            ImGui.Checkbox("Negative", ref negative);
-            ImGui.Checkbox("Zero", ref zero);
-            ImGui.Checkbox("Carry", ref carry);
-            ImGui.Checkbox("Overflow", ref overflow);
-            ImGui.Checkbox("Sticky", ref sticky);
-            ImGui.Checkbox("IRQ Disable", ref irqDisable);
-            ImGui.Checkbox("FIQ Disable", ref fiqDisable);
-            ImGui.Checkbox("Thumb State", ref thumbState);
-
-            ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
-            ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
-            ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
-            ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
-            ImGui.Text($"HWIO Reads: {Gba.Mem.HwioReads}");
-            ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
-            ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
-            ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
-            ImGui.Text("");
-            ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
-            ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
-            ImGui.Text($"HWIO Writes: {Gba.Mem.HwioWrites}");
-            ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
-            ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
-            ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
-            ImGui.Text("");
-            bool ticked = Gba.HwControl.IME;
-            ImGui.Checkbox("IME", ref ticked);
-            bool halted = Gba.HwControl.HaltMode;
-            ImGui.Checkbox("Halt Mode", ref halted);
-
-            ImGui.NextColumn();
-
-            ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-
-            ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
-            ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
-            ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
-
-            ImGuiColumnSeparator();
-
-            ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DmaSource, 8)}");
-            ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DmaSource, 8)}");
-            ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DmaSource, 8)}");
-            ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DmaSource, 8)}");
-            ImGui.Text("");
-            ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DmaDest, 8)}");
-            ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DmaDest, 8)}");
-            ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DmaDest, 8)}");
-            ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DmaDest, 8)}");
-            ImGui.Text("");
-            ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DmaLength, 4)}");
-            ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DmaLength, 4)}");
-            ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DmaLength, 4)}");
-            ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DmaLength, 4)}");
-
-            ImGuiColumnSeparator();
-
-            ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CounterVal, 4)}");
-            ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CounterVal, 4)}");
-            ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CounterVal, 4)}");
-            ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CounterVal, 4)}");
-            ImGui.Text("");
-            ImGui.Text($"Timer 0 Reload: {Hex(Gba.Timers.T[0].ReloadVal, 4)}");
-            ImGui.Text($"Timer 1 Reload: {Hex(Gba.Timers.T[1].ReloadVal, 4)}");
-            ImGui.Text($"Timer 2 Reload: {Hex(Gba.Timers.T[2].ReloadVal, 4)}");
-            ImGui.Text($"Timer 3 Reload: {Hex(Gba.Timers.T[3].ReloadVal, 4)}");
-            ImGui.Text("");
-
-            String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
-
-            ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].PrescalerSel]}");
-            ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].PrescalerSel]}");
-            ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].PrescalerSel]}");
-            ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].PrescalerSel]}");
-
-            ImGui.NextColumn();
-            ImGui.Text($"FIFO A Current Bytes: {Gba.GbaAudio.A.Bytes}");
-            ImGui.Text($"FIFO B Current Bytes: {Gba.GbaAudio.B.Bytes}");
-            ImGui.Text($"FIFO A Collisions: {Gba.GbaAudio.A.Collisions}");
-            ImGui.Text($"FIFO B Collisions: {Gba.GbaAudio.B.Collisions}");
-            ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
-            ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
-            ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
-            ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
-            ImGui.Text($"FIFO A Full Inserts: {Gba.GbaAudio.A.FullInserts}");
-            ImGui.Text($"FIFO B Full Inserts: {Gba.GbaAudio.B.FullInserts}");
-            ImGui.Text("");
-            ImGui.Text($"PSG A Output Value: {Gba.GbaAudio.GbAudio.Out1}");
-            ImGui.Text($"PSG B Output Value: {Gba.GbaAudio.GbAudio.Out2}");
-            ImGui.Text("");
-            ImGui.Text($"Left Master Volume: {Gba.GbaAudio.GbAudio.leftMasterVol}");
-            ImGui.Text($"Right Master Volume: {Gba.GbaAudio.GbAudio.rightMasterVol}");
-            ImGui.Text("");
-            ImGui.Text($"Pulse 1 Current Value: {Gba.GbaAudio.GbAudio.pulse1Val}");
-            ImGui.Text($"Pulse 2 Current Value: {Gba.GbaAudio.GbAudio.pulse2Val}");
-            ImGui.Text($"Wave Current Value: {Gba.GbaAudio.GbAudio.waveVal}");
-            ImGui.Text($"Noise Current Value: {Gba.GbaAudio.GbAudio.noiseVal}");
-            ImGui.Text("");
-            // ImGui.Text($"Pulse 1 Enabled: {Gba.GbaAudio.GbAudio.pulse1_enabled}");
-            // ImGui.Text($"Pulse 1 Width: {Gba.GbaAudio.GbAudio.pulse1_width}");
-            // ImGui.Text($"Pulse 1 DAC Enabled: {Gba.GbaAudio.GbAudio.pulse1_dacEnabled}");
-            // ImGui.Text($"Pulse 1 Length Enable: {Gba.GbaAudio.GbAudio.pulse1_lengthEnable}");
-            // ImGui.Text($"Pulse 1 Length Counter: {Gba.GbaAudio.GbAudio.pulse1_lengthCounter}");
-            // ImGui.Text($"Pulse 1 Frequency Upper: {Gba.GbaAudio.GbAudio.pulse1_frequencyUpper}");
-            // ImGui.Text($"Pulse 1 Frequency Lower: {Gba.GbaAudio.GbAudio.pulse1_frequencyLower}");
-            // ImGui.Text($"Pulse 1 Volume: {Gba.GbaAudio.GbAudio.pulse1_volume}");
-            // ImGui.Text($"Pulse 1 Volume Envelope Up: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeUp}");
-            // ImGui.Text($"Pulse 1 Volume Envelope Sweep: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeSweep}");
-            // ImGui.Text($"Pulse 1 Volume Envelope Start: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeStart}");
-            // ImGui.Text($"Pulse 1 Output Left: {Gba.GbaAudio.GbAudio.pulse1_outputLeft}");
-            // ImGui.Text($"Pulse 1 Output Right: {Gba.GbaAudio.GbAudio.pulse1_outputRight}");
-            // ImGui.Text($"Pulse 1 Freq Sweep Period: {Gba.GbaAudio.GbAudio.pulse1_freqSweepPeriod}");
-            // ImGui.Text($"Pulse 1 Freq Sweep Up: {Gba.GbaAudio.GbAudio.pulse1_freqSweepUp}");
-            // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Gba.GbaAudio.GbAudio.pulse1_freqSweepShift}");
-            // ImGui.Text($"Pulse 1 Updated: {Gba.GbaAudio.GbAudio.pulse1_updated}");
-            // ImGui.Text("");
-            ImGui.Text($"Wave Bank: {Gba.GbaAudio.GbAudio.wave_bank}");
-            ImGui.Text($"Wave Dimension: {Gba.GbaAudio.GbAudio.wave_dimension}");
-            ImGui.Text($"Wave Enabled: {Gba.GbaAudio.GbAudio.wave_enabled}");
-            ImGui.Text($"Wave DAC Enabled: {Gba.GbaAudio.GbAudio.wave_dacEnabled}");
-            ImGui.Text($"Wave Length Enable: {Gba.GbaAudio.GbAudio.wave_lengthEnable}");
-            ImGui.Text($"Wave Length Counter: {Gba.GbaAudio.GbAudio.wave_lengthCounter}");
-            ImGui.Text($"Wave Frequency Upper: {Gba.GbaAudio.GbAudio.wave_frequencyUpper}");
-            ImGui.Text($"Wave Frequency Lower: {Gba.GbaAudio.GbAudio.wave_frequencyLower}");
-            ImGui.Text($"Wave Volume: {Gba.GbaAudio.GbAudio.wave_volume}");
-            ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
-            ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
-
-            ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
-            ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
-
-            ImGui.Columns(1);
-            ImGui.Separator();
-
-            ImGui.Text("Palettes");
-
-            byte[] image = new byte[16 * 16 * 3];
-
-            for (int p = 0; p < 256; p++)
-            {
-                int imgBase = p * 3;
-                image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
-                image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
-                image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
-            }
-
-            int texId = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, texId);
-
-            // TexParameter needed for something to display :)
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-
-            GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-            GL.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                PixelInternalFormat.Rgb,
-                16,
-                16,
-                0,
-                PixelFormat.Rgb,
-                PixelType.UnsignedByte,
-                image
-            );
-
-            // ImGui.Text($"Pointer: {texId}");
-            ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
-
-            for (int p = 0; p < 256; p++)
-            {
-                int imgBase = p * 3;
-                image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p + 256, 0];
-                image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p + 256, 1];
-                image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p + 256, 2];
-            }
-
-            texId = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, texId);
-
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-
-            GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-            GL.TexImage2D(
-                TextureTarget.Texture2D,
-                0,
-                PixelInternalFormat.Rgb,
-                16,
-                16,
-                0,
-                PixelFormat.Rgb,
-                PixelType.UnsignedByte,
-                image
-            );
-
-            ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
-
-            ImGui.End();
-
         }
 
         public void ImGuiColumnSeparator()

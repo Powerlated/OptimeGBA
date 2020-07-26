@@ -8,7 +8,12 @@ namespace OptimeGBA
         public uint CounterVal = 0;
         public uint ReloadVal = 0;
 
+        public static readonly uint[] PrescalerDivs = {
+            1, 64, 256, 1024
+        };
+
         public uint Prescaler = 0;
+        public uint PrescalerDiv = PrescalerDivs[0];
 
         public uint PrescalerSel = 0;
         public bool CountUpTiming = false;
@@ -52,6 +57,7 @@ namespace OptimeGBA
                     break;
                 case 0x02: // TMCNT_H B0
                     PrescalerSel = (uint)(val & 0b11);
+                    PrescalerDiv = PrescalerDivs[PrescalerSel];
                     CountUpTiming = BitTest(val, 2);
                     EnableIrq = BitTest(val, 6);
                     if (BitTest(val, 7))
@@ -103,10 +109,6 @@ namespace OptimeGBA
             new Timer(),
             new Timer(),
             new Timer(),
-        };
-
-        public static readonly uint[] PrescalerDivs = {
-            1, 64, 256, 1024
         };
 
         public byte ReadHwio8(uint addr)
@@ -165,12 +167,10 @@ namespace OptimeGBA
 
                 if (t.Enabled)
                 {
-                    uint prescalerDiv = PrescalerDivs[t.PrescalerSel];
-
                     t.Prescaler += cycles;
-                    while (t.Prescaler >= prescalerDiv)
+                    while (t.Prescaler >= t.PrescalerDiv)
                     {
-                        t.Prescaler -= prescalerDiv;
+                        t.Prescaler -= t.PrescalerDiv;
 
                         t.CounterVal++;
                         if (t.CounterVal > 0xFFFF)
@@ -178,7 +178,8 @@ namespace OptimeGBA
                             // On overflow, refill with reload value
                             t.CounterVal = t.ReloadVal;
 
-                            if (ti == 0 || ti == 1) {
+                            if (ti < 2)
+                            {
                                 Gba.GbaAudio.TimerOverflow(ti);
                             }
                         }

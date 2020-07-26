@@ -21,7 +21,7 @@ namespace OptimeGBA
         public GBA(GbaProvider provider)
         {
             Arm7 = new ARM7(this);
-            Mem = new Memory(this, provider);
+            Mem = new Memory(this);
             GbaAudio = new GBAAudio(this);
             Lcd = new LCD(this);
             Keypad = new Keypad();
@@ -38,17 +38,103 @@ namespace OptimeGBA
 
         public uint Step()
         {
-            uint cycles = 1;
-            // uint cycles = 2;
             Arm7.Execute();
-            cycles = Arm7.PendingCycles;
-            Arm7.PendingCycles = 0;
 
-            Lcd.Tick(2);
-            Timers.Tick(2);
-            GbaAudio.Tick(2);
+            Lcd.Tick(1);
+            Timers.Tick(1);
+            GbaAudio.Tick(1);
 
-            return cycles;
+            return 1;
+        }
+
+        public uint BigStep()
+        {
+            uint cycles = 1;
+
+            for (uint i = 0; i < 8; i++)
+            {
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+
+                Lcd.Tick(16);
+
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+
+                Lcd.Tick(16);
+
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+
+                Lcd.Tick(16);
+
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+                Arm7.Execute(); Timers.Tick(1);
+
+                Lcd.Tick(16);
+            }
+
+
+
+            GbaAudio.Tick(512);
+
+            return 512;
         }
 
         public void Tick(uint cycles)

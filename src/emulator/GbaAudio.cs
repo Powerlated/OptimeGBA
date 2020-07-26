@@ -200,7 +200,7 @@ namespace OptimeGBA
         public bool EnablePsg = true;
         public bool EnableFifo = true;
 
-        const uint GbAudioMax = 16; // Each time this hits, tick GB audio by 4 GB T-cycles
+        const uint GbAudioMax = 512; // Each time this hits, tick GB audio by 128 GB T-cycles
         uint GbAudioTimer = 0;
 
         const uint SampleMax = 512;
@@ -253,7 +253,7 @@ namespace OptimeGBA
             {
                 GbAudioTimer -= GbAudioMax;
 
-                GbAudio.Tick(4); // Tick 4 T-cycles
+                GbAudio.Tick(128); // Tick 128 T-cycles
             }
         }
 
