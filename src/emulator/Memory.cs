@@ -4,15 +4,12 @@ using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
-    public class Memory
+    unsafe public class Memory
     {
         GBA Gba;
-        GbaProvider GbaRomProvider;
 
-        public byte[] Bios = new byte[16384];
-        public byte[] Rom = new byte[33554432];
 
-        public Memory(GBA gba, GbaProvider gbaRomProvider)
+        public Memory(GBA gba)
         {
             Gba = gba;
 
@@ -25,8 +22,6 @@ namespace OptimeGBA
             {
                 Iwram[i] = 0x69;
             }
-
-            GbaRomProvider = gbaRomProvider;
         }
 
         public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
@@ -48,6 +43,9 @@ namespace OptimeGBA
         public long VramReads = 0;
         public long OamReads = 0;
 
+        public byte[] Bios = new byte[16384];
+        public byte[] Rom = new byte[33554432];
+
         // External Work RAM
         public byte[] Ewram = new byte[262144];
         // Internal Work RAM
@@ -60,7 +58,7 @@ namespace OptimeGBA
             {
                 case 0x0: // BIOS
                     BiosReads++;
-                    return GbaRomProvider.Bios[(addr - 0x00000000) & 0x3FFF];
+                    return Bios[(addr - 0x00000000) & 0x3FFF];
                 case 0x1: // Unused
                     break;
                 case 0x2: // EWRAM
@@ -72,9 +70,9 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     addr &= 0x400FFFF;
 
-                    uint count;
-                    HwioReadLog.TryGetValue(addr, out count);
-                    HwioReadLog[addr] = count + 1;
+                    // uint count;
+                    // HwioReadLog.TryGetValue(addr, out count);
+                    // HwioReadLog[addr] = count + 1;
 
                     HwioReads++;
                     return ReadHwio8(addr);
@@ -89,7 +87,7 @@ namespace OptimeGBA
                     return Gba.Lcd.Read8(addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                     RomReads++;
-                    return GbaRomProvider.Rom[addr - 0x08000000];
+                    return Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
@@ -105,28 +103,139 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ushort Read16(uint addr)
+        unsafe public ushort Read16(uint addr)
         {
-            byte f0 = Read8(addr++);
-            byte f1 = Read8(addr++);
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: // BIOS
+                    BiosReads += 2;
+                    addr = (addr - 0x00000000) & 0x3FFF;
+                    fixed (byte* ptr = Bios)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
+                case 0x1: // Unused
+                    goto default;
+                case 0x2: // EWRAM
+                    EwramReads += 2;
+                    addr = (addr - 0x02000000) & 0x3FFFF;
+                    fixed (byte* ptr = Ewram)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
+                case 0x3: // IWRAM
+                    EwramReads += 2;
+                    addr = (addr - 0x03000000) & 0x7FFF;
+                    fixed (byte* ptr = Iwram)
+                    {
+                        return *(ushort*)(ptr + addr);
+                    }
+                case 0x4: // I/O Registers
+                case 0x5: // PPU Palettes
+                    goto default;
+                case 0x6: // PPU VRAM
+                case 0x7: // PPU OAM
+                    goto default;
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                    RomReads += 2;
+                    addr = (addr - 0x08000000);
+                    if (addr < Rom.Length)
+                    {
+                        fixed (byte* ptr = Rom)
+                        {
+                            return *(ushort*)(ptr + addr);
+                        }
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                case 0xF: // Game Pak SRAM/Flash
+                    goto default;
 
-            ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
+                default:
+                    byte f0 = Read8(addr++);
+                    byte f1 = Read8(addr++);
 
-            return u16;
+                    ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
+
+                    return u16;
+            }
         }
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint Read32(uint addr)
+        unsafe public uint Read32(uint addr)
         {
-            byte f0 = Read8(addr++);
-            byte f1 = Read8(addr++);
-            byte f2 = Read8(addr++);
-            byte f3 = Read8(addr++);
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: // BIOS
+                    BiosReads += 4;
+                    addr = (addr - 0x00000000) & 0x3FFF;
+                    fixed (byte* ptr = Bios)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
+                case 0x1: // Unused
+                    goto default;
+                case 0x2: // EWRAM
+                    EwramReads += 4;
+                    addr = (addr - 0x02000000) & 0x3FFFF;
+                    fixed (byte* ptr = Ewram)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
+                case 0x3: // IWRAM
+                    EwramReads += 4;
+                    addr = (addr - 0x03000000) & 0x7FFF;
+                    fixed (byte* ptr = Iwram)
+                    {
+                        return *(uint*)(ptr + addr);
+                    }
+                case 0x4: // I/O Registers
+                case 0x5: // PPU Palettes
+                case 0x6: // PPU VRAM
+                case 0x7: // PPU OAM
+                    goto default;
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                    RomReads += 4;
+                    addr = (addr - 0x08000000);
+                    if (addr < Rom.Length)
+                    {
+                        fixed (byte* ptr = Rom)
+                        {
+                            return *(uint*)(ptr + addr);
+                        }
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                case 0xF: // Game Pak SRAM/Flash
+                    goto default;
 
-            uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+                default:
+                    byte f0 = Read8(addr++);
+                    byte f1 = Read8(addr++);
+                    byte f2 = Read8(addr++);
+                    byte f3 = Read8(addr++);
 
-            return u32;
+                    uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+
+                    return u32;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -135,7 +244,7 @@ namespace OptimeGBA
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
-                    return GbaRomProvider.Bios[(addr - 0x00000000) & 0x3FFF];
+                    return Bios[(addr - 0x00000000) & 0x3FFF];
                 case 0x1: // Unused
                     break;
                 case 0x2: // EWRAM
@@ -145,19 +254,17 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     addr &= 0x400FFFF;
 
-                    uint count;
-                    HwioReadLog.TryGetValue(addr, out count);
-                    HwioReadLog[addr] = count + 1;
+                    // uint count;
+                    // HwioReadLog.TryGetValue(addr, out count);
+                    // HwioReadLog[addr] = count + 1;
 
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
-                    return Gba.Lcd.Read8(addr);
                 case 0x6: // PPU VRAM
-                    return Gba.Lcd.Read8(addr);
                 case 0x7: // PPU OAM
                     return Gba.Lcd.Read8(addr);
                 case 0x8: // Game Pak ROM/FlashROM 
-                    return GbaRomProvider.Rom[addr - 0x08000000];
+                    return Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
@@ -256,25 +363,103 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
-            byte f0 = (byte)(val >> 0);
-            byte f1 = (byte)(val >> 8);
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: // BIOS
+                case 0x1: // Unused
+                    goto default;
+                case 0x2: // EWRAM
+                    EwramWrites += 2;
+                    addr = (addr - 0x02000000) & 0x3FFFF;
+                    fixed (byte* ptr = Ewram)
+                    {
+                        *(ushort*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x3: // IWRAM
+                    EwramWrites += 2;
+                    addr = (addr - 0x03000000) & 0x7FFF;
+                    fixed (byte* ptr = Iwram)
+                    {
+                        *(ushort*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x4: // I/O Registers
+                case 0x5: // PPU Palettes
+                case 0x6: // PPU VRAM
+                case 0x7: // PPU OAM
+                    goto default;
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                case 0xF: // Game Pak SRAM/Flash
+                    goto default;
 
-            Write8(addr++, f0);
-            Write8(addr++, f1);
+                default:
+                    byte f0 = (byte)(val >> 0);
+                    byte f1 = (byte)(val >> 8);
+
+                    Write8(addr++, f0);
+                    Write8(addr++, f1);
+                    return;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
-            byte f0 = (byte)(val >> 0);
-            byte f1 = (byte)(val >> 8);
-            byte f2 = (byte)(val >> 16);
-            byte f3 = (byte)(val >> 24);
+            switch ((addr >> 24) & 0xF)
+            {
+                case 0x0: // BIOS
+                case 0x1: // Unused
+                    goto default;
+                case 0x2: // EWRAM
+                    EwramWrites += 4;
+                    addr = (addr - 0x02000000) & 0x3FFFF;
+                    fixed (byte* ptr = Ewram)
+                    {
+                        *(uint*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x3: // IWRAM
+                    EwramWrites += 4;
+                    addr = (addr - 0x03000000) & 0x7FFF;
+                    fixed (byte* ptr = Iwram)
+                    {
+                        *(uint*)(ptr + addr) = val;
+                        return;
+                    }
+                case 0x4: // I/O Registers
+                case 0x5: // PPU Palettes
+                case 0x6: // PPU VRAM
+                case 0x7: // PPU OAM
+                    goto default;
+                case 0x8: // Game Pak ROM/FlashROM 
+                case 0x9: // Game Pak ROM/FlashROM 
+                case 0xA: // Game Pak ROM/FlashROM 
+                case 0xB: // Game Pak ROM/FlashROM 
+                case 0xC: // Game Pak ROM/FlashROM 
+                case 0xD: // Game Pak SRAM/Flash
+                case 0xE: // Game Pak SRAM/Flash
+                case 0xF: // Game Pak SRAM/Flash
+                    goto default;
 
-            Write8(addr++, f0);
-            Write8(addr++, f1);
-            Write8(addr++, f2);
-            Write8(addr++, f3);
+                default:
+                    byte f0 = (byte)(val >> 0);
+                    byte f1 = (byte)(val >> 8);
+                    byte f2 = (byte)(val >> 16);
+                    byte f3 = (byte)(val >> 24);
+
+                    Write8(addr++, f0);
+                    Write8(addr++, f1);
+                    Write8(addr++, f2);
+                    Write8(addr++, f3);
+                    return;
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
