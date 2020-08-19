@@ -1763,58 +1763,22 @@ namespace OptimeGBA
                             if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
                             {
                                 bool load = BitTest(ins, 11);
-                                LineDebug("STRH / LDRH (1)");
-
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rn = (uint)((ins >> 3) & 0b111);
-                                uint rnVal = R[rn];
-
-                                uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                uint addr = rnVal + (immed5 * 2);
-
                                 if (load)
                                 {
-                                    LineDebug("Load");
-                                    R[rd] = Gba.Mem.Read16(addr);
+                                    Thumb.ImmLDRH(this, ins);
                                 }
                                 else
                                 {
-                                    LineDebug("Store");
-                                    Gba.Mem.Write16(addr, (ushort)R[rd]);
+                                    Thumb.ImmSTRH(this, ins);
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
                             {
-                                LineDebug("LDR (4)");
-
-                                uint immed8 = (uint)((ins >> 0) & 0xFF);
-                                uint rd = (uint)((ins >> 8) & 0b111);
-                                uint rdVal = R[rd];
-
-                                uint addr = R[13] + (immed8 * 4);
-                                if ((addr & 0b11) != 0)
-                                {
-                                    // Misaligned
-                                    uint readAddr = addr & ~0b11U;
-                                    uint readVal = Gba.Mem.Read32(readAddr);
-                                    R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
-                                }
-                                else
-                                {
-                                    uint readVal = Gba.Mem.Read32(addr);
-                                    R[rd] = readVal;
-                                }
+                                Thumb.StackLDR(this, ins);
                             }
                             else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
                             {
-                                LineDebug("STR (3)");
-
-                                uint immed8 = (uint)((ins >> 0) & 0xFF);
-                                uint rd = (uint)((ins >> 8) & 0b111);
-
-                                uint addr = R[13] + (immed8 * 4);
-                                Gba.Mem.Write32(addr, R[rd]);
+                                Thumb.StackSTR(this, ins);
                             }
                         }
                         break;
@@ -1824,132 +1788,35 @@ namespace OptimeGBA
                             {
                                 if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
                                 {
-                                    bool usePc = BitTest(ins, 8);
-
                                     if (BitTest(ins, 11))
                                     {
-                                        LineDebug("POP");
-
-                                        // String regs = "";
-                                        uint addr = R[13];
-
-                                        if (BitTest(ins, 0)) { /* regs += "R0 "; */ R[0] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 1)) { /* regs += "R1 "; */ R[1] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 2)) { /* regs += "R2 "; */ R[2] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 3)) { /* regs += "R3 "; */ R[3] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 4)) { /* regs += "R4 "; */ R[4] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 5)) { /* regs += "R5 "; */ R[5] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 6)) { /* regs += "R6 "; */ R[6] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 7)) { /* regs += "R7 "; */ R[7] = Gba.Mem.Read32(addr); addr += 4; }
-
-                                        if (BitTest(ins, 8))
-                                        {
-                                            /* regs += "PC "; */
-                                            R[15] = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
-                                            FlushPipeline();
-                                            LineDebug(Util.Hex(R[15], 8));
-                                            addr += 4;
-                                        }
-
-                                        R[13] = addr;
-
-                                        // LineDebug(regs);
+                                        Thumb.POP(this, ins);
                                     }
                                     else
                                     {
-                                        LineDebug("PUSH");
-
-                                        uint addr = R[13];
-
-                                        if (BitTest(ins, 0)) { addr -= 4; }
-                                        if (BitTest(ins, 1)) { addr -= 4; }
-                                        if (BitTest(ins, 2)) { addr -= 4; }
-                                        if (BitTest(ins, 3)) { addr -= 4; }
-                                        if (BitTest(ins, 4)) { addr -= 4; }
-                                        if (BitTest(ins, 5)) { addr -= 4; }
-                                        if (BitTest(ins, 6)) { addr -= 4; }
-                                        if (BitTest(ins, 7)) { addr -= 4; }
-                                        if (BitTest(ins, 8)) { addr -= 4; }
-
-                                        if (BitTest(ins, 0)) { /* regs += "R0 "; */ Gba.Mem.Write32(addr, R[0]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 1)) { /* regs += "R1 "; */ Gba.Mem.Write32(addr, R[1]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 2)) { /* regs += "R2 "; */ Gba.Mem.Write32(addr, R[2]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 3)) { /* regs += "R3 "; */ Gba.Mem.Write32(addr, R[3]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 4)) { /* regs += "R4 "; */ Gba.Mem.Write32(addr, R[4]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 5)) { /* regs += "R5 "; */ Gba.Mem.Write32(addr, R[5]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 6)) { /* regs += "R6 "; */ Gba.Mem.Write32(addr, R[6]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 7)) { /* regs += "R7 "; */ Gba.Mem.Write32(addr, R[7]); addr += 4; R[13] -= 4; }
-
-                                        if (BitTest(ins, 8))
-                                        {
-                                            /* regs += "LR "; */
-                                            Gba.Mem.Write32(addr, R[14]);
-                                            addr += 4;
-                                            R[13] -= 4;
-                                        }
-
-                                        // LineDebug(regs);
+                                        Thumb.PUSH(this, ins);
                                     }
                                 }
                                 else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)
                                 {
-                                    LineDebug("ADD (7)");
-                                    uint immed7 = (uint)(ins & 0b1111111);
-                                    R[13] = R[13] + (immed7 << 2);
+                                    Thumb.MiscImmADD(this, ins);
                                 }
                                 else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
                                 {
-                                    LineDebug("SUB (4)");
-
-                                    uint immed7 = (uint)(ins & 0b1111111);
-                                    R[13] = R[13] - (immed7 << 2);
+                                    Thumb.MiscImmSUB(this, ins);
                                 }
                                 else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
                                 {
-                                    LineDebug("REVSH");
-
-                                    uint rd = (uint)((ins >> 0) & 0b111);
-                                    uint rdVal = R[rd];
-                                    uint rn = (uint)((ins >> 3) & 0b111);
-                                    uint rnVal = R[rn];
-
-                                    uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
-                                    uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
-
-                                    rdVal &= 0xFFFF0000;
-                                    rdVal |= (rnValHalfUpper << 0);
-                                    rdVal |= (rnValHalfLower << 8);
-
-                                    // Sign Extend
-                                    if (BitTest(rn, 7))
-                                    {
-                                        rdVal |= 0xFFFF0000;
-                                    }
-                                    else
-                                    {
-                                        rdVal &= 0x0000FFFF;
-                                    }
-
-                                    R[rd] = rdVal;
+                                    Thumb.MiscREVSH(this, ins);
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
                             {
-                                LineDebug("ADD (5)");
-
-                                uint immed8 = (uint)(ins & 0xFF);
-                                uint rd = (uint)((ins >> 8) & 0b111);
-
-                                R[rd] = (R[15] & 0xFFFFFFFC) + (immed8 * 4);
+                                Thumb.MiscPcADD(this, ins);
                             }
                             else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
                             {
-                                LineDebug("ADD (6)");
-
-                                uint immed8 = (uint)(ins & 0xFF);
-                                uint rd = (uint)((ins >> 8) & 0b111);
-
-                                R[rd] = R[13] + (immed8 << 2);
+                                Thumb.MiscSpADD(this, ins);
                             }
                         }
                         break;
@@ -1959,84 +1826,20 @@ namespace OptimeGBA
                             {
                                 if (BitTest(ins, 11))
                                 {
-                                    LineDebug("LDMIA | Load Multiple Increment After");
-
-                                    uint rn = (uint)((ins >> 8) & 0b111);
-                                    uint addr = R[rn];
-
-                                    String regs = "";
-
-                                    if (BitTest(ins, 0)) { regs += "R0 "; R[0] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 1)) { regs += "R1 "; R[1] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 2)) { regs += "R2 "; R[2] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 3)) { regs += "R3 "; R[3] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 4)) { regs += "R4 "; R[4] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 5)) { regs += "R5 "; R[5] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 6)) { regs += "R6 "; R[6] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 7)) { regs += "R7 "; R[7] = Gba.Mem.Read32(addr); addr += 4; R[rn] = R[rn] + 4; }
-
-                                    LineDebug(regs);
+                                    Thumb.LDMIA(this, ins);
                                 }
                                 else
                                 {
-                                    LineDebug("STMIA | Store Multiple Increment After");
-
-                                    uint rn = (uint)((ins >> 8) & 0b111);
-                                    uint addr = R[rn];
-
-                                    String regs = "";
-
-                                    if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R[0]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R[1]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R[2]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R[3]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R[4]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R[5]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R[6]); addr += 4; R[rn] = R[rn] + 4; }
-                                    if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R[7]); addr += 4; R[rn] = R[rn] + 4; }
-
-                                    LineDebug(regs);
+                                    Thumb.STMIA(this, ins);
                                 }
                             }
                             else if ((ins & 0b1111111100000000) == 0b1101111100000000) // SWI - Software Interrupt
                             {
-                                SPSR_svc = GetCPSR();
-                                SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-                                R[14] = R[15] - 2;
-                                ThumbState = false; // Back to ARM state
-                                IRQDisable = true;
-
-                                R[15] = VectorSoftwareInterrupt;
-                                FlushPipeline();
+                                Thumb.SWI(this, ins);
                             }
                             else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
                             {
-                                LineDebug("B | Conditional Branch");
-                                uint cond = (uint)((ins >> 8) & 0xF);
-                                bool condition = CheckCondition(cond);
-
-                                if (condition)
-                                {
-                                    // B
-                                    int offset = (int)(ins & 0xFF) << 1;
-                                    // Signed with Two's Complement
-                                    if ((offset & BIT_8) != 0)
-                                    {
-                                        LineDebug("Taken, Backward Branch");
-                                        offset -= (int)BIT_9;
-                                    }
-                                    else
-                                    {
-                                        LineDebug("Taken, Forward Branch");
-                                    }
-
-                                    R[15] = (uint)(R[15] + offset);
-                                    FlushPipeline();
-                                }
-                                else
-                                {
-                                    LineDebug("Not Taken");
-                                }
+                                Thumb.ConditionalB(this, ins);
                             }
                         }
                         break;
@@ -2044,75 +1847,11 @@ namespace OptimeGBA
                         {
                             if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2) - Unconditional
                             {
-                                LineDebug("B | Unconditional Branch");
-                                int signedImmed11 = (int)(ins & 0b11111111111) << 1;
-
-                                if ((signedImmed11 & BIT_11) != 0)
-                                {
-                                    LineDebug("Backward Branch");
-                                    signedImmed11 -= (int)BIT_12;
-                                }
-                                else
-                                {
-                                    LineDebug("Forward Branch");
-                                }
-
-                                R[15] = (uint)(R[15] + signedImmed11);
-                                FlushPipeline();
+                                Thumb.UnconditionalB(this, ins);
                             }
                             else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
                             {
-                                LineDebug("BL, BLX | Branch With Link (And Exchange)");
-
-                                uint H = (uint)((ins >> 11) & 0b11);
-                                int offset11 = ins & 0b11111111111;
-
-                                switch (H)
-                                {
-                                    case 0b10:
-                                        {
-                                            offset11 <<= 12;
-
-                                            // Sign extend
-                                            if ((offset11 & BIT_22) != 0)
-                                            {
-                                                LineDebug("Negative");
-                                                offset11 -= (int)BIT_23;
-                                            }
-                                            else
-                                            {
-                                                LineDebug("Positive");
-                                            }
-
-                                            LineDebug($"offset11: {offset11}");
-                                            R[14] = (uint)(R[15] + offset11);
-                                            LineDebug("Upper fill");
-                                        }
-                                        break;
-                                    case 0b11:
-                                        {
-                                            uint oldR14 = R[14];
-                                            R[14] = (R[15] - 2) | 1;
-                                            R[15] = (uint)(oldR14 + (offset11 << 1));
-                                            R[15] &= 0xFFFFFFFE;
-                                            FlushPipeline();
-                                            LineDebug($"Jump to ${Util.HexN(R[15], 8)}");
-                                            LineDebug("Stay in THUMB state");
-                                        }
-                                        break;
-                                    case 0b01:
-                                        {
-                                            uint oldR14 = R[14];
-                                            R[14] = (R[15] - 2) | 1;
-                                            R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
-                                            R[15] &= 0xFFFFFFFE;
-                                            FlushPipeline();
-                                            ThumbState = false;
-                                            LineDebug($"Jump to ${Util.HexN(R[15], 8)}");
-                                            LineDebug("Exit THUMB state");
-                                        }
-                                        break;
-                                }
+                                Thumb.BL(this, ins);
                             }
                         }
                         break;
@@ -2639,7 +2378,6 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming8And16(uint addr)
         {
-            return 2;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 2; // BIOS
@@ -2666,7 +2404,6 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming32(uint addr)
         {
-            return 2;
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: return 4; // BIOS

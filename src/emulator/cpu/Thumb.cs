@@ -941,5 +941,359 @@ namespace OptimeGBA
 
             arm7.R[rd] = (uint)readVal;
         }
+
+        public static void StackLDR(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("LDR (4)");
+
+            uint immed8 = (uint)((ins >> 0) & 0xFF);
+            uint rd = (uint)((ins >> 8) & 0b111);
+            uint rdVal = arm7.R[rd];
+
+            uint addr = arm7.R[13] + (immed8 * 4);
+            if ((addr & 0b11) != 0)
+            {
+                // Misaligned
+                uint readAddr = addr & ~0b11U;
+                uint readVal = arm7.Gba.Mem.Read32(readAddr);
+                arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            }
+            else
+            {
+                uint readVal = arm7.Gba.Mem.Read32(addr);
+                arm7.R[rd] = readVal;
+            }
+        }
+
+        public static void StackSTR(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("STR (3)");
+
+            uint immed8 = (uint)((ins >> 0) & 0xFF);
+            uint rd = (uint)((ins >> 8) & 0b111);
+
+            uint addr = arm7.R[13] + (immed8 * 4);
+            arm7.Gba.Mem.Write32(addr, arm7.R[rd]);
+        }
+
+        public static void ImmLDRH(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("LDRH (1)");
+
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rnVal = arm7.R[rn];
+
+            uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+            uint addr = rnVal + (immed5 * 2);
+
+            arm7.LineDebug("Load");
+            arm7.R[rd] = arm7.Gba.Mem.Read16(addr);
+        }
+
+        public static void ImmSTRH(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("STRH (1)");
+
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rnVal = arm7.R[rn];
+
+            uint immed5 = (uint)((ins >> 6) & 0b11111);
+
+            uint addr = rnVal + (immed5 * 2);
+
+            arm7.LineDebug("Store");
+            arm7.Gba.Mem.Write16(addr, (ushort)arm7.R[rd]);
+        }
+
+        public static void POP(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("POP");
+
+            // String regs = "";
+            uint addr = arm7.R[13];
+
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.R[3] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.R[4] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.R[5] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.R[6] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.R[7] = arm7.Gba.Mem.Read32(addr); addr += 4; }
+
+            if (BitTest(ins, 8))
+            {
+                /* regs += "PC "; */
+                arm7.R[15] = arm7.Gba.Mem.Read32(addr) & 0xFFFFFFFE;
+                arm7.FlushPipeline();
+                arm7.LineDebug(Util.Hex(arm7.R[15], 8));
+                addr += 4;
+            }
+
+            arm7.R[13] = addr;
+
+            // LineDebug(regs);
+        }
+
+        public static void PUSH(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("PUSH");
+
+            uint addr = arm7.R[13];
+
+            if (BitTest(ins, 0)) { addr -= 4; }
+            if (BitTest(ins, 1)) { addr -= 4; }
+            if (BitTest(ins, 2)) { addr -= 4; }
+            if (BitTest(ins, 3)) { addr -= 4; }
+            if (BitTest(ins, 4)) { addr -= 4; }
+            if (BitTest(ins, 5)) { addr -= 4; }
+            if (BitTest(ins, 6)) { addr -= 4; }
+            if (BitTest(ins, 7)) { addr -= 4; }
+            if (BitTest(ins, 8)) { addr -= 4; }
+
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[0]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[1]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[2]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[3]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[4]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[5]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[6]); addr += 4; arm7.R[13] -= 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[7]); addr += 4; arm7.R[13] -= 4; }
+
+            if (BitTest(ins, 8))
+            {
+                /* regs += "LR "; */
+                arm7.Gba.Mem.Write32(addr, arm7.R[14]);
+                addr += 4;
+                arm7.R[13] -= 4;
+            }
+
+            // LineDebug(regs);
+        }
+
+        public static void MiscImmADD(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("ADD (7)");
+            uint immed7 = (uint)(ins & 0b1111111);
+            arm7.R[13] = arm7.R[13] + (immed7 << 2);
+        }
+
+        public static void MiscImmSUB(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("SUB (4)");
+
+            uint immed7 = (uint)(ins & 0b1111111);
+            arm7.R[13] = arm7.R[13] - (immed7 << 2);
+        }
+
+        public static void MiscREVSH(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("REVSH");
+
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rdVal = arm7.R[rd];
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rnVal = arm7.R[rn];
+
+            uint rnValHalfLower = ((rnVal >> 0) & 0xFFFF);
+            uint rnValHalfUpper = ((rnVal >> 8) & 0xFFFF);
+
+            rdVal &= 0xFFFF0000;
+            rdVal |= (rnValHalfUpper << 0);
+            rdVal |= (rnValHalfLower << 8);
+
+            // Sign Extend
+            if (BitTest(rn, 7))
+            {
+                rdVal |= 0xFFFF0000;
+            }
+            else
+            {
+                rdVal &= 0x0000FFFF;
+            }
+
+            arm7.R[rd] = rdVal;
+        }
+
+        public static void MiscPcADD(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("ADD (5)");
+
+            uint immed8 = (uint)(ins & 0xFF);
+            uint rd = (uint)((ins >> 8) & 0b111);
+
+            arm7.R[rd] = (arm7.R[15] & 0xFFFFFFFC) + (immed8 * 4);
+        }
+
+        public static void MiscSpADD(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("ADD (6)");
+
+            uint immed8 = (uint)(ins & 0xFF);
+            uint rd = (uint)((ins >> 8) & 0b111);
+
+            arm7.R[rd] = arm7.R[13] + (immed8 << 2);
+        }
+
+        public static void LDMIA(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("LDMIA | Load Multiple Increment After");
+
+            uint rn = (uint)((ins >> 8) & 0b111);
+            uint addr = arm7.R[rn];
+
+            // String regs = "";
+
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.R[3] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.R[4] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.R[5] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.R[6] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.R[7] = arm7.Gba.Mem.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+
+            // LineDebug(regs);
+        }
+
+        public static void STMIA(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("STMIA | Store Multiple Increment After");
+
+            uint rn = (uint)((ins >> 8) & 0b111);
+            uint addr = arm7.R[rn];
+
+            // String regs = "";
+
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[0]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[1]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[2]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[3]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[4]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[5]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[6]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[7]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+
+            // LineDebug(regs);
+        }
+
+        public static void SWI(ARM7 arm7, ushort ins)
+        {
+            arm7.SPSR_svc = arm7.GetCPSR();
+            arm7.SetMode((uint)ARM7.ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.R[14] = arm7.R[15] - 2;
+            arm7.ThumbState = false; // Back to ARM state
+            arm7.IRQDisable = true;
+
+            arm7.R[15] = ARM7.VectorSoftwareInterrupt;
+            arm7.FlushPipeline();
+        }
+
+        public static void ConditionalB(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("B | Conditional Branch");
+            uint cond = (uint)((ins >> 8) & 0xF);
+            bool condition = arm7.CheckCondition(cond);
+
+            if (condition)
+            {
+                // B
+                int offset = (int)(ins & 0xFF) << 1;
+                // Signed with Two's Complement
+                if ((offset & BIT_8) != 0)
+                {
+                    arm7.LineDebug("Taken, Backward Branch");
+                    offset -= (int)BIT_9;
+                }
+                else
+                {
+                    arm7.LineDebug("Taken, Forward Branch");
+                }
+
+                arm7.R[15] = (uint)(arm7.R[15] + offset);
+                arm7.FlushPipeline();
+            }
+            else
+            {
+                arm7.LineDebug("Not Taken");
+            }
+        }
+
+        public static void UnconditionalB(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("B | Unconditional Branch");
+            int signedImmed11 = (int)(ins & 0b11111111111) << 1;
+
+            if ((signedImmed11 & BIT_11) != 0)
+            {
+                arm7.LineDebug("Backward Branch");
+                signedImmed11 -= (int)BIT_12;
+            }
+            else
+            {
+                arm7.LineDebug("Forward Branch");
+            }
+
+            arm7.R[15] = (uint)(arm7.R[15] + signedImmed11);
+            arm7.FlushPipeline();
+        }
+
+        public static void BL(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
+
+            uint H = (uint)((ins >> 11) & 0b11);
+            int offset11 = ins & 0b11111111111;
+
+            switch (H)
+            {
+                case 0b10:
+                    {
+                        offset11 <<= 12;
+
+                        // Sign extend
+                        if ((offset11 & BIT_22) != 0)
+                        {
+                            arm7.LineDebug("Negative");
+                            offset11 -= (int)BIT_23;
+                        }
+                        else
+                        {
+                            arm7.LineDebug("Positive");
+                        }
+
+                        arm7.LineDebug($"offset11: {offset11}");
+                        arm7.R[14] = (uint)(arm7.R[15] + offset11);
+                        arm7.LineDebug("Upper fill");
+                    }
+                    break;
+                case 0b11:
+                    {
+                        uint oldR14 = arm7.R[14];
+                        arm7.R[14] = (arm7.R[15] - 2) | 1;
+                        arm7.R[15] = (uint)(oldR14 + (offset11 << 1));
+                        arm7.R[15] &= 0xFFFFFFFE;
+                        arm7.FlushPipeline();
+                        arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
+                        arm7.LineDebug("Stay in THUMB state");
+                    }
+                    break;
+                case 0b01:
+                    {
+                        uint oldR14 = arm7.R[14];
+                        arm7.R[14] = (arm7.R[15] - 2) | 1;
+                        arm7.R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
+                        arm7.R[15] &= 0xFFFFFFFE;
+                        arm7.FlushPipeline();
+                        arm7.ThumbState = false;
+                        arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
+                        arm7.LineDebug("Exit THUMB state");
+                    }
+                    break;
+            }
+        }
     }
 }
