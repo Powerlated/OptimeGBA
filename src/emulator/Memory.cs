@@ -376,8 +376,8 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     PaletteWrites++;
                     addr &= 0x3FF;
-                    Gba.Lcd.UpdatePalette(addr / 2);
                     Gba.Lcd.Palettes[addr] = val;
+                    Gba.Lcd.UpdatePalette(addr / 2);
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites++;
@@ -436,10 +436,10 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     PaletteWrites += 2;
                     addr &= 0x3FF;
-                    Gba.Lcd.UpdatePalette(addr / 2);
                     fixed (byte* ptr = Gba.Lcd.Palettes)
                     {
                         *(ushort*)(ptr + addr) = val;
+                        Gba.Lcd.UpdatePalette(addr / 2);
                         return;
                     }
                 case 0x6: // PPU VRAM
@@ -507,10 +507,10 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     PaletteWrites += 4;
                     addr &= 0x3FF;
-                    Gba.Lcd.UpdatePalette(addr / 2);
                     fixed (byte* ptr = Gba.Lcd.Palettes)
                     {
                         *(uint*)(ptr + addr) = val;
+                        Gba.Lcd.UpdatePalette(addr / 2);
                         return;
                     }
                 case 0x6: // PPU VRAM

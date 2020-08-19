@@ -34,7 +34,7 @@ namespace OptimeGBA
         public const uint VectorIRQ = 0x18;
         public const uint VectorFIQ = 0x1C;
 
-        GBA Gba;
+        public GBA Gba;
         public uint[] R = new uint[16];
 
         public uint R8usr;
@@ -192,14 +192,14 @@ namespace OptimeGBA
 
         public void Execute()
         {
-            #if DEBUG
+#if DEBUG
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
                 return;
             }
             ResetDebug();
-            #endif
+#endif
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
@@ -1569,160 +1569,29 @@ namespace OptimeGBA
                             switch ((ins >> 11) & 0b11)
                             {
                                 case 0b00: // LSL (1)
-                                    {
-                                        LineDebug("LSL (1) | Logical Shift Left");
-
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rmValue = R[(uint)((ins >> 3) & 0b111)];
-
-                                        if (immed5 == 0)
-                                        {
-                                            R[rd] = rmValue;
-                                        }
-                                        else
-                                        {
-                                            Carry = BitTest(rmValue, (byte)(32 - immed5));
-                                            R[rd] = LogicalShiftLeft32(rmValue, (byte)immed5);
-                                        }
-
-                                        Negative = BitTest(R[rd], 31);
-                                        Zero = R[rd] == 0;
-                                    }
+                                    Thumb.ImmShiftLSL(this, ins);
                                     break;
                                 case 0b01: // LSR (1)
-                                    {
-                                        LineDebug("LSR (1)");
-
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rm = (uint)((ins >> 3) & 0b111);
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        uint rmVal = R[rm];
-
-                                        uint final;
-                                        if (immed5 == 0)
-                                        {
-                                            Carry = BitTest(rmVal, 31);
-                                            final = 0;
-                                        }
-                                        else
-                                        {
-                                            Carry = BitTest(rmVal, (byte)(immed5 - 1));
-                                            final = LogicalShiftRight32(rmVal, (byte)immed5);
-                                        }
-
-                                        R[rd] = final;
-
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                    }
+                                    Thumb.ImmShiftLSR(this, ins);
                                     break;
                                 case 0b10: // ASR (1)
-                                    {
-                                        LineDebug("ASR (1)");
-
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rmValue = R[(uint)((ins >> 3) & 0b111)];
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        if (immed5 == 0)
-                                        {
-                                            Carry = BitTest(rmValue, 31);
-                                            if (BitTest(rmValue, 31))
-                                            {
-                                                R[rd] = 0xFFFFFFFF;
-                                            }
-                                            else
-                                            {
-                                                R[rd] = 0;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            Carry = BitTest(rmValue, (byte)(immed5 - 1));
-                                            R[rd] = ArithmeticShiftRight32(rmValue, (byte)immed5);
-                                        }
-
-                                        Negative = BitTest(R[rd], 31);
-                                        Zero = R[rd] == 0;
-                                    }
+                                    Thumb.ImmShiftASR(this, ins);
                                     break;
                                 case 0b11: // Add/subtract/compare/move immediate
                                     {
                                         switch ((ins >> 9) & 0b11)
                                         {
                                             case 0b00: // ADD (3)
-                                                {
-                                                    LineDebug("ADD (3)");
-
-                                                    uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnVal = R[(uint)((ins >> 3) & 0b111)];
-                                                    uint rmVal = R[(uint)((ins >> 6) & 0b111)];
-                                                    uint final = rnVal + rmVal;
-
-                                                    R[rd] = final;
-                                                    Negative = BitTest(final, 31);
-                                                    Zero = final == 0;
-                                                    Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
-                                                    Overflow = CheckOverflowAdd(rnVal, rmVal, final);
-                                                }
+                                                Thumb.ImmAluADD1(this, ins);
                                                 break;
                                             case 0b01: // SUB (3)
-                                                {
-                                                    LineDebug("SUB (3)");
-
-                                                    uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnValue = R[(uint)((ins >> 3) & 0b111)];
-                                                    uint rmValue = R[(uint)((ins >> 6) & 0b111)];
-
-                                                    uint final = rnValue - rmValue;
-                                                    R[rd] = final;
-
-                                                    Negative = BitTest(final, 31);
-                                                    Zero = final == 0;
-                                                    Carry = !(rmValue > rnValue);
-                                                    Overflow = CheckOverflowSub(rnValue, rmValue, final);
-                                                }
+                                                Thumb.ImmAluSUB1(this, ins);
                                                 break;
                                             case 0b10: // ADD (1) // MOV (2)
-                                                {
-                                                    LineDebug("ADD (1)");
-
-                                                    uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rnVal = R[(uint)((ins >> 3) & 0b111)];
-                                                    uint immed3 = (uint)((ins >> 6) & 0b111);
-
-                                                    uint final = rnVal + immed3;
-
-                                                    R[rd] = final;
-                                                    Negative = BitTest(final, 31);
-                                                    Zero = final == 0;
-                                                    Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
-                                                    Overflow = CheckOverflowAdd(rnVal, immed3, final);
-
-                                                    if (rd == 15) FlushPipeline();
-                                                }
+                                                Thumb.ImmAluADD2(this, ins);
                                                 break;
                                             case 0b11: // SUB (1)
-                                                {
-                                                    LineDebug("SUB (1)");
-
-                                                    uint rd = (uint)((ins >> 0) & 0b111);
-                                                    uint rn = (uint)((ins >> 3) & 0b111);
-                                                    uint immed3 = (uint)((ins >> 6) & 0b111);
-
-                                                    uint rdVal = R[rd];
-                                                    uint rnVal = R[rn];
-
-                                                    uint final = rnVal - immed3;
-                                                    R[rd] = final;
-
-                                                    Negative = BitTest(final, 31);
-                                                    Zero = final == 0;
-                                                    Carry = !(immed3 > rnVal);
-                                                    Overflow = CheckOverflowSub(rnVal, immed3, final);
-                                                }
+                                                Thumb.ImmAluSUB2(this, ins);
                                                 break;
                                         }
                                         break;
@@ -1732,62 +1601,20 @@ namespace OptimeGBA
                         break;
                     case 0b001: // Add/subtract/compare/move immediate
                         {
-                            uint rd = (uint)((ins >> 8) & 0b111);
-                            uint immed8 = ins & 0xFFu;
 
                             switch ((ins >> 11) & 0b11)
                             {
                                 case 0b00: // MOV (1)
-                                    {
-                                        LineDebug("MOV | Move large immediate to register");
-
-                                        R[rd] = immed8;
-
-                                        Negative = false;
-                                        Zero = immed8 == 0;
-                                    }
+                                    Thumb.MovImmediate(this, ins);
                                     break;
                                 case 0b01: // CMP (1)
-                                    {
-                                        LineDebug("CMP (1)");
-
-                                        uint rnVal = R[rd];
-                                        uint alu_out = rnVal - immed8;
-
-                                        Negative = BitTest(alu_out, 31);
-                                        Zero = alu_out == 0;
-                                        Carry = !(immed8 > rnVal);
-                                        Overflow = CheckOverflowSub(rnVal, immed8, alu_out);
-                                    }
+                                    Thumb.CmpImmediate(this, ins);
                                     break;
                                 case 0b10: // ADD (2)
-                                    {
-                                        LineDebug("ADD (2)");
-
-                                        uint rdVal = R[rd];
-                                        uint final = rdVal + immed8;
-
-                                        R[rd] = final;
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                        Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
-                                        Overflow = CheckOverflowAdd(rdVal, immed8, final);
-                                    }
+                                    Thumb.AddImmediate(this, ins);
                                     break;
                                 case 0b11: // SUB (2)
-                                    {
-                                        LineDebug("SUB (2)");
-
-                                        uint rdVal = R[rd];
-
-                                        uint final = rdVal - immed8;
-                                        R[rd] = final;
-
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                        Carry = !(immed8 > rdVal);
-                                        Overflow = CheckOverflowSub(rdVal, immed8, final);
-                                    }
+                                    Thumb.SubImmediate(this, ins);
                                     break;
                             }
                         }
@@ -1796,308 +1623,58 @@ namespace OptimeGBA
                         {
                             if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
                             {
-                                // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rn = rd;
-                                uint rm = (uint)((ins >> 3) & 0b111);
-                                uint rs = rm;
 
                                 uint opcode = (uint)((ins >> 6) & 0xFU);
                                 switch (opcode)
                                 {
-
                                     case 0x0: // AND
-                                        {
-                                            LineDebug("AND");
-
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            uint final = rdVal & rmVal;
-                                            R[rd] = final;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                        }
+                                        Thumb.DataAND(this, ins);
                                         break;
                                     case 0x1: // EOR
-                                        {
-                                            LineDebug("EOR");
-
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            rdVal = rdVal ^ rmVal;
-                                            R[rd] = rdVal;
-
-                                            Negative = BitTest(rdVal, 31);
-                                            Zero = rdVal == 0;
-                                        }
+                                        Thumb.DataEOR(this, ins);
                                         break;
                                     case 0x2: // LSL (2)
-                                        {
-                                            LineDebug("LSL (2) | Logical Shift Left");
-
-                                            uint rdValue = R[(uint)((ins >> 0) & 0b111)];
-                                            uint rsValue = R[(uint)((ins >> 3) & 0b111)];
-
-                                            if ((rsValue & 0xFF) == 0)
-                                            {
-                                                // Do nothing
-                                            }
-                                            else if ((rsValue & 0xFF) < 32)
-                                            {
-                                                Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
-                                                rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
-                                            }
-                                            else if ((rsValue & 0xFF) == 32)
-                                            {
-                                                Carry = BitTest(rdValue, 0);
-                                                rdValue = 0;
-                                            }
-                                            else
-                                            {
-                                                Carry = false;
-                                                rdValue = 0;
-                                            }
-
-                                            R[rd] = rdValue;
-
-                                            Negative = BitTest(rdValue, 31);
-                                            Zero = rdValue == 0;
-                                        }
+                                        Thumb.DataLSL(this, ins);
                                         break;
                                     case 0x3: // LSR (2)
-                                        {
-                                            LineDebug("LSR (2)");
-
-                                            uint rdVal = R[rd];
-                                            uint rsVal = R[rs];
-
-                                            if ((rsVal & 0xFF) == 0)
-                                            {
-                                                // everything unaffected
-                                            }
-                                            else if ((rsVal & 0xFF) < 32)
-                                            {
-                                                Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                                                R[rd] = LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
-                                            }
-                                            else if ((rsVal & 0xFF) == 32)
-                                            {
-                                                Carry = BitTest(rdVal, 31);
-                                                R[rd] = 0;
-                                            }
-                                            else
-                                            {
-                                                Carry = false;
-                                                R[rd] = 0;
-                                            }
-
-                                            rdVal = R[rd];
-
-                                            Negative = BitTest(rdVal, 31);
-                                            Zero = rdVal == 0;
-                                        }
+                                        Thumb.DataLSR(this, ins);
                                         break;
                                     case 0x4: // ASR (2)
-                                        {
-                                            LineDebug("ASR (2)");
-
-
-                                            uint rdVal = R[rd];
-                                            uint rsVal = R[rs];
-
-                                            if ((rsVal & 0xFF) == 0)
-                                            {
-                                                // Do nothing
-                                            }
-                                            else if ((rsVal & 0xFF) < 32)
-                                            {
-                                                Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                                                rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
-                                            }
-                                            else
-                                            {
-                                                Carry = BitTest(rdVal, 31);
-                                                if (!Carry)
-                                                {
-                                                    rdVal = 0;
-                                                }
-                                                else
-                                                {
-                                                    rdVal = 0xFFFFFFFF;
-                                                }
-                                            }
-
-                                            R[rd] = rdVal;
-
-                                            Negative = BitTest(rdVal, 31);
-                                            Zero = rdVal == 0;
-                                        }
+                                        Thumb.DataASR(this, ins);
                                         break;
                                     case 0x5: // ADC
-                                        {
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            uint final = rdVal + rmVal + (Carry ? 1U : 0);
-                                            R[rd] = final;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = rdVal == 0;
-                                            Carry = (long)rdVal + (long)rmVal + (Carry ? 1U : 0) > 0xFFFFFFFF;
-                                            Overflow = CheckOverflowAdd(rdVal, rmVal + (Carry ? 1U : 0), final);
-                                        }
+                                        Thumb.DataADC(this, ins);
                                         break;
                                     case 0x6: // SBC
-                                        {
-                                            LineDebug("SBC");
-
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            uint final = rdVal - rmVal - (!Carry ? 1U : 0);
-                                            R[rd] = final;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                            Carry = !((long)rmVal + (!Carry ? 1U : 0) > rdVal);
-                                            Overflow = CheckOverflowSub(rdVal, rmVal + (!Carry ? 1U : 0), final);
-                                        }
+                                        Thumb.DataSBC(this, ins);
                                         break;
                                     case 0x7: // ROR
-                                        {
-                                            LineDebug("ROR");
-
-                                            uint rdVal = R[rd];
-                                            uint rsVal = R[rs];
-
-                                            if ((rsVal & 0xFF) == 0)
-                                            {
-                                                // Do nothing
-                                            }
-                                            else if ((rsVal & 0b11111) == 0)
-                                            {
-                                                Carry = BitTest(rdVal, 31);
-                                            }
-                                            else
-                                            {
-                                                Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
-                                                rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
-                                                R[rd] = rdVal;
-                                            }
-
-                                            Negative = BitTest(rdVal, 31);
-                                            Zero = rdVal == 0;
-                                        }
+                                        Thumb.DataROR(this, ins);
                                         break;
                                     case 0x8: // TST
-                                        {
-                                            LineDebug("TST");
-
-                                            uint rnValue = R[rn];
-                                            uint rmValue = R[rm];
-
-                                            uint final = rnValue & rmValue;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                        }
+                                        Thumb.DataTST(this, ins);
                                         break;
                                     case 0x9: // NEG / RSB
-                                        {
-                                            LineDebug("NEG / RSB");
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            uint final = 0 - rmVal;
-
-                                            R[rd] = final;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                            Carry = !(rmVal > 0);
-                                            Overflow = CheckOverflowSub(0, rmVal, final);
-                                        }
+                                        Thumb.DataNEG(this, ins);
                                         break;
                                     case 0xA: // CMP (2)
-                                        {
-                                            LineDebug("CMP (2)");
-
-                                            uint rnVal = R[(uint)((ins >> 0) & 0b111)];
-                                            uint rmVal = R[(uint)((ins >> 3) & 0b111)];
-
-                                            uint alu_out = rnVal - rmVal;
-
-                                            Negative = BitTest(alu_out, 31);
-                                            Zero = alu_out == 0;
-                                            Carry = !(rmVal > rnVal);
-                                            Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
-                                        }
+                                        Thumb.DataCMP(this, ins);
                                         break;
                                     case 0xB:  // CMN
-                                        {
-                                            LineDebug("CMN");
-
-                                            uint rnVal = R[(uint)((ins >> 0) & 0b111)];
-                                            uint rmVal = R[(uint)((ins >> 3) & 0b111)];
-
-                                            uint alu_out = rnVal + rmVal;
-
-                                            Negative = BitTest(alu_out, 31);
-                                            Zero = alu_out == 0;
-                                            Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
-                                            Overflow = CheckOverflowAdd(rnVal, rmVal, alu_out);
-                                        }
+                                        Thumb.DataCMN(this, ins);
                                         break;
                                     case 0xC: // ORR
-                                        {
-                                            LineDebug("ORR");
-
-                                            R[rd] = R[rd] | R[rm];
-                                            Negative = BitTest(R[rd], 31);
-                                            Zero = R[rd] == 0;
-                                        }
+                                        Thumb.DataORR(this, ins);
                                         break;
                                     case 0xD: // MUL
-                                        {
-                                            LineDebug("MUL");
-
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            rdVal = (rmVal * rdVal);
-                                            R[rd] = rdVal;
-
-                                            Negative = BitTest(rdVal, 31);
-                                            Zero = rdVal == 0;
-                                        }
+                                        Thumb.DataMUL(this, ins);
                                         break;
                                     case 0xE: // BIC
-                                        {
-                                            LineDebug("BIC");
-
-                                            uint rdValue = R[rd];
-                                            uint rmValue = R[rm];
-
-                                            uint final = rdValue & (~rmValue);
-                                            R[rd] = final;
-
-                                            Negative = BitTest(final, 31);
-                                            Zero = final == 0;
-                                        }
+                                        Thumb.DataBIC(this, ins);
                                         break;
                                     case 0xF: // MVN
-                                        {
-                                            LineDebug("MVN");
-
-                                            R[rd] = ~R[rm];
-                                            Negative = BitTest(R[rd], 31);
-                                            Zero = R[rd] == 0;
-                                        }
+                                        Thumb.DataMVN(this, ins);
                                         break;
-
                                 }
                             }
                             else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
@@ -2105,99 +1682,22 @@ namespace OptimeGBA
                                 switch ((ins >> 8) & 0b11)
                                 {
                                     case 0b00: // ADD (4)
-                                        {
-                                            LineDebug("ADD (4)");
-
-                                            uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rm = (uint)((ins >> 3) & 0b111);
-                                            rd += BitTest(ins, 7) ? BIT_3 : 0;
-                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
-                                            uint rdVal = R[rd];
-                                            uint rmVal = R[rm];
-
-                                            uint final = rdVal + rmVal;
-                                            R[rd] = final;
-
-                                            if (rd == 15)
-                                            {
-                                                FlushPipeline();
-                                            }
-                                        }
+                                        Thumb.SpecialDataADD(this, ins);
                                         break;
                                     case 0b01: // CMP (3)
-                                        {
-                                            LineDebug("CMP (3)");
-
-                                            uint rn = (uint)((ins >> 0) & 0b111);
-                                            uint rm = (uint)((ins >> 3) & 0b111);
-
-                                            rn += BitTest(ins, 7) ? BIT_3 : 0;
-                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
-
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint alu_out = rnVal - rmVal;
-
-                                            Negative = BitTest(alu_out, 31);
-                                            Zero = alu_out == 0;
-                                            Carry = !(rmVal > rnVal);
-                                            Overflow = CheckOverflowSub(rnVal, rmVal, alu_out);
-                                        }
+                                        Thumb.SpecialDataCMP(this, ins);
                                         break;
                                     case 0b10:// MOV (3)
-                                        {
-                                            LineDebug("MOV (3)");
-
-                                            uint rd = (uint)((ins >> 0) & 0b111);
-                                            uint rm = (uint)((ins >> 3) & 0b111);
-                                            rd += BitTest(ins, 7) ? BIT_3 : 0;
-                                            rm += BitTest(ins, 6) ? BIT_3 : 0;
-
-                                            R[rd] = R[rm];
-
-                                            if (rd == 15)
-                                            {
-                                                R[15] &= 0xFFFFFFFE;
-                                                FlushPipeline();
-                                            }
-                                        }
+                                        Thumb.SpecialDataMOV(this, ins);
                                         break;
                                     case 0b11: // BX
-                                        {
-                                            LineDebug("BX | Optionally switch back to ARM state");
-
-                                            uint rm = (uint)((ins >> 3) & 0xF); // High bit is technically an H bit, but can be ignored here
-                                            uint val = R[rm];
-                                            LineDebug($"R{rm}");
-
-                                            ThumbState = BitTest(val, 0);
-                                            R[15] = val & 0xFFFFFFFE;
-                                            FlushPipeline();
-                                        }
+                                        Thumb.SpecialDataBX(this, ins);
                                         break;
                                 }
                             }
                             else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
                             {
-                                LineDebug("LDR (3) | PC Relative, 8-bit Immediate");
-
-                                uint rd = (uint)((ins >> 8) & 0b111);
-                                uint immed8 = (uint)((ins >> 0) & 0xFF);
-
-                                uint addr = (R[15] & 0xFFFFFFFC) + (immed8 * 4);
-                                if ((addr & 0b11) != 0)
-                                {
-                                    // Misaligned
-                                    uint readAddr = addr & ~0b11U;
-                                    uint readVal = Gba.Mem.Read32(readAddr);
-                                    R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
-                                }
-                                else
-                                {
-                                    uint readVal = Gba.Mem.Read32(addr);
-                                    R[rd] = readVal;
-                                }
+                                Thumb.LDRLiteralPool(this, ins);
                             }
                             else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
                             {
@@ -2218,40 +1718,20 @@ namespace OptimeGBA
                                         }
                                         break;
                                     case 0b001: // STRH (2)
-                                    case 0b101: // LDRH (2)
                                         {
-                                            bool load = BitTest(ins, 11);
-                                            LineDebug("STRH / LDRH (2)");
+                                            LineDebug("STRH (2)");
 
                                             uint rnVal = R[rn];
                                             uint rmVal = R[rm];
 
                                             uint addr = rnVal + rmVal;
 
-                                            if (load)
-                                            {
-                                                LineDebug("Load");
-                                                if ((addr & 1) != 0)
-                                                {
-                                                    // Halfworld Misaligned
-                                                    R[rd] = Gba.Mem.Read16(RotateRight32(addr - 1, 8));
-                                                }
-                                                else
-                                                {
-                                                    // Halfword Aligned
-                                                    R[rd] = Gba.Mem.Read16(addr);
-                                                }
-                                            }
-                                            else
-                                            {
-                                                LineDebug("Store");
-                                                uint rdVal = R[rd];
-                                                Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
-                                            }
+                                            LineDebug("Store");
+                                            uint rdVal = R[rd];
+                                            Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
                                         }
                                         break;
                                     case 0b010: // STRB (2)
-                                    case 0b110: // LDRB (2)
                                         {
                                             uint rdVal = R[rd];
                                             uint rnVal = R[rn];
@@ -2261,55 +1741,28 @@ namespace OptimeGBA
 
                                             bool load = BitTest(ins, 11);
 
-                                            if (load)
-                                            {
-                                                LineDebug("LDRB (2)");
-                                                R[rd] = Gba.Mem.Read8(addr);
-                                            }
-                                            else
-                                            {
-                                                LineDebug("STRB (2)");
-                                                Gba.Mem.Write8(addr, (byte)rdVal);
-                                            }
+                                            LineDebug("STRB (2)");
+                                            Gba.Mem.Write8(addr, (byte)rdVal);
                                         }
                                         break;
                                     case 0b011: // LDRSB
-                                    case 0b111: // LDRSH
                                         {
                                             uint rdVal = R[rd];
                                             uint rnVal = R[rn];
                                             uint rmVal = R[rm];
 
-                                            bool halfword = BitTest(ins, 11); // As apposed to byte load.
-
                                             uint addr = rnVal + rmVal;
 
-                                            if (halfword)
+                                            LineDebug("LDRSB");
+
+                                            int readVal = (int)Gba.Mem.Read8(addr);
+                                            // Sign extend
+                                            if ((readVal & BIT_7) != 0)
                                             {
-                                                LineDebug("LDRSH");
-
-                                                int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
-                                                // Sign extend
-                                                if ((readVal & BIT_15) != 0)
-                                                {
-                                                    readVal -= (int)BIT_16;
-                                                }
-
-                                                R[rd] = (uint)readVal;
+                                                readVal -= (int)BIT_8;
                                             }
-                                            else
-                                            {
-                                                LineDebug("LDRSB");
 
-                                                int readVal = (int)Gba.Mem.Read8(addr);
-                                                // Sign extend
-                                                if ((readVal & BIT_7) != 0)
-                                                {
-                                                    readVal -= (int)BIT_8;
-                                                }
-
-                                                R[rd] = (uint)readVal;
-                                            }
+                                            R[rd] = (uint)readVal;
                                         }
                                         break;
                                     case 0b100: // LDR (2)
@@ -2336,6 +1789,70 @@ namespace OptimeGBA
                                             }
                                         }
                                         break;
+                                    case 0b101: // LDRH (2)
+                                        {
+                                            LineDebug("LDRH (2)");
+
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
+
+                                            uint addr = rnVal + rmVal;
+
+                                            LineDebug("Load");
+                                            if ((addr & 1) != 0)
+                                            {
+                                                // Halfworld Misaligned
+                                                R[rd] = Gba.Mem.Read16(RotateRight32(addr - 1, 8));
+                                            }
+                                            else
+                                            {
+                                                // Halfword Aligned
+                                                R[rd] = Gba.Mem.Read16(addr);
+                                            }
+                                        }
+                                        break;
+                                    case 0b110: // LDRB (2)
+                                        {
+                                            uint rdVal = R[rd];
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
+
+                                            uint addr = rnVal + rmVal;
+
+                                            bool load = BitTest(ins, 11);
+
+                                            if (load)
+                                            {
+                                                LineDebug("LDRB (2)");
+                                                R[rd] = Gba.Mem.Read8(addr);
+                                            }
+                                            else
+                                            {
+                                                LineDebug("STRB (2)");
+                                                Gba.Mem.Write8(addr, (byte)rdVal);
+                                            }
+                                        }
+                                        break;
+                                    case 0b111: // LDRSH
+                                        {
+                                            uint rdVal = R[rd];
+                                            uint rnVal = R[rn];
+                                            uint rmVal = R[rm];
+
+                                            uint addr = rnVal + rmVal;
+
+                                            LineDebug("LDRSH");
+
+                                            int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
+                                            // Sign extend
+                                            if ((readVal & BIT_15) != 0)
+                                            {
+                                                readVal -= (int)BIT_16;
+                                            }
+
+                                            R[rd] = (uint)readVal;
+                                        }
+                                        break;
                                     default:
                                         Error("Load/store register offset invalid opcode");
                                         break;
@@ -2349,66 +1866,16 @@ namespace OptimeGBA
                             switch ((ins >> 11) & 0b11)
                             {
                                 case 0b01: // LDR (1)
-                                    {
-                                        LineDebug("LDR (1) | Base + Immediate");
-
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rnValue = R[(uint)((ins >> 3) & 0b111)];
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        uint addr = rnValue + (immed5 * 4);
-
-                                        // Misaligned
-                                        uint readAddr = addr & ~0b11U;
-                                        uint readVal = Gba.Mem.Read32(readAddr);
-                                        R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
-
-                                        LineDebug($"Addr: {Util.HexN(addr, 8)}");
-
-                                    }
+                                    Thumb.ImmOffsLDR(this, ins);
                                     break;
                                 case 0b00: // STR (1)
-                                    {
-                                        LineDebug("STR (1)");
-
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rnValue = R[(uint)((ins >> 3) & 0b111)];
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        uint addr = rnValue + (immed5 * 4);
-                                        LineDebug($"Addr: {Util.HexN(addr, 8)}");
-
-                                        Gba.Mem.Write32(addr, R[rd]);
-                                    }
+                                    Thumb.ImmOffsSTR(this, ins);
                                     break;
                                 case 0b10: // STRB (1)
-                                    {
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rdVal = R[rd];
-                                        uint rn = (uint)((ins >> 3) & 0b111);
-                                        uint rnVal = R[rn];
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        uint addr = rnVal + immed5;
-
-                                        LineDebug("STRB (1)");
-                                        Gba.Mem.Write8(addr, (byte)rdVal);
-                                    }
+                                    Thumb.ImmOffsSTRB(this, ins);
                                     break;
                                 case 0b11: // LDRB (1)
-                                    {
-
-                                        uint rd = (uint)((ins >> 0) & 0b111);
-                                        uint rdVal = R[rd];
-                                        uint rn = (uint)((ins >> 3) & 0b111);
-                                        uint rnVal = R[rn];
-                                        uint immed5 = (uint)((ins >> 6) & 0b11111);
-
-                                        uint addr = rnVal + immed5;
-
-                                        LineDebug("LDRB (1)");
-                                        R[rd] = Gba.Mem.Read8(addr);
-                                    }
+                                    Thumb.ImmOffsLDRB(this, ins);
                                     break;
                             }
                         }
@@ -2485,21 +1952,21 @@ namespace OptimeGBA
                                     {
                                         LineDebug("POP");
 
-                                        String regs = "";
+                                        // String regs = "";
                                         uint addr = R[13];
 
-                                        if (BitTest(ins, 0)) { regs += "R0 "; R[0] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 1)) { regs += "R1 "; R[1] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 2)) { regs += "R2 "; R[2] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 3)) { regs += "R3 "; R[3] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 4)) { regs += "R4 "; R[4] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 5)) { regs += "R5 "; R[5] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 6)) { regs += "R6 "; R[6] = Gba.Mem.Read32(addr); addr += 4; }
-                                        if (BitTest(ins, 7)) { regs += "R7 "; R[7] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 0)) { /* regs += "R0 "; */ R[0] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 1)) { /* regs += "R1 "; */ R[1] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 2)) { /* regs += "R2 "; */ R[2] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 3)) { /* regs += "R3 "; */ R[3] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 4)) { /* regs += "R4 "; */ R[4] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 5)) { /* regs += "R5 "; */ R[5] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 6)) { /* regs += "R6 "; */ R[6] = Gba.Mem.Read32(addr); addr += 4; }
+                                        if (BitTest(ins, 7)) { /* regs += "R7 "; */ R[7] = Gba.Mem.Read32(addr); addr += 4; }
 
                                         if (BitTest(ins, 8))
                                         {
-                                            regs += "PC ";
+                                            /* regs += "PC "; */
                                             R[15] = Gba.Mem.Read32(addr) & 0xFFFFFFFE;
                                             FlushPipeline();
                                             LineDebug(Util.Hex(R[15], 8));
@@ -2508,13 +1975,12 @@ namespace OptimeGBA
 
                                         R[13] = addr;
 
-                                        LineDebug(regs);
+                                        // LineDebug(regs);
                                     }
                                     else
                                     {
                                         LineDebug("PUSH");
 
-                                        String regs = "";
                                         uint addr = R[13];
 
                                         if (BitTest(ins, 0)) { addr -= 4; }
@@ -2527,24 +1993,24 @@ namespace OptimeGBA
                                         if (BitTest(ins, 7)) { addr -= 4; }
                                         if (BitTest(ins, 8)) { addr -= 4; }
 
-                                        if (BitTest(ins, 0)) { regs += "R0 "; Gba.Mem.Write32(addr, R[0]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 1)) { regs += "R1 "; Gba.Mem.Write32(addr, R[1]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 2)) { regs += "R2 "; Gba.Mem.Write32(addr, R[2]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 3)) { regs += "R3 "; Gba.Mem.Write32(addr, R[3]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 4)) { regs += "R4 "; Gba.Mem.Write32(addr, R[4]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 5)) { regs += "R5 "; Gba.Mem.Write32(addr, R[5]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 6)) { regs += "R6 "; Gba.Mem.Write32(addr, R[6]); addr += 4; R[13] -= 4; }
-                                        if (BitTest(ins, 7)) { regs += "R7 "; Gba.Mem.Write32(addr, R[7]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 0)) { /* regs += "R0 "; */ Gba.Mem.Write32(addr, R[0]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 1)) { /* regs += "R1 "; */ Gba.Mem.Write32(addr, R[1]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 2)) { /* regs += "R2 "; */ Gba.Mem.Write32(addr, R[2]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 3)) { /* regs += "R3 "; */ Gba.Mem.Write32(addr, R[3]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 4)) { /* regs += "R4 "; */ Gba.Mem.Write32(addr, R[4]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 5)) { /* regs += "R5 "; */ Gba.Mem.Write32(addr, R[5]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 6)) { /* regs += "R6 "; */ Gba.Mem.Write32(addr, R[6]); addr += 4; R[13] -= 4; }
+                                        if (BitTest(ins, 7)) { /* regs += "R7 "; */ Gba.Mem.Write32(addr, R[7]); addr += 4; R[13] -= 4; }
 
                                         if (BitTest(ins, 8))
                                         {
-                                            regs += "LR ";
+                                            /* regs += "LR "; */
                                             Gba.Mem.Write32(addr, R[14]);
                                             addr += 4;
                                             R[13] -= 4;
                                         }
 
-                                        LineDebug(regs);
+                                        // LineDebug(regs);
                                     }
                                 }
                                 else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)

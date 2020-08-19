@@ -49,8 +49,6 @@ namespace OptimeGBA
 
         public uint BigStep()
         {
-            uint cycles = 1;
-
             for (uint i = 0; i < 8; i++)
             {
                 Arm7.Execute(); Timers.Tick(1);

@@ -186,10 +186,10 @@ namespace OptimeGBA
 
                             HBlank = false;
 
-                            if (VCount < 160)
-                            {
-                                WaitForRenderingFinish();
-                            }
+                            // if (VCount < 160)
+                            // {
+                            //     WaitForRenderingFinish();
+                            // }
 
                             if (VCount != 227)
                             {
@@ -214,7 +214,7 @@ namespace OptimeGBA
                                 else
                                 {
                                     lcdEnum = LCDEnum.Drawing;
-                                    ActivateRenderThread();
+                                    RenderScanline();
                                 }
                             }
                             else
@@ -224,7 +224,6 @@ namespace OptimeGBA
                                 if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
-                                ActivateRenderThread();
                             }
                         }
                     }
