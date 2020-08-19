@@ -23,6 +23,21 @@ namespace OptimeGBA
             System = 0x1F,
         }
 
+        // 1024 functions, taking the top 10 bits of THUMB
+        public static ThumbExecutor[] ThumbDispatch = GenerateThumbDispatch();
+        public static ThumbExecutor[] GenerateThumbDispatch()
+        {
+            ThumbExecutor[] table = new ThumbExecutor[1024];
+
+            for (ushort i = 0; i < 1024; i++)
+            {
+                ushort opcode = (ushort)(i << 6);
+                table[i] = GetInstructionThumb(opcode);
+            }
+
+            return table;
+        }
+
         public bool Errored = false;
 
         public const uint VectorReset = 0x00;
@@ -1562,304 +1577,266 @@ namespace OptimeGBA
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
-                switch ((ins >> 13) & 0b111)
-                {
-                    case 0b000: // Shift by immediate, Add/subtract register, Add/subtract immediate
+                ThumbDispatch[ins >> 6](this, ins);
+            }
+        }
+
+        public static ThumbExecutor GetInstructionThumb(ushort ins)
+        {
+            switch ((ins >> 13) & 0b111)
+            {
+                case 0b000: // Shift by immediate, Add/subtract register, Add/subtract immediate
+                    {
+                        switch ((ins >> 11) & 0b11)
                         {
-                            switch ((ins >> 11) & 0b11)
-                            {
-                                case 0b00: // LSL (1)
-                                    Thumb.ImmShiftLSL(this, ins);
-                                    break;
-                                case 0b01: // LSR (1)
-                                    Thumb.ImmShiftLSR(this, ins);
-                                    break;
-                                case 0b10: // ASR (1)
-                                    Thumb.ImmShiftASR(this, ins);
-                                    break;
-                                case 0b11: // Add/subtract/compare/move immediate
+                            case 0b00: // LSL (1)
+                                return Thumb.ImmShiftLSL;
+                            case 0b01: // LSR (1)
+                                return Thumb.ImmShiftLSR;
+                            case 0b10: // ASR (1)
+                                return Thumb.ImmShiftASR;
+                            case 0b11: // Add/subtract/compare/move immediate
+                                {
+                                    switch ((ins >> 9) & 0b11)
                                     {
-                                        switch ((ins >> 9) & 0b11)
-                                        {
-                                            case 0b00: // ADD (3)
-                                                Thumb.ImmAluADD1(this, ins);
-                                                break;
-                                            case 0b01: // SUB (3)
-                                                Thumb.ImmAluSUB1(this, ins);
-                                                break;
-                                            case 0b10: // ADD (1) // MOV (2)
-                                                Thumb.ImmAluADD2(this, ins);
-                                                break;
-                                            case 0b11: // SUB (1)
-                                                Thumb.ImmAluSUB2(this, ins);
-                                                break;
-                                        }
-                                        break;
-                                    }
-                            }
-                        }
-                        break;
-                    case 0b001: // Add/subtract/compare/move immediate
-                        {
-
-                            switch ((ins >> 11) & 0b11)
-                            {
-                                case 0b00: // MOV (1)
-                                    Thumb.MovImmediate(this, ins);
-                                    break;
-                                case 0b01: // CMP (1)
-                                    Thumb.CmpImmediate(this, ins);
-                                    break;
-                                case 0b10: // ADD (2)
-                                    Thumb.AddImmediate(this, ins);
-                                    break;
-                                case 0b11: // SUB (2)
-                                    Thumb.SubImmediate(this, ins);
-                                    break;
-                            }
-                        }
-                        break;
-                    case 0b010:
-                        {
-                            if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
-                            {
-
-                                uint opcode = (uint)((ins >> 6) & 0xFU);
-                                switch (opcode)
-                                {
-                                    case 0x0: // AND
-                                        Thumb.DataAND(this, ins);
-                                        break;
-                                    case 0x1: // EOR
-                                        Thumb.DataEOR(this, ins);
-                                        break;
-                                    case 0x2: // LSL (2)
-                                        Thumb.DataLSL(this, ins);
-                                        break;
-                                    case 0x3: // LSR (2)
-                                        Thumb.DataLSR(this, ins);
-                                        break;
-                                    case 0x4: // ASR (2)
-                                        Thumb.DataASR(this, ins);
-                                        break;
-                                    case 0x5: // ADC
-                                        Thumb.DataADC(this, ins);
-                                        break;
-                                    case 0x6: // SBC
-                                        Thumb.DataSBC(this, ins);
-                                        break;
-                                    case 0x7: // ROR
-                                        Thumb.DataROR(this, ins);
-                                        break;
-                                    case 0x8: // TST
-                                        Thumb.DataTST(this, ins);
-                                        break;
-                                    case 0x9: // NEG / RSB
-                                        Thumb.DataNEG(this, ins);
-                                        break;
-                                    case 0xA: // CMP (2)
-                                        Thumb.DataCMP(this, ins);
-                                        break;
-                                    case 0xB:  // CMN
-                                        Thumb.DataCMN(this, ins);
-                                        break;
-                                    case 0xC: // ORR
-                                        Thumb.DataORR(this, ins);
-                                        break;
-                                    case 0xD: // MUL
-                                        Thumb.DataMUL(this, ins);
-                                        break;
-                                    case 0xE: // BIC
-                                        Thumb.DataBIC(this, ins);
-                                        break;
-                                    case 0xF: // MVN
-                                        Thumb.DataMVN(this, ins);
-                                        break;
-                                }
-                            }
-                            else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
-                            {
-                                switch ((ins >> 8) & 0b11)
-                                {
-                                    case 0b00: // ADD (4)
-                                        Thumb.SpecialDataADD(this, ins);
-                                        break;
-                                    case 0b01: // CMP (3)
-                                        Thumb.SpecialDataCMP(this, ins);
-                                        break;
-                                    case 0b10:// MOV (3)
-                                        Thumb.SpecialDataMOV(this, ins);
-                                        break;
-                                    case 0b11: // BX
-                                        Thumb.SpecialDataBX(this, ins);
-                                        break;
-                                }
-                            }
-                            else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
-                            {
-                                Thumb.LDRLiteralPool(this, ins);
-                            }
-                            else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
-                            {
-                                uint rd = (uint)((ins >> 0) & 0b111);
-                                uint rn = (uint)((ins >> 3) & 0b111);
-                                uint rm = (uint)((ins >> 6) & 0b111);
-
-                                switch ((ins >> 9) & 0b111)
-                                {
-                                    case 0b000: // STR (2)
-                                        Thumb.RegOffsSTR(this, ins);
-                                        break;
-                                    case 0b001: // STRH (2)
-                                        Thumb.RegOffsSTRH(this, ins);
-                                        break;
-                                    case 0b010: // STRB (2)
-                                        Thumb.RegOffsSTRB(this, ins);
-                                        break;
-                                    case 0b011: // LDRSB
-                                        Thumb.RegOffsLDRSB(this, ins);
-                                        break;
-                                    case 0b100: // LDR (2)
-                                        Thumb.RegOffsLDR(this, ins);
-                                        break;
-                                    case 0b101: // LDRH (2)
-                                        Thumb.RegOffsLDRH(this, ins);
-                                        break;
-                                    case 0b110: // LDRB (2)
-                                        Thumb.RegOffsLDRB(this, ins);
-                                        break;
-                                    case 0b111: // LDRSH
-                                        Thumb.RegOffsLDRSH(this, ins);
-                                        break;
-                                    default:
-                                        Error("Load/store register offset invalid opcode");
-                                        break;
-                                }
-                            }
-                        }
-                        break;
-                    case 0b011: // Load/store word/byte immediate offset
-                        {
-
-                            switch ((ins >> 11) & 0b11)
-                            {
-                                case 0b01: // LDR (1)
-                                    Thumb.ImmOffsLDR(this, ins);
-                                    break;
-                                case 0b00: // STR (1)
-                                    Thumb.ImmOffsSTR(this, ins);
-                                    break;
-                                case 0b10: // STRB (1)
-                                    Thumb.ImmOffsSTRB(this, ins);
-                                    break;
-                                case 0b11: // LDRB (1)
-                                    Thumb.ImmOffsLDRB(this, ins);
-                                    break;
-                            }
-                        }
-                        break;
-                    case 0b100:
-                        {
-                            if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
-                            {
-                                bool load = BitTest(ins, 11);
-                                if (load)
-                                {
-                                    Thumb.ImmLDRH(this, ins);
-                                }
-                                else
-                                {
-                                    Thumb.ImmSTRH(this, ins);
-                                }
-                            }
-                            else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
-                            {
-                                Thumb.StackLDR(this, ins);
-                            }
-                            else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
-                            {
-                                Thumb.StackSTR(this, ins);
-                            }
-                        }
-                        break;
-                    case 0b101:
-                        {
-                            if ((ins & 0b1111000000000000) == 0b1011000000000000) // Miscellaneous (categorized like in the ARM reference manual)
-                            {
-                                if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
-                                {
-                                    if (BitTest(ins, 11))
-                                    {
-                                        Thumb.POP(this, ins);
-                                    }
-                                    else
-                                    {
-                                        Thumb.PUSH(this, ins);
+                                        case 0b00: // ADD (3)
+                                            return Thumb.ImmAluADD1;
+                                        case 0b01: // SUB (3)
+                                            return Thumb.ImmAluSUB1;
+                                        case 0b10: // ADD (1) // MOV (2)
+                                            return Thumb.ImmAluADD2;
+                                        case 0b11: // SUB (1)
+                                            return Thumb.ImmAluSUB2;
                                     }
                                 }
-                                else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)
-                                {
-                                    Thumb.MiscImmADD(this, ins);
-                                }
-                                else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
-                                {
-                                    Thumb.MiscImmSUB(this, ins);
-                                }
-                                else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
-                                {
-                                    Thumb.MiscREVSH(this, ins);
-                                }
-                            }
-                            else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
+                                break;
+                        }
+                    }
+                    break;
+                case 0b001: // Add/subtract/compare/move immediate
+                    {
+
+                        switch ((ins >> 11) & 0b11)
+                        {
+                            case 0b00: // MOV (1)
+                                return Thumb.MovImmediate;
+                            case 0b01: // CMP (1)
+                                return Thumb.CmpImmediate;
+                            case 0b10: // ADD (2)
+                                return Thumb.AddImmediate;
+                            case 0b11: // SUB (2)
+                                return Thumb.SubImmediate;
+                        }
+                    }
+                    break;
+                case 0b010:
+                    {
+                        if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
+                        {
+
+                            uint opcode = (uint)((ins >> 6) & 0xFU);
+                            switch (opcode)
                             {
-                                Thumb.MiscPcADD(this, ins);
-                            }
-                            else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
-                            {
-                                Thumb.MiscSpADD(this, ins);
+                                case 0x0: // AND
+                                    return Thumb.DataAND;
+                                case 0x1: // EOR
+                                    return Thumb.DataEOR;
+                                case 0x2: // LSL (2)
+                                    return Thumb.DataLSL;
+                                case 0x3: // LSR (2)
+                                    return Thumb.DataLSR;
+                                case 0x4: // ASR (2)
+                                    return Thumb.DataASR;
+                                case 0x5: // ADC
+                                    return Thumb.DataADC;
+                                case 0x6: // SBC
+                                    return Thumb.DataSBC;
+                                case 0x7: // ROR
+                                    return Thumb.DataROR;
+                                case 0x8: // TST
+                                    return Thumb.DataTST;
+                                case 0x9: // NEG / RSB
+                                    return Thumb.DataNEG;
+                                case 0xA: // CMP (2)
+                                    return Thumb.DataCMP;
+                                case 0xB:  // CMN
+                                    return Thumb.DataCMN;
+                                case 0xC: // ORR
+                                    return Thumb.DataORR;
+                                case 0xD: // MUL
+                                    return Thumb.DataMUL;
+                                case 0xE: // BIC
+                                    return Thumb.DataBIC;
+                                case 0xF: // MVN
+                                    return Thumb.DataMVN;
                             }
                         }
-                        break;
-                    case 0b110:
+                        else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
                         {
-                            if ((ins & 0b1111000000000000) == 0b1100000000000000) // LDMIA, STMIA - Load/Store Multiple
+                            switch ((ins >> 8) & 0b11)
+                            {
+                                case 0b00: // ADD (4)
+                                    return Thumb.SpecialDataADD;
+                                case 0b01: // CMP (3)
+                                    return Thumb.SpecialDataCMP;
+                                case 0b10:// MOV (3)
+                                    return Thumb.SpecialDataMOV;
+                                case 0b11: // BX
+                                    return Thumb.SpecialDataBX;
+                            }
+                        }
+                        else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
+                        {
+                            return Thumb.LDRLiteralPool;
+                        }
+                        else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
+                        {
+                            uint rd = (uint)((ins >> 0) & 0b111);
+                            uint rn = (uint)((ins >> 3) & 0b111);
+                            uint rm = (uint)((ins >> 6) & 0b111);
+
+                            switch ((ins >> 9) & 0b111)
+                            {
+                                case 0b000: // STR (2)
+                                    return Thumb.RegOffsSTR;
+                                case 0b001: // STRH (2)
+                                    return Thumb.RegOffsSTRH;
+                                case 0b010: // STRB (2)
+                                    return Thumb.RegOffsSTRB;
+                                case 0b011: // LDRSB
+                                    return Thumb.RegOffsLDRSB;
+                                case 0b100: // LDR (2)
+                                    return Thumb.RegOffsLDR;
+                                case 0b101: // LDRH (2)
+                                    return Thumb.RegOffsLDRH;
+                                case 0b110: // LDRB (2)
+                                    return Thumb.RegOffsLDRB;
+                                case 0b111: // LDRSH
+                                    return Thumb.RegOffsLDRSH;
+                                    // default:
+                                    //     Error("Load/store register offset invalid opcode");
+                            }
+                        }
+                    }
+                    break;
+                case 0b011: // Load/store word/byte immediate offset
+                    {
+
+                        switch ((ins >> 11) & 0b11)
+                        {
+                            case 0b01: // LDR (1)
+                                return Thumb.ImmOffsLDR;
+                            case 0b00: // STR (1)
+                                return Thumb.ImmOffsSTR;
+                            case 0b10: // STRB (1)
+                                return Thumb.ImmOffsSTRB;
+                            case 0b11: // LDRB (1)
+                                return Thumb.ImmOffsLDRB;
+                        }
+                    }
+                    break;
+                case 0b100:
+                    {
+                        if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
+                        {
+                            bool load = BitTest(ins, 11);
+                            if (load)
+                            {
+                                return Thumb.ImmLDRH;
+                            }
+                            else
+                            {
+                                return Thumb.ImmSTRH;
+                            }
+                        }
+                        else if ((ins & 0b1111100000000000) == 0b1001100000000000) // LDR (4) - Load from stack
+                        {
+                            return Thumb.StackLDR;
+                        }
+                        else if ((ins & 0b1111100000000000) == 0b1001000000000000) // STR (3) - Store to stack
+                        {
+                            return Thumb.StackSTR;
+                        }
+                    }
+                    break;
+                case 0b101:
+                    {
+                        if ((ins & 0b1111000000000000) == 0b1011000000000000) // Miscellaneous (categorized like in the ARM reference manual)
+                        {
+                            if ((ins & 0b1111011000000000) == 0b1011010000000000) // POP & PUSH
                             {
                                 if (BitTest(ins, 11))
                                 {
-                                    Thumb.LDMIA(this, ins);
+                                    return Thumb.POP;
                                 }
                                 else
                                 {
-                                    Thumb.STMIA(this, ins);
+                                    return Thumb.PUSH;
                                 }
                             }
-                            else if ((ins & 0b1111111100000000) == 0b1101111100000000) // SWI - Software Interrupt
+                            else if ((ins & 0b1111111110000000) == 0b1011000000000000) // ADD (7)
                             {
-                                Thumb.SWI(this, ins);
+                                return Thumb.MiscImmADD;
                             }
-                            else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
+                            else if ((ins & 0b1111111110000000) == 0b1011000010000000) // SUB (4)
                             {
-                                Thumb.ConditionalB(this, ins);
+                                return Thumb.MiscImmSUB;
+                            }
+                            else if ((ins & 0b1111111111000000) == 0b1011101011000000) // REVSH
+                            {
+                                return Thumb.MiscREVSH;
                             }
                         }
-                        break;
-                    case 0b111:
+                        else if ((ins & 0b1111100000000000) == 0b1010000000000000) // ADD (5) - Add to PC 
                         {
-                            if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2) - Unconditional
+                            return Thumb.MiscPcADD;
+                        }
+                        else if ((ins & 0b1111100000000000) == 0b1010100000000000) // ADD (6) - Add to SP
+                        {
+                            return Thumb.MiscSpADD;
+                        }
+                    }
+                    break;
+                case 0b110:
+                    {
+                        if ((ins & 0b1111000000000000) == 0b1100000000000000) // LDMIA, STMIA - Load/Store Multiple
+                        {
+                            if (BitTest(ins, 11))
                             {
-                                Thumb.UnconditionalB(this, ins);
+                                return Thumb.LDMIA;
                             }
-                            else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
+                            else
                             {
-                                Thumb.BL(this, ins);
+                                return Thumb.STMIA;
                             }
                         }
-                        break;
-                    default:
-                        Error("Unknown THUMB instruction");
-                        break;
-                }
+                        else if ((ins & 0b1111111100000000) == 0b1101111100000000) // SWI - Software Interrupt
+                        {
+                            return Thumb.SWI;
+                        }
+                        else if ((ins & 0b1111000000000000) == 0b1101000000000000) // B (1) - Conditional
+                        {
+                            return Thumb.ConditionalB;
+                        }
+                    }
+                    break;
+                case 0b111:
+                    {
+                        if ((ins & 0b1111100000000000) == 0b1110000000000000) // B (2) - Unconditional
+                        {
+                            return Thumb.UnconditionalB;
+                        }
+                        else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
+                        {
+                            return Thumb.BL;
+                        }
+                    }
+                    break;
+                    // default:
+                    //     Error("Unknown THUMB instruction");
             }
+
+            return Thumb.Invalid;
         }
 
         public bool CheckCondition(uint code)

@@ -1,10 +1,12 @@
 using static OptimeGBA.Bits;
+using static Util;
 
 namespace OptimeGBA
 {
+    public delegate void ThumbExecutor(ARM7 arm7, ushort ins);
+
     public class Thumb
     {
-
         public static void MovImmediate(ARM7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 8) & 0b111);
@@ -1294,6 +1296,11 @@ namespace OptimeGBA
                     }
                     break;
             }
+        }
+
+        public static void Invalid(ARM7 arm7, ushort ins)
+        {
+            arm7.Error($"Invalid THUMB Instruction: {Hex(ins, 4)}");
         }
     }
 }
