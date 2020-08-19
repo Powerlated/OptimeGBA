@@ -763,5 +763,183 @@ namespace OptimeGBA
             arm7.R[rd] = arm7.Gba.Mem.Read8(addr);
 
         }
+
+        public static void RegOffsSTR(ARM7 arm7, ushort ins) // STR (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            arm7.LineDebug("STR (2)");
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+            arm7.Gba.Mem.Write32(addr, arm7.R[rd]);
+        }
+
+        public static void RegOffsSTRH(ARM7 arm7, ushort ins) // STRH (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            arm7.LineDebug("STRH (2)");
+
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            arm7.LineDebug("Store");
+            uint rdVal = arm7.R[rd];
+            arm7.Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
+        }
+
+        public static void RegOffsSTRB(ARM7 arm7, ushort ins) // STRB (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            uint rdVal = arm7.R[rd];
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            bool load = BitTest(ins, 11);
+
+            arm7.LineDebug("STRB (2)");
+            arm7.Gba.Mem.Write8(addr, (byte)rdVal);
+        }
+
+        public static void RegOffsLDRSB(ARM7 arm7, ushort ins) // LDRSB
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            uint rdVal = arm7.R[rd];
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            arm7.LineDebug("LDRSB");
+
+            int readVal = (int)arm7.Gba.Mem.Read8(addr);
+            // Sign extend
+            if ((readVal & BIT_7) != 0)
+            {
+                readVal -= (int)BIT_8;
+            }
+
+            arm7.R[rd] = (uint)readVal;
+        }
+
+        public static void RegOffsLDR(ARM7 arm7, ushort ins) // LDR (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            arm7.LineDebug("LDR (2)");
+
+            uint rdVal = arm7.R[rd];
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            if ((addr & 0b11) != 0)
+            {
+                // Misaligned
+                uint readAddr = addr & ~0b11U;
+                uint readVal = arm7.Gba.Mem.Read32(readAddr);
+                arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            }
+            else
+            {
+                uint readVal = arm7.Gba.Mem.Read32(addr);
+                arm7.R[rd] = readVal;
+            }
+        }
+
+        public static void RegOffsLDRH(ARM7 arm7, ushort ins) // LDRH (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            arm7.LineDebug("LDRH (2)");
+
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            arm7.LineDebug("Load");
+            if ((addr & 1) != 0)
+            {
+                // Halfworld Misaligned
+                arm7.R[rd] = arm7.Gba.Mem.Read16(ARM7.RotateRight32(addr - 1, 8));
+            }
+            else
+            {
+                // Halfword Aligned
+                arm7.R[rd] = arm7.Gba.Mem.Read16(addr);
+            }
+        }
+
+        public static void RegOffsLDRB(ARM7 arm7, ushort ins) // LDRB (2)
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            uint rdVal = arm7.R[rd];
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            bool load = BitTest(ins, 11);
+
+            if (load)
+            {
+                arm7.LineDebug("LDRB (2)");
+                arm7.R[rd] = arm7.Gba.Mem.Read8(addr);
+            }
+            else
+            {
+                arm7.LineDebug("STRB (2)");
+                arm7.Gba.Mem.Write8(addr, (byte)rdVal);
+            }
+        }
+
+        public static void RegOffsLDRSH(ARM7 arm7, ushort ins) // LDRSH
+        {
+            uint rd = (uint)((ins >> 0) & 0b111);
+            uint rn = (uint)((ins >> 3) & 0b111);
+            uint rm = (uint)((ins >> 6) & 0b111);
+
+            uint rdVal = arm7.R[rd];
+            uint rnVal = arm7.R[rn];
+            uint rmVal = arm7.R[rm];
+
+            uint addr = rnVal + rmVal;
+
+            arm7.LineDebug("LDRSH");
+
+            int readVal = (int)arm7.Gba.Mem.Read16(addr & 0xFFFFFFFE);
+            // Sign extend
+            if ((readVal & BIT_15) != 0)
+            {
+                readVal -= (int)BIT_16;
+            }
+
+            arm7.R[rd] = (uint)readVal;
+        }
     }
 }

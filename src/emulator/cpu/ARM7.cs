@@ -1708,150 +1708,28 @@ namespace OptimeGBA
                                 switch ((ins >> 9) & 0b111)
                                 {
                                     case 0b000: // STR (2)
-                                        {
-                                            LineDebug("STR (2)");
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-                                            Gba.Mem.Write32(addr, R[rd]);
-                                        }
+                                        Thumb.RegOffsSTR(this, ins);
                                         break;
                                     case 0b001: // STRH (2)
-                                        {
-                                            LineDebug("STRH (2)");
-
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            LineDebug("Store");
-                                            uint rdVal = R[rd];
-                                            Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
-                                        }
+                                        Thumb.RegOffsSTRH(this, ins);
                                         break;
                                     case 0b010: // STRB (2)
-                                        {
-                                            uint rdVal = R[rd];
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            bool load = BitTest(ins, 11);
-
-                                            LineDebug("STRB (2)");
-                                            Gba.Mem.Write8(addr, (byte)rdVal);
-                                        }
+                                        Thumb.RegOffsSTRB(this, ins);
                                         break;
                                     case 0b011: // LDRSB
-                                        {
-                                            uint rdVal = R[rd];
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            LineDebug("LDRSB");
-
-                                            int readVal = (int)Gba.Mem.Read8(addr);
-                                            // Sign extend
-                                            if ((readVal & BIT_7) != 0)
-                                            {
-                                                readVal -= (int)BIT_8;
-                                            }
-
-                                            R[rd] = (uint)readVal;
-                                        }
+                                        Thumb.RegOffsLDRSB(this, ins);
                                         break;
                                     case 0b100: // LDR (2)
-                                        {
-                                            LineDebug("LDR (2)");
-
-                                            uint rdVal = R[rd];
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            if ((addr & 0b11) != 0)
-                                            {
-                                                // Misaligned
-                                                uint readAddr = addr & ~0b11U;
-                                                uint readVal = Gba.Mem.Read32(readAddr);
-                                                R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
-                                            }
-                                            else
-                                            {
-                                                uint readVal = Gba.Mem.Read32(addr);
-                                                R[rd] = readVal;
-                                            }
-                                        }
+                                        Thumb.RegOffsLDR(this, ins);
                                         break;
                                     case 0b101: // LDRH (2)
-                                        {
-                                            LineDebug("LDRH (2)");
-
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            LineDebug("Load");
-                                            if ((addr & 1) != 0)
-                                            {
-                                                // Halfworld Misaligned
-                                                R[rd] = Gba.Mem.Read16(RotateRight32(addr - 1, 8));
-                                            }
-                                            else
-                                            {
-                                                // Halfword Aligned
-                                                R[rd] = Gba.Mem.Read16(addr);
-                                            }
-                                        }
+                                        Thumb.RegOffsLDRH(this, ins);
                                         break;
                                     case 0b110: // LDRB (2)
-                                        {
-                                            uint rdVal = R[rd];
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            bool load = BitTest(ins, 11);
-
-                                            if (load)
-                                            {
-                                                LineDebug("LDRB (2)");
-                                                R[rd] = Gba.Mem.Read8(addr);
-                                            }
-                                            else
-                                            {
-                                                LineDebug("STRB (2)");
-                                                Gba.Mem.Write8(addr, (byte)rdVal);
-                                            }
-                                        }
+                                        Thumb.RegOffsLDRB(this, ins);
                                         break;
                                     case 0b111: // LDRSH
-                                        {
-                                            uint rdVal = R[rd];
-                                            uint rnVal = R[rn];
-                                            uint rmVal = R[rm];
-
-                                            uint addr = rnVal + rmVal;
-
-                                            LineDebug("LDRSH");
-
-                                            int readVal = (int)Gba.Mem.Read16(addr & 0xFFFFFFFE);
-                                            // Sign extend
-                                            if ((readVal & BIT_15) != 0)
-                                            {
-                                                readVal -= (int)BIT_16;
-                                            }
-
-                                            R[rd] = (uint)readVal;
-                                        }
+                                        Thumb.RegOffsLDRSH(this, ins);
                                         break;
                                     default:
                                         Error("Load/store register offset invalid opcode");
