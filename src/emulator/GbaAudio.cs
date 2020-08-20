@@ -130,7 +130,7 @@ namespace OptimeGBA
                     break;
             }
 
-            if (addr >= 0x4000060 && addr <= 0x400007C)
+            if (addr >= 0x4000060 && addr <= 0x4000084)
             {
                 // GB Registers
                 val = GbAudio.ReadHwio8(addr & 0xFF);
