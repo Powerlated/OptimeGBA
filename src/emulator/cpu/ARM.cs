@@ -631,7 +631,189 @@ namespace OptimeGBA
             }
         }
 
-        public static void LDRSTR(ARM7 arm7, uint ins)
+        public static void RegularLDRSTR(ARM7 arm7, uint ins)
+        {
+            // LDR/STR (Load Register)/(Store Register)
+            arm7.LineDebug("LDR/STR (Load Register)/(Store Register)");
+
+            uint rn = (ins >> 16) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rnValue = arm7.R[rn];
+
+            bool registerOffset = BitTest(ins, 25);
+            bool P = BitTest(ins, 24); // post-indexed / offset addressing 
+            bool U = BitTest(ins, 23); // invert
+            bool B = BitTest(ins, 22);
+            bool W = BitTest(ins, 21);
+            bool L = BitTest(ins, 20);
+
+
+            uint offset;
+            if (registerOffset)
+            {
+                // Register offset
+                arm7.LineDebug($"Register Offset");
+                uint rmVal = arm7.R[ins & 0xF];
+
+                if ((ins & 0b111111110000) == 0b000000000000)
+                {
+                    arm7.LineDebug($"Non-scaled");
+                    offset = rmVal;
+                }
+                else
+                {
+                    arm7.LineDebug($"Scaled");
+
+                    uint shiftType = (ins >> 5) & 0b11;
+                    byte shiftBits = (byte)((ins >> 7) & 0b11111);
+                    switch (shiftType)
+                    {
+                        case 0b00:
+                            offset = ARM7.LogicalShiftLeft32(rmVal, shiftBits);
+                            break;
+                        case 0b01:
+                            if (shiftBits == 0)
+                            {
+                                offset = 0;
+                            }
+                            else
+                            {
+                                offset = ARM7.LogicalShiftRight32(rmVal, shiftBits);
+                            }
+                            break;
+                        case 0b10:
+                            if (shiftBits == 0)
+                            {
+                                if (BitTest(rmVal, 31))
+                                {
+                                    offset = 0xFFFFFFFF;
+                                }
+                                else
+                                {
+                                    offset = 0;
+                                }
+                            }
+                            else
+                            {
+                                offset = ARM7.ArithmeticShiftRight32(rmVal, shiftBits);
+                            }
+                            break;
+                        case 0b11:
+                            if (shiftBits == 0)
+                            {
+                                offset = ARM7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (ARM7.LogicalShiftRight32(rmVal, 1));
+                            }
+                            else
+                            {
+                                offset = ARM7.RotateRight32(rmVal, shiftBits);
+                            }
+                            break;
+                        default:
+                            throw new Exception("Invalid shift code?");
+                    }
+                }
+
+            }
+            else
+            {
+                // Immediate offset
+                arm7.LineDebug($"Immediate Offset");
+
+                // if (L && U && !registerOffset && rd == 0 && (ins & 0b111111111111) == 0) Error("sdfsdf");
+
+
+                // This IS NOT A SHIFTED 32-BIT IMMEDIATE, IT'S PLAIN 12-BIT!
+                offset = ins & 0b111111111111;
+            }
+
+            uint addr = rnValue;
+            if (P)
+            {
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
+            }
+
+            arm7.LineDebug($"Rn: R{rn}");
+            arm7.LineDebug($"Rd: R{rd}");
+
+            uint loadVal = 0;
+            if (L)
+            {
+                if (B)
+                {
+                    loadVal = arm7.Gba.Mem.Read8(addr);
+                }
+                else
+                {
+
+                    if ((addr & 0b11) != 0)
+                    {
+
+                        // If the address isn't word-aligned
+                        uint data = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                        loadVal = ARM7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
+
+                        // Error("Misaligned LDR");
+                    }
+                    else
+                    {
+                        loadVal = arm7.Gba.Mem.Read32(addr);
+                    }
+                }
+
+                arm7.LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
+                arm7.LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
+            }
+            else
+            {
+                uint storeVal = arm7.R[rd];
+                if (B)
+                {
+                    arm7.Gba.Mem.Write8(addr, (byte)storeVal);
+                }
+                else
+                {
+                    arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, storeVal);
+                }
+
+                arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
+                arm7.LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
+            }
+
+            if (!P)
+            {
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
+            }
+
+            if (W || !P)
+            {
+                arm7.R[rn] = addr;
+            }
+
+            // Register loading happens after writeback, so if writeback register and Rd are the same, 
+            // the writeback value would be overwritten by Rd.
+            if (L)
+            {
+                arm7.R[rd] = loadVal;
+
+                if (rd == 15) arm7.FlushPipeline();
+            }
+        }
+
+        public static void SpecialLDRSTR(ARM7 arm7, uint ins)
         {
             arm7.LineDebug("Halfword, Signed Byte, Doubleword Loads & Stores");
             arm7.LineDebug("LDR|STR H|SH|SB|D");
@@ -767,5 +949,373 @@ namespace OptimeGBA
             arm7.LineDebug($"Writeback: {(W ? "Yes" : "No")}");
             arm7.LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
         }
+
+        public static void DataAND(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("AND");
+
+            uint rnValue = arm7.R[rn];
+
+            uint final = rnValue & shifterOperand;
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31);
+                arm7.Zero = final == 0;
+                arm7.Carry = shifterCarryOut;
+            }
+        }
+
+        public static void DataEOR(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("EOR");
+
+            uint rnValue = arm7.R[rn];
+
+            uint final = rnValue ^ shifterOperand;
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31);
+                arm7.Zero = final == 0;
+                arm7.Carry = shifterCarryOut;
+            }
+        }
+
+        public static void DataSUB(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("SUB");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = rnValue - shifterOperand;
+
+            arm7.R[rd] = aluOut;
+            if (setFlags && rd == 15)
+            {
+                // throw new Exception("CPSR = SPSR if current mode has SPSR");
+                arm7.SetCPSR(arm7.GetSPSR());
+                arm7.FlushPipeline();
+                // Error("");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = !(shifterOperand > rnValue); // C
+                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+            }
+        }
+
+        public static void DataRSB(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("RSB");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = shifterOperand - rnValue;
+
+            arm7.R[rd] = aluOut;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = !(rnValue > shifterOperand); // C
+                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
+            }
+        }
+
+        public static void DataADD(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("ADD");
+
+            uint rnValue = arm7.R[rn];
+            uint final = rnValue + shifterOperand;
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31); // N
+                arm7.Zero = final == 0; // Z
+                arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
+                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // C
+            }
+        }
+
+        public static void DataADC(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("ADC");
+
+            uint rnValue = arm7.R[rn];
+            uint final = rnValue + shifterOperand + (arm7.Carry ? 1U : 0);
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31); // N
+                arm7.Zero = final == 0; // Z
+                arm7.Carry = (long)rnValue + (long)shifterOperand + (arm7.Carry ? 1U : 0) > 0xFFFFFFFFL; // C
+                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand + (arm7.Carry ? 1U : 0), final); // V
+            }
+        }
+
+        public static void DataSBC(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("SBC");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = rnValue - shifterOperand - (!arm7.Carry ? 1U : 0U);
+
+            arm7.R[rd] = aluOut;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = !((long)shifterOperand + (long)(!arm7.Carry ? 1U : 0) > rnValue); // C
+                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand + (!arm7.Carry ? 1U : 0), aluOut); // V
+            }
+        }
+
+        public static void DataRSC(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("RSC");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = shifterOperand - rnValue - (!arm7.Carry ? 1U : 0U);
+
+            arm7.R[rd] = aluOut;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = !(rnValue + (!arm7.Carry ? 1U : 0U) > shifterOperand); // C
+                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue + (!arm7.Carry ? 1U : 0), aluOut); // V
+            }
+        }
+
+        public static void DataTST(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("TST");
+
+            uint rnValue = arm7.R[rn];
+            uint final = rnValue & shifterOperand;
+
+            arm7.Negative = BitTest(final, 31);
+            arm7.Zero = final == 0;
+            arm7.Carry = shifterCarryOut;
+        }
+
+        public static void DataTEQ(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("TEQ");
+
+            uint reg = arm7.R[rn];
+            uint aluOut = reg ^ shifterOperand;
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = shifterCarryOut; // C
+            }
+        }
+
+        public static void DataCMP(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            // SBZ means should be zero, not relevant to the current code, just so you know
+            arm7.LineDebug("CMP");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = rnValue - shifterOperand;
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = rnValue >= shifterOperand; // C
+                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+            }
+        }
+
+        public static void DataCMN(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("CMN");
+
+            uint rnValue = arm7.R[rn];
+            uint aluOut = rnValue + shifterOperand;
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(aluOut, 31); // N
+                arm7.Zero = aluOut == 0; // Z
+                arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFF; // C
+                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
+            }
+        }
+
+        public static void DataORR(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("ORR");
+
+            uint rnValue = arm7.R[rn];
+
+            uint final = rnValue | shifterOperand;
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31);
+                arm7.Zero = final == 0;
+                arm7.Carry = shifterCarryOut;
+            }
+        }
+
+        public static void DataMOV(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("MOV");
+
+            arm7.R[rd] /*Rd*/ = shifterOperand;
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(shifterOperand, 31); // N
+                arm7.Zero = shifterOperand == 0; // Z
+                arm7.Carry = shifterCarryOut; // C
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                }
+            }
+
+            if (rd == 15)
+            {
+                arm7.FlushPipeline();
+            }
+        }
+
+        public static void DataBIC(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("BIC");
+
+            uint final = arm7.R[rn] & ~shifterOperand;
+            arm7.R[rd] = final;
+            if (setFlags && rd == 15)
+            {
+                // TODO: CPSR = SPSR if current mode has SPSR
+                throw new Exception("CPSR = SPSR if current mode has SPSR");
+            }
+            else if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31); // N
+                arm7.Zero = final == 0; // Z
+                arm7.Carry = shifterCarryOut; // C
+            }
+        }
+
+        public static void DataMVN(ARM7 arm7, uint ins)
+        {
+            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+
+            arm7.LineDebug("MVN");
+
+            arm7.R[rd] /*Rd*/ = ~shifterOperand;
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(~shifterOperand, 31); // N
+                arm7.Zero = ~shifterOperand == 0; // Z
+                arm7.Carry = shifterCarryOut; ; // C
+
+
+                if (rd == 15)
+                {
+                    // TODO: Set CPSR to SPSR here
+                    throw new Exception("CPSR = SPSR if current mode has SPSR");
+                }
+            }
+
+            if (rd == 15)
+            {
+                arm7.FlushPipeline();
+            }
+        }
+
     }
 }

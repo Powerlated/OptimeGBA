@@ -292,218 +292,15 @@ namespace OptimeGBA
                     }
                     else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
                     {
-                        Arm.LDRSTR(this, ins);
+                        Arm.SpecialLDRSTR(this, ins);
                     }
                     else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
                     {
                         // Bits 27, 26 are 0, so data processing / ALU
                         LineDebug("Data Processing / FSR Transfer");
                         // ALU Operations
-                        bool immediate32 = (ins & BIT_25) != 0;
                         uint opcode = (ins >> 21) & 0xF;
-                        bool setFlags = (ins & BIT_20) != 0;
-                        uint rn = (ins >> 16) & 0xF; // Rn
-                        uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
-
-                        // ----- When using register as 2nd operand -----
-                        // Shift by immediate or shift by register
-
-                        uint shifterOperand = 0;
-                        bool shifterCarryOut = false;
-
-                        if (immediate32)
-                        {
-                            uint rotateBits = ((ins >> 8) & 0xF) * 2;
-                            uint constant = ins & 0xFF;
-
-                            shifterOperand = RotateRight32(constant, (byte)rotateBits);
-                            if (rotateBits == 0)
-                            {
-                                shifterCarryOut = Carry;
-                            }
-                            else
-                            {
-                                shifterCarryOut = BitTest(shifterOperand, 31);
-                            }
-
-                            LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
-                        }
-                        else
-                        {
-                            bool regShift = (ins & BIT_4) != 0;
-
-                            uint rm = ins & 0xF;
-                            uint rmVal = R[rm];
-                            byte shiftBits;
-                            uint shiftType = (ins >> 5) & 0b11;
-
-                            if (!regShift)
-                            {
-                                // Immediate Shift
-                                shiftBits = (byte)((ins >> 7) & 0b11111);
-
-                                switch (shiftType)
-                                {
-                                    case 0b00: // LSL
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = Carry;
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
-                                        }
-                                        break;
-                                    case 0b01: // LSR
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = 0;
-                                            shifterCarryOut = BitTest(rmVal, 31);
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
-                                        }
-                                        break;
-                                    case 0b10: // ASR
-                                        if (shiftBits == 0)
-                                        {
-                                            if (!BitTest(rmVal, 31))
-                                            {
-                                                shifterOperand = 0;
-                                                shifterCarryOut = false;
-                                            }
-                                            else
-                                            {
-                                                shifterOperand = 0xFFFFFFFF;
-                                                shifterCarryOut = true;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
-                                        }
-                                        break;
-                                    case 0b11: // ROR
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = LogicalShiftLeft32(Carry ? 1U : 0, 31) | LogicalShiftRight32(rmVal, 1);
-                                            shifterCarryOut = BitTest(rmVal, 0);
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = RotateRight32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
-                                        }
-                                        break;
-                                }
-                            }
-                            else
-                            {
-                                // Register shift
-                                uint rs = (ins >> 8) & 0xF;
-                                uint rsVal = R[rs];
-
-                                if (rs == 15) rsVal += 4;
-                                if (rm == 15) rmVal += 4;
-
-                                shiftBits = (byte)(rsVal & 0b11111111);
-
-                                switch (shiftType)
-                                {
-                                    case 0b00:
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = Carry;
-                                        }
-                                        else if (shiftBits < 32)
-                                        {
-                                            shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
-                                        }
-                                        else if (shiftBits == 32)
-                                        {
-                                            shifterOperand = 0;
-                                            shifterCarryOut = BitTest(rmVal, 0);
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = 0;
-                                            shifterCarryOut = false;
-                                        }
-                                        break;
-                                    case 0b01:
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = Carry;
-                                        }
-                                        else if (shiftBits < 32)
-                                        {
-                                            shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
-                                        }
-                                        else if (shiftBits == 32)
-                                        {
-                                            shifterOperand = 0;
-                                            shifterCarryOut = BitTest(rmVal, 31);
-                                        }
-                                        else
-                                        {
-                                            shifterOperand = 0;
-                                            shifterCarryOut = false;
-                                        }
-                                        break;
-                                    case 0b10:
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = Carry;
-                                        }
-                                        else if (shiftBits < 32)
-                                        {
-                                            shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
-                                            shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
-                                        }
-                                        else if (shiftBits >= 32)
-                                        {
-                                            if (!BitTest(rmVal, 31))
-                                            {
-                                                shifterOperand = 0;
-                                                shifterCarryOut = false;
-                                            }
-                                            else
-                                            {
-                                                shifterOperand = 0xFFFFFFFF;
-                                                shifterCarryOut = true;
-                                            }
-                                        }
-                                        break;
-                                    case 0b11:
-                                        if (shiftBits == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = Carry;
-                                        }
-                                        else if ((shiftBits & 0b11111) == 0)
-                                        {
-                                            shifterOperand = rmVal;
-                                            shifterCarryOut = BitTest(rmVal, 31);
-                                        }
-                                        else if ((shiftBits & 0b11111) > 0)
-                                        {
-                                            shifterOperand = RotateRight32(rmVal, (byte)(shiftBits & 0b11111));
-                                            shifterCarryOut = BitTest(rmVal, (byte)((shiftBits & 0b11111) - 1));
-                                        }
-                                        break;
-                                }
-                            }
-                        }
+                        (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
 
                         LineDebug($"Rn: R{rn}");
                         LineDebug($"Rd: R{rd}");
@@ -511,512 +308,60 @@ namespace OptimeGBA
                         switch (opcode)
                         {
                             case 0x0: // AND
-                                {
-                                    LineDebug("AND");
-
-                                    uint rnValue = R[rn];
-
-                                    uint final = rnValue & shifterOperand;
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                        Carry = shifterCarryOut;
-                                    }
-                                }
+                                Arm.DataAND(this, ins);
                                 break;
                             case 0x1: // EOR
-                                {
-                                    LineDebug("EOR");
-
-                                    uint rnValue = R[rn];
-
-                                    uint final = rnValue ^ shifterOperand;
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                        Carry = shifterCarryOut;
-                                    }
-                                }
+                                Arm.DataEOR(this, ins);
                                 break;
                             case 0x2: // SUB
-                                {
-                                    LineDebug("SUB");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = rnValue - shifterOperand;
-
-                                    R[rd] = aluOut;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        // throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                        SetCPSR(GetSPSR());
-                                        FlushPipeline();
-                                        // Error("");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = !(shifterOperand > rnValue); // C
-                                        Overflow = CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
-                                    }
-                                }
+                                Arm.DataSUB(this, ins);
                                 break;
                             case 0x3: // RSB
-                                {
-                                    LineDebug("RSB");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = shifterOperand - rnValue;
-
-                                    R[rd] = aluOut;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = !(rnValue > shifterOperand); // C
-                                        Overflow = CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
-                                    }
-                                }
+                                Arm.DataRSB(this, ins);
                                 break;
                             case 0x4: // ADD
-                                {
-                                    LineDebug("ADD");
-
-                                    uint rnValue = R[rn];
-                                    uint final = rnValue + shifterOperand;
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31); // N
-                                        Zero = final == 0; // Z
-                                        Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
-                                        Overflow = CheckOverflowAdd(rnValue, shifterOperand, final); // C
-                                    }
-                                }
+                                Arm.DataADD(this, ins);
                                 break;
                             case 0x5: // ADC
-                                {
-                                    LineDebug("ADC");
-
-                                    uint rnValue = R[rn];
-                                    uint final = rnValue + shifterOperand + (Carry ? 1U : 0);
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31); // N
-                                        Zero = final == 0; // Z
-                                        Carry = (long)rnValue + (long)shifterOperand + (Carry ? 1U : 0) > 0xFFFFFFFFL; // C
-                                        Overflow = CheckOverflowAdd(rnValue, shifterOperand + (Carry ? 1U : 0), final); // V
-                                    }
-                                }
+                                Arm.DataADC(this, ins);
                                 break;
                             case 0x6: // SBC
-                                {
-                                    LineDebug("SBC");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = rnValue - shifterOperand - (!Carry ? 1U : 0U);
-
-                                    R[rd] = aluOut;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = !((long)shifterOperand + (long)(!Carry ? 1U : 0) > rnValue); // C
-                                        Overflow = CheckOverflowSub(rnValue, shifterOperand + (!Carry ? 1U : 0), aluOut); // V
-                                    }
-                                }
+                                Arm.DataSBC(this, ins);
                                 break;
                             case 0x7: // RSC
-                                {
-                                    LineDebug("RSC");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = shifterOperand - rnValue - (!Carry ? 1U : 0U);
-
-                                    R[rd] = aluOut;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = !(rnValue + (!Carry ? 1U : 0U) > shifterOperand); // C
-                                        Overflow = CheckOverflowSub(shifterOperand, rnValue + (!Carry ? 1U : 0), aluOut); // V
-                                    }
-                                }
+                                Arm.DataRSC(this, ins);
                                 break;
                             case 0x8: // TST
-                                {
-                                    LineDebug("TST");
-
-                                    uint rnValue = R[rn];
-                                    uint final = rnValue & shifterOperand;
-
-                                    Negative = BitTest(final, 31);
-                                    Zero = final == 0;
-                                    Carry = shifterCarryOut;
-                                }
+                                Arm.DataTST(this, ins);
                                 break;
                             case 0x9: // TEQ
-                                {
-                                    LineDebug("TEQ");
-
-                                    uint reg = R[rn];
-                                    uint aluOut = reg ^ shifterOperand;
-                                    if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = shifterCarryOut; // C
-                                    }
-                                }
+                                Arm.DataTEQ(this, ins);
                                 break;
                             case 0xA: // CMP
-                                {
-                                    // SBZ means should be zero, not relevant to the current code, just so you know
-                                    LineDebug("CMP");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = rnValue - shifterOperand;
-                                    if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = rnValue >= shifterOperand; // C
-                                        Overflow = CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
-                                    }
-                                }
+                                Arm.DataCMP(this, ins);
                                 break;
                             case 0xB: // CMN
-                                {
-                                    LineDebug("CMN");
-
-                                    uint rnValue = R[rn];
-                                    uint aluOut = rnValue + shifterOperand;
-                                    if (setFlags)
-                                    {
-                                        Negative = BitTest(aluOut, 31); // N
-                                        Zero = aluOut == 0; // Z
-                                        Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFF; // C
-                                        Overflow = CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
-                                    }
-                                }
+                                Arm.DataCMN(this, ins);
                                 break;
                             case 0xC: // ORR
-                                {
-                                    LineDebug("ORR");
-
-                                    uint rnValue = R[rn];
-
-                                    uint final = rnValue | shifterOperand;
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31);
-                                        Zero = final == 0;
-                                        Carry = shifterCarryOut;
-                                    }
-                                }
+                                Arm.DataORR(this, ins);
                                 break;
                             case 0xD: // MOV
-                                {
-                                    LineDebug("MOV");
-
-                                    R[rd] /*Rd*/ = shifterOperand;
-                                    if (setFlags)
-                                    {
-                                        Negative = BitTest(shifterOperand, 31); // N
-                                        Zero = shifterOperand == 0; // Z
-                                        Carry = shifterCarryOut; // C
-
-                                        if (rd == 15)
-                                        {
-                                            SetCPSR(GetSPSR());
-                                        }
-                                    }
-
-                                    if (rd == 15)
-                                    {
-                                        FlushPipeline();
-                                    }
-                                }
+                                Arm.DataMOV(this, ins);
                                 break;
                             case 0xE: // BIC
-                                {
-                                    LineDebug("BIC");
-
-                                    uint final = R[rn] & ~shifterOperand;
-                                    R[rd] = final;
-                                    if (setFlags && rd == 15)
-                                    {
-                                        // TODO: CPSR = SPSR if current mode has SPSR
-                                        throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                    }
-                                    else if (setFlags)
-                                    {
-                                        Negative = BitTest(final, 31); // N
-                                        Zero = final == 0; // Z
-                                        Carry = shifterCarryOut; // C
-                                    }
-                                }
+                                Arm.DataBIC(this, ins);
                                 break;
                             case 0xF: // MVN
-                                {
-                                    LineDebug("MVN");
-
-                                    R[rd] /*Rd*/ = ~shifterOperand;
-                                    if (setFlags)
-                                    {
-                                        Negative = BitTest(~shifterOperand, 31); // N
-                                        Zero = ~shifterOperand == 0; // Z
-                                        Carry = shifterCarryOut; ; // C
-
-
-                                        if (rd == 15)
-                                        {
-                                            // TODO: Set CPSR to SPSR here
-                                            throw new Exception("CPSR = SPSR if current mode has SPSR");
-                                        }
-                                    }
-
-                                    if (rd == 15)
-                                    {
-                                        FlushPipeline();
-                                    }
-                                }
+                                Arm.DataMVN(this, ins);
                                 break;
-                            default:
-                                Error($"ALU Opcode Unimplemented: {opcode:X}");
-                                return;
                         }
 
 
                     }
                     else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
                     {
-                        // LDR/STR (Load Register)/(Store Register)
-                        LineDebug("LDR/STR (Load Register)/(Store Register)");
-
-                        uint rn = (ins >> 16) & 0xF;
-                        uint rd = (ins >> 12) & 0xF;
-                        uint rnValue = R[rn];
-
-                        bool registerOffset = BitTest(ins, 25);
-                        bool P = BitTest(ins, 24); // post-indexed / offset addressing 
-                        bool U = BitTest(ins, 23); // invert
-                        bool B = BitTest(ins, 22);
-                        bool W = BitTest(ins, 21);
-                        bool L = BitTest(ins, 20);
-
-
-                        uint offset;
-                        if (registerOffset)
-                        {
-                            // Register offset
-                            LineDebug($"Register Offset");
-                            uint rmVal = R[ins & 0xF];
-
-                            if ((ins & 0b111111110000) == 0b000000000000)
-                            {
-                                LineDebug($"Non-scaled");
-                                offset = rmVal;
-                            }
-                            else
-                            {
-                                LineDebug($"Scaled");
-
-                                uint shiftType = (ins >> 5) & 0b11;
-                                byte shiftBits = (byte)((ins >> 7) & 0b11111);
-                                switch (shiftType)
-                                {
-                                    case 0b00:
-                                        offset = LogicalShiftLeft32(rmVal, shiftBits);
-                                        break;
-                                    case 0b01:
-                                        if (shiftBits == 0)
-                                        {
-                                            offset = 0;
-                                        }
-                                        else
-                                        {
-                                            offset = LogicalShiftRight32(rmVal, shiftBits);
-                                        }
-                                        break;
-                                    case 0b10:
-                                        if (shiftBits == 0)
-                                        {
-                                            if (BitTest(rmVal, 31))
-                                            {
-                                                offset = 0xFFFFFFFF;
-                                            }
-                                            else
-                                            {
-                                                offset = 0;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            offset = ArithmeticShiftRight32(rmVal, shiftBits);
-                                        }
-                                        break;
-                                    case 0b11:
-                                        if (shiftBits == 0)
-                                        {
-                                            offset = LogicalShiftLeft32(Carry ? 1U : 0, 31) | (LogicalShiftRight32(rmVal, 1));
-                                        }
-                                        else
-                                        {
-                                            offset = RotateRight32(rmVal, shiftBits);
-                                        }
-                                        break;
-                                    default:
-                                        throw new Exception("Invalid shift code?");
-                                }
-                            }
-
-                        }
-                        else
-                        {
-                            // Immediate offset
-                            LineDebug($"Immediate Offset");
-
-                            // if (L && U && !registerOffset && rd == 0 && (ins & 0b111111111111) == 0) Error("sdfsdf");
-
-
-                            // This IS NOT A SHIFTED 32-BIT IMMEDIATE, IT'S PLAIN 12-BIT!
-                            offset = ins & 0b111111111111;
-                        }
-
-                        uint addr = rnValue;
-                        if (P)
-                        {
-                            if (U)
-                            {
-                                addr += offset;
-                            }
-                            else
-                            {
-                                addr -= offset;
-                            }
-                        }
-
-                        LineDebug($"Rn: R{rn}");
-                        LineDebug($"Rd: R{rd}");
-
-                        uint loadVal = 0;
-                        if (L)
-                        {
-                            if (B)
-                            {
-                                loadVal = Gba.Mem.Read8(addr);
-                            }
-                            else
-                            {
-
-                                if ((addr & 0b11) != 0)
-                                {
-
-                                    // If the address isn't word-aligned
-                                    uint data = Gba.Mem.Read32(addr & 0xFFFFFFFC);
-                                    loadVal = RotateRight32(data, (byte)(8 * (addr & 0b11)));
-
-                                    // Error("Misaligned LDR");
-                                }
-                                else
-                                {
-                                    loadVal = Gba.Mem.Read32(addr);
-                                }
-                            }
-
-                            LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
-                            LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
-                        }
-                        else
-                        {
-                            uint storeVal = R[rd];
-                            if (B)
-                            {
-                                Gba.Mem.Write8(addr, (byte)storeVal);
-                            }
-                            else
-                            {
-                                Gba.Mem.Write32(addr & 0xFFFFFFFC, storeVal);
-                            }
-
-                            LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
-                            LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
-                        }
-
-                        if (!P)
-                        {
-                            if (U)
-                            {
-                                addr += offset;
-                            }
-                            else
-                            {
-                                addr -= offset;
-                            }
-                        }
-
-                        if (W || !P)
-                        {
-                            R[rn] = addr;
-                        }
-
-                        // Register loading happens after writeback, so if writeback register and Rd are the same, 
-                        // the writeback value would be overwritten by Rd.
-                        if (L)
-                        {
-                            R[rd] = loadVal;
-
-                            if (rd == 15) FlushPipeline();
-                        }
+                        Arm.RegularLDRSTR(this, ins);
                     }
                     else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
                     {
@@ -1440,10 +785,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint ArithmeticShiftRight32(uint n, byte bits)
         {
-            uint logical = n >> bits;
-            uint mask = BitTest(n, 31) ? 0xFFFFFFFF : 0;
-
-            return logical | (mask << (32 - bits));
+            return (uint)((int)n >> bits);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -1880,6 +1222,222 @@ namespace OptimeGBA
             }
 
             return 1;
+        }
+
+        public static (uint rn, uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
+        {
+            bool setFlags = (ins & BIT_20) != 0;
+            uint rn = (ins >> 16) & 0xF; // Rn
+            uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
+
+            return (rn, rd, setFlags);
+        }
+
+        public (uint shifterOperand, bool shifterCarryOut) ArmDataShiftAndApplyFlags(uint ins)
+        {
+            // ----- When using register as 2nd operand -----
+            // Shift by immediate or shift by register
+            bool useImmediate32 = (ins & BIT_25) != 0;
+
+            uint shifterOperand = 0;
+            bool shifterCarryOut = false;
+
+            if (useImmediate32)
+            {
+                uint rotateBits = ((ins >> 8) & 0xF) * 2;
+                uint constant = ins & 0xFF;
+
+                shifterOperand = RotateRight32(constant, (byte)rotateBits);
+                if (rotateBits == 0)
+                {
+                    shifterCarryOut = Carry;
+                }
+                else
+                {
+                    shifterCarryOut = BitTest(shifterOperand, 31);
+                }
+
+                LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
+            }
+            else
+            {
+                bool regShift = (ins & BIT_4) != 0;
+
+                uint rm = ins & 0xF;
+                uint rmVal = R[rm];
+                byte shiftBits;
+                uint shiftType = (ins >> 5) & 0b11;
+
+                if (!regShift)
+                {
+                    // Immediate Shift
+                    shiftBits = (byte)((ins >> 7) & 0b11111);
+
+                    switch (shiftType)
+                    {
+                        case 0b00: // LSL
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = Carry;
+                            }
+                            else
+                            {
+                                shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                            }
+                            break;
+                        case 0b01: // LSR
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = BitTest(rmVal, 31);
+                            }
+                            else
+                            {
+                                shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                        case 0b10: // ASR
+                            if (shiftBits == 0)
+                            {
+                                if (!BitTest(rmVal, 31))
+                                {
+                                    shifterOperand = 0;
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterOperand = 0xFFFFFFFF;
+                                    shifterCarryOut = true;
+                                }
+                            }
+                            else
+                            {
+                                shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                        case 0b11: // ROR
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = LogicalShiftLeft32(Carry ? 1U : 0, 31) | LogicalShiftRight32(rmVal, 1);
+                                shifterCarryOut = BitTest(rmVal, 0);
+                            }
+                            else
+                            {
+                                shifterOperand = RotateRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    // Register shift
+                    uint rs = (ins >> 8) & 0xF;
+                    uint rsVal = R[rs];
+
+                    if (rs == 15) rsVal += 4;
+                    if (rm == 15) rmVal += 4;
+
+                    shiftBits = (byte)(rsVal & 0b11111111);
+
+                    switch (shiftType)
+                    {
+                        case 0b00:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = Carry;
+                            }
+                            else if (shiftBits < 32)
+                            {
+                                shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                            }
+                            else if (shiftBits == 32)
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = BitTest(rmVal, 0);
+                            }
+                            else
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = false;
+                            }
+                            break;
+                        case 0b01:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = Carry;
+                            }
+                            else if (shiftBits < 32)
+                            {
+                                shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            else if (shiftBits == 32)
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = BitTest(rmVal, 31);
+                            }
+                            else
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = false;
+                            }
+                            break;
+                        case 0b10:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = Carry;
+                            }
+                            else if (shiftBits < 32)
+                            {
+                                shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            else if (shiftBits >= 32)
+                            {
+                                if (!BitTest(rmVal, 31))
+                                {
+                                    shifterOperand = 0;
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterOperand = 0xFFFFFFFF;
+                                    shifterCarryOut = true;
+                                }
+                            }
+                            break;
+                        case 0b11:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = Carry;
+                            }
+                            else if ((shiftBits & 0b11111) == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = BitTest(rmVal, 31);
+                            }
+                            else if ((shiftBits & 0b11111) > 0)
+                            {
+                                shifterOperand = RotateRight32(rmVal, (byte)(shiftBits & 0b11111));
+                                shifterCarryOut = BitTest(rmVal, (byte)((shiftBits & 0b11111) - 1));
+                            }
+                            break;
+                    }
+                }
+
+            }
+
+            return (shifterOperand, shifterCarryOut);
         }
     }
 }
