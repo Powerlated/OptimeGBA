@@ -5,7 +5,7 @@ namespace OptimeGBA
 {
     public delegate void ThumbExecutor(ARM7 arm7, ushort ins);
 
-    public class Thumb
+    public static class Thumb
     {
         public static void MovImmediate(ARM7 arm7, ushort ins)
         {

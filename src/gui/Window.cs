@@ -42,7 +42,7 @@ namespace OptimeGBAEmulator
                     int num = FrameIns;
                     while (num > 0 && !Gba.Arm7.Errored)
                     {
-                        num -= (int)Gba.BigStep();
+                        num -= (int)Gba.Step();
                     }
                 }
             }

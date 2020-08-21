@@ -1,0 +1,771 @@
+using static OptimeGBA.Bits;
+using static Util;
+using System;
+
+namespace OptimeGBA
+{
+    public delegate void ArmExecutor(ARM7 arm7, uint ins);
+
+    public static class Arm
+    {
+        public static void SWI(ARM7 arm7, uint ins)
+        {
+            arm7.SPSR_svc = arm7.GetCPSR();
+            arm7.SetMode((uint)ARM7.ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.R[14] = arm7.R[15] - 4;
+            arm7.ThumbState = false; // Back to ARM state
+            arm7.IRQDisable = true;
+
+            arm7.R[15] = ARM7.VectorSoftwareInterrupt;
+            arm7.FlushPipeline();
+        }
+
+        public static void LDM(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("LDM");
+
+            const bool L = true;
+
+            bool P = BitTest(ins, 24); // post-indexed / offset addressing 
+            bool U = BitTest(ins, 23); // invert
+            bool S = BitTest(ins, 22);
+            bool W = BitTest(ins, 21);
+
+            bool loadsPc = BitTest(ins, 15);
+            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != ARM7.ARM7Mode.User && arm7.Mode != ARM7.ARM7Mode.OldUser);
+
+            if (S)
+            {
+                if (L && loadsPc)
+                {
+                    arm7.LineDebug("Load CPSR from SPSR");
+                    arm7.SetCPSR(arm7.GetSPSR());
+                }
+            }
+
+            // if (U && P && W) Error("U & P & W");
+
+            arm7.LineDebug(L ? "Load" : "Store");
+            arm7.LineDebug(P ? "No Include Base" : "Include Base");
+            arm7.LineDebug(U ? "Upwards" : "Downwards");
+
+            uint rn = (ins >> 16) & 0xF;
+
+            uint addr = arm7.R[rn];
+
+            String regs = "";
+
+            bool disableWriteback = false;
+            // No writeback if base register is included in the register list when loading.
+
+            if (U)
+            {
+                for (byte r = 0; r < 16; r++)
+                {
+                    if (BitTest(ins, r))
+                    {
+                        if (r == rn && L) disableWriteback = true;
+                        regs += $"R{r} ";
+
+                        if (P) addr += 4;
+
+                        if (!useUserModeRegs)
+                        {
+                            // if (L)
+                            // { 
+                            // Load
+                            if (r != 15)
+                            {
+                                arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                            }
+                            else
+                            {
+                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.FlushPipeline();
+                            }
+                            // }
+                            // else
+                            // { 
+                            // Store
+                            //     arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            // }
+                        }
+                        else
+                        {
+                            // if (L)
+                            // { 
+                            // Load
+
+                            if (r != 15)
+                            {
+                                arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                            }
+                            else
+                            {
+                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.FlushPipeline();
+                            }
+                            // }
+                            // else
+                            // { 
+                            // Store
+                            //     arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            // }
+                        }
+
+                        if (!P) addr += 4;
+                    }
+                }
+            }
+            else
+            {
+                for (byte ri = 0; ri < 16; ri++)
+                {
+                    byte r = (byte)(ri ^ 0b1111);
+                    if (BitTest(ins, r))
+                    {
+                        if (r == rn && L) disableWriteback = true;
+                        regs += $"R{r} ";
+
+                        if (P) addr -= 4;
+
+                        if (!useUserModeRegs)
+                        {
+                            // if (L)
+                            // { 
+                            // Load
+                            if (r != 15)
+                            {
+                                arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                            }
+                            else
+                            {
+                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.FlushPipeline();
+                            }
+                            // }
+                            // else
+                            // { // Store
+                            //     arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            // }
+                        }
+                        else
+                        {
+                            // if (L)
+                            // { 
+                            // Load
+                            if (r != 15)
+                            {
+                                arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                            }
+                            else
+                            {
+                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.FlushPipeline();
+                            }
+                            // }
+                            // else
+                            // { 
+                            //     // Store
+                            //     arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            // }
+                        }
+
+                        if (!P) addr -= 4;
+                    }
+                }
+            }
+
+            if (W && !disableWriteback)
+            {
+                arm7.R[rn] = addr;
+            }
+
+            arm7.LineDebug(regs);
+        }
+
+        public static void STM(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("STM");
+
+            const bool L = false;
+
+            bool P = BitTest(ins, 24); // post-indexed / offset addressing 
+            bool U = BitTest(ins, 23); // invert
+            bool S = BitTest(ins, 22);
+            bool W = BitTest(ins, 21);
+
+            bool loadsPc = BitTest(ins, 15);
+            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != ARM7.ARM7Mode.User && arm7.Mode != ARM7.ARM7Mode.OldUser);
+
+            if (S)
+            {
+                if (L && loadsPc)
+                {
+                    arm7.LineDebug("Load CPSR from SPSR");
+                    arm7.SetCPSR(arm7.GetSPSR());
+                }
+            }
+
+            // if (U && P && W) Error("U & P & W");
+
+            arm7.LineDebug(L ? "Load" : "Store");
+            arm7.LineDebug(P ? "No Include Base" : "Include Base");
+            arm7.LineDebug(U ? "Upwards" : "Downwards");
+
+            uint rn = (ins >> 16) & 0xF;
+
+            uint addr = arm7.R[rn];
+
+            String regs = "";
+
+            bool disableWriteback = false;
+            // No writeback if base register is included in the register list when loading.
+
+            if (U)
+            {
+                for (byte r = 0; r < 16; r++)
+                {
+                    if (BitTest(ins, r))
+                    {
+                        if (r == rn && L) disableWriteback = true;
+                        regs += $"R{r} ";
+
+                        if (P) addr += 4;
+
+                        if (!useUserModeRegs)
+                        {
+                            // if (L)
+                            // { // Load
+                            //     if (r != 15)
+                            //     {
+                            //         arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                            //     }
+                            //     else
+                            //     {
+                            //         arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            //         arm7.FlushPipeline();
+                            //     }
+                            // }
+                            // else
+                            // {
+                            // Store
+                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            // }
+                        }
+                        else
+                        {
+                            // if (L)
+                            // { // Load
+                            //     if (r != 15)
+                            //     {
+                            //         arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                            //     }
+                            //     else
+                            //     {
+                            //         arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            //         arm7.FlushPipeline();
+                            //     }
+                            // }
+                            // else
+                            // { 
+                            // Store
+                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            // }
+                        }
+
+                        if (!P) addr += 4;
+                    }
+                }
+            }
+            else
+            {
+                for (byte ri = 0; ri < 16; ri++)
+                {
+                    byte r = (byte)(ri ^ 0b1111);
+                    if (BitTest(ins, r))
+                    {
+                        if (r == rn && L) disableWriteback = true;
+                        regs += $"R{r} ";
+
+                        if (P) addr -= 4;
+
+                        if (!useUserModeRegs)
+                        {
+                            // if (L)
+                            // { // Load
+                            //     if (r != 15)
+                            //     {
+                            //         arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                            //     }
+                            //     else
+                            //     {
+                            //         arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            //         arm7.FlushPipeline();
+                            //     }
+                            // }
+                            // else
+                            // { 
+                            // Store
+                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            // }
+                        }
+                        else
+                        {
+                            // if (L)
+                            // { // Load
+                            //     if (r != 15)
+                            //     {
+                            //         arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                            //     }
+                            //     else
+                            //     {
+                            //         arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            //         arm7.FlushPipeline();
+                            //     }
+                            // }
+                            // else
+                            // {
+                            // Store
+                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            // }
+                        }
+
+                        if (!P) addr -= 4;
+                    }
+                }
+            }
+
+            if (W && !disableWriteback)
+            {
+                arm7.R[rn] = addr;
+            }
+
+            arm7.LineDebug(regs);
+        }
+
+        public static void B(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("B | Branch");
+            // B
+            int offset = (int)(ins & 0b111111111111111111111111) << 2;
+            // Signed with Two's Complement
+            if ((offset & BIT_25) != 0)
+            {
+                arm7.LineDebug("Backward Branch");
+                offset -= (int)BIT_26;
+            }
+            else
+            {
+                arm7.LineDebug("Forward Branch");
+            }
+
+            // Link - store return address in R14
+            if ((ins & BIT_24) != 0)
+            {
+                arm7.R[14] = arm7.R[15] - 4;
+            }
+
+            arm7.R[15] = (uint)(arm7.R[15] + offset);
+            arm7.FlushPipeline();
+        }
+
+        public static void BX(ARM7 arm7, uint ins)
+        {
+            // BX - branch and optional switch to Thumb state
+            arm7.LineDebug("BX");
+
+            uint rm = ins & 0xF;
+            uint rmValue = arm7.R[rm];
+
+            arm7.ThumbState = BitTest(rmValue, 0);
+            if (arm7.ThumbState)
+            {
+                arm7.LineDebug("Switch to THUMB State");
+            }
+            else
+            {
+                arm7.LineDebug("Switch to ARM State");
+            }
+
+            arm7.R[15] = (rmValue & 0xFFFFFFFE);
+            arm7.FlushPipeline();
+        }
+
+        public static void SWP(ARM7 arm7, uint ins)
+        {
+            uint rm = (ins >> 0) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rn = (ins >> 16) & 0xF;
+
+            uint addr = arm7.R[rn];
+            uint storeValue = arm7.R[rm];
+
+            arm7.LineDebug("SWP");
+            uint readVal = arm7.Gba.Mem.Read32(addr);
+            arm7.Gba.Mem.Write32(addr, storeValue);
+            arm7.R[rd] = readVal;
+        }
+
+        public static void SWPB(ARM7 arm7, uint ins)
+        {
+            uint rm = (ins >> 0) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rn = (ins >> 16) & 0xF;
+
+            uint addr = arm7.R[rn];
+            uint storeValue = arm7.R[rm];
+
+            arm7.LineDebug("SWPB");
+            byte readVal = arm7.Gba.Mem.Read8(addr);
+            arm7.Gba.Mem.Write8(addr, (byte)storeValue);
+            arm7.R[rd] = readVal;
+        }
+
+        public static void MSR(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("MSR");
+            // MSR
+
+            bool useSPSR = BitTest(ins, 22);
+
+            // uint UnallocMask = 0x0FFFFF00;
+            uint UserMask = 0xFFFFFFFF;
+            uint PrivMask = 0xFFFFFFFF;
+            uint StateMask = 0xFFFFFFFF;
+
+            bool setControl = BitTest(ins, 16);
+            bool setExtension = BitTest(ins, 17);
+            bool setStatus = BitTest(ins, 18);
+            bool setFlags = BitTest(ins, 19);
+
+            bool useImmediate = BitTest(ins, 25);
+
+            uint operand;
+
+            if (useImmediate)
+            {
+                uint rotateBits = ((ins >> 8) & 0xF) * 2;
+                uint constant = ins & 0xFF;
+
+                operand = ARM7.RotateRight32(constant, (byte)rotateBits);
+            }
+            else
+            {
+                operand = arm7.R[ins & 0xF];
+            }
+
+            uint byteMask =
+                (setControl ? 0x000000FFu : 0) |
+                (setExtension ? 0x0000FF00u : 0) |
+                (setStatus ? 0x00FF0000u : 0) |
+                (setFlags ? 0xFF000000u : 0);
+
+            arm7.LineDebug($"Set Control: {setControl}");
+            arm7.LineDebug($"Set Extension: {setExtension}");
+            arm7.LineDebug($"Set Status: {setStatus}");
+            arm7.LineDebug($"Set Flags: {setFlags}");
+
+            uint mask;
+
+            if (!useSPSR)
+            {
+                // TODO: Fix privileged mode functionality in CPSR MSR
+                if (arm7.Mode != ARM7.ARM7Mode.User)
+                {
+                    // Privileged
+                    arm7.LineDebug("Privileged");
+                    mask = byteMask & (UserMask | PrivMask);
+                }
+                else
+                {
+                    // Unprivileged
+                    arm7.LineDebug("Unprivileged");
+                    mask = byteMask & UserMask;
+                }
+                uint set = (arm7.GetCPSR() & ~mask) | (operand & mask);
+                arm7.SetCPSR(set);
+            }
+            else
+            {
+                // TODO: Add SPSR functionality to MSR
+                mask = byteMask & (UserMask | PrivMask | StateMask);
+                arm7.SetSPSR((arm7.GetSPSR() & ~mask) | (operand & mask));
+            }
+        }
+
+        public static void MRS(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("MRS");
+
+            bool useSPSR = BitTest(ins, 22);
+
+            uint rd = (ins >> 12) & 0xF;
+
+            if (useSPSR)
+            {
+                arm7.LineDebug("Rd from SPSR");
+                arm7.R[rd] = arm7.GetSPSR();
+            }
+            else
+            {
+                arm7.LineDebug("Rd from CPSR");
+                arm7.R[rd] = arm7.GetCPSR();
+            }
+        }
+
+        public static void MUL(ARM7 arm7, uint ins)
+        {
+            uint rd = (ins >> 16) & 0xF;
+            uint rs = (ins >> 8) & 0xF;
+            uint rm = (ins >> 0) & 0xF;
+            uint rsValue = arm7.R[rs];
+            uint rmValue = arm7.R[rm];
+
+            arm7.LineDebug($"R{rm} * R{rs}");
+            arm7.LineDebug($"${Util.HexN(rmValue, 8)} * ${Util.HexN(rsValue, 8)}");
+
+            bool setFlags = BitTest(ins, 20);
+
+            uint final;
+            if (BitTest(ins, 21))
+            {
+                uint rnValue = arm7.R[(ins >> 12) & 0xF];
+                arm7.LineDebug("Multiply Accumulate");
+                final = (rsValue * rmValue) + rnValue;
+            }
+            else
+            {
+                arm7.LineDebug("Multiply Regular");
+                final = rsValue * rmValue;
+            }
+            arm7.R[rd] = final;
+
+            if (setFlags)
+            {
+                arm7.Negative = BitTest(final, 31);
+                arm7.Zero = final == 0;
+            }
+        }
+
+        public static void MULL(ARM7 arm7, uint ins)
+        {
+            bool signed = BitTest(ins, 22);
+            bool accumulate = BitTest(ins, 21);
+            bool setFlags = BitTest(ins, 20);
+
+            uint rdHi = (ins >> 16) & 0xF;
+            uint rdLo = (ins >> 12) & 0xF;
+            uint rs = (ins >> 8) & 0xF;
+            uint rm = (ins >> 0) & 0xF;
+            ulong rsVal = arm7.R[rs];
+            ulong rmVal = arm7.R[rm];
+
+            arm7.LineDebug("Multiply Long");
+
+            ulong longLo;
+            ulong longHi;
+            if (accumulate)
+            {
+                arm7.LineDebug("Accumulate");
+
+                if (signed)
+                {
+                    // SMLAL
+                    long rmValExt = (long)rmVal;
+                    long rsValExt = (long)rsVal;
+
+                    const long sub = (1L << 32);
+
+                    if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
+                    if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
+
+                    longLo = (ulong)(((rsValExt * rmValExt) & 0xFFFFFFFF) + arm7.R[rdLo]);
+                    longHi = (ulong)((rsValExt * rmValExt) >> 32) + arm7.R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
+                }
+                else
+                {
+                    // UMLAL
+                    longLo = ((rsVal * rmVal) & 0xFFFFFFFF) + arm7.R[rdLo];
+                    longHi = ((rsVal * rmVal) >> 32) + arm7.R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
+                }
+            }
+            else
+            {
+                arm7.LineDebug("No Accumulate");
+
+                if (signed)
+                {
+                    // SMULL
+                    long rmValExt = (long)rmVal;
+                    long rsValExt = (long)rsVal;
+
+                    const long sub = (1L << 32);
+
+                    if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
+                    if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
+
+                    longLo = (ulong)((rsValExt * rmValExt));
+                    longHi = (ulong)((rsValExt * rmValExt) >> 32);
+                }
+                else
+                {
+                    // UMULL
+                    longLo = (rmVal * rsVal);
+                    longHi = ((rmVal * rsVal) >> 32);
+                }
+            }
+
+            arm7.LineDebug($"RdLo: R{rdLo}");
+            arm7.LineDebug($"RdHi: R{rdHi}");
+            arm7.LineDebug($"Rm: R{rm}");
+            arm7.LineDebug($"Rs: R{rs}");
+
+            arm7.R[rdLo] = (uint)longLo;
+            arm7.R[rdHi] = (uint)longHi;
+
+            if (setFlags)
+            {
+                arm7.Negative = BitTest((uint)longHi, 31);
+                arm7.Zero = arm7.R[rdLo] == 0 && arm7.R[rdHi] == 0;
+            }
+        }
+
+        public static void LDRSTR(ARM7 arm7, uint ins)
+        {
+            arm7.LineDebug("Halfword, Signed Byte, Doubleword Loads & Stores");
+            arm7.LineDebug("LDR|STR H|SH|SB|D");
+
+            bool L = BitTest(ins, 20);
+            bool S = BitTest(ins, 6);
+            bool H = BitTest(ins, 5);
+
+
+            bool W = BitTest(ins, 21); // Writeback to base register
+            bool immediateOffset = BitTest(ins, 22);
+            bool U = BitTest(ins, 23); // Add / Subtract offset
+            bool P = BitTest(ins, 24); // Use post-indexed / offset or pre-indexed 
+
+            uint rd = (ins >> 12) & 0xF;
+            uint rn = (ins >> 16) & 0xF;
+
+            uint baseAddr = arm7.R[rn];
+
+            uint offset;
+            if (immediateOffset)
+            {
+                arm7.LineDebug("Immediate Offset");
+                uint immed = (ins & 0xF) | ((ins >> 4) & 0xF0);
+                offset = immed;
+            }
+            else
+            {
+                arm7.LineDebug("Register Offset");
+                uint rm = ins & 0xF;
+                offset = arm7.R[rm];
+            }
+
+            uint addr = baseAddr;
+            if (P)
+            {
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
+            }
+
+            uint loadVal = 0;
+            if (L)
+            {
+                if (S)
+                {
+                    if (H)
+                    {
+                        arm7.LineDebug("Load signed halfword");
+
+                        int val = (int)arm7.Gba.Mem.Read16(addr);
+                        if ((val & BIT_15) != 0)
+                        {
+                            val -= (int)BIT_16;
+                        }
+
+                        loadVal = (uint)val;
+                    }
+                    else
+                    {
+                        arm7.LineDebug("Load signed byte");
+
+                        int val = (int)arm7.Gba.Mem.Read8(addr);
+                        if ((val & BIT_7) != 0)
+                        {
+                            val -= (int)BIT_8;
+                        }
+
+                        loadVal = (uint)val;
+                    }
+                }
+                else
+                {
+                    if (H)
+                    {
+                        arm7.LineDebug("Load unsigned halfword");
+                        loadVal = arm7.Gba.Mem.Read16(addr);
+                    }
+                }
+            }
+            else
+            {
+                if (S)
+                {
+                    if (H)
+                    {
+                        arm7.LineDebug("Store doubleword");
+                        arm7.Error("UNIMPLEMENTED");
+                    }
+                    else
+                    {
+                        arm7.LineDebug("Load doubleword");
+                        arm7.Error("UNIMPLEMENTED");
+                    }
+                }
+                else
+                {
+                    if (H)
+                    {
+                        arm7.LineDebug("Store halfword");
+                        arm7.Gba.Mem.Write16(addr, (ushort)arm7.R[rd]);
+                    }
+                }
+            }
+
+            if (!P)
+            {
+                if (U)
+                {
+                    addr = baseAddr + offset;
+                }
+                else
+                {
+                    addr = baseAddr - offset;
+                }
+            }
+
+            if (W || !P)
+            {
+                arm7.R[rn] = addr;
+            }
+
+            if (L)
+            {
+                arm7.R[rd] = loadVal;
+            }
+
+            arm7.LineDebug($"Writeback: {(W ? "Yes" : "No")}");
+            arm7.LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
+        }
+    }
+}

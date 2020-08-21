@@ -207,12 +207,12 @@ namespace OptimeGBA
 
         public void Execute()
         {
-#if DEBUG
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
                 return;
             }
+#if DEBUG
             ResetDebug();
 #endif
 
@@ -256,417 +256,43 @@ namespace OptimeGBA
                 {
                     if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
                     {
-                        LineDebug("B | Branch");
-                        // B
-                        int offset = (int)(ins & 0b111111111111111111111111) << 2;
-                        // Signed with Two's Complement
-                        if ((offset & BIT_25) != 0)
-                        {
-                            LineDebug("Backward Branch");
-                            offset -= (int)BIT_26;
-                        }
-                        else
-                        {
-                            LineDebug("Forward Branch");
-                        }
-
-                        // Link - store return address in R14
-                        if ((ins & BIT_24) != 0)
-                        {
-                            R[14] = R[15] - 4;
-                        }
-
-                        R[15] = (uint)(R[15] + offset);
-                        FlushPipeline();
-                    }
+                        Arm.B(this, ins);
+                    } // id mask    0b1111111100000000000011110000
                     else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
                     {
-                        // BX - branch and optional switch to Thumb state
-                        LineDebug("BX");
-
-                        uint rm = ins & 0xF;
-                        uint rmValue = R[rm];
-
-                        ThumbState = BitTest(rmValue, 0);
-                        if (ThumbState)
-                        {
-                            LineDebug("Switch to THUMB State");
-                        }
-                        else
-                        {
-                            LineDebug("Switch to ARM State");
-                        }
-
-                        R[15] = (rmValue & 0xFFFFFFFE);
-                        FlushPipeline();
+                        Arm.BX(this, ins);
                     }
                     else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB
                     {
                         bool useByte = BitTest(ins, 22);
-
-                        uint rm = (ins >> 0) & 0xF;
-                        uint rd = (ins >> 12) & 0xF;
-                        uint rn = (ins >> 16) & 0xF;
-
-                        uint addr = R[rn];
-                        uint storeValue = R[rm];
-
                         if (useByte)
                         {
-                            LineDebug("SWPB");
-                            byte readVal = Gba.Mem.Read8(addr);
-                            Gba.Mem.Write8(addr, (byte)storeValue);
-                            R[rd] = readVal;
+                            Arm.SWPB(this, ins);
                         }
                         else
                         {
-                            LineDebug("SWP");
-                            uint readVal = Gba.Mem.Read32(addr);
-                            Gba.Mem.Write32(addr, storeValue);
-                            R[rd] = readVal;
+                            Arm.SWP(this, ins);
                         }
                     }
                     else if ((ins & 0b1101101100001111000000000000) == 0b0001001000001111000000000000) // MSR
                     {
-                        LineDebug("MSR");
-                        // MSR
-
-                        bool useSPSR = BitTest(ins, 22);
-
-                        // uint UnallocMask = 0x0FFFFF00;
-                        uint UserMask = 0xFFFFFFFF;
-                        uint PrivMask = 0xFFFFFFFF;
-                        uint StateMask = 0xFFFFFFFF;
-
-                        bool setControl = BitTest(ins, 16);
-                        bool setExtension = BitTest(ins, 17);
-                        bool setStatus = BitTest(ins, 18);
-                        bool setFlags = BitTest(ins, 19);
-
-                        bool useImmediate = BitTest(ins, 25);
-
-                        uint operand;
-
-                        if (useImmediate)
-                        {
-                            uint rotateBits = ((ins >> 8) & 0xF) * 2;
-                            uint constant = ins & 0xFF;
-
-                            operand = RotateRight32(constant, (byte)rotateBits);
-                        }
-                        else
-                        {
-                            operand = R[ins & 0xF];
-                        }
-
-                        uint byteMask =
-                            (setControl ? 0x000000FFu : 0) |
-                            (setExtension ? 0x0000FF00u : 0) |
-                            (setStatus ? 0x00FF0000u : 0) |
-                            (setFlags ? 0xFF000000u : 0);
-
-                        LineDebug($"Set Control: {setControl}");
-                        LineDebug($"Set Extension: {setExtension}");
-                        LineDebug($"Set Status: {setStatus}");
-                        LineDebug($"Set Flags: {setFlags}");
-
-                        uint mask;
-
-                        if (!useSPSR)
-                        {
-                            // TODO: Fix privileged mode functionality in CPSR MSR
-                            if (Mode != ARM7Mode.User)
-                            {
-                                // Privileged
-                                LineDebug("Privileged");
-                                mask = byteMask & (UserMask | PrivMask);
-                            }
-                            else
-                            {
-                                // Unprivileged
-                                LineDebug("Unprivileged");
-                                mask = byteMask & UserMask;
-                            }
-                            uint set = (GetCPSR() & ~mask) | (operand & mask);
-                            SetCPSR(set);
-                        }
-                        else
-                        {
-                            // TODO: Add SPSR functionality to MSR
-                            mask = byteMask & (UserMask | PrivMask | StateMask);
-                            SetSPSR((GetSPSR() & ~mask) | (operand & mask));
-                        }
+                        Arm.MSR(this, ins);
                     }
                     else if ((ins & 0b1111101111110000000000000000) == 0b0001000011110000000000000000) // MRS
                     {
-                        LineDebug("MRS");
-
-                        bool useSPSR = BitTest(ins, 22);
-
-                        uint rd = (ins >> 12) & 0xF;
-
-                        if (useSPSR)
-                        {
-                            LineDebug("Rd from SPSR");
-                            R[rd] = GetSPSR();
-                        }
-                        else
-                        {
-                            LineDebug("Rd from CPSR");
-                            R[rd] = GetCPSR();
-                        }
+                        Arm.MRS(this, ins);
                     }
                     else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
                     {
-                        uint rd = (ins >> 16) & 0xF;
-                        uint rs = (ins >> 8) & 0xF;
-                        uint rm = (ins >> 0) & 0xF;
-                        uint rsValue = R[rs];
-                        uint rmValue = R[rm];
-
-                        LineDebug($"R{rm} * R{rs}");
-                        LineDebug($"${Util.HexN(rmValue, 8)} * ${Util.HexN(rsValue, 8)}");
-
-                        bool setFlags = BitTest(ins, 20);
-
-                        uint final;
-                        if (BitTest(ins, 21))
-                        {
-                            uint rnValue = R[(ins >> 12) & 0xF];
-                            LineDebug("Multiply Accumulate");
-                            final = (rsValue * rmValue) + rnValue;
-                        }
-                        else
-                        {
-                            LineDebug("Multiply Regular");
-                            final = rsValue * rmValue;
-                        }
-                        R[rd] = final;
-
-                        if (setFlags)
-                        {
-                            Negative = BitTest(final, 31);
-                            Zero = final == 0;
-                        }
+                        Arm.MUL(this, ins);
                     }
                     else if ((ins & 0b1111100000000000000011110000) == 0b0000100000000000000010010000) // Multiply Long
                     {
-                        bool signed = BitTest(ins, 22);
-                        bool accumulate = BitTest(ins, 21);
-                        bool setFlags = BitTest(ins, 20);
-
-                        uint rdHi = (ins >> 16) & 0xF;
-                        uint rdLo = (ins >> 12) & 0xF;
-                        uint rs = (ins >> 8) & 0xF;
-                        uint rm = (ins >> 0) & 0xF;
-                        ulong rsVal = R[rs];
-                        ulong rmVal = R[rm];
-
-                        LineDebug("Multiply Long");
-
-                        ulong longLo;
-                        ulong longHi;
-                        if (accumulate)
-                        {
-                            LineDebug("Accumulate");
-
-                            if (signed)
-                            {
-                                // SMLAL
-                                long rmValExt = (long)rmVal;
-                                long rsValExt = (long)rsVal;
-
-                                const long sub = (1L << 32);
-
-                                if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
-                                if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
-
-                                longLo = (ulong)(((rsValExt * rmValExt) & 0xFFFFFFFF) + R[rdLo]);
-                                longHi = (ulong)((rsValExt * rmValExt) >> 32) + R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
-                            }
-                            else
-                            {
-                                // UMLAL
-                                longLo = ((rsVal * rmVal) & 0xFFFFFFFF) + R[rdLo];
-                                longHi = ((rsVal * rmVal) >> 32) + R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
-                            }
-                        }
-                        else
-                        {
-                            LineDebug("No Accumulate");
-
-                            if (signed)
-                            {
-                                // SMULL
-                                long rmValExt = (long)rmVal;
-                                long rsValExt = (long)rsVal;
-
-                                const long sub = (1L << 32);
-
-                                if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
-                                if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
-
-                                longLo = (ulong)((rsValExt * rmValExt));
-                                longHi = (ulong)((rsValExt * rmValExt) >> 32);
-                            }
-                            else
-                            {
-                                // UMULL
-                                longLo = (rmVal * rsVal);
-                                longHi = ((rmVal * rsVal) >> 32);
-                            }
-                        }
-
-                        LineDebug($"RdLo: R{rdLo}");
-                        LineDebug($"RdHi: R{rdHi}");
-                        LineDebug($"Rm: R{rm}");
-                        LineDebug($"Rs: R{rs}");
-
-                        R[rdLo] = (uint)longLo;
-                        R[rdHi] = (uint)longHi;
-
-                        if (setFlags)
-                        {
-                            Negative = BitTest((uint)longHi, 31);
-                            Zero = R[rdLo] == 0 && R[rdHi] == 0;
-                        }
+                        Arm.MULL(this, ins);
                     }
                     else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
                     {
-                        LineDebug("Halfword, Signed Byte, Doubleword Loads & Stores");
-                        LineDebug("LDR|STR H|SH|SB|D");
-
-                        bool L = BitTest(ins, 20);
-                        bool S = BitTest(ins, 6);
-                        bool H = BitTest(ins, 5);
-
-
-                        bool W = BitTest(ins, 21); // Writeback to base register
-                        bool immediateOffset = BitTest(ins, 22);
-                        bool U = BitTest(ins, 23); // Add / Subtract offset
-                        bool P = BitTest(ins, 24); // Use post-indexed / offset or pre-indexed 
-
-                        uint rd = (ins >> 12) & 0xF;
-                        uint rn = (ins >> 16) & 0xF;
-
-                        uint baseAddr = R[rn];
-
-                        uint offset;
-                        if (immediateOffset)
-                        {
-                            LineDebug("Immediate Offset");
-                            uint immed = (ins & 0xF) | ((ins >> 4) & 0xF0);
-                            offset = immed;
-                        }
-                        else
-                        {
-                            LineDebug("Register Offset");
-                            uint rm = ins & 0xF;
-                            offset = R[rm];
-                        }
-
-                        uint addr = baseAddr;
-                        if (P)
-                        {
-                            if (U)
-                            {
-                                addr += offset;
-                            }
-                            else
-                            {
-                                addr -= offset;
-                            }
-                        }
-
-                        uint loadVal = 0;
-                        if (L)
-                        {
-                            if (S)
-                            {
-                                if (H)
-                                {
-                                    LineDebug("Load signed halfword");
-
-                                    int val = (int)Gba.Mem.Read16(addr);
-                                    if ((val & BIT_15) != 0)
-                                    {
-                                        val -= (int)BIT_16;
-                                    }
-
-                                    loadVal = (uint)val;
-                                }
-                                else
-                                {
-                                    LineDebug("Load signed byte");
-
-                                    int val = (int)Gba.Mem.Read8(addr);
-                                    if ((val & BIT_7) != 0)
-                                    {
-                                        val -= (int)BIT_8;
-                                    }
-
-                                    loadVal = (uint)val;
-                                }
-                            }
-                            else
-                            {
-                                if (H)
-                                {
-                                    LineDebug("Load unsigned halfword");
-                                    loadVal = Gba.Mem.Read16(addr);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            if (S)
-                            {
-                                if (H)
-                                {
-                                    LineDebug("Store doubleword");
-                                    Error("UNIMPLEMENTED");
-                                }
-                                else
-                                {
-                                    LineDebug("Load doubleword");
-                                    Error("UNIMPLEMENTED");
-                                }
-                            }
-                            else
-                            {
-                                if (H)
-                                {
-                                    LineDebug("Store halfword");
-                                    Gba.Mem.Write16(addr, (ushort)R[rd]);
-                                }
-                            }
-                        }
-
-                        if (!P)
-                        {
-                            if (U)
-                            {
-                                addr = baseAddr + offset;
-                            }
-                            else
-                            {
-                                addr = baseAddr - offset;
-                            }
-                        }
-
-                        if (W || !P)
-                        {
-                            R[rn] = addr;
-                        }
-
-                        if (L)
-                        {
-                            R[rd] = loadVal;
-                        }
-
-                        LineDebug($"Writeback: {(W ? "Yes" : "No")}");
-                        LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
-
+                        Arm.LDRSTR(this, ins);
                     }
                     else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
                     {
@@ -1394,168 +1020,20 @@ namespace OptimeGBA
                     }
                     else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
                     {
-                        LineDebug("LDM / STM");
-
-                        bool P = BitTest(ins, 24); // post-indexed / offset addressing 
-                        bool U = BitTest(ins, 23); // invert
-                        bool S = BitTest(ins, 22);
-                        bool W = BitTest(ins, 21);
                         bool L = BitTest(ins, 20); // Load vs Store
 
-                        bool loadsPc = BitTest(ins, 15);
-                        bool useUserModeRegs = S && (!L || !loadsPc) && (Mode != ARM7Mode.User && Mode != ARM7Mode.OldUser);
-
-                        if (S)
+                        if (L)
                         {
-                            if (L && loadsPc)
-                            {
-                                LineDebug("Load CPSR from SPSR");
-                                SetCPSR(GetSPSR());
-                            }
-                        }
-
-                        // if (U && P && W) Error("U & P & W");
-
-                        LineDebug(L ? "Load" : "Store");
-                        LineDebug(P ? "No Include Base" : "Include Base");
-                        LineDebug(U ? "Upwards" : "Downwards");
-
-                        uint rn = (ins >> 16) & 0xF;
-
-                        uint addr = R[rn];
-
-                        String regs = "";
-
-                        bool disableWriteback = false;
-                        // No writeback if base register is included in the register list when loading.
-
-                        if (U)
-                        {
-                            for (byte r = 0; r < 16; r++)
-                            {
-                                if (BitTest(ins, r))
-                                {
-                                    if (r == rn && L) disableWriteback = true;
-                                    regs += $"R{r} ";
-
-                                    if (P) addr += 4;
-
-                                    if (!useUserModeRegs)
-                                    {
-                                        if (L)
-                                        { // Load
-                                            if (r != 15)
-                                            {
-                                                R[r] = Gba.Mem.Read32(addr & 0xFFFFFFFC);
-                                            }
-                                            else
-                                            {
-                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                                FlushPipeline();
-                                            }
-                                        }
-                                        else
-                                        { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, R[r]);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (L)
-                                        { // Load
-                                            if (r != 15)
-                                            {
-                                                SetUserReg(r, Gba.Mem.Read32(addr & 0xFFFFFFFC));
-                                            }
-                                            else
-                                            {
-                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                                FlushPipeline();
-                                            }
-                                        }
-                                        else
-                                        { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, GetUserReg(r));
-                                        }
-                                    }
-
-                                    if (!P) addr += 4;
-                                }
-                            }
+                            Arm.LDM(this, ins);
                         }
                         else
                         {
-                            for (byte ri = 0; ri < 16; ri++)
-                            {
-                                byte r = (byte)(ri ^ 0b1111);
-                                if (BitTest(ins, r))
-                                {
-                                    if (r == rn && L) disableWriteback = true;
-                                    regs += $"R{r} ";
-
-                                    if (P) addr -= 4;
-
-                                    if (!useUserModeRegs)
-                                    {
-                                        if (L)
-                                        { // Load
-                                            if (r != 15)
-                                            {
-                                                R[r] = Gba.Mem.Read32(addr & 0xFFFFFFFC);
-                                            }
-                                            else
-                                            {
-                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                                FlushPipeline();
-                                            }
-                                        }
-                                        else
-                                        { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, R[r]);
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if (L)
-                                        { // Load
-                                            if (r != 15)
-                                            {
-                                                SetUserReg(r, Gba.Mem.Read32(addr & 0xFFFFFFFC));
-                                            }
-                                            else
-                                            {
-                                                R[15] = Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                                FlushPipeline();
-                                            }
-                                        }
-                                        else
-                                        { // Store
-                                            Gba.Mem.Write32(addr & 0xFFFFFFFC, GetUserReg(r));
-                                        }
-                                    }
-
-                                    if (!P) addr -= 4;
-                                }
-                            }
+                            Arm.STM(this, ins);
                         }
-
-                        if (W && !disableWriteback)
-                        {
-                            R[rn] = addr;
-                        }
-
-                        LineDebug(regs);
                     }
                     else if ((ins & 0b1111000000000000000000000000) == 0b1111000000000000000000000000) // SWI - Software Interrupt
                     {
-                        SPSR_svc = GetCPSR();
-                        SetMode((uint)ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-                        R[14] = R[15] - 4;
-                        ThumbState = false; // Back to ARM state
-                        IRQDisable = true;
-
-                        R[15] = VectorSoftwareInterrupt;
-                        FlushPipeline();
+                        Arm.SWI(this, ins);
                     }
                     else
                     {
