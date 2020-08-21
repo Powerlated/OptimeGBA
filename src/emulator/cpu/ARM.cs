@@ -1317,5 +1317,9 @@ namespace OptimeGBA
             }
         }
 
+        public static void Invalid(ARM7 arm7, uint ins)
+        {
+            arm7.Error($"Invalid ARM Instruction: {Hex(ins, 8)}");
+        }
     }
 }

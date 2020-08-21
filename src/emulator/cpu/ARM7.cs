@@ -38,6 +38,20 @@ namespace OptimeGBA
             return table;
         }
 
+        public static ArmExecutor[] ArmDispatch = GenerateArmDispatch();
+        public static ArmExecutor[] GenerateArmDispatch()
+        {
+            ArmExecutor[] table = new ArmExecutor[4096];
+
+            for (uint i = 0; i < 4096; i++)
+            {
+                uint opcode = ((i & 0xFF0) << 16) | ((i & 0xF) << 4);
+                table[i] = GetInstructionArm(opcode);
+            }
+
+            return table;
+        }
+
         public bool Errored = false;
 
         public const uint VectorReset = 0x00;
@@ -113,7 +127,7 @@ namespace OptimeGBA
         public ARM7(GBA gba)
         {
             bool bootBios = false;
-            // bootBios = true;
+            bootBios = true;
 
             Gba = gba;
 
@@ -254,138 +268,8 @@ namespace OptimeGBA
 
                 if (conditionMet)
                 {
-                    if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
-                    {
-                        Arm.B(this, ins);
-                    } // id mask    0b1111111100000000000011110000
-                    else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
-                    {
-                        Arm.BX(this, ins);
-                    }
-                    else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB
-                    {
-                        bool useByte = BitTest(ins, 22);
-                        if (useByte)
-                        {
-                            Arm.SWPB(this, ins);
-                        }
-                        else
-                        {
-                            Arm.SWP(this, ins);
-                        }
-                    }
-                    else if ((ins & 0b1101101100001111000000000000) == 0b0001001000001111000000000000) // MSR
-                    {
-                        Arm.MSR(this, ins);
-                    }
-                    else if ((ins & 0b1111101111110000000000000000) == 0b0001000011110000000000000000) // MRS
-                    {
-                        Arm.MRS(this, ins);
-                    }
-                    else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
-                    {
-                        Arm.MUL(this, ins);
-                    }
-                    else if ((ins & 0b1111100000000000000011110000) == 0b0000100000000000000010010000) // Multiply Long
-                    {
-                        Arm.MULL(this, ins);
-                    }
-                    else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
-                    {
-                        Arm.SpecialLDRSTR(this, ins);
-                    }
-                    else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
-                    {
-                        // Bits 27, 26 are 0, so data processing / ALU
-                        LineDebug("Data Processing / FSR Transfer");
-                        // ALU Operations
-                        uint opcode = (ins >> 21) & 0xF;
-                        (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-
-                        LineDebug($"Rn: R{rn}");
-                        LineDebug($"Rd: R{rd}");
-
-                        switch (opcode)
-                        {
-                            case 0x0: // AND
-                                Arm.DataAND(this, ins);
-                                break;
-                            case 0x1: // EOR
-                                Arm.DataEOR(this, ins);
-                                break;
-                            case 0x2: // SUB
-                                Arm.DataSUB(this, ins);
-                                break;
-                            case 0x3: // RSB
-                                Arm.DataRSB(this, ins);
-                                break;
-                            case 0x4: // ADD
-                                Arm.DataADD(this, ins);
-                                break;
-                            case 0x5: // ADC
-                                Arm.DataADC(this, ins);
-                                break;
-                            case 0x6: // SBC
-                                Arm.DataSBC(this, ins);
-                                break;
-                            case 0x7: // RSC
-                                Arm.DataRSC(this, ins);
-                                break;
-                            case 0x8: // TST
-                                Arm.DataTST(this, ins);
-                                break;
-                            case 0x9: // TEQ
-                                Arm.DataTEQ(this, ins);
-                                break;
-                            case 0xA: // CMP
-                                Arm.DataCMP(this, ins);
-                                break;
-                            case 0xB: // CMN
-                                Arm.DataCMN(this, ins);
-                                break;
-                            case 0xC: // ORR
-                                Arm.DataORR(this, ins);
-                                break;
-                            case 0xD: // MOV
-                                Arm.DataMOV(this, ins);
-                                break;
-                            case 0xE: // BIC
-                                Arm.DataBIC(this, ins);
-                                break;
-                            case 0xF: // MVN
-                                Arm.DataMVN(this, ins);
-                                break;
-                        }
-
-
-                    }
-                    else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
-                    {
-                        Arm.RegularLDRSTR(this, ins);
-                    }
-                    else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
-                    {
-                        bool L = BitTest(ins, 20); // Load vs Store
-
-                        if (L)
-                        {
-                            Arm.LDM(this, ins);
-                        }
-                        else
-                        {
-                            Arm.STM(this, ins);
-                        }
-                    }
-                    else if ((ins & 0b1111000000000000000000000000) == 0b1111000000000000000000000000) // SWI - Software Interrupt
-                    {
-                        Arm.SWI(this, ins);
-                    }
-                    else
-                    {
-                        Error("Unimplemented opcode");
-                    }
+                    ArmDispatch[((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF)](this, ins);
                 }
-
             }
             else // THUMB mode
             {
@@ -402,6 +286,135 @@ namespace OptimeGBA
 
                 ThumbDispatch[ins >> 6](this, ins);
             }
+        }
+
+
+        public static ArmExecutor GetInstructionArm(uint ins)
+        {
+            if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
+            {
+                return Arm.B;
+            } // id mask    0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
+            {
+                return Arm.BX;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB
+            {
+                bool useByte = BitTest(ins, 22);
+                if (useByte)
+                {
+                    return Arm.SWPB;
+                }
+                else
+                {
+                    return Arm.SWP;
+                }
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111101100000000000000000000) == 0b0011001000000000000000000000) // MSR - Immediate Operand
+            {
+                return Arm.MSR;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111101100000000000011110000) == 0b0001001000000000000000000000) // MSR - Register Operand
+            {
+                return Arm.MSR;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000            
+            else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000000000000) // MRS
+            {
+                return Arm.MRS;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111110000000000000011110000) == 0b0000000000000000000010010000) // Multiply Regular
+            {
+                return Arm.MUL;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111100000000000000011110000) == 0b0000100000000000000010010000) // Multiply Long
+            {
+                return Arm.MULL;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
+            {
+                return Arm.SpecialLDRSTR;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
+            {
+                // Bits 27, 26 are 0, so data processing / ALU
+                // LineDebug("Data Processing / FSR Transfer");
+                // ALU Operations
+                uint opcode = (ins >> 21) & 0xF;
+                (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+
+                // LineDebug($"Rn: R{rn}");
+                // LineDebug($"Rd: R{rd}");
+
+                switch (opcode)
+                {
+                    case 0x0: // AND
+                        return Arm.DataAND;
+                    case 0x1: // EOR
+                        return Arm.DataEOR;
+                    case 0x2: // SUB
+                        return Arm.DataSUB;
+                    case 0x3: // RSB
+                        return Arm.DataRSB;
+                    case 0x4: // ADD
+                        return Arm.DataADD;
+                    case 0x5: // ADC
+                        return Arm.DataADC;
+                    case 0x6: // SBC
+                        return Arm.DataSBC;
+                    case 0x7: // RSC
+                        return Arm.DataRSC;
+                    case 0x8: // TST
+                        return Arm.DataTST;
+                    case 0x9: // TEQ
+                        return Arm.DataTEQ;
+                    case 0xA: // CMP
+                        return Arm.DataCMP;
+                    case 0xB: // CMN
+                        return Arm.DataCMN;
+                    case 0xC: // ORR
+                        return Arm.DataORR;
+                    case 0xD: // MOV
+                        return Arm.DataMOV;
+                    case 0xE: // BIC
+                        return Arm.DataBIC;
+                    case 0xF: // MVN
+                        return Arm.DataMVN;
+                }
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
+            {
+                return Arm.RegularLDRSTR;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
+            {
+                bool L = BitTest(ins, 20); // Load vs Store
+
+                if (L)
+                {
+                    return Arm.LDM;
+                }
+                else
+                {
+                    return Arm.STM;
+                }
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111000000000000000000000000) == 0b1111000000000000000000000000) // SWI - Software Interrupt
+            {
+                return Arm.SWI;
+            }
+            return Arm.Invalid;
         }
 
         public static ThumbExecutor GetInstructionThumb(ushort ins)
