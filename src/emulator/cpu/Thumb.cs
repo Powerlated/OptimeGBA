@@ -777,7 +777,7 @@ namespace OptimeGBA
             uint rmVal = arm7.R[rm];
 
             uint addr = rnVal + rmVal;
-            arm7.Gba.Mem.Write32(addr, arm7.R[rd]);
+            arm7.Gba.Mem.Write32(addr & ~0b11U, arm7.R[rd]);
         }
 
         public static void RegOffsSTRH(ARM7 arm7, ushort ins) // STRH (2)
@@ -795,6 +795,7 @@ namespace OptimeGBA
 
             arm7.LineDebug("Store");
             uint rdVal = arm7.R[rd];
+            // Forcibly align address to halfwords
             arm7.Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
         }
 
@@ -934,11 +935,25 @@ namespace OptimeGBA
 
             arm7.LineDebug("LDRSH");
 
-            int readVal = (int)arm7.Gba.Mem.Read16(addr & 0xFFFFFFFE);
-            // Sign extend
-            if ((readVal & BIT_15) != 0)
+            int readVal;
+            if ((addr & 1) != 0)
             {
-                readVal -= (int)BIT_16;
+                // Misaligned, read byte instead.
+                readVal = (int)arm7.Gba.Mem.Read8(addr & 0xFFFFFFFE);
+                // Sign extend
+                if ((readVal & BIT_7) != 0)
+                {
+                    readVal -= (int)BIT_8;
+                }
+            }
+            else
+            {
+                readVal = (int)arm7.Gba.Mem.Read16(addr & 0xFFFFFFFE);
+                // Sign extend
+                if ((readVal & BIT_15) != 0)
+                {
+                    readVal -= (int)BIT_16;
+                }
             }
 
             arm7.R[rd] = (uint)readVal;

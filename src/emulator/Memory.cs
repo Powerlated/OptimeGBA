@@ -15,12 +15,12 @@ namespace OptimeGBA
 
             for (uint i = 0; i < Ewram.Length; i++)
             {
-                Ewram[i] = 0x69;
+                Ewram[i] = 0x00;
             }
 
             for (uint i = 0; i < Iwram.Length; i++)
             {
-                Iwram[i] = 0x69;
+                Iwram[i] = 0x00;
             }
         }
 

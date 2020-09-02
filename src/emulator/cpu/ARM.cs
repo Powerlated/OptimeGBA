@@ -350,16 +350,9 @@ namespace OptimeGBA
             // B
             int offset = (int)(ins & 0b111111111111111111111111) << 2;
             // Signed with Two's Complement
-            if ((offset & BIT_25) != 0)
-            {
-                arm7.LineDebug("Backward Branch");
-                offset -= (int)BIT_26;
-            }
-            else
-            {
-                arm7.LineDebug("Forward Branch");
-            }
-
+            // Cheap and easy sign-extend
+            offset = (offset << 6) >> 6;
+            
             // Link - store return address in R14
             if ((ins & BIT_24) != 0)
             {
@@ -952,12 +945,10 @@ namespace OptimeGBA
 
         public static void DataAND(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("AND");
-
-            uint rnValue = arm7.R[rn];
 
             uint final = rnValue & shifterOperand;
             arm7.R[rd] = final;
@@ -976,12 +967,10 @@ namespace OptimeGBA
 
         public static void DataEOR(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("EOR");
-
-            uint rnValue = arm7.R[rn];
 
             uint final = rnValue ^ shifterOperand;
             arm7.R[rd] = final;
@@ -1000,12 +989,11 @@ namespace OptimeGBA
 
         public static void DataSUB(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("SUB");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = rnValue - shifterOperand;
 
             arm7.R[rd] = aluOut;
@@ -1027,12 +1015,11 @@ namespace OptimeGBA
 
         public static void DataRSB(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("RSB");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = shifterOperand - rnValue;
 
             arm7.R[rd] = aluOut;
@@ -1052,12 +1039,11 @@ namespace OptimeGBA
 
         public static void DataADD(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ADD");
 
-            uint rnValue = arm7.R[rn];
             uint final = rnValue + shifterOperand;
             arm7.R[rd] = final;
             if (setFlags && rd == 15)
@@ -1076,12 +1062,11 @@ namespace OptimeGBA
 
         public static void DataADC(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ADC");
 
-            uint rnValue = arm7.R[rn];
             uint final = rnValue + shifterOperand + (arm7.Carry ? 1U : 0);
             arm7.R[rd] = final;
             if (setFlags && rd == 15)
@@ -1100,12 +1085,11 @@ namespace OptimeGBA
 
         public static void DataSBC(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("SBC");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = rnValue - shifterOperand - (!arm7.Carry ? 1U : 0U);
 
             arm7.R[rd] = aluOut;
@@ -1125,12 +1109,11 @@ namespace OptimeGBA
 
         public static void DataRSC(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("RSC");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = shifterOperand - rnValue - (!arm7.Carry ? 1U : 0U);
 
             arm7.R[rd] = aluOut;
@@ -1150,12 +1133,11 @@ namespace OptimeGBA
 
         public static void DataTST(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("TST");
 
-            uint rnValue = arm7.R[rn];
             uint final = rnValue & shifterOperand;
 
             arm7.Negative = BitTest(final, 31);
@@ -1165,13 +1147,12 @@ namespace OptimeGBA
 
         public static void DataTEQ(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("TEQ");
 
-            uint reg = arm7.R[rn];
-            uint aluOut = reg ^ shifterOperand;
+            uint aluOut = rnValue ^ shifterOperand;
             if (setFlags)
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
@@ -1182,13 +1163,12 @@ namespace OptimeGBA
 
         public static void DataCMP(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             // SBZ means should be zero, not relevant to the current code, just so you know
             arm7.LineDebug("CMP");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = rnValue - shifterOperand;
             if (setFlags)
             {
@@ -1201,12 +1181,11 @@ namespace OptimeGBA
 
         public static void DataCMN(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("CMN");
 
-            uint rnValue = arm7.R[rn];
             uint aluOut = rnValue + shifterOperand;
             if (setFlags)
             {
@@ -1219,12 +1198,11 @@ namespace OptimeGBA
 
         public static void DataORR(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ORR");
 
-            uint rnValue = arm7.R[rn];
 
             uint final = rnValue | shifterOperand;
             arm7.R[rd] = final;
@@ -1243,8 +1221,8 @@ namespace OptimeGBA
 
         public static void DataMOV(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("MOV");
 
@@ -1269,12 +1247,12 @@ namespace OptimeGBA
 
         public static void DataBIC(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("BIC");
 
-            uint final = arm7.R[rn] & ~shifterOperand;
+            uint final = rnValue & ~shifterOperand;
             arm7.R[rd] = final;
             if (setFlags && rd == 15)
             {
@@ -1291,8 +1269,8 @@ namespace OptimeGBA
 
         public static void DataMVN(ARM7 arm7, uint ins)
         {
-            (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut) = arm7.ArmDataShiftAndApplyFlags(ins);
+            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("MVN");
 

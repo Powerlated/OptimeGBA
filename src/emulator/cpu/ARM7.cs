@@ -123,11 +123,12 @@ namespace OptimeGBA
 
         // DEBUG INFO
         public uint LastIns;
+        public uint LastLastIns;
 
         public ARM7(GBA gba)
         {
             bool bootBios = false;
-            bootBios = true;
+            // bootBios = true;
 
             Gba = gba;
 
@@ -221,6 +222,10 @@ namespace OptimeGBA
 
         public void Execute()
         {
+            if (R[15] == 0x080129F2) {
+                Error("sdfkjadfdjsjklfads");
+            }
+
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
@@ -257,6 +262,7 @@ namespace OptimeGBA
 
                 uint ins = ARMDecode;
                 Pipeline--;
+                LastLastIns = LastIns;
                 LastIns = ins;
 
                 LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
@@ -280,6 +286,7 @@ namespace OptimeGBA
 
                 ushort ins = THUMBDecode;
                 Pipeline--;
+                LastLastIns = LastIns;
                 LastIns = ins;
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
@@ -349,7 +356,7 @@ namespace OptimeGBA
                 // LineDebug("Data Processing / FSR Transfer");
                 // ALU Operations
                 uint opcode = (ins >> 21) & 0xF;
-                (uint rn, uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+                (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
 
                 // LineDebug($"Rn: R{rn}");
                 // LineDebug($"Rd: R{rd}");
@@ -837,7 +844,7 @@ namespace OptimeGBA
             FIQDisable = BitTest(val, 6);
             ThumbState = BitTest(val, 5);
 
-            SetMode(val & 0b11111);
+            SetMode(val & 0b01111);
         }
 
         public uint GetSPSR()
@@ -860,8 +867,8 @@ namespace OptimeGBA
 
             }
 
-            Error("No SPSR in this mode!");
-            return 0;
+            // Error("No SPSR in this mode!");
+            return GetCPSR();
         }
 
         public void SetSPSR(uint set)
@@ -889,11 +896,16 @@ namespace OptimeGBA
 
             }
 
-            Error("No SPSR in this mode!");
+            SetCPSR(set);
+
+            // Error("No SPSR in this mode!");
         }
 
-        public void SetMode(uint mode)
+        public void 
+        SetMode(uint mode)
         {
+            // Bit 4 of mode is always set 
+            mode |= 0b10000;
             // Store registers based on current mode
             switch (Mode)
             {
@@ -1237,16 +1249,15 @@ namespace OptimeGBA
             return 1;
         }
 
-        public static (uint rn, uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
+        public static (uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
         {
             bool setFlags = (ins & BIT_20) != 0;
-            uint rn = (ins >> 16) & 0xF; // Rn
             uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
 
-            return (rn, rd, setFlags);
+            return (rd, setFlags);
         }
 
-        public (uint shifterOperand, bool shifterCarryOut) ArmDataShiftAndApplyFlags(uint ins)
+        public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins)
         {
             // ----- When using register as 2nd operand -----
             // Shift by immediate or shift by register
@@ -1254,6 +1265,9 @@ namespace OptimeGBA
 
             uint shifterOperand = 0;
             bool shifterCarryOut = false;
+
+            uint rn = (ins >> 16) & 0xF; // Rn
+            uint rnVal = R[rn];
 
             if (useImmediate32)
             {
@@ -1354,6 +1368,7 @@ namespace OptimeGBA
 
                     if (rs == 15) rsVal += 4;
                     if (rm == 15) rmVal += 4;
+                    if (rn == 15) rnVal += 4;
 
                     shiftBits = (byte)(rsVal & 0b11111111);
 
@@ -1450,7 +1465,7 @@ namespace OptimeGBA
 
             }
 
-            return (shifterOperand, shifterCarryOut);
+            return (shifterOperand, shifterCarryOut, rnVal);
         }
     }
 }

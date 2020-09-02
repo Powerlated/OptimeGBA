@@ -4,6 +4,53 @@ using System;
 
 namespace OptimeGBA
 {
+    public class BgControl
+    {
+        int Priority = 0;
+        int CharBaseBlock = 0;
+        bool EnableMosaic = false;
+        bool Use8BitColor = false;
+        int MapBaseBlock = 0;
+        bool OverflowWrap = false;
+        int ScreenSize = 0;
+
+        byte[] Value = new byte[2];
+
+        public byte ReadHwio8(uint addr)
+        {
+            switch (addr)
+            {
+                case 0x00: // BGCNT B0
+                    return Value[0];
+                case 0x01: // BGCNT B1
+                    return Value[1];
+            }
+            return 0;
+        }
+
+        public void WriteHwio8(uint addr, byte val)
+        {
+            switch (addr)
+            {
+                case 0x00: // BGCNT B0
+                    Priority = (val >> 0) & 0b11;
+                    CharBaseBlock = (val >> 2) & 0b11;
+                    EnableMosaic = BitTest(val, 6);
+                    Use8BitColor = BitTest(val, 7);
+
+                    Value[0] = val;
+                    break;
+                case 0x01: // BGCNT B1
+                    MapBaseBlock = (val >> 0) & 0b11111;
+                    OverflowWrap = BitTest(val, 5);
+                    ScreenSize = (val >> 6) & 0b11;
+
+                    Value[1] = val;
+                    break;
+            }
+        }
+    }
+
     public class LCD
     {
         GBA Gba;
@@ -25,6 +72,14 @@ namespace OptimeGBA
         public ManualResetEventSlim RenderThreadSync = new ManualResetEventSlim(true);
         public ManualResetEventSlim RenderThreadWait = new ManualResetEventSlim(true);
         public bool RenderingDone = false;
+
+        // BGCNT
+        public BgControl[] BgControl = new BgControl[4] {
+            new BgControl(),
+            new BgControl(),
+            new BgControl(),
+            new BgControl(),
+        };
 
         // DISPCNT
         public uint Mode;
@@ -52,10 +107,18 @@ namespace OptimeGBA
         public byte VCountSetting;
 
         // RGB, 24-bit
-        public byte[] Screen = new byte[240 * 160 * 3];
+        public byte[] ScreenFront = new byte[240 * 160 * 3];
+        public byte[] ScreenBack = new byte[240 * 160 * 3];
         const uint WIDTH = 240;
         const uint HEIGHT = 160;
         const uint BYTES_PER_PIXEL = 3;
+
+        public void SwapBuffers()
+        {
+            var temp = ScreenBack;
+            ScreenBack = ScreenFront;
+            ScreenFront = temp;
+        }
 
         public byte[] Palettes = new byte[1024];
         public byte[,] ProcessedPalettes = new byte[512, 3];
@@ -77,7 +140,6 @@ namespace OptimeGBA
             ProcessedPalettes[pal, 1] = (byte)(g * (255 / 31));
             ProcessedPalettes[pal, 2] = (byte)(b * (255 / 31));
         }
-
 
         public byte ReadHwio8(uint addr)
         {
@@ -118,6 +180,19 @@ namespace OptimeGBA
                 case 0x4000006: // VCOUNT B0 - B1 only exists for Nintendo DS
                     val |= (byte)VCount;
                     break;
+
+                case 0x4000008: // BG0CNT B0
+                case 0x4000009: // BG0CNT B1
+                    return BgControl[0].ReadHwio8(addr - 0x4000008);
+                case 0x400000A: // BG1CNT B0
+                case 0x400000B: // BG1CNT B1
+                    return BgControl[1].ReadHwio8(addr - 0x400000A);
+                case 0x400000C: // BG2CNT B0
+                case 0x400000D: // BG2CNT B1
+                    return BgControl[2].ReadHwio8(addr - 0x400000C);
+                case 0x400000E: // BG3CNT B0
+                case 0x400000F: // BG3CNT B1
+                    return BgControl[3].ReadHwio8(addr - 0x400000E);
             }
 
             return val;
@@ -153,6 +228,23 @@ namespace OptimeGBA
                     break;
                 case 0x4000005: // DISPSTAT B1
                     VCountSetting = val;
+                    break;
+
+                case 0x4000008: // BG0CNT B0
+                case 0x4000009: // BG0CNT B1
+                    BgControl[0].WriteHwio8(addr - 0x4000008, val);
+                    break;
+                case 0x400000A: // BG1CNT B0
+                case 0x400000B: // BG1CNT B1
+                    BgControl[1].WriteHwio8(addr - 0x400000A, val);
+                    break;
+                case 0x400000C: // BG2CNT B0
+                case 0x400000D: // BG2CNT B1
+                    BgControl[2].WriteHwio8(addr - 0x400000C, val);
+                    break;
+                case 0x400000E: // BG3CNT B0
+                case 0x400000F: // BG3CNT B1
+                    BgControl[3].WriteHwio8(addr - 0x400000E, val);
                     break;
             }
         }
@@ -209,6 +301,7 @@ namespace OptimeGBA
                                         }
 
                                         TotalFrames++;
+                                        SwapBuffers();
                                     }
                                 }
                                 else
@@ -272,12 +365,33 @@ namespace OptimeGBA
         {
             switch (Mode)
             {
+                case 1:
+                    RenderMode1();
+                    return;
                 case 3:
                     RenderMode3();
                     return;
                 case 4:
                     RenderMode4();
                     return;
+            }
+        }
+
+        public void RenderMode1()
+        {
+            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint vramBase = 0x0 + (VCount * WIDTH);
+
+            for (uint p = 0; p < WIDTH; p++)
+            {
+                uint vramVal = Vram[vramBase];
+
+                ScreenBack[screenBase + 0] = ProcessedPalettes[0, 0];
+                ScreenBack[screenBase + 1] = ProcessedPalettes[0, 1];
+                ScreenBack[screenBase + 2] = ProcessedPalettes[0, 2];
+
+                vramBase++;
+                screenBase += BYTES_PER_PIXEL;
             }
         }
 
@@ -290,9 +404,9 @@ namespace OptimeGBA
             {
                 uint vramVal = Vram[vramBase];
 
-                Screen[screenBase + 0] = ProcessedPalettes[vramVal, 0];
-                Screen[screenBase + 1] = ProcessedPalettes[vramVal, 1];
-                Screen[screenBase + 2] = ProcessedPalettes[vramVal, 2];
+                ScreenBack[screenBase + 0] = ProcessedPalettes[vramVal, 0];
+                ScreenBack[screenBase + 1] = ProcessedPalettes[vramVal, 1];
+                ScreenBack[screenBase + 2] = ProcessedPalettes[vramVal, 2];
 
                 vramBase++;
                 screenBase += BYTES_PER_PIXEL;
@@ -315,9 +429,9 @@ namespace OptimeGBA
                 byte g = (byte)((data >> 5) & 0b11111);
                 byte b = (byte)((data >> 10) & 0b11111);
 
-                Screen[screenBase + 0] = (byte)(r * (255 / 31));
-                Screen[screenBase + 1] = (byte)(g * (255 / 31));
-                Screen[screenBase + 2] = (byte)(b * (255 / 31));
+                ScreenBack[screenBase + 0] = (byte)(r * (255 / 31));
+                ScreenBack[screenBase + 1] = (byte)(g * (255 / 31));
+                ScreenBack[screenBase + 2] = (byte)(b * (255 / 31));
 
                 screenBase += BYTES_PER_PIXEL;
                 vramBase += 2;

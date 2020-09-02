@@ -465,6 +465,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"R15: {Hex(Gba.Arm7.R[15], 8)}");
                 ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
                 ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Prev. Ins.: {Hex(Gba.Arm7.LastLastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
                 ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
 
                 ImGui.Text($"Mode: {Gba.Arm7.Mode}");
@@ -847,7 +848,7 @@ namespace OptimeGBAEmulator
                     0,
                     PixelFormat.Rgb,
                     PixelType.UnsignedByte,
-                    Gba.Lcd.Screen
+                    Gba.Lcd.ScreenFront
                 );
 
                 ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
@@ -1000,6 +1001,23 @@ namespace OptimeGBAEmulator
                     new RegisterField("DMA Sound B Enable LEFT", 13),
                     new RegisterField("DMA Sound B Timer Select", 14, 14)
             ));
+
+            uint[] bgCntAddrs = { 0x4000008, 0x400000A, 0x400000C, 0x400000E };
+            for (uint r = 0; r < 4; r++)
+            {
+                Registers.Add(
+                    new Register($"BG{r}CNT - BG{r} Control", bgCntAddrs[r],
+                        new RegisterField("BG Priority", 0, 1),
+                        new RegisterField("Character Base Block", 2, 3),
+                        new RegisterField("Mosaic", 6),
+                        new RegisterField("8-bit Color", 7),
+                        new RegisterField("Map Base Block", 8, 12),
+                        new RegisterField("Overflow Wraparound", 13),
+                        new RegisterField("Screen Size", 14, 15)
+
+                ));
+            }
+
 
             RegViewerSelected = Registers[0];
         }
