@@ -267,6 +267,8 @@ namespace OptimeGBA
                         {
                             lcdEnum = LCDEnum.HBlank;
                             HBlank = true;
+                            RenderScanline();
+
                         }
                     }
                     break;
@@ -307,7 +309,6 @@ namespace OptimeGBA
                                 else
                                 {
                                     lcdEnum = LCDEnum.Drawing;
-                                    RenderScanline();
                                 }
                             }
                             else
