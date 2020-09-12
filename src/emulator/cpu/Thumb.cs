@@ -1185,14 +1185,14 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[0]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[1]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[2]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[3]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[4]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[5]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[6]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.Gba.Mem.Write32(addr, arm7.R[7]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[0]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[1]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[2]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[3]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[4]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[5]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[6]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.Gba.Mem.Write32(addr & ~3u, arm7.R[7]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
 
             // LineDebug(regs);
         }
