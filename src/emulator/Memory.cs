@@ -51,7 +51,6 @@ namespace OptimeGBA
         // Internal Work RAM
         public byte[] Iwram = new byte[32768];
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
             switch ((addr >> 24) & 0xF)
@@ -105,7 +104,6 @@ namespace OptimeGBA
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
             if ((addr & 1) != 0)
@@ -195,7 +193,6 @@ namespace OptimeGBA
         }
 
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
             if ((addr & 3) != 0)
@@ -300,7 +297,6 @@ namespace OptimeGBA
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadDebug8(uint addr)
         {
             switch ((addr >> 24) & 0xF)
@@ -346,7 +342,6 @@ namespace OptimeGBA
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort ReadDebug16(uint addr)
         {
             byte f0 = ReadDebug8(addr++);
@@ -357,7 +352,6 @@ namespace OptimeGBA
             return u16;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ReadDebug32(uint addr)
         {
             byte f0 = ReadDebug8(addr++);
@@ -370,7 +364,6 @@ namespace OptimeGBA
             return u32;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             switch ((addr >> 24) & 0xF)
@@ -432,7 +425,6 @@ namespace OptimeGBA
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
             if ((addr & 1) != 0)
@@ -465,6 +457,7 @@ namespace OptimeGBA
                     addr &= 0x3FF;
                     Gba.Lcd.Palettes[addr + 0] = (byte)(val >> 0);
                     Gba.Lcd.Palettes[addr + 1] = (byte)(val >> 8);
+                    Gba.Lcd.UpdatePalette((addr & ~1u) / 2);
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 2;
@@ -498,7 +491,6 @@ namespace OptimeGBA
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
             if ((addr & 3) != 0)
@@ -537,6 +529,8 @@ namespace OptimeGBA
                     Gba.Lcd.Palettes[addr + 1] = (byte)(val >> 8);
                     Gba.Lcd.Palettes[addr + 2] = (byte)(val >> 16);
                     Gba.Lcd.Palettes[addr + 3] = (byte)(val >> 24);
+                    Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 0);
+                    Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 1);
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 4;
@@ -578,7 +572,6 @@ namespace OptimeGBA
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadHwio8(uint addr)
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
@@ -616,7 +609,6 @@ namespace OptimeGBA
             return 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteHwio8(uint addr, byte val)
         {
 
