@@ -53,9 +53,15 @@ namespace OptimeGBAEmulator
 
         bool FrameStep = false;
 
-        public Game(int width, int height, string title, GBA gba) : base(width, height, GraphicsMode.Default, title)
+        public Game(int width, int height, string title, AudioCallback audioCallback) : base(width, height, GraphicsMode.Default, title)
         {
-            Gba = gba;
+            byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
+
+            RomList = Directory.GetFiles("roms", "*.gba");
+
+            Gba = new GBA(new GbaProvider(bios, rom, audioCallback));
+
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
             EmulationThread.Start();
@@ -154,6 +160,7 @@ namespace OptimeGBAEmulator
             DrawInstrInfo();
             DrawRegViewer();
             DrawMemoryViewer();
+            DrawRomSelector();
             // DrawHwioLog();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
@@ -1073,6 +1080,34 @@ namespace OptimeGBAEmulator
 
                 ImGui.End();
             }
+        }
+        string[] RomList;
+        public void DrawRomSelector()
+        {
+            if (ImGui.Begin("ROMs"))
+            {
+                for (int i = 0; i < RomList.Length; i++)
+                {
+                    string s = RomList[i];
+                    if (ImGui.Button($"Load##{s}"))
+                    {
+                        Console.WriteLine(s);
+                        LoadRomFromPath(s);
+                    }
+                    ImGui.SameLine();
+                    ImGui.Text(s);
+                }
+                ImGui.End();
+            }
+        }
+
+        public void LoadRomFromPath(string path)
+        {
+            byte[] bios = Gba.Provider.Bios;
+            byte[] rom = System.IO.File.ReadAllBytes(path);
+            AudioCallback audioCallback = Gba.Provider.AudioCallback;
+
+            Gba = new GBA(new GbaProvider(bios, rom, audioCallback));
         }
     }
 }
