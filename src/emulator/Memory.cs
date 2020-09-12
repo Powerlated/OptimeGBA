@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
-    unsafe public class Memory
+    public class Memory
     {
         GBA Gba;
 
@@ -106,7 +106,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        unsafe public ushort Read16(uint addr)
+        public ushort Read16(uint addr)
         {
             if ((addr & 1) != 0)
             {
@@ -118,49 +118,49 @@ namespace OptimeGBA
                 case 0x0: // BIOS
                     BiosReads += 2;
                     addr &= 0x3FFF;
-                    fixed (byte* ptr = Bios)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                           (Bios[addr + 0] << 0) |
+                           (Bios[addr + 1] << 8)
+                       );
                 case 0x1: // Unused
                     goto default;
                 case 0x2: // EWRAM
                     EwramReads += 2;
                     addr &= 0x3FFFF;
-                    fixed (byte* ptr = Ewram)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                             (Ewram[addr + 0] << 0) |
+                             (Ewram[addr + 1] << 8)
+                         );
                 case 0x3: // IWRAM
                     IwramReads += 2;
                     addr &= 0x7FFF;
-                    fixed (byte* ptr = Iwram)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                           (Iwram[addr + 0] << 0) |
+                           (Iwram[addr + 1] << 8)
+                       );
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
                     PaletteReads += 2;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Palettes)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                           (Gba.Lcd.Palettes[addr + 0] << 0) |
+                           (Gba.Lcd.Palettes[addr + 1] << 8)
+                       );
                 case 0x6: // PPU VRAM
                     VramReads += 2;
                     addr &= 0x1FFFF;
-                    fixed (byte* ptr = Gba.Lcd.Vram)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                             (Gba.Lcd.Vram[addr + 0] << 0) |
+                             (Gba.Lcd.Vram[addr + 1] << 8)
+                         );
                 case 0x7: // PPU OAM
                     OamReads += 2;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Oam)
-                    {
-                        return *(ushort*)(ptr + addr);
-                    }
+                    return (ushort)(
+                             (Gba.Lcd.Oam[addr + 0] << 0) |
+                             (Gba.Lcd.Oam[addr + 1] << 8)
+                         );
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -170,10 +170,10 @@ namespace OptimeGBA
                     addr &= 0xFFFFFF;
                     if (addr < Rom.Length)
                     {
-                        fixed (byte* ptr = Rom)
-                        {
-                            return *(ushort*)(ptr + addr);
-                        }
+                        return (ushort)(
+                            (Rom[addr + 0] << 0) |
+                            (Rom[addr + 1] << 8)
+                        );
                     }
                     else
                     {
@@ -196,7 +196,7 @@ namespace OptimeGBA
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        unsafe public uint Read32(uint addr)
+        public uint Read32(uint addr)
         {
             if ((addr & 3) != 0)
             {
@@ -208,49 +208,61 @@ namespace OptimeGBA
                 case 0x0: // BIOS
                     BiosReads += 4;
                     addr &= 0x3FFF;
-                    fixed (byte* ptr = Bios)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                            (Bios[addr + 0] << 0) |
+                            (Bios[addr + 1] << 8) |
+                            (Bios[addr + 2] << 16) |
+                            (Bios[addr + 3] << 24)
+                         );
                 case 0x1: // Unused
                     goto default;
                 case 0x2: // EWRAM
                     EwramReads += 4;
                     addr &= 0x3FFFF;
-                    fixed (byte* ptr = Ewram)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                           (Ewram[addr + 0] << 0) |
+                           (Ewram[addr + 1] << 8) |
+                           (Ewram[addr + 2] << 16) |
+                           (Ewram[addr + 3] << 24)
+                        );
                 case 0x3: // IWRAM
                     IwramReads += 4;
                     addr &= 0x7FFF;
-                    fixed (byte* ptr = Iwram)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                              (Iwram[addr + 0] << 0) |
+                              (Iwram[addr + 1] << 8) |
+                              (Iwram[addr + 2] << 16) |
+                              (Iwram[addr + 3] << 24)
+                           );
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
                     PaletteReads += 4;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Palettes)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                                (Gba.Lcd.Palettes[addr + 0] << 0) |
+                                (Gba.Lcd.Palettes[addr + 1] << 8) |
+                                (Gba.Lcd.Palettes[addr + 2] << 16) |
+                                (Gba.Lcd.Palettes[addr + 3] << 24)
+                             );
                 case 0x6: // PPU VRAM
                     VramReads += 4;
                     addr &= 0x1FFFF;
-                    fixed (byte* ptr = Gba.Lcd.Vram)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                                 (Gba.Lcd.Vram[addr + 0] << 0) |
+                                 (Gba.Lcd.Vram[addr + 1] << 8) |
+                                 (Gba.Lcd.Vram[addr + 2] << 16) |
+                                 (Gba.Lcd.Vram[addr + 3] << 24)
+                              );
                 case 0x7: // PPU OAM
                     OamReads += 4;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Oam)
-                    {
-                        return *(uint*)(ptr + addr);
-                    }
+                    return (uint)(
+                                  (Gba.Lcd.Oam[addr + 0] << 0) |
+                                  (Gba.Lcd.Oam[addr + 1] << 8) |
+                                  (Gba.Lcd.Oam[addr + 2] << 16) |
+                                  (Gba.Lcd.Oam[addr + 3] << 24)
+                               );
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -260,10 +272,12 @@ namespace OptimeGBA
                     addr &= 0xFFFFFF;
                     if (addr < Rom.Length)
                     {
-                        fixed (byte* ptr = Rom)
-                        {
-                            return *(uint*)(ptr + addr);
-                        }
+                        return (uint)(
+                                (Rom[addr + 0] << 0) |
+                                (Rom[addr + 1] << 8) |
+                                (Rom[addr + 2] << 16) |
+                                (Rom[addr + 3] << 24)
+                             );
                     }
                     else
                     {
@@ -434,47 +448,36 @@ namespace OptimeGBA
                 case 0x2: // EWRAM
                     EwramWrites += 2;
                     addr &= 0x3FFFF;
-                    fixed (byte* ptr = Ewram)
-                    {
-                        *(ushort*)(ptr + addr) = val;
-                        return;
-                    }
+                    Ewram[addr + 0] = (byte)(val >> 0);
+                    Ewram[addr + 1] = (byte)(val >> 8);
+                    return;
                 case 0x3: // IWRAM
                     IwramWrites += 2;
                     addr &= 0x7FFF;
-                    fixed (byte* ptr = Iwram)
-                    {
-                        *(ushort*)(ptr + addr) = val;
-                        return;
-                    }
+                    Iwram[addr + 0] = (byte)(val >> 0);
+                    Iwram[addr + 1] = (byte)(val >> 8);
+                    return;
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
                     // Gba.Arm7.Error("Write: Palette16");
                     PaletteWrites += 2;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Palettes)
-                    {
-                        *(ushort*)(ptr + addr) = val;
-                        Gba.Lcd.UpdatePalette(addr / 2);
-                        return;
-                    }
+                    Gba.Lcd.Palettes[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Palettes[addr + 1] = (byte)(val >> 8);
+                    return;
                 case 0x6: // PPU VRAM
                     VramWrites += 2;
                     addr &= 0x1FFFF;
-                    fixed (byte* ptr = Gba.Lcd.Vram)
-                    {
-                        *(ushort*)(ptr + addr) = val;
-                        return;
-                    }
+                    Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
+                    return;
                 case 0x7: // PPU OAM
                     OamWrites += 2;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Oam)
-                    {
-                        *(ushort*)(ptr + addr) = val;
-                        return;
-                    }
+                    Gba.Lcd.Oam[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Oam[addr + 1] = (byte)(val >> 8);
+                    return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -511,48 +514,46 @@ namespace OptimeGBA
                 case 0x2: // EWRAM
                     EwramWrites += 4;
                     addr &= 0x3FFFF;
-                    fixed (byte* ptr = Ewram)
-                    {
-                        *(uint*)(ptr + addr) = val;
-                        return;
-                    }
+                    Ewram[addr + 0] = (byte)(val >> 0);
+                    Ewram[addr + 1] = (byte)(val >> 8);
+                    Ewram[addr + 2] = (byte)(val >> 16);
+                    Ewram[addr + 3] = (byte)(val >> 24);
+                    return;
                 case 0x3: // IWRAM
                     IwramWrites += 4;
                     addr &= 0x7FFF;
-                    fixed (byte* ptr = Iwram)
-                    {
-                        *(uint*)(ptr + addr) = val;
-                        return;
-                    }
+                    Iwram[addr + 0] = (byte)(val >> 0);
+                    Iwram[addr + 1] = (byte)(val >> 8);
+                    Iwram[addr + 2] = (byte)(val >> 16);
+                    Iwram[addr + 3] = (byte)(val >> 24);
+                    return;
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
                     // Gba.Arm7.Error("Write: Palette32");
                     PaletteWrites += 4;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Palettes)
-                    {
-                        *(uint*)(ptr + addr) = val;
-                        Gba.Lcd.UpdatePalette((addr / 2) + 0);
-                        Gba.Lcd.UpdatePalette((addr / 2) + 1);
-                        return;
-                    }
+                    Gba.Lcd.Palettes[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Palettes[addr + 1] = (byte)(val >> 8);
+                    Gba.Lcd.Palettes[addr + 2] = (byte)(val >> 16);
+                    Gba.Lcd.Palettes[addr + 3] = (byte)(val >> 24);
+                    return;
                 case 0x6: // PPU VRAM
                     VramWrites += 4;
                     addr &= 0x1FFFF;
-                    fixed (byte* ptr = Gba.Lcd.Vram)
-                    {
-                        *(uint*)(ptr + addr) = val;
-                        return;
-                    }
+                    Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
+                    Gba.Lcd.Vram[addr + 2] = (byte)(val >> 16);
+                    Gba.Lcd.Vram[addr + 3] = (byte)(val >> 24);
+                    return;
                 case 0x7: // PPU OAM
                     OamWrites += 4;
                     addr &= 0x3FF;
-                    fixed (byte* ptr = Gba.Lcd.Oam)
-                    {
-                        *(uint*)(ptr + addr) = val;
-                        return;
-                    }
+                    Gba.Lcd.Oam[addr + 0] = (byte)(val >> 0);
+                    Gba.Lcd.Oam[addr + 1] = (byte)(val >> 8);
+                    Gba.Lcd.Oam[addr + 2] = (byte)(val >> 16);
+                    Gba.Lcd.Oam[addr + 3] = (byte)(val >> 24);
+                    return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 

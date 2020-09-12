@@ -8,7 +8,6 @@
     </UpgradeBackupLocation>
     <OldToolsVersion>Current</OldToolsVersion>
     <TieredCompilation>true</TieredCompilation>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Gee.External.Capstone" Version="2.0.2" />
