@@ -27,7 +27,7 @@ namespace OptimeGBAEmulator
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
 
             // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm.gba");
-            byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
+            // byte[] rom = System.IO.File.ReadAllBytes("roms/fuzzarm-262144.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/armwrestler-gba-fixed.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/arm.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/thumb.gba");
@@ -35,7 +35,7 @@ namespace OptimeGBAEmulator
             // byte[] rom = System.IO.File.ReadAllBytes("roms/tonc/swi_vsync.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/audio-demo_inc.gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon Pinball - Ruby & Sapphire (USA).gba");
-            // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
+            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - Emerald Version (U).gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/1135 - Pokemon Pinball - Ruby & Sapphire (U)(Mode7).gba");
             // byte[] rom = System.IO..File.ReadAllBytes("roms/1135 - Pokemon Pinball - Ruby & Sapphire (U)(Mode7).gba");
             // byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon Mystery Dungeon - Red Rescue Team (U).gba");

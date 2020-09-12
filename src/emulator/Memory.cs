@@ -108,6 +108,11 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         unsafe public ushort Read16(uint addr)
         {
+            if ((addr & 1) != 0)
+            {
+                Gba.Arm7.Error("Misaligned Read16! " + Util.HexN(addr, 8));
+            }
+
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
@@ -193,6 +198,11 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         unsafe public uint Read32(uint addr)
         {
+            if ((addr & 3) != 0)
+            {
+                Gba.Arm7.Error("Misaligned Read32! " + Util.HexN(addr, 8));
+            }
+
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
@@ -374,6 +384,7 @@ namespace OptimeGBA
                     WriteHwio8(addr, val);
                     break;
                 case 0x5: // PPU Palettes
+                    // Gba.Arm7.Error("Write: Palette8");
                     PaletteWrites++;
                     addr &= 0x3FF;
                     Gba.Lcd.Palettes[addr] = val;
@@ -410,6 +421,11 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
+            if ((addr & 1) != 0)
+            {
+                Gba.Arm7.Error("Misaligned Write16! " + Util.HexN(addr, 8));
+            }
+
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
@@ -434,6 +450,7 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
+                    // Gba.Arm7.Error("Write: Palette16");
                     PaletteWrites += 2;
                     addr &= 0x3FF;
                     fixed (byte* ptr = Gba.Lcd.Palettes)
@@ -481,6 +498,11 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
+            if ((addr & 3) != 0)
+            {
+                Gba.Arm7.Error("Misaligned Write32! " + Util.HexN(addr, 8));
+            }
+
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
@@ -505,12 +527,14 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
+                    // Gba.Arm7.Error("Write: Palette32");
                     PaletteWrites += 4;
                     addr &= 0x3FF;
                     fixed (byte* ptr = Gba.Lcd.Palettes)
                     {
                         *(uint*)(ptr + addr) = val;
-                        Gba.Lcd.UpdatePalette(addr / 2);
+                        Gba.Lcd.UpdatePalette((addr / 2) + 0);
+                        Gba.Lcd.UpdatePalette((addr / 2) + 1);
                         return;
                     }
                 case 0x6: // PPU VRAM

@@ -734,7 +734,7 @@ namespace OptimeGBA
             uint addr = rnValue + (immed5 * 4);
             arm7.LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
-            arm7.Gba.Mem.Write32(addr, arm7.R[rd]);
+            arm7.Gba.Mem.Write32(addr & ~3U, arm7.R[rd]);
         }
 
         public static void ImmOffsSTRB(ARM7 arm7, ushort ins)

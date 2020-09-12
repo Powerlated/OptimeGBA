@@ -470,6 +470,7 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text($"Mode: {Gba.Arm7.Mode}");
                 ImGui.Text($"Last Cycles: {Gba.Arm7.LastPendingCycles}");
+                ImGui.Text($"Total Instrs.: {Gba.Arm7.InstructionsRan}");
 
                 // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
 
@@ -557,23 +558,14 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
-                bool negative = Gba.Arm7.Negative;
-                bool zero = Gba.Arm7.Zero;
-                bool carry = Gba.Arm7.Carry;
-                bool overflow = Gba.Arm7.Overflow;
-                bool sticky = Gba.Arm7.Sticky;
-                bool irqDisable = Gba.Arm7.IRQDisable;
-                bool fiqDisable = Gba.Arm7.FIQDisable;
-                bool thumbState = Gba.Arm7.ThumbState;
-
-                ImGui.Checkbox("Negative", ref negative);
-                ImGui.Checkbox("Zero", ref zero);
-                ImGui.Checkbox("Carry", ref carry);
-                ImGui.Checkbox("Overflow", ref overflow);
-                ImGui.Checkbox("Sticky", ref sticky);
-                ImGui.Checkbox("IRQ Disable", ref irqDisable);
-                ImGui.Checkbox("FIQ Disable", ref fiqDisable);
-                ImGui.Checkbox("Thumb State", ref thumbState);
+                ImGui.Checkbox("Negative", ref Gba.Arm7.Negative);
+                ImGui.Checkbox("Zero", ref Gba.Arm7.Zero);
+                ImGui.Checkbox("Carry", ref Gba.Arm7.Carry);
+                ImGui.Checkbox("Overflow", ref Gba.Arm7.Overflow);
+                ImGui.Checkbox("Sticky", ref Gba.Arm7.Sticky);
+                ImGui.Checkbox("IRQ Disable", ref Gba.Arm7.IRQDisable);
+                ImGui.Checkbox("FIQ Disable", ref Gba.Arm7.FIQDisable);
+                ImGui.Checkbox("Thumb State", ref Gba.Arm7.ThumbState);
 
                 ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
                 ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");

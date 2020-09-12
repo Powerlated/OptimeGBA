@@ -121,6 +121,8 @@ namespace OptimeGBA
         public uint PendingCycles = 0;
         public uint LastPendingCycles = 0;
 
+        public long InstructionsRan = 0;
+
         // DEBUG INFO
         public uint LastIns;
         public uint LastLastIns;
@@ -222,6 +224,7 @@ namespace OptimeGBA
 
         public void Execute()
         {
+            InstructionsRan++;
             if (R[15] == 0x080129F2) {
                 Error("sdfkjadfdjsjklfads");
             }
