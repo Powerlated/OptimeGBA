@@ -81,8 +81,15 @@ namespace OptimeGBA
                     return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
                     VramReads++;
-                    addr &= 0x1FFFF;
-                    return Gba.Lcd.Vram[addr];
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        return Gba.Lcd.Vram[addr];
+                    }
+                    else
+                    {
+                        return 0;
+                    }
                 case 0x7: // PPU OAM
                     OamReads++;
                     addr &= 0x3FF;
@@ -147,11 +154,19 @@ namespace OptimeGBA
                        );
                 case 0x6: // PPU VRAM
                     VramReads += 2;
-                    addr &= 0x1FFFF;
-                    return (ushort)(
-                             (Gba.Lcd.Vram[addr + 0] << 0) |
-                             (Gba.Lcd.Vram[addr + 1] << 8)
-                         );
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        return (ushort)(
+                            (Gba.Lcd.Vram[addr + 0] << 0) |
+                            (Gba.Lcd.Vram[addr + 1] << 8)
+                        );
+                    }
+                    else
+                    {
+                        return 0;
+                    }
+
                 case 0x7: // PPU OAM
                     OamReads += 2;
                     addr &= 0x3FF;
@@ -244,13 +259,20 @@ namespace OptimeGBA
                              );
                 case 0x6: // PPU VRAM
                     VramReads += 4;
-                    addr &= 0x1FFFF;
-                    return (uint)(
-                                 (Gba.Lcd.Vram[addr + 0] << 0) |
-                                 (Gba.Lcd.Vram[addr + 1] << 8) |
-                                 (Gba.Lcd.Vram[addr + 2] << 16) |
-                                 (Gba.Lcd.Vram[addr + 3] << 24)
-                              );
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        return (uint)(
+                            (Gba.Lcd.Vram[addr + 0] << 0) |
+                            (Gba.Lcd.Vram[addr + 1] << 8) |
+                            (Gba.Lcd.Vram[addr + 2] << 16) |
+                            (Gba.Lcd.Vram[addr + 3] << 24)
+                        );
+                    }
+                    else
+                    {
+                        return 0;
+                    }
                 case 0x7: // PPU OAM
                     OamReads += 4;
                     addr &= 0x3FF;
@@ -369,9 +391,8 @@ namespace OptimeGBA
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
-                    break;
                 case 0x1: // Unused
-                    break;
+                    return;
                 case 0x2: // EWRAM
                     EwramWrites++;
                     Ewram[addr & 0x3FFFF] = val;
@@ -399,8 +420,11 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites++;
-                    addr &= 0x1FFFF;
-                    Gba.Lcd.Vram[addr] = val;
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        Gba.Lcd.Vram[addr] = val;
+                    }
                     return;
                 case 0x7: // PPU OAM
                     OamWrites++;
@@ -436,7 +460,7 @@ namespace OptimeGBA
             {
                 case 0x0: // BIOS
                 case 0x1: // Unused
-                    goto default;
+                    return;
                 case 0x2: // EWRAM
                     EwramWrites += 2;
                     addr &= 0x3FFFF;
@@ -461,9 +485,12 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 2;
-                    addr &= 0x1FFFF;
-                    Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
-                    Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
+                        Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
+                    }
                     return;
                 case 0x7: // PPU OAM
                     OamWrites += 2;
@@ -502,7 +529,7 @@ namespace OptimeGBA
             {
                 case 0x0: // BIOS
                 case 0x1: // Unused
-                    goto default;
+                    return;
                 case 0x2: // EWRAM
                     EwramWrites += 4;
                     addr &= 0x3FFFF;
@@ -534,11 +561,14 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 4;
-                    addr &= 0x1FFFF;
-                    Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
-                    Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
-                    Gba.Lcd.Vram[addr + 2] = (byte)(val >> 16);
-                    Gba.Lcd.Vram[addr + 3] = (byte)(val >> 24);
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
+                        Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
+                        Gba.Lcd.Vram[addr + 2] = (byte)(val >> 16);
+                        Gba.Lcd.Vram[addr + 3] = (byte)(val >> 24);
+                    }
                     return;
                 case 0x7: // PPU OAM
                     OamWrites += 4;
