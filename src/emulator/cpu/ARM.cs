@@ -10,10 +10,11 @@ namespace OptimeGBA
     {
         public static void SWI(ARM7 arm7, uint ins)
         {
+            arm7.R14svc = arm7.R[15] - 4;
             arm7.SPSR_svc = arm7.GetCPSR();
+
             arm7.SetMode((uint)ARM7.ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
-            arm7.R[14] = arm7.R[15] - 4;
-            arm7.ThumbState = false; // Back to ARM state
+            // arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;
 
             arm7.R[15] = ARM7.VectorSoftwareInterrupt;
@@ -352,7 +353,7 @@ namespace OptimeGBA
             // Signed with Two's Complement
             // Cheap and easy sign-extend
             offset = (offset << 6) >> 6;
-            
+
             // Link - store return address in R14
             if ((ins & BIT_24) != 0)
             {

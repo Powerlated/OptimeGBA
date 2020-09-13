@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using OptimeGBA;
 using Gee.External.Capstone.Arm;
+using System.Text;
 
 namespace OptimeGBAEmulator
 {
@@ -394,27 +395,27 @@ namespace OptimeGBAEmulator
         {
             String disasm = Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns);
 
-            String text = "";
-            text += $"{HexN(Gba.Arm7.R[0], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[1], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[2], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[3], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[4], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[5], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[6], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[7], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[8], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[9], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[10], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[11], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[12], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[13], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[14], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[15], 8)} ";
-            text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ";
-            text += $"{(Gba.Arm7.ThumbState ? "    " + HexN(Gba.Arm7.LastIns, 4) : HexN(Gba.Arm7.LastIns, 8))}: {disasm}";
+            StringBuilder builder = new StringBuilder();
+            builder.Append($"{HexN(Gba.Arm7.R[0], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[1], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[2], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[3], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[4], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[5], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[6], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[7], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[8], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[9], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[10], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[11], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[12], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[13], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[14], 8)} ");
+            builder.Append($"{HexN(Gba.Arm7.R[15], 8)} ");
+            builder.Append($"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ");
+            builder.Append($"{(Gba.Arm7.ThumbState ? "    " + HexN(Gba.Arm7.LastIns, 4) : HexN(Gba.Arm7.LastIns, 8))}: {disasm}");
             // text += $"> {LogIndex + 1}";
-            return text;
+            return builder.ToString();
         }
 
 
@@ -532,9 +533,9 @@ namespace OptimeGBAEmulator
                         int num = DebugStepFor;
                         while (num > 0 && !Gba.Arm7.Errored)
                         {
-                            Gba.Step();
 
                             // file.WriteLine(BuildEmuFullText());
+                            Gba.Step();
 
                             LogIndex++;
                             num--;
@@ -549,15 +550,15 @@ namespace OptimeGBAEmulator
                         int num = 100000;
                         while (num > 0 && !Gba.Arm7.Errored)
                         {
-                            Gba.Step();
-
                             file.WriteLine(BuildEmuFullText());
+                            Gba.Step();
 
                             LogIndex++;
                             num--;
                         }
                     }
                 }
+
 
                 ImGui.Checkbox("Frame Step", ref FrameStep);
                 // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
@@ -650,28 +651,28 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].PrescalerSel]}");
 
                 ImGui.NextColumn();
-                ImGui.Text($"FIFO A Current Bytes: {Gba.GbaAudio.A.Bytes}");
-                ImGui.Text($"FIFO B Current Bytes: {Gba.GbaAudio.B.Bytes}");
-                ImGui.Text($"FIFO A Collisions: {Gba.GbaAudio.A.Collisions}");
-                ImGui.Text($"FIFO B Collisions: {Gba.GbaAudio.B.Collisions}");
-                ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
-                ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
-                ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
-                ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
-                ImGui.Text($"FIFO A Full Inserts: {Gba.GbaAudio.A.FullInserts}");
-                ImGui.Text($"FIFO B Full Inserts: {Gba.GbaAudio.B.FullInserts}");
-                ImGui.Text("");
-                ImGui.Text($"PSG A Output Value: {Gba.GbaAudio.GbAudio.Out1}");
-                ImGui.Text($"PSG B Output Value: {Gba.GbaAudio.GbAudio.Out2}");
-                ImGui.Text("");
-                ImGui.Text($"Left Master Volume: {Gba.GbaAudio.GbAudio.leftMasterVol}");
-                ImGui.Text($"Right Master Volume: {Gba.GbaAudio.GbAudio.rightMasterVol}");
-                ImGui.Text("");
-                ImGui.Text($"Pulse 1 Current Value: {Gba.GbaAudio.GbAudio.pulse1Val}");
-                ImGui.Text($"Pulse 2 Current Value: {Gba.GbaAudio.GbAudio.pulse2Val}");
-                ImGui.Text($"Wave Current Value: {Gba.GbaAudio.GbAudio.waveVal}");
-                ImGui.Text($"Noise Current Value: {Gba.GbaAudio.GbAudio.noiseVal}");
-                ImGui.Text("");
+                // ImGui.Text($"FIFO A Current Bytes: {Gba.GbaAudio.A.Bytes}");
+                // ImGui.Text($"FIFO B Current Bytes: {Gba.GbaAudio.B.Bytes}");
+                // ImGui.Text($"FIFO A Collisions: {Gba.GbaAudio.A.Collisions}");
+                // ImGui.Text($"FIFO B Collisions: {Gba.GbaAudio.B.Collisions}");
+                // ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
+                // ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
+                // ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
+                // ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
+                // ImGui.Text($"FIFO A Full Inserts: {Gba.GbaAudio.A.FullInserts}");
+                // ImGui.Text($"FIFO B Full Inserts: {Gba.GbaAudio.B.FullInserts}");
+                // ImGui.Text("");
+                // ImGui.Text($"PSG A Output Value: {Gba.GbaAudio.GbAudio.Out1}");
+                // ImGui.Text($"PSG B Output Value: {Gba.GbaAudio.GbAudio.Out2}");
+                // ImGui.Text("");
+                // ImGui.Text($"Left Master Volume: {Gba.GbaAudio.GbAudio.leftMasterVol}");
+                // ImGui.Text($"Right Master Volume: {Gba.GbaAudio.GbAudio.rightMasterVol}");
+                // ImGui.Text("");
+                // ImGui.Text($"Pulse 1 Current Value: {Gba.GbaAudio.GbAudio.pulse1Val}");
+                // ImGui.Text($"Pulse 2 Current Value: {Gba.GbaAudio.GbAudio.pulse2Val}");
+                // ImGui.Text($"Wave Current Value: {Gba.GbaAudio.GbAudio.waveVal}");
+                // ImGui.Text($"Noise Current Value: {Gba.GbaAudio.GbAudio.noiseVal}");
+                // ImGui.Text("");
                 // ImGui.Text($"Pulse 1 Enabled: {Gba.GbaAudio.GbAudio.pulse1_enabled}");
                 // ImGui.Text($"Pulse 1 Width: {Gba.GbaAudio.GbAudio.pulse1_width}");
                 // ImGui.Text($"Pulse 1 DAC Enabled: {Gba.GbaAudio.GbAudio.pulse1_dacEnabled}");

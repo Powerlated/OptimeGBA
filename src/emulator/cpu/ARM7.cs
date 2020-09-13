@@ -225,7 +225,8 @@ namespace OptimeGBA
         public void Execute()
         {
             InstructionsRan++;
-            if (R[15] == 0x080129F2) {
+            if (R[14] == 0x756F7247)
+            {
                 Error("sdfkjadfdjsjklfads");
             }
 
@@ -237,22 +238,6 @@ namespace OptimeGBA
 #if DEBUG
             ResetDebug();
 #endif
-
-            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
-            {
-                SPSR_irq = GetCPSR();
-                SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
-                R[14] = R[15] - 4;
-                ThumbState = false; // Back to ARM state
-                IRQDisable = true;
-                FIQDisable = true;
-
-                R[15] = VectorIRQ;
-                FlushPipeline();
-
-                // Error("IRQ, ENTERING IRQ MODE!");
-                return;
-            }
 
             if (!ThumbState) // ARM mode
             {
@@ -296,6 +281,30 @@ namespace OptimeGBA
 
                 ThumbDispatch[ins >> 6](this, ins);
             }
+
+            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
+            {
+                SPSR_irq = GetCPSR();
+                if (ThumbState)
+                {
+                    R14irq = R[15] - 2;
+                }
+                else
+                {
+                    R14irq = R[15] - 4;
+                }
+                SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
+                ThumbState = false; // Back to ARM state
+                IRQDisable = true;
+                // FIQDisable = true;
+
+                R[15] = VectorIRQ;
+                FlushPipeline();
+
+                // Error("IRQ, ENTERING IRQ MODE!");
+                return;
+            }
+
         }
 
 
@@ -904,7 +913,7 @@ namespace OptimeGBA
             // Error("No SPSR in this mode!");
         }
 
-        public void 
+        public void
         SetMode(uint mode)
         {
             // Bit 4 of mode is always set 
