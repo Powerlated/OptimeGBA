@@ -54,7 +54,7 @@ namespace OptimeGBA
 
             uint addr = arm7.R[rn];
 
-            String regs = "";
+            // String regs = "";
 
             bool disableWriteback = false;
             // No writeback if base register is included in the register list when loading.
@@ -66,7 +66,7 @@ namespace OptimeGBA
                     if (BitTest(ins, r))
                     {
                         if (r == rn && L) disableWriteback = true;
-                        regs += $"R{r} ";
+                        // regs += $"R{r} ";
 
                         if (P) addr += 4;
 
@@ -126,7 +126,7 @@ namespace OptimeGBA
                     if (BitTest(ins, r))
                     {
                         if (r == rn && L) disableWriteback = true;
-                        regs += $"R{r} ";
+                        // regs += $"R{r} ";
 
                         if (P) addr -= 4;
 
@@ -182,7 +182,7 @@ namespace OptimeGBA
                 arm7.R[rn] = addr;
             }
 
-            arm7.LineDebug(regs);
+            // arm7.LineDebug(regs);
         }
 
         public static void STM(ARM7 arm7, uint ins)
@@ -218,7 +218,7 @@ namespace OptimeGBA
 
             uint addr = arm7.R[rn];
 
-            String regs = "";
+            // String regs = "";
 
             bool disableWriteback = false;
             // No writeback if base register is included in the register list when loading.
@@ -230,7 +230,7 @@ namespace OptimeGBA
                     if (BitTest(ins, r))
                     {
                         if (r == rn && L) disableWriteback = true;
-                        regs += $"R{r} ";
+                        // regs += $"R{r} ";
 
                         if (P) addr += 4;
 
@@ -287,7 +287,7 @@ namespace OptimeGBA
                     if (BitTest(ins, r))
                     {
                         if (r == rn && L) disableWriteback = true;
-                        regs += $"R{r} ";
+                        // regs += $"R{r} ";
 
                         if (P) addr -= 4;
 
@@ -342,7 +342,7 @@ namespace OptimeGBA
                 arm7.R[rn] = addr;
             }
 
-            arm7.LineDebug(regs);
+            // arm7.LineDebug(regs);
         }
 
         public static void B(ARM7 arm7, uint ins)
