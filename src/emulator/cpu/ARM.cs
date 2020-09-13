@@ -889,7 +889,8 @@ namespace OptimeGBA
                     if (H)
                     {
                         arm7.LineDebug("Load unsigned halfword");
-                        loadVal = arm7.Gba.Mem.Read16(addr);
+                        // Force halfword aligned
+                        loadVal = arm7.Gba.Mem.Read16(addr & ~1u);
                     }
                 }
             }

@@ -211,12 +211,12 @@ namespace OptimeGBA
             if (ThumbState)
             {
                 R[15] &= 0xFFFFFFFE;
-                FetchPipelineThumb();
+                FillPipelineThumb();
             }
             else
             {
                 R[15] &= 0xFFFFFFFC;
-                FetchPipelineArm();
+                FillPipelineArm();
             }
 
             PipelineDirty = false;
@@ -225,10 +225,9 @@ namespace OptimeGBA
         public void Execute()
         {
             InstructionsRan++;
-            if (R[14] == 0x756F7247)
-            {
-                Error("sdfkjadfdjsjklfads");
-            }
+            // if (R[14] == 0x756F7247)
+            // {
+            // }
 
             if (PipelineDirty)
             {
@@ -284,10 +283,12 @@ namespace OptimeGBA
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
+                // Error("sdfkjadfdjsjklfads interupt lol");
+
                 SPSR_irq = GetCPSR();
                 if (ThumbState)
                 {
-                    R14irq = R[15] - 2;
+                    R14irq = R[15];
                 }
                 else
                 {
@@ -914,7 +915,7 @@ namespace OptimeGBA
         }
 
         public void
-        SetMode(uint mode)
+         SetMode(uint mode)
         {
             // Bit 4 of mode is always set 
             mode |= 0b10000;
