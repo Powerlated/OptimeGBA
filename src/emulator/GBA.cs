@@ -36,6 +36,7 @@ namespace OptimeGBA
             Provider = provider;
         }
 
+        uint HaltTime = 0;
         public uint Step()
         {
             Arm7.Execute();
@@ -44,7 +45,9 @@ namespace OptimeGBA
             Timers.Tick(1);
             GbaAudio.Tick(1);
 
-            return 1;
+            uint temp = HaltTime;
+            HaltTime = 0;
+            return 1 + temp;
         }
 
         public void Tick(uint cycles)
@@ -54,6 +57,17 @@ namespace OptimeGBA
             GbaAudio.Tick(cycles);
 
             // Audio.Tick(cycles);
+        }
+
+        public void Halt()
+        {
+            while (!HwControl.Available)
+            {
+                Lcd.Tick(1);
+                Timers.Tick(1);
+                GbaAudio.Tick(1);
+                HaltTime++;
+            }
         }
     }
 }

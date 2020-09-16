@@ -30,9 +30,6 @@ namespace OptimeGBA
             Gba = gba;
         }
 
-        public bool StopMode;
-        public bool HaltMode;
-
         public bool IME = false;
 
         public bool IE_VBlank;
@@ -172,11 +169,11 @@ namespace OptimeGBA
                 case 0x4000301: // HALTCNT
                     if (BitTest(val, 7))
                     {
-                        StopMode = true;
+                    
                     }
                     else
                     {
-                        // HaltMode = true;
+                        // Gba.Halt();
                     }
                     break;
             }
@@ -239,8 +236,6 @@ namespace OptimeGBA
             if (IF_DMA3 && IE_DMA3) { Available = true; }
             if (IF_Keypad && IE_Keypad) { Available = true; }
             if (IF_GamePak && IE_GamePak) { Available = true; }
-
-            if (Available) HaltMode = false;
 
             // if (available && IME && !AvailableAndEnabled)
             // {
