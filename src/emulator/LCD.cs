@@ -19,6 +19,13 @@ namespace OptimeGBA
         public uint HorizontalOffset;
         public uint VerticalOffset;
 
+        public uint Id;
+
+        public Background(uint id)
+        {
+            Id = id;
+        }
+
         public byte ReadBGCNT(uint addr)
         {
             switch (addr)
@@ -120,10 +127,10 @@ namespace OptimeGBA
 
         // BGCNT
         public Background[] Backgrounds = new Background[4] {
-            new Background(),
-            new Background(),
-            new Background(),
-            new Background(),
+            new Background(0),
+            new Background(1),
+            new Background(2),
+            new Background(3),
         };
 
         // DISPCNT
@@ -350,6 +357,10 @@ namespace OptimeGBA
                             HBlank = true;
                             RenderScanline();
 
+                            if (HBlankIrqEnable)
+                            {
+                                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+                            }
                         }
                     }
                     break;
@@ -396,7 +407,10 @@ namespace OptimeGBA
                             {
                                 VCount = 0;
                                 VCounterMatch = VCount == VCountSetting;
-                                if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                                if (VCounterMatch && VCounterIrqEnable)
+                                {
+                                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                                }
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
                             }
@@ -407,8 +421,11 @@ namespace OptimeGBA
                     {
                         if (CycleCount >= 960)
                         {
+                            
                             HBlank = true;
                             lcdEnum = LCDEnum.HBlank;
+
+                            
                         }
                     }
                     break;
