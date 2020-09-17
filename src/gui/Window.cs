@@ -14,6 +14,7 @@ using System.Numerics;
 using OptimeGBA;
 using Gee.External.Capstone.Arm;
 using System.Text;
+using System.Diagnostics;
 
 namespace OptimeGBAEmulator
 {
@@ -32,20 +33,44 @@ namespace OptimeGBAEmulator
         Thread EmulationThread;
         ManualResetEvent ThreadSync = new ManualResetEvent(false);
 
+        bool SyncToAudio = true;
+        double FrameRate;
+
+        const uint AUDIO_SAMPLE_THRESHOLD = 8192;
+
         public void EmulationThreadHandler()
         {
+            Stopwatch stopwatch = new Stopwatch();
             while (true)
             {
                 ThreadSync.Reset();
                 ThreadSync.WaitOne();
-                while (OptimeGBAEmulator.GetAudioSamplesInQueue() < 8192 && !Gba.Arm7.Errored)
+                while ((OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio) && !Gba.Arm7.Errored && FrameStep)
                 {
-                    int num = FrameIns;
-                    while (num > 0 && !Gba.Arm7.Errored)
-                    {
-                        num -= (int)Gba.Step();
-                    }
+                    stopwatch.Reset();
+                    stopwatch.Start();
+                    RunFrame();
+                    stopwatch.Stop();
+                    long ticks = stopwatch.ElapsedTicks;
+                    double seconds = (double)ticks / (double)Stopwatch.Frequency;
+
+                    FrameRate = 1 / seconds;
                 }
+            }
+        }
+
+        public void RunFrame()
+        {
+            int num = FrameIns;
+            while (num > 0 && !Gba.Arm7.Errored && FrameStep)
+            {
+                num -= (int)Gba.Step();
+            }
+        }
+
+        public void RunAudioSync() {
+            if (OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio)  {
+                RunFrame();
             }
         }
 
@@ -111,22 +136,9 @@ namespace OptimeGBAEmulator
 
             if (FrameStep)
             {
-
-                ThreadSync.Set();
-                // {
-                //     int num = 70224/2;
-                //     while (num > 0 && !Gba.Arm7.Errored)
-                //     {
-                //         Gba.Step();
-                //         num--;
-                //     }
-                // }
+                RunAudioSync(); // Same Thread
+                // ThreadSync.Set(); // Multi-Thread
             }
-
-            // if (input.IsKeyDown(Key.Escape))
-            // {
-            //     Exit();
-            // }
 
             Gba.Keypad.B = input.IsKeyDown(Key.Z);
             Gba.Keypad.A = input.IsKeyDown(Key.X);
@@ -162,7 +174,7 @@ namespace OptimeGBAEmulator
             DrawRegViewer();
             DrawMemoryViewer();
             DrawRomSelector();
-            // DrawHwioLog();
+            DrawHwioLog();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -479,6 +491,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Mode: {Gba.Arm7.Mode}");
                 ImGui.Text($"Last Cycles: {Gba.Arm7.LastPendingCycles}");
                 ImGui.Text($"Total Instrs.: {Gba.Arm7.InstructionsRan}");
+                ImGui.Text($"Pipeline: {Gba.Arm7.Pipeline}");
 
                 // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
 
@@ -602,14 +615,15 @@ namespace OptimeGBAEmulator
                 ImGui.Text("");
                 bool ticked = Gba.HwControl.IME;
                 ImGui.Checkbox("IME", ref ticked);
-                bool halted = Gba.HwControl.HaltMode;
-                ImGui.Checkbox("Halt Mode", ref halted);
+
+                ImGui.Checkbox("Log HWIO", ref Gba.Mem.LogHwioAccesses);
 
                 ImGui.NextColumn();
 
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
+                ImGui.Text($"Frame rate: {FrameRate}");
                 ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
                 ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
 
@@ -808,7 +822,7 @@ namespace OptimeGBAEmulator
                         String disasm = DisasmThumb(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                        if (tempBase == Gba.Arm7.R[15] - 2)
+                        if (tempBase == Gba.Arm7.R[15] - (Gba.Arm7.Pipeline * 2))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -824,7 +838,7 @@ namespace OptimeGBAEmulator
                         String disasm = DisasmArm(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                        if (tempBase == Gba.Arm7.R[15] - 4)
+                        if (tempBase == Gba.Arm7.R[15] - (Gba.Arm7.Pipeline * 4))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }

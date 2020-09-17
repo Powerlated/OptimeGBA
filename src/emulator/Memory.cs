@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using System.Collections.Concurrent;
 
 namespace OptimeGBA
 {
@@ -26,6 +27,7 @@ namespace OptimeGBA
 
         public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
+        public bool LogHwioAccesses = false;
 
         public long EwramWrites = 0;
         public long IwramWrites = 0;
@@ -44,7 +46,7 @@ namespace OptimeGBA
         public long OamReads = 0;
 
         public byte[] Bios = new byte[16384];
-        public byte[] Rom = new byte[33554432];
+        public byte[] Rom = new byte[67108864];
 
         // External Work RAM
         public byte[] Ewram = new byte[262144];
@@ -69,9 +71,12 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     addr &= 0x400FFFF;
 
-                    // uint count;
-                    // HwioReadLog.TryGetValue(addr, out count);
-                    // HwioReadLog[addr] = count + 1;
+                    if (LogHwioAccesses && (addr & ~1) != 0)
+                    {
+                        uint count;
+                        HwioReadLog.TryGetValue(addr, out count);
+                        HwioReadLog[addr] = count + 1;
+                    }
 
                     HwioReads++;
                     return ReadHwio8(addr);
@@ -333,11 +338,6 @@ namespace OptimeGBA
                     return Iwram[addr & 0x7FFF];
                 case 0x4: // I/O Registers
                     addr &= 0x400FFFF;
-
-                    // uint count;
-                    // HwioReadLog.TryGetValue(addr, out count);
-                    // HwioReadLog[addr] = count + 1;
-
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
@@ -404,9 +404,12 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     addr &= 0x400FFFF;
 
-                    uint count;
-                    HwioWriteLog.TryGetValue(addr, out count);
-                    HwioWriteLog[addr] = count + 1;
+                    if (LogHwioAccesses && (addr & ~1) != 0)
+                    {
+                        uint count;
+                        HwioWriteLog.TryGetValue(addr, out count);
+                        HwioWriteLog[addr] = count + 1;
+                    }
 
                     HwioWrites++;
                     WriteHwio8(addr, val);
