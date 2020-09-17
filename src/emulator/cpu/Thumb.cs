@@ -796,7 +796,7 @@ namespace OptimeGBA
             arm7.LineDebug("Store");
             uint rdVal = arm7.R[rd];
             // Forcibly align address to halfwords
-            arm7.Gba.Mem.Write16(addr & 0xFFFFFFFE, (ushort)rdVal);
+            arm7.Gba.Mem.Write16(addr & ~1u, (ushort)rdVal);
         }
 
         public static void RegOffsSTRB(ARM7 arm7, ushort ins) // STRB (2)
@@ -1014,7 +1014,7 @@ namespace OptimeGBA
             uint addr = rnVal + (immed5 * 2);
 
             arm7.LineDebug("Store");
-            arm7.Gba.Mem.Write16(addr, (ushort)arm7.R[rd]);
+            arm7.Gba.Mem.Write16(addr & ~1u, (ushort)arm7.R[rd]);
         }
 
         public static void POP(ARM7 arm7, ushort ins)
