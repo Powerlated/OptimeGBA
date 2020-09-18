@@ -157,31 +157,53 @@ namespace OptimeGBA
             throw new Exception("This shouldn't happen.");
         }
 
+        public void TimerOverflow(Timer t, uint ti)
+        {
+            // On overflow, refill with reload value
+            t.CounterVal = t.ReloadVal;
+
+            if (ti < 2)
+            {
+                Gba.GbaAudio.TimerOverflow(ti);
+
+                if (T[ti + 1].CountUpTiming)
+                {
+                    TimerIncrement(t, ti);
+                }
+            }
+
+            if (t.EnableIrq)
+            {
+                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.Timer0Overflow + ti));
+            }
+        }
+
+        public void TimerIncrement(Timer t, uint ti)
+        {
+            t.CounterVal++;
+            if (t.CounterVal > 0xFFFF)
+            {
+                TimerOverflow(t, ti);
+            }
+        }
+
         public void Tick(uint cycles)
         {
             for (uint ti = 0; ti < 4; ti++)
             {
                 Timer t = T[ti];
 
-                // if (t.CountUpTiming) throw new Exception("Implement timer cascading");
-
-                if (t.Enabled)
+                // throw new Exception("Implement timer cascading");
+                if (!t.CountUpTiming)
                 {
-                    t.Prescaler += cycles;
-                    while (t.Prescaler >= t.PrescalerDiv)
+                    if (t.Enabled)
                     {
-                        t.Prescaler -= t.PrescalerDiv;
-
-                        t.CounterVal++;
-                        if (t.CounterVal > 0xFFFF)
+                        t.Prescaler += cycles;
+                        while (t.Prescaler >= t.PrescalerDiv)
                         {
-                            // On overflow, refill with reload value
-                            t.CounterVal = t.ReloadVal;
+                            t.Prescaler -= t.PrescalerDiv;
 
-                            if (ti < 2)
-                            {
-                                Gba.GbaAudio.TimerOverflow(ti);
-                            }
+                            TimerIncrement(t, ti);
                         }
                     }
                 }
