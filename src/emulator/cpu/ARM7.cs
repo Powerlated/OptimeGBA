@@ -1379,9 +1379,7 @@ namespace OptimeGBA
                     uint rs = (ins >> 8) & 0xF;
                     uint rsVal = R[rs];
 
-                    if (rs == 15) rsVal += 4;
-                    if (rm == 15) rmVal += 4;
-                    if (rn == 15) rnVal += 4;
+                    R[15] += 4;
 
                     shiftBits = (byte)(rsVal & 0b11111111);
 
@@ -1474,6 +1472,8 @@ namespace OptimeGBA
                             }
                             break;
                     }
+
+                    R[15] -= 4;
                 }
 
             }
