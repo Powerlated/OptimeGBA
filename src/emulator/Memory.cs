@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
+using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
@@ -108,8 +109,8 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
-                    return ReadFlash(addr);
                 case 0xF: // Game Pak SRAM/Flash
+                    return ReadSave(addr);
                     break;
             }
 
@@ -356,7 +357,7 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
-                    return ReadFlash(addr);
+                    return ReadSave(addr);
                 case 0xF: // Game Pak SRAM/Flash
                     break;
             }
@@ -447,7 +448,7 @@ namespace OptimeGBA
                 case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
-                    WriteFlash(addr);
+                    WriteSave(addr, val);
                     break;
             }
         }
@@ -679,20 +680,134 @@ namespace OptimeGBA
             }
         }
 
-        public byte ReadFlash(uint addr)
+
+        public bool EEPROMActive = false;
+        public bool EEPROMReadMode = false;
+        public bool EEPROMReadied = false;
+        public bool EEPROMReceivingAddr = false;
+        public bool EEPROMTerminate = false;
+        public uint EEPROMBitsRemaining = 0;
+        public uint EEPROMAddrBitsRemaining = 0;
+
+        // 1 entry per bit because I'm lazy
+        public byte[] EEPROM = new byte[0x10000];
+        public uint EEPROMAddr = 0;
+        public byte ReadBitEEPROM()
         {
-            switch (addr)
+            return EEPROM[EEPROMAddr];
+        }
+        public void WriteBitEEPROM(bool bit)
+        {
+            EEPROM[EEPROMAddr] = Convert.ToByte(bit);
+        }
+        public bool UseEEPROM = false;
+
+        public byte ReadSave(uint addr)
+        {
+            // Console.WriteLine("Save Read: " + Util.Hex(addr, 8));
+            if (UseEEPROM)
             {
-                // Stub out Flash
-                case 0x0E000000: return 0x62;
-                case 0x0E000001: return 0x13;
+                if (EEPROMActive)
+                {
+                    if (EEPROMReadMode)
+                    {
+                        if (EEPROMBitsRemaining > 64)
+                        {
+                            return 0;
+                        }
+                        else
+                        {
+                            Console.WriteLine("EEPROM Read");
+                            byte bit = ReadBitEEPROM();
+                            EEPROMAddr++;
+                            return bit;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                switch (addr)
+                {
+                    // Stub out Flash
+                    case 0x0E000000: return 0xC2;
+                    case 0x0E000001: return 0x09;
+                }
             }
             return 0;
         }
 
-        public void WriteFlash(uint addr)
+        public void WriteSave(uint addr, uint val)
         {
-            return;
+            // Console.WriteLine("Save Write: " + Util.Hex(addr, 8));
+            if (UseEEPROM)
+            {
+                bool bit = BitTest(val, 0);
+                if (EEPROMActive)
+                {
+                    if (EEPROMBitsRemaining > 0)
+                    {
+                        if (!EEPROMReadMode)
+                        {
+                            Console.WriteLine("EEPROM Write!");
+                            WriteBitEEPROM(bit);
+                            EEPROMAddr++;
+                        }
+                    }
+                    else
+                    {
+                        if (bit == false)
+                        {
+                            EEPROMActive = false;
+                        }
+                    }
+                }
+                else if (EEPROMReceivingAddr)
+                {
+                    Console.WriteLine($"EEPROM Addr Write! {val & 1}");
+
+                    EEPROMAddr <<= 1;
+                    EEPROMAddr |= val & 1;
+                    EEPROMAddrBitsRemaining--;
+                    if (EEPROMAddrBitsRemaining == 0)
+                    {
+                        Console.WriteLine($"EEPROM Addr Set!");
+                        EEPROMActive = true;
+                    }
+                }
+                else
+                {
+                    if (EEPROMReadied)
+                    {
+                        Console.WriteLine("EEPROM Ready!");
+
+                        EEPROMReadMode = bit;
+                        EEPROMReceivingAddr = true;
+                        EEPROMAddrBitsRemaining = 6;
+                        EEPROMReadied = false;
+                        EEPROMAddr = 0;
+
+                        if (EEPROMReadMode)
+                        {
+                            Console.WriteLine("EEPROM Read Mode!");
+                            EEPROMBitsRemaining = 68;
+                        }
+                        else
+                        {
+                            Console.WriteLine("EEPROM Write Mode!");
+                            EEPROMBitsRemaining = 64;
+                        }
+                    }
+                    else
+                    {
+                        if (bit) EEPROMReadied = true;
+                    }
+                }
+            }
+            else
+            {
+
+            }
         }
     }
 }
