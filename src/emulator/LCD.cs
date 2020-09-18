@@ -244,6 +244,8 @@ namespace OptimeGBA
                 case 0x4000006: // VCOUNT B0 - B1 only exists for Nintendo DS
                     val |= (byte)VCount;
                     break;
+                case 0x4000007:
+                    return 0;
 
                 case 0x4000008: // BG0CNT B0
                 case 0x4000009: // BG0CNT B1
