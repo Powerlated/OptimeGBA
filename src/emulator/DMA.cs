@@ -280,8 +280,7 @@ namespace OptimeGBA
         {
             // Least significant 28 (or 27????) bits
             uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
-            uint destAddr = c.DmaDest & 0b1111111111111111111111111111;
-
+            uint destAddr = c.DmaDest & 0b111111111111111111111111111;
             uint origSrcAddr = srcAddr;
             uint origDestAddr = destAddr;
 
@@ -300,6 +299,11 @@ namespace OptimeGBA
                 if (c.DmaLength == 0) c.DmaLength = 0x4000;
             }
 
+            // Console.WriteLine($"Starting DMA {ci}");
+            // Console.WriteLine($"SRC: {Util.HexN(srcAddr, 7)}");
+            // Console.WriteLine($"DEST: {Util.HexN(destAddr, 7)}");
+            // Console.WriteLine($"LENGTH: {Util.HexN(c.DmaLength, 4)}");
+
             uint origLength = c.DmaLength;
 
             for (; c.DmaLength > 0; c.DmaLength--)
@@ -307,7 +311,7 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
-                    // Gba.Tick(ARM7.GetTiming32(srcAddr));
+                    Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -326,7 +330,7 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
-                    // Gba.Tick(ARM7.GetTiming8And16(srcAddr));
+                    Gba.Tick(ARM7.GetTiming8And16(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -353,13 +357,18 @@ namespace OptimeGBA
                     c.DmaDest = origDestAddr;
                 }
             }
+
+            // if (c.FinishedIRQ && c.DmaLength == 0)
+            // {
+            //     Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+            // }
         }
 
         public void ExecuteSoundDma(DMAChannel c, uint ci)
         {
             // Least significant 28 (or 27????) bits
             uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
-            uint destAddr = c.DmaDest & 0b1111111111111111111111111111;
+            uint destAddr = c.DmaDest & 0b111111111111111111111111111;
 
             // 4 units of 32bits (16 bytes) are transferred to FIFO_A or FIFO_B
             for (uint i = 0; i < 4; i++)
@@ -400,6 +409,11 @@ namespace OptimeGBA
             }
 
             c.DmaSource = srcAddr;
+
+            // if (c.FinishedIRQ && c.DmaLength == 0)
+            // {
+            //     Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+            // }
         }
 
 
@@ -427,6 +441,17 @@ namespace OptimeGBA
             if (Ch[2].StartTiming == DMAStartTiming.Special)
             {
                 ExecuteSoundDma(Ch[2], 2);
+            }
+        }
+
+        public void ExecuteHblank()
+        {
+            for (uint ci = 0; ci < 4; ci++)
+            {
+                DMAChannel c = Ch[ci];
+                if (c.StartTiming == DMAStartTiming.HBlank) {
+                    ExecuteDma(c, ci);
+                }
             }
         }
     }
