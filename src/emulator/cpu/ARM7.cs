@@ -1279,11 +1279,15 @@ namespace OptimeGBA
             uint shifterOperand = 0;
             bool shifterCarryOut = false;
 
-            uint rn = (ins >> 16) & 0xF; // Rn
-            uint rnVal = R[rn];
-
             if (useImmediate32)
             {
+                uint rn = (ins >> 16) & 0xF; // Rn
+                uint rs = (ins >> 8) & 0xF;
+                uint rm = ins & 0xF;
+                uint rnVal = R[rn];
+                uint rsVal = R[rs];
+                uint rmVal = R[rm];
+
                 uint rotateBits = ((ins >> 8) & 0xF) * 2;
                 uint constant = ins & 0xFF;
 
@@ -1298,20 +1302,28 @@ namespace OptimeGBA
                 }
 
                 LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
+                
+                return (shifterOperand, shifterCarryOut, rnVal);
             }
             else
             {
                 bool regShift = (ins & BIT_4) != 0;
 
-                uint rm = ins & 0xF;
-                uint rmVal = R[rm];
                 byte shiftBits;
                 uint shiftType = (ins >> 5) & 0b11;
 
                 if (!regShift)
                 {
                     // Immediate Shift
+                    LineDebug("Immediate Shift");
                     shiftBits = (byte)((ins >> 7) & 0b11111);
+
+                    uint rn = (ins >> 16) & 0xF; // Rn
+                    uint rs = (ins >> 8) & 0xF;
+                    uint rm = ins & 0xF;
+                    uint rnVal = R[rn];
+                    uint rsVal = R[rs];
+                    uint rmVal = R[rm];
 
                     switch (shiftType)
                     {
@@ -1372,14 +1384,24 @@ namespace OptimeGBA
                             }
                             break;
                     }
+
+                    return (shifterOperand, shifterCarryOut, rnVal);
                 }
                 else
                 {
                     // Register shift
+                    LineDebug("Register Shift");
+
+                    uint rn = (ins >> 16) & 0xF; // Rn
                     uint rs = (ins >> 8) & 0xF;
-                    uint rsVal = R[rs];
+                    uint rm = ins & 0xF;
+                    LineDebug("RS: " + rs);
 
                     R[15] += 4;
+
+                    uint rnVal = R[rn];
+                    uint rsVal = R[rs];
+                    uint rmVal = R[rm];
 
                     shiftBits = (byte)(rsVal & 0b11111111);
 
@@ -1474,11 +1496,9 @@ namespace OptimeGBA
                     }
 
                     R[15] -= 4;
+                    return (shifterOperand, shifterCarryOut, rnVal);
                 }
-
             }
-
-            return (shifterOperand, shifterCarryOut, rnVal);
         }
     }
 }
