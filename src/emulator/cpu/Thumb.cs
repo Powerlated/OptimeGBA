@@ -982,7 +982,7 @@ namespace OptimeGBA
             uint rd = (uint)((ins >> 8) & 0b111);
 
             uint addr = arm7.R[13] + (immed8 * 4);
-            arm7.Gba.Mem.Write32(addr, arm7.R[rd]);
+            arm7.Gba.Mem.Write32(addr & ~3U, arm7.R[rd]);
         }
 
         public static void ImmLDRH(ARM7 arm7, ushort ins)

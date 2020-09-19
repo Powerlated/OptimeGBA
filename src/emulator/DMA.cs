@@ -311,7 +311,7 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
-                    Gba.Tick(ARM7.GetTiming32(srcAddr));
+                    // Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -330,7 +330,7 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
-                    Gba.Tick(ARM7.GetTiming8And16(srcAddr));
+                    // Gba.Tick(ARM7.GetTiming8And16(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
@@ -398,7 +398,7 @@ namespace OptimeGBA
                     Gba.Mem.Write8(destAddr + 2, b2);
                     Gba.Mem.Write8(destAddr + 3, b3);
                 }
-                Gba.Tick(ARM7.GetTiming32(srcAddr));
+                // Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                 switch (c.SrcAddrCtrl)
                 {

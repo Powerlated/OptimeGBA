@@ -272,6 +272,10 @@ namespace OptimeGBA
                 case 0x400001C: // BG3HOFS B0
                 case 0x400001E: // BG3VOFS B1
                     return Backgrounds[3].ReadBGOFS(addr - 0x400001C);
+
+                case 0x4000050: // BLDCNT B0
+                case 0x4000051: // BLDCNT B1
+                    return 0;
             }
 
             return val;
@@ -363,6 +367,7 @@ namespace OptimeGBA
                             {
                                 Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
                             }
+                            Gba.Dma.ExecuteHblank();
                         }
                     }
                     break;
@@ -383,7 +388,10 @@ namespace OptimeGBA
                             {
                                 VCount++;
                                 VCounterMatch = VCount == VCountSetting;
-                                if (VCounterMatch && VCounterIrqEnable) Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                                if (VCounterMatch && VCounterIrqEnable)
+                                {
+                                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                                }
                                 if (VCount > 159)
                                 {
                                     lcdEnum = LCDEnum.VBlank;
@@ -411,7 +419,7 @@ namespace OptimeGBA
                                 VCounterMatch = VCount == VCountSetting;
                                 if (VCounterMatch && VCounterIrqEnable)
                                 {
-                                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                                    // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 }
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
@@ -423,11 +431,13 @@ namespace OptimeGBA
                     {
                         if (CycleCount >= 960)
                         {
-                            
                             HBlank = true;
                             lcdEnum = LCDEnum.HBlank;
 
-                            
+                            if (HBlankIrqEnable)
+                            {
+                                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+                            }
                         }
                     }
                     break;

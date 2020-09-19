@@ -70,7 +70,7 @@ namespace OptimeGBA
                     IwramReads++;
                     return Iwram[addr & 0x7FFF];
                 case 0x4: // I/O Registers
-                    addr &= 0x400FFFF;
+                    // addr &= 0x400FFFF;
 
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
@@ -101,13 +101,14 @@ namespace OptimeGBA
                     addr &= 0x3FF;
                     return Gba.Lcd.Oam[addr];
                 case 0x8: // Game Pak ROM/FlashROM 
-                    RomReads++;
-                    return Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
-                case 0xD: // Game Pak SRAM/Flash
+                case 0xD: // Game Pak ROM/FlashROM 
+                    RomReads++;
+                    addr &= 0x7FFFFFF;
+                    return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     return ReadSave(addr);
@@ -185,8 +186,9 @@ namespace OptimeGBA
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
+                case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 2;
-                    addr &= 0xFFFFFF;
+                    addr &= 0x7FFFFFF;
                     if (addr < Rom.Length)
                     {
                         return (ushort)(
@@ -198,7 +200,6 @@ namespace OptimeGBA
                     {
                         return 0;
                     }
-                case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     goto default;
@@ -293,8 +294,9 @@ namespace OptimeGBA
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
+                case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 4;
-                    addr &= 0xFFFFFF;
+                    addr &= 0x7FFFFFF;
                     if (addr < Rom.Length)
                     {
                         return (uint)(
@@ -308,7 +310,6 @@ namespace OptimeGBA
                     {
                         return 0;
                     }
-                case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     goto default;
@@ -338,27 +339,35 @@ namespace OptimeGBA
                 case 0x3: // IWRAM
                     return Iwram[addr & 0x7FFF];
                 case 0x4: // I/O Registers
-                    addr &= 0x400FFFF;
+                    // addr &= 0x400FFFF;
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
                     return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
-                    addr &= 0x1FFFF;
-                    return Gba.Lcd.Vram[addr];
+                    if (addr < 0x6018000)
+                    {
+                        addr -= 0x6000000;
+                        return Gba.Lcd.Vram[addr];
+                    }
+                    else
+                    {
+                        return 0;
+                    }
                 case 0x7: // PPU OAM
                     addr &= 0x3FF;
                     return Gba.Lcd.Oam[addr];
                 case 0x8: // Game Pak ROM/FlashROM 
-                    return Rom[addr - 0x08000000];
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak SRAM/Flash
+                    addr &= 0x7FFFFFF;
+                    return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
-                    return ReadSave(addr);
                 case 0xF: // Game Pak SRAM/Flash
+                    return ReadSave(addr);
                     break;
             }
 
@@ -403,7 +412,7 @@ namespace OptimeGBA
                     Iwram[addr & 0x7FFF] = val;
                     break;
                 case 0x4: // I/O Registers
-                    addr &= 0x400FFFF;
+                    // addr &= 0x400FFFF;
 
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
@@ -436,16 +445,12 @@ namespace OptimeGBA
                     Gba.Lcd.Oam[addr] = val;
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
-                    break;
                 case 0x9: // Game Pak ROM/FlashROM 
-                    break;
                 case 0xA: // Game Pak ROM/FlashROM 
-                    break;
                 case 0xB: // Game Pak ROM/FlashROM 
-                    break;
                 case 0xC: // Game Pak ROM/FlashROM 
+                case 0xD: // Game Pak ROM/FlashROM
                     break;
-                case 0xD: // Game Pak SRAM/Flash
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     WriteSave(addr, val);
@@ -730,11 +735,13 @@ namespace OptimeGBA
                 switch (addr)
                 {
                     // Stub out Flash
-                    case 0x0E000000: return 0xC2;
-                    case 0x0E000001: return 0x09;
+                    case 0x0E000000: return 0x62;
+                    case 0x0E000001: return 0x13;
+                        // case 0x0E000000: return 0xC2;
+                        // case 0x0E000001: return 0x09;
                 }
             }
-            return 0;
+            return 0xFF;
         }
 
         public void WriteSave(uint addr, uint val)

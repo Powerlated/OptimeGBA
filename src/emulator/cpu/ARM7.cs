@@ -122,6 +122,7 @@ namespace OptimeGBA
         public uint LastPendingCycles = 0;
 
         public long InstructionsRan = 0;
+        public long InstructionsRanInterrupt = 0;
 
         // DEBUG INFO
         public uint LastIns;
@@ -225,9 +226,6 @@ namespace OptimeGBA
         public void Execute()
         {
             InstructionsRan++;
-            // if (R[14] == 0x756F7247)
-            // {
-            // }
 
             if (PipelineDirty)
             {
@@ -284,14 +282,17 @@ namespace OptimeGBA
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
             {
                 // Error("sdfkjadfdjsjklfads interupt lol");
+                InstructionsRanInterrupt = InstructionsRan;
 
                 SPSR_irq = GetCPSR();
                 if (ThumbState)
                 {
-                    R14irq = R[15];
+                    FillPipelineThumb();
+                    R14irq = R[15] - 0;
                 }
                 else
                 {
+                    FillPipelineArm();
                     R14irq = R[15] - 4;
                 }
                 SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
@@ -880,7 +881,7 @@ namespace OptimeGBA
 
             }
 
-            // Error("No SPSR in this mode!");
+            Error("No SPSR in this mode!");
             return GetCPSR();
         }
 
@@ -914,8 +915,7 @@ namespace OptimeGBA
             // Error("No SPSR in this mode!");
         }
 
-        public void
-         SetMode(uint mode)
+        public void SetMode(uint mode)
         {
             // Bit 4 of mode is always set 
             mode |= 0b10000;
@@ -1302,7 +1302,7 @@ namespace OptimeGBA
                 }
 
                 LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
-                
+
                 return (shifterOperand, shifterCarryOut, rnVal);
             }
             else

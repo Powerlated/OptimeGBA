@@ -68,8 +68,10 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public void RunAudioSync() {
-            if (OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio)  {
+        public void RunAudioSync()
+        {
+            if (OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio)
+            {
                 RunFrame();
             }
         }
@@ -82,6 +84,7 @@ namespace OptimeGBAEmulator
         public Game(int width, int height, string title, AudioCallback audioCallback) : base(width, height, GraphicsMode.Default, title)
         {
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
+            // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
             byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
 
             RomList = Directory.GetFiles("roms", "*.gba");
@@ -132,12 +135,15 @@ namespace OptimeGBAEmulator
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
+            base.OnUpdateFrame(e);
+
+
             KeyboardState input = Keyboard.GetState();
 
             if (FrameStep)
             {
-                RunAudioSync(); // Same Thread
-                // ThreadSync.Set(); // Multi-Thread
+                // RunAudioSync(); // Same Thread
+                ThreadSync.Set(); // Multi-Thread
             }
 
             Gba.Keypad.B = input.IsKeyDown(Key.Z);
@@ -151,7 +157,6 @@ namespace OptimeGBAEmulator
             Gba.Keypad.L = input.IsKeyDown(Key.Q);
             Gba.Keypad.R = input.IsKeyDown(Key.E);
 
-            base.OnUpdateFrame(e);
         }
 
         const int FrameIns = 70224;
@@ -161,6 +166,7 @@ namespace OptimeGBAEmulator
             base.OnRenderFrame(e);
 
             _controller.Update(this, (float)e.Time);
+
 
             // ImGui.Begin("It's a tileset");
             // ImGui.Text($"Pointer: {tsTexId}");
@@ -175,6 +181,7 @@ namespace OptimeGBAEmulator
             DrawMemoryViewer();
             DrawRomSelector();
             DrawHwioLog();
+            DrawBankedRegisters();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -217,6 +224,44 @@ namespace OptimeGBAEmulator
         uint MemoryViewerHoverVal = 0;
         bool MemoryViewerHover = false;
         byte[] MemoryViewerGoToAddr = new byte[16];
+
+        public void DrawBankedRegisters()
+        {
+            if (ImGui.Begin("Banked Registers"))
+            {
+                ImGui.Columns(5);
+
+                ImGui.Text("User");
+                ImGui.Text("R13: " + Hex(Gba.Arm7.R13usr, 8));
+                ImGui.Text("R14: " + Hex(Gba.Arm7.R14usr, 8));
+
+                ImGui.NextColumn();
+
+                ImGui.Text("Supervisor");
+                ImGui.Text("R13: " + Hex(Gba.Arm7.R13svc, 8));
+                ImGui.Text("R14: " + Hex(Gba.Arm7.R14svc, 8));
+
+                ImGui.NextColumn();
+
+                ImGui.Text("Abort");
+                ImGui.Text("R13: " + Hex(Gba.Arm7.R13abt, 8));
+                ImGui.Text("R14: " + Hex(Gba.Arm7.R14abt, 8));
+
+                ImGui.NextColumn();
+
+                ImGui.Text("IRQ");
+                ImGui.Text("R13: " + Hex(Gba.Arm7.R13irq, 8));
+                ImGui.Text("R14: " + Hex(Gba.Arm7.R14irq, 8));
+
+                ImGui.NextColumn();
+
+                ImGui.Text("Undefined");
+                ImGui.Text("R13: " + Hex(Gba.Arm7.R13und, 8));
+                ImGui.Text("R14: " + Hex(Gba.Arm7.R14und, 8));
+
+                ImGui.End();
+            }
+        }
 
         static String[] baseNames = {
                     "BIOS",
@@ -504,7 +549,7 @@ namespace OptimeGBAEmulator
 
                 if (ImGui.Button("Frame Advance"))
                 {
-                    int num = FrameIns;
+                    int num = 280896;
                     while (num > 0 && !Gba.Arm7.Errored)
                     {
                         Gba.Step();
@@ -521,21 +566,21 @@ namespace OptimeGBAEmulator
                     Gba.Step();
                     LogIndex++;
                 }
-                if (ImGui.Button("Step Until Error"))
-                {
-                    bool exit = false;
-                    while (!Gba.Arm7.Errored && !exit)
-                    {
+                // if (ImGui.Button("Step Until Error"))
+                // {
+                //     bool exit = false;
+                //     while (!Gba.Arm7.Errored && !exit)
+                //     {
 
-                        Gba.Step();
-                        LogIndex++;
+                //         Gba.Step();
+                //         LogIndex++;
 
-                        if (BuildEmuText() != BuildLogText())
-                        {
-                            exit = true;
-                        }
-                    }
-                }
+                //         if (BuildEmuText() != BuildLogText())
+                //         {
+                //             exit = true;
+                //         }
+                //     }
+                // }
 
                 ImGui.InputText("", text, 4);
                 ImGui.InputInt("", ref DebugStepFor);
@@ -550,6 +595,11 @@ namespace OptimeGBAEmulator
                             // file.WriteLine(BuildEmuFullText());
                             Gba.Step();
 
+                            if (Gba.Arm7.InstructionsRanInterrupt == Gba.Arm7.InstructionsRan)
+                            {
+                                file.WriteLine("---------------- INTERRUPT ----------------");
+                            }
+
                             LogIndex++;
                             num--;
                         }
@@ -563,8 +613,13 @@ namespace OptimeGBAEmulator
                         int num = 100000;
                         while (num > 0 && !Gba.Arm7.Errored)
                         {
-                            file.WriteLine(BuildEmuFullText());
                             Gba.Step();
+                            file.WriteLine(BuildEmuFullText());
+
+                            if (Gba.Arm7.InstructionsRanInterrupt == Gba.Arm7.InstructionsRan)
+                            {
+                                file.WriteLine("---------------- INTERRUPT ----------------");
+                            }
 
                             LogIndex++;
                             num--;
@@ -756,7 +811,7 @@ namespace OptimeGBAEmulator
                 );
 
                 // ImGui.Text($"Pointer: {texId}");
-                ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
+                ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
                 for (int p = 0; p < 256; p++)
                 {
@@ -785,7 +840,7 @@ namespace OptimeGBAEmulator
                     image
                 );
 
-                ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 16, 16 * 16));
+                ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
                 ImGui.End();
 
