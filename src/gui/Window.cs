@@ -45,7 +45,7 @@ namespace OptimeGBAEmulator
             {
                 ThreadSync.Reset();
                 ThreadSync.WaitOne();
-                while ((OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio) && !Gba.Arm7.Errored && FrameStep)
+                while ((OptimeGBAEmulator.GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio) && !Gba.Arm7.Errored && RunEmulator)
                 {
                     stopwatch.Reset();
                     stopwatch.Start();
@@ -62,7 +62,7 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             int num = FrameIns;
-            while (num > 0 && !Gba.Arm7.Errored && FrameStep)
+            while (num > 0 && !Gba.Arm7.Errored && RunEmulator)
             {
                 num -= (int)Gba.Step();
             }
@@ -79,7 +79,7 @@ namespace OptimeGBAEmulator
         CapstoneArmDisassembler ArmDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
         CapstoneArmDisassembler ThumbDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Thumb);
 
-        bool FrameStep = false;
+        bool RunEmulator = false;
 
         public Game(int width, int height, string title, AudioCallback audioCallback) : base(width, height, GraphicsMode.Default, title)
         {
@@ -87,7 +87,7 @@ namespace OptimeGBAEmulator
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
             byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
 
-            RomList = Directory.GetFiles("roms", "*.gba");
+            SearchForRoms();
 
             Gba = new GBA(new GbaProvider(bios, rom, audioCallback));
 
@@ -99,6 +99,11 @@ namespace OptimeGBAEmulator
             Log = file.Split('\n');
 
             SetupRegViewer();
+        }
+
+        public void SearchForRoms()
+        {
+            RomList = Directory.GetFiles("roms", "*.gba");
         }
 
         protected override void OnResize(EventArgs e)
@@ -137,14 +142,7 @@ namespace OptimeGBAEmulator
         {
             base.OnUpdateFrame(e);
 
-
             KeyboardState input = Keyboard.GetState();
-
-            if (FrameStep)
-            {
-                // RunAudioSync(); // Same Thread
-                ThreadSync.Set(); // Multi-Thread
-            }
 
             Gba.Keypad.B = input.IsKeyDown(Key.Z);
             Gba.Keypad.A = input.IsKeyDown(Key.X);
@@ -165,8 +163,13 @@ namespace OptimeGBAEmulator
         {
             base.OnRenderFrame(e);
 
-            _controller.Update(this, (float)e.Time);
+            if (RunEmulator)
+            {
+                // RunAudioSync(); // Same Thread
+                ThreadSync.Set(); // Multi-Thread
+            }
 
+            _controller.Update(this, (float)e.Time);
 
             // ImGui.Begin("It's a tileset");
             // ImGui.Text($"Pointer: {tsTexId}");
@@ -182,6 +185,7 @@ namespace OptimeGBAEmulator
             DrawRomSelector();
             DrawHwioLog();
             DrawBankedRegisters();
+            DrawSoundVisualizer();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -628,7 +632,7 @@ namespace OptimeGBAEmulator
                 }
 
 
-                ImGui.Checkbox("Frame Step", ref FrameStep);
+                ImGui.Checkbox("Run Emulator", ref RunEmulator);
                 // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
 
                 ImGui.NextColumn();
@@ -672,6 +676,8 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("IME", ref ticked);
 
                 ImGui.Checkbox("Log HWIO", ref Gba.Mem.LogHwioAccesses);
+                ImGui.Checkbox("Boot BIOS", ref Gba.Provider.BootBios);
+                ImGui.Checkbox("Big Screen", ref BigScreen);
 
                 ImGui.NextColumn();
 
@@ -760,20 +766,34 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Gba.GbaAudio.GbAudio.pulse1_freqSweepShift}");
                 // ImGui.Text($"Pulse 1 Updated: {Gba.GbaAudio.GbAudio.pulse1_updated}");
                 // ImGui.Text("");
-                ImGui.Text($"Wave Bank: {Gba.GbaAudio.GbAudio.wave_bank}");
-                ImGui.Text($"Wave Dimension: {Gba.GbaAudio.GbAudio.wave_dimension}");
-                ImGui.Text($"Wave Enabled: {Gba.GbaAudio.GbAudio.wave_enabled}");
-                ImGui.Text($"Wave DAC Enabled: {Gba.GbaAudio.GbAudio.wave_dacEnabled}");
-                ImGui.Text($"Wave Length Enable: {Gba.GbaAudio.GbAudio.wave_lengthEnable}");
-                ImGui.Text($"Wave Length Counter: {Gba.GbaAudio.GbAudio.wave_lengthCounter}");
-                ImGui.Text($"Wave Frequency Upper: {Gba.GbaAudio.GbAudio.wave_frequencyUpper}");
-                ImGui.Text($"Wave Frequency Lower: {Gba.GbaAudio.GbAudio.wave_frequencyLower}");
-                ImGui.Text($"Wave Volume: {Gba.GbaAudio.GbAudio.wave_volume}");
-                ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
-                ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
+                // ImGui.Text($"Wave Bank: {Gba.GbaAudio.GbAudio.wave_bank}");
+                // ImGui.Text($"Wave Dimension: {Gba.GbaAudio.GbAudio.wave_dimension}");
+                // ImGui.Text($"Wave Enabled: {Gba.GbaAudio.GbAudio.wave_enabled}");
+                // ImGui.Text($"Wave DAC Enabled: {Gba.GbaAudio.GbAudio.wave_dacEnabled}");
+                // ImGui.Text($"Wave Length Enable: {Gba.GbaAudio.GbAudio.wave_lengthEnable}");
+                // ImGui.Text($"Wave Length Counter: {Gba.GbaAudio.GbAudio.wave_lengthCounter}");
+                // ImGui.Text($"Wave Frequency Upper: {Gba.GbaAudio.GbAudio.wave_frequencyUpper}");
+                // ImGui.Text($"Wave Frequency Lower: {Gba.GbaAudio.GbAudio.wave_frequencyLower}");
+                // ImGui.Text($"Wave Volume: {Gba.GbaAudio.GbAudio.wave_volume}");
+                // ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
+                // ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
 
                 ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
                 ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
+
+                ImGui.Text($"BG0 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[0].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[0].ScreenSize]}");
+                ImGui.Text($"BG0 Scroll X: {Gba.Lcd.Backgrounds[0].HorizontalOffset}");
+                ImGui.Text($"BG0 Scroll Y: {Gba.Lcd.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"BG1 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[1].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[1].ScreenSize]}");
+                ImGui.Text($"BG1 Scroll X: {Gba.Lcd.Backgrounds[1].HorizontalOffset}");
+                ImGui.Text($"BG1 Scroll Y: {Gba.Lcd.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"BG2 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Scroll X: {Gba.Lcd.Backgrounds[2].HorizontalOffset}");
+                ImGui.Text($"BG2 Scroll Y: {Gba.Lcd.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"BG3 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
+                ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
+
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -907,9 +927,10 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public bool BigScreen = false;
         public void DrawDisplay()
         {
-            if (ImGui.Begin("Display"))
+            if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
             {
                 Random r = new Random();
 
@@ -929,7 +950,11 @@ namespace OptimeGBAEmulator
                     Gba.Lcd.ScreenFront
                 );
 
-                ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(240 * 2, 160 * 2));
+                float height = BigScreen ? 240 * 4 : 240 * 2;
+                float width = BigScreen ? 160 * 4 : 160 * 2;
+
+                ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(height, width));
+                ImGui.SetWindowSize(new System.Numerics.Vector2(height + 16, width + 36));
                 ImGui.End();
             }
         }
@@ -1165,6 +1190,10 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("ROMs"))
             {
+                if (ImGui.Button("Refresh"))
+                {
+                    SearchForRoms();
+                }
                 for (int i = 0; i < RomList.Length; i++)
                 {
                     string s = RomList[i];
@@ -1187,6 +1216,252 @@ namespace OptimeGBAEmulator
             AudioCallback audioCallback = Gba.Provider.AudioCallback;
 
             Gba = new GBA(new GbaProvider(bios, rom, audioCallback));
+        }
+
+        public uint[][] PulseDuty = new uint[][] {
+            new uint[] {0, 0, 0, 0, 0, 0, 0, 1},
+            new uint[] {1, 0, 0, 0, 0, 0, 0, 1},
+            new uint[] {1, 0, 0, 0, 0, 1, 1, 1},
+            new uint[] {0, 1, 1, 1, 1, 1, 1, 0},
+        };
+
+        public uint[] NoiseDivisors = { 8, 16, 32, 48, 63, 80, 96, 112 };
+
+        public void DrawPulseBox(int duty, float widthMul, float heightMul)
+        {
+            ImDrawListPtr dl = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            float width = ImGui.GetWindowContentRegionWidth();
+
+            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+
+            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
+
+            float init = 0;
+            float xPerUnit = ((width) / 8) * widthMul;
+            float valX = pos.X;
+
+            float yCenter = (pos.Y + 64);
+            float yHigh = (yCenter - (heightMul * 56));
+            float yLow = (yCenter + (heightMul * 56));
+
+            for (uint i = 0; i < 2048; i++)
+            {
+                float val = PulseDuty[duty][i & 7];
+                val = (val * -1) + 1;
+
+                float newX = valX + xPerUnit;
+                if (newX > pos.X + width) newX = pos.X + width;
+                if (valX > pos.X + width) valX = pos.X + width;
+                if (val != init)
+                {
+                    // Make sure vertical line isn't off the edge of the box
+                    if (valX > pos.X && valX < pos.X + width)
+                    {
+                        dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(valX, yLow), lineCol, 2);
+                    }
+                }
+                if (val != 0)
+                {
+                    dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(newX, yHigh), lineCol, 2);
+                }
+                else
+                {
+                    dl.AddLine(new System.Numerics.Vector2(valX, yLow), new System.Numerics.Vector2(newX, yLow), lineCol, 2);
+                }
+                valX += xPerUnit;
+
+                init = val;
+
+                if (valX > pos.X + width) return;
+            }
+        }
+
+        public void DrawWaveBox(byte[] waveTable, float widthMul, int waveShift)
+        {
+            ImDrawListPtr dl = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            float width = ImGui.GetWindowContentRegionWidth();
+
+            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+
+            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
+
+            float prev = 0;
+            float xPerUnit = ((width) / 32) * widthMul;
+            float valX = pos.X;
+
+            float yCenter = (pos.Y + 64);
+            float yHigh = yCenter - 56;
+            float yLow = yCenter + 56;
+
+            for (uint i = 0; i < 2048; i++)
+            {
+                uint rawVal = waveTable[i & 31];
+                rawVal >>= waveShift;
+                float val = rawVal;
+
+                float y = yLow - ((val / 15) * 112);
+                float yPrev = yLow - ((prev / 15) * 112);
+
+                float newX = valX + xPerUnit;
+                if (newX > pos.X + width) newX = pos.X + width;
+                if (valX > pos.X + width) valX = pos.X + width;
+                if (val != prev)
+                {
+                    // Make sure vertical line isn't off the edge of the box
+                    if (valX > pos.X && valX < pos.X + width)
+                    {
+                        dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(valX, yPrev), lineCol, 2);
+                    }
+                }
+                dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(newX, y), lineCol, 2);
+                valX += xPerUnit;
+
+                prev = val;
+
+                if (valX > pos.X + width) return;
+            }
+        }
+
+        uint NoisePos = 0;
+        public void DrawNoiseBox(byte[] noiseArray, float widthMul, float heightMul)
+        {
+            ImDrawListPtr dl = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            float width = ImGui.GetWindowContentRegionWidth();
+
+            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+
+            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
+
+            float init = 0;
+            float xPerUnit = ((width) / 8) * widthMul;
+            float valX = pos.X;
+
+            float yCenter = (pos.Y + 64);
+            float yHigh = (yCenter - (heightMul * 56));
+            float yLow = (yCenter + (heightMul * 56));
+
+            for (uint i = 0; i < 2048; i++)
+            {
+                float val = noiseArray[NoisePos++ & 32767];
+                val = ((val * -1) + 1);
+
+                float newX = valX + xPerUnit;
+                if (newX > pos.X + width) newX = pos.X + width;
+                if (valX > pos.X + width) valX = pos.X + width;
+                if (val != init)
+                {
+                    // Make sure vertical line isn't off the edge of the box
+                    if (valX > pos.X && valX < pos.X + width)
+                    {
+                        dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(valX, yLow), lineCol, 2);
+                    }
+                }
+                if (val != 0)
+                {
+                    dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(newX, yHigh), lineCol, 2);
+                }
+                else
+                {
+                    dl.AddLine(new System.Numerics.Vector2(valX, yLow), new System.Numerics.Vector2(newX, yLow), lineCol, 2);
+                }
+                valX += xPerUnit;
+
+                init = val;
+
+                if (valX > pos.X + width) return;
+            }
+        }
+
+        public void DrawSoundVisualizer()
+        {
+            if (ImGui.Begin("Sound Visualizer"))
+            {
+                GbAudio gbAudio = Gba.GbaAudio.GbAudio;
+
+                ImGui.Text("Pulse 1");
+
+                float pulse1Hz = gbAudio.pulse1_getFrequencyHz();
+                bool pulse1Active = gbAudio.pulse1_enabled && gbAudio.pulse1_dacEnabled && (gbAudio.pulse1_outputLeft || gbAudio.pulse2_outputRight);
+                DrawPulseBox(gbAudio.pulse1_width, 64 / pulse1Hz, pulse1Active ? gbAudio.pulse1_volume / 15f : 0);
+                int pulse1Note = NoteFromFrequency(pulse1Hz);
+                float pulse1CentsOff = (float)CentsOffFromPitch(pulse1Hz, pulse1Note);
+                ImGui.Text($"Active: {pulse1Active}");
+                ImGui.Text($"Volume: {gbAudio.pulse1_volume}");
+                ImGui.Text($"Pitch: {pulse1Hz} hz");
+                ImGui.Text($"Note: {NoteNameFromFrequency(pulse1Hz)} {OctaveFromFrequency(pulse1Hz)} {(pulse1CentsOff < 0 ? "" : "+") + pulse1CentsOff}");
+
+                ImGui.Separator();
+
+                ImGui.Text("Pulse 2");
+
+                float pulse2Hz = gbAudio.pulse2_getFrequencyHz();
+                bool pulse2Active = gbAudio.pulse2_enabled && gbAudio.pulse2_dacEnabled && (gbAudio.pulse2_outputLeft || gbAudio.pulse2_outputRight);
+                DrawPulseBox(gbAudio.pulse2_width, 64 / pulse2Hz, pulse2Active ? gbAudio.pulse2_volume / 15f : 0);
+                int pulse2Note = NoteFromFrequency(pulse2Hz);
+                double pulse2CentsOff = CentsOffFromPitch(pulse2Hz, pulse2Note);
+                ImGui.Text($"Active: {pulse2Active}");
+                ImGui.Text($"Volume: {gbAudio.pulse2_volume}");
+                ImGui.Text($"Pitch: {pulse2Hz} hz");
+                ImGui.Text($"Note: {NoteNameFromFrequency(pulse2Hz)} {OctaveFromFrequency(pulse2Hz)} {(pulse2CentsOff < 0 ? "" : "+") + pulse2CentsOff}");
+
+                ImGui.Separator();
+
+                ImGui.Text("Wave");
+                float waveHz = Gba.GbaAudio.GbAudio.wave_getFrequencyHz();
+                bool waveActive = gbAudio.wave_enabled && gbAudio.wave_dacEnabled && (gbAudio.wave_outputLeft || gbAudio.wave_outputRight) && gbAudio.wave_volume != 0;
+                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 16 / waveHz, waveActive ? gbAudio.wave_volume : 0);
+                int waveNote = NoteFromFrequency(waveHz);
+                double waveCentsOff = CentsOffFromPitch(waveHz, waveNote);
+                ImGui.Text($"Pitch: {waveHz} hz");
+                ImGui.Text($"Note: {NoteNameFromFrequency(waveHz)} {OctaveFromFrequency(waveHz)} {(waveCentsOff < 0 ? "" : "+") + waveCentsOff}");
+
+                ImGui.Separator();
+
+                ImGui.Text("Noise");
+
+                long noiseHz = 524288 / NoiseDivisors[gbAudio.noise_divisorCode] / 2 ^ (gbAudio.noise_shiftClockFrequency + 1);
+                bool noiseActive = gbAudio.noise_enabled && gbAudio.noise_dacEnabled && (gbAudio.noise_outputLeft || gbAudio.noise_outputRight);
+                DrawNoiseBox(gbAudio.noise_counterStep ? GbAudio.SEVEN_BIT_NOISE : GbAudio.FIFTEEN_BIT_NOISE, 0.025f, noiseActive ? gbAudio.noise_volume / 15f : 0);
+                ImGui.End();
+            }
+        }
+
+        string[] noteStrings = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+
+        int NoteFromFrequency(float frequency)
+        {
+            var noteNum = 12 * (Math.Log(frequency / 440) / Math.Log(2));
+            return (int)(Math.Round(noteNum) + 69);
+        }
+
+        double FrequencyFromNote(int note)
+        {
+            return Math.Pow(2, (note - 69) / 12) * 440;
+        }
+
+        string NoteNameFromFrequency(float frequency)
+        {
+            return noteStrings[(int)(NoteFromFrequency(frequency) % 12)];
+        }
+
+        double OctaveFromFrequency(float frequency)
+        {
+            // Use octave 0 as base
+            return Math.Floor(Math.Log2(frequency / 27.50));
+        }
+
+        double CentsOffFromPitch(float frequency, int note)
+        {
+            return Math.Floor(1200 * Math.Log(frequency / FrequencyFromNote(note)) / Math.Log(2));
         }
     }
 }

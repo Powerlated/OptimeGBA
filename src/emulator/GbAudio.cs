@@ -8,8 +8,8 @@ namespace OptimeGBA
 {
     public class GbAudio
     {
-        static byte[] SEVEN_BIT_NOISE = GenerateNoiseBuffer(true);
-        static byte[] FIFTEEN_BIT_NOISE = GenerateNoiseBuffer(false);
+        public static byte[] SEVEN_BIT_NOISE = GenerateNoiseBuffer(true);
+        public static byte[] FIFTEEN_BIT_NOISE = GenerateNoiseBuffer(false);
         public static float[] DAC_TABLE = GenerateDACTable();
         public static int SAMPLE_RATE = 32768; // Digital mixing rate is 32768 Hz on GBA
         public static int SAMPLE_TIME_MAX = 4194304 / SAMPLE_RATE;
@@ -143,7 +143,7 @@ namespace OptimeGBA
             this.reloadPulse1Period();
             this.updatePulse1Val();
         }
-        float pulse1_getFrequencyHz()
+        public float pulse1_getFrequencyHz()
         {
             float frequency = (this.pulse1_frequencyUpper << 8) | this.pulse1_frequencyLower;
             return 131072 / (2048 - frequency);
@@ -177,7 +177,7 @@ namespace OptimeGBA
             this.reloadPulse2Period();
             this.updatePulse2Val();
         }
-        float pulse2_getFrequencyHz()
+        public float pulse2_getFrequencyHz()
         {
             float frequency = (this.pulse2_frequencyUpper << 8) | this.pulse2_frequencyLower;
             return 131072 / (2048 - frequency);
@@ -197,7 +197,7 @@ namespace OptimeGBA
         public byte[] wave_waveTable1 = new byte[32];
         public bool wave_outputLeft = false;
         public bool wave_outputRight = false;
-        float wave_getFrequencyHz()
+        public float wave_getFrequencyHz()
         {
             float frequency = (this.wave_frequencyUpper << 8) | this.wave_frequencyLower;
             return 65536 / (2048 - frequency);
