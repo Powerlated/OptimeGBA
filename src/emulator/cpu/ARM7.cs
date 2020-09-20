@@ -130,12 +130,9 @@ namespace OptimeGBA
 
         public ARM7(GBA gba)
         {
-            bool bootBios = false;
-            // bootBios = true;
-
             Gba = gba;
 
-            if (bootBios)
+            if (Gba.Provider.BootBios)
             {
                 // Boot BIOS
                 R[15] = 0x00000000;
@@ -156,7 +153,7 @@ namespace OptimeGBA
             // Default Stack Pointer
             R[13] = R13usr;
 
-            if (!bootBios)
+            if (!Gba.Provider.BootBios)
             {
                 BiosInit();
             }

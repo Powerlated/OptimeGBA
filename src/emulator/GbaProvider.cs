@@ -5,6 +5,8 @@ namespace OptimeGBA
     public class GbaProvider
     {
         public bool OutputAudio = true;
+        public bool BootBios = false;
+
         public byte[] Bios;
         public byte[] Rom;
         public AudioCallback AudioCallback;

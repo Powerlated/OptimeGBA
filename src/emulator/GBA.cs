@@ -20,6 +20,8 @@ namespace OptimeGBA
         public uint[] registers = new uint[16];
         public GBA(GbaProvider provider)
         {
+            Provider = provider;
+            
             Arm7 = new ARM7(this);
             Mem = new Memory(this);
             GbaAudio = new GBAAudio(this);
@@ -33,7 +35,6 @@ namespace OptimeGBA
             provider.Rom.CopyTo(Mem.Rom, 0);
             AudioCallback = provider.AudioCallback;
 
-            Provider = provider;
         }
 
         uint HaltTime = 0;
