@@ -1227,6 +1227,8 @@ namespace OptimeGBAEmulator
 
         public uint[] NoiseDivisors = { 8, 16, 32, 48, 63, 80, 96, 112 };
 
+        public int[] WaveShiftCodes = { 4, 0, 1, 2 };
+
         public void DrawPulseBox(int duty, float widthMul, float heightMul)
         {
             ImDrawListPtr dl = ImGui.GetWindowDrawList();
@@ -1301,9 +1303,7 @@ namespace OptimeGBAEmulator
 
             for (uint i = 0; i < 2048; i++)
             {
-                uint rawVal = waveTable[i & 31];
-                rawVal >>= waveShift;
-                float val = rawVal;
+                float val = waveTable[i & 31] >> waveShift;
 
                 float y = yLow - ((val / 15) * 112);
                 float yPrev = yLow - ((prev / 15) * 112);
@@ -1418,7 +1418,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("Wave");
                 float waveHz = Gba.GbaAudio.GbAudio.wave_getFrequencyHz();
                 bool waveActive = gbAudio.wave_enabled && gbAudio.wave_dacEnabled && (gbAudio.wave_outputLeft || gbAudio.wave_outputRight) && gbAudio.wave_volume != 0;
-                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 16 / waveHz, waveActive ? gbAudio.wave_volume : 0);
+                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 16 / waveHz, waveActive ? WaveShiftCodes[gbAudio.wave_volume] : 4);
                 int waveNote = NoteFromFrequency(waveHz);
                 double waveCentsOff = CentsOffFromPitch(waveHz, waveNote);
                 ImGui.Text($"Pitch: {waveHz} hz");
@@ -1450,7 +1450,7 @@ namespace OptimeGBAEmulator
 
         string NoteNameFromFrequency(float frequency)
         {
-            return noteStrings[(int)(NoteFromFrequency(frequency) % 12)];
+            return noteStrings[(uint)(NoteFromFrequency(frequency)) % 12];
         }
 
         double OctaveFromFrequency(float frequency)
