@@ -95,7 +95,7 @@ namespace OptimeGBAEmulator
             EmulationThread.Name = "Emulation Core";
             EmulationThread.Start();
 
-            string file = System.IO.File.ReadAllText("./swi_demo.txt");
+            string file = "";
             Log = file.Split('\n');
 
             SetupRegViewer();
