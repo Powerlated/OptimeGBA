@@ -261,16 +261,24 @@ namespace OptimeGBA
                     return Backgrounds[3].ReadBGCNT(addr - 0x400000E);
 
                 case 0x4000010: // BG0HOFS B0
-                case 0x4000012: // BG0VOFS B1
+                case 0x4000011: // BG0HOFS B1
+                case 0x4000012: // BG0VOFS B0
+                case 0x4000013: // BG0VOFS B1
                     return Backgrounds[0].ReadBGOFS(addr - 0x4000010);
                 case 0x4000014: // BG1HOFS B0
-                case 0x4000016: // BG1VOFS B1
+                case 0x4000015: // BG1HOFS B1
+                case 0x4000016: // BG1VOFS B0
+                case 0x4000017: // BG1VOFS B1
                     return Backgrounds[1].ReadBGOFS(addr - 0x4000014);
                 case 0x4000018: // BG2HOFS B0
-                case 0x400001A: // BG2VOFS B1
+                case 0x4000019: // BG2HOFS B1
+                case 0x400001A: // BG2VOFS B0
+                case 0x400001B: // BG2VOFS B1
                     return Backgrounds[2].ReadBGOFS(addr - 0x4000018);
                 case 0x400001C: // BG3HOFS B0
-                case 0x400001E: // BG3VOFS B1
+                case 0x400001D: // BG3HOFS B1
+                case 0x400001E: // BG3VOFS B0
+                case 0x400001F: // BG3VOFS B1
                     return Backgrounds[3].ReadBGOFS(addr - 0x400001C);
 
                 case 0x4000050: // BLDCNT B0
@@ -331,19 +339,27 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000010: // BG0HOFS B0
-                case 0x4000012: // BG0VOFS B1
+                case 0x4000011: // BG0HOFS B1
+                case 0x4000012: // BG0VOFS B0
+                case 0x4000013: // BG0VOFS B1
                     Backgrounds[0].WriteBGOFS(addr - 0x4000010, val);
                     break;
                 case 0x4000014: // BG1HOFS B0
-                case 0x4000016: // BG1VOFS B1
+                case 0x4000015: // BG1HOFS B1
+                case 0x4000016: // BG1VOFS B0
+                case 0x4000017: // BG1VOFS B1
                     Backgrounds[1].WriteBGOFS(addr - 0x4000014, val);
                     break;
                 case 0x4000018: // BG2HOFS B0
-                case 0x400001A: // BG2VOFS B1
+                case 0x4000019: // BG2HOFS B1
+                case 0x400001A: // BG2VOFS B0
+                case 0x400001B: // BG2VOFS B1
                     Backgrounds[2].WriteBGOFS(addr - 0x4000018, val);
                     break;
                 case 0x400001C: // BG3HOFS B0
-                case 0x400001E: // BG3VOFS B1
+                case 0x400001D: // BG3HOFS B1
+                case 0x400001E: // BG3VOFS B0
+                case 0x400001F: // BG3VOFS B1
                     Backgrounds[3].WriteBGOFS(addr - 0x400001C, val);
                     break;
             }
@@ -491,8 +507,8 @@ namespace OptimeGBA
             }
         }
 
-        readonly uint[] CharWidthTable = { 256, 512, 256, 512 };
-        readonly uint[] CharHeightTable = { 256, 256, 512, 512 };
+        public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
+        public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
         public void DrawBackdropColor()
         {
