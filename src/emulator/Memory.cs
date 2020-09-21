@@ -107,7 +107,7 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
                     RomReads++;
-                    addr &= 0x7FFFFFF;
+                    addr &= 0x1FFFFFF;
                     return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
@@ -188,18 +188,11 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 2;
-                    addr &= 0x7FFFFFF;
-                    if (addr < Rom.Length)
-                    {
-                        return (ushort)(
-                            (Rom[addr + 0] << 0) |
-                            (Rom[addr + 1] << 8)
-                        );
-                    }
-                    else
-                    {
-                        return 0;
-                    }
+                    addr &= 0x1FFFFFF;
+                    return (ushort)(
+                        (Rom[addr + 0] << 0) |
+                        (Rom[addr + 1] << 8)
+                    );
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     goto default;
@@ -296,20 +289,13 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 4;
-                    addr &= 0x7FFFFFF;
-                    if (addr < Rom.Length)
-                    {
-                        return (uint)(
-                                (Rom[addr + 0] << 0) |
-                                (Rom[addr + 1] << 8) |
-                                (Rom[addr + 2] << 16) |
-                                (Rom[addr + 3] << 24)
-                             );
-                    }
-                    else
-                    {
-                        return 0;
-                    }
+                    addr &= 0x1FFFFFF;
+                    return (uint)(
+                            (Rom[addr + 0] << 0) |
+                            (Rom[addr + 1] << 8) |
+                            (Rom[addr + 2] << 16) |
+                            (Rom[addr + 3] << 24)
+                         );
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     goto default;
@@ -363,7 +349,7 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak SRAM/Flash
-                    addr &= 0x7FFFFFF;
+                    addr &= 0x1FFFFFF;
                     return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
