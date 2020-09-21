@@ -721,7 +721,7 @@ namespace OptimeGBA
             arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.LineDebug($"Addr: {Util.HexN(addr, 8)}");
-            
+
             arm7.ICycle();
         }
 
@@ -765,7 +765,7 @@ namespace OptimeGBA
 
             arm7.LineDebug("LDRB (1)");
             arm7.R[rd] = arm7.Read8(addr);
-            
+
             arm7.ICycle();
         }
 
@@ -842,7 +842,7 @@ namespace OptimeGBA
             }
 
             arm7.R[rd] = (uint)readVal;
-            
+
             arm7.ICycle();
         }
 
@@ -872,7 +872,7 @@ namespace OptimeGBA
                 uint readVal = arm7.Read32(addr);
                 arm7.R[rd] = readVal;
             }
-            
+
             arm7.ICycle();
         }
 
@@ -892,7 +892,7 @@ namespace OptimeGBA
             arm7.LineDebug("Load");
             // Take care of alignment
             arm7.R[rd] = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
-            
+
             arm7.ICycle();
         }
 
@@ -920,7 +920,7 @@ namespace OptimeGBA
                 arm7.LineDebug("STRB (2)");
                 arm7.Write8(addr, (byte)rdVal);
             }
-            
+
             arm7.ICycle();
         }
 
@@ -960,7 +960,7 @@ namespace OptimeGBA
             }
 
             arm7.R[rd] = (uint)readVal;
-            
+
             arm7.ICycle();
         }
 
@@ -985,7 +985,7 @@ namespace OptimeGBA
                 uint readVal = arm7.Read32(addr);
                 arm7.R[rd] = readVal;
             }
-            
+
             arm7.ICycle();
         }
 
@@ -998,7 +998,7 @@ namespace OptimeGBA
 
             uint addr = arm7.R[13] + (immed8 * 4);
             arm7.Write32(addr & ~3U, arm7.R[rd]);
-            
+
             arm7.ICycle();
         }
 
@@ -1072,7 +1072,7 @@ namespace OptimeGBA
             }
 
             // LineDebug(regs);
-            
+
             arm7.ICycle();
         }
 
@@ -1192,14 +1192,14 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.R[3] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.R[4] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.R[5] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.R[6] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.R[7] = arm7.Read32(addr); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.R[3] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.R[4] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.R[5] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.R[6] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.R[7] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
 
             // Handle empty rlist
             if ((ins & 0xFF) == 0)
@@ -1210,7 +1210,7 @@ namespace OptimeGBA
             }
 
             // LineDebug(regs);
-            
+
             arm7.ICycle();
         }
 
