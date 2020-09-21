@@ -10,21 +10,17 @@
     <TieredCompilation>true</TieredCompilation>
   </PropertyGroup>
   <ItemGroup>
+    <Content Include="icon.ico"> 
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory> 
+    </Content> 
     <PackageReference Include="Gee.External.Capstone" Version="2.0.2" />
-    <PackageReference Include="ImageSharp" Version="0.0.0" />
     <PackageReference Include="Imgui.net" Version="1.75.0" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="4.7.0" />
     <PackageReference Include="OpenGL.Net" Version="0.8.4" />
     <PackageReference Include="OpenTK" Version="3.2" />
-    <PackageReference Include="Qml.Net" Version="0.10.1" />
-    <PackageReference Include="Qml.Net.LinuxBinaries" Version="0.10.1" />
-    <PackageReference Include="Qml.Net.OSXBinaries" Version="0.10.1" />
-    <PackageReference Include="Qml.Net.WindowsBinaries" Version="0.10.1" />
     <PackageReference Include="SDL2-CS" Version="2.0.0.0" />
     <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
-    <PackageReference Include="SixLabors.ImageSharp" Version="1.0.0-beta0007" />
     <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
   </ItemGroup>
 </Project>
