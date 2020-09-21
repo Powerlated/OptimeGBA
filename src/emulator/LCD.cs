@@ -383,7 +383,7 @@ namespace OptimeGBA
                             {
                                 Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
                             }
-                            Gba.Dma.ExecuteHblank();
+                            Gba.Dma.RepeatHblank();
                         }
                     }
                     break;
@@ -415,6 +415,8 @@ namespace OptimeGBA
 
                                     if (VCount == 160)
                                     {
+                                        Gba.Dma.RepeatVblank();
+
                                         if (VBlankIrqEnable)
                                         {
                                             Gba.HwControl.FlagInterrupt(Interrupt.VBlank);

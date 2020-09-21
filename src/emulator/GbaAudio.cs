@@ -270,7 +270,7 @@ namespace OptimeGBA
             A.CurrentByte = A.Pop();
             if (A.Bytes <= 16)
             {
-                Gba.Dma.ExecuteFifoA();
+                Gba.Dma.RepeatFifoA();
             }
         }
         public void TimerOverflowFifoB()
@@ -278,7 +278,7 @@ namespace OptimeGBA
             B.CurrentByte = B.Pop();
             if (B.Bytes <= 16)
             {
-                Gba.Dma.ExecuteFifoB();
+                Gba.Dma.RepeatFifoB();
             }
         }
 

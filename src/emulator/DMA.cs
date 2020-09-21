@@ -279,10 +279,8 @@ namespace OptimeGBA
         public void ExecuteDma(DMAChannel c, uint ci)
         {
             // Least significant 28 (or 27????) bits
-            uint srcAddr = c.DmaSource & 0b1111111111111111111111111111;
-            uint destAddr = c.DmaDest & 0b111111111111111111111111111;
-            uint origSrcAddr = srcAddr;
-            uint origDestAddr = destAddr;
+            c.DmaSource &= 0b1111111111111111111111111111;
+            c.DmaDest &= 0b111111111111111111111111111;
 
             if (ci == 3)
             {
@@ -310,39 +308,39 @@ namespace OptimeGBA
             {
                 if (c.TransferType)
                 {
-                    Gba.Mem.Write32(destAddr, Gba.Mem.Read32(srcAddr));
+                    Gba.Mem.Write32(c.DmaDest, Gba.Mem.Read32(c.DmaSource));
                     // Gba.Tick(ARM7.GetTiming32(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
-                        case DMADestAddrCtrl.Increment: destAddr += 4; break;
-                        case DMADestAddrCtrl.Decrement: destAddr -= 4; break;
+                        case DMADestAddrCtrl.Increment: c.DmaDest += 4; break;
+                        case DMADestAddrCtrl.Decrement: c.DmaDest -= 4; break;
                         case DMADestAddrCtrl.Fixed: break;
-                        case DMADestAddrCtrl.IncrementReload: destAddr += 4; break;
+                        case DMADestAddrCtrl.IncrementReload: c.DmaDest += 4; break;
                     }
                     switch (c.SrcAddrCtrl)
                     {
-                        case DMASrcAddrCtrl.Increment: srcAddr += 4; break;
-                        case DMASrcAddrCtrl.Decrement: srcAddr -= 4; break;
+                        case DMASrcAddrCtrl.Increment: c.DmaSource += 4; break;
+                        case DMASrcAddrCtrl.Decrement: c.DmaSource -= 4; break;
                         case DMASrcAddrCtrl.Fixed: break;
                     }
                 }
                 else
                 {
-                    Gba.Mem.Write16(destAddr, Gba.Mem.Read16(srcAddr));
+                    Gba.Mem.Write16(c.DmaDest, Gba.Mem.Read16(c.DmaSource));
                     // Gba.Tick(ARM7.GetTiming8And16(srcAddr));
 
                     switch (c.DestAddrCtrl)
                     {
-                        case DMADestAddrCtrl.Increment: destAddr += 2; break;
-                        case DMADestAddrCtrl.Decrement: destAddr -= 2; break;
+                        case DMADestAddrCtrl.Increment: c.DmaDest += 2; break;
+                        case DMADestAddrCtrl.Decrement: c.DmaDest -= 2; break;
                         case DMADestAddrCtrl.Fixed: break;
-                        case DMADestAddrCtrl.IncrementReload: destAddr += 2; break;
+                        case DMADestAddrCtrl.IncrementReload: c.DmaDest += 2; break;
                     }
                     switch (c.SrcAddrCtrl)
                     {
-                        case DMASrcAddrCtrl.Increment: srcAddr += 2; break;
-                        case DMASrcAddrCtrl.Decrement: srcAddr -= 2; break;
+                        case DMASrcAddrCtrl.Increment: c.DmaSource += 2; break;
+                        case DMASrcAddrCtrl.Decrement: c.DmaSource -= 2; break;
                         case DMASrcAddrCtrl.Fixed: break;
                     }
                 }
@@ -354,7 +352,7 @@ namespace OptimeGBA
 
                 if (c.Repeat)
                 {
-                    c.DmaDest = origDestAddr;
+                    c.DmaDest = c.DMADAD;
                 }
             }
 
@@ -429,14 +427,14 @@ namespace OptimeGBA
             }
         }
 
-        public void ExecuteFifoA()
+        public void RepeatFifoA()
         {
             if (Ch[1].StartTiming == DMAStartTiming.Special)
             {
                 ExecuteSoundDma(Ch[1], 1);
             }
         }
-        public void ExecuteFifoB()
+        public void RepeatFifoB()
         {
             if (Ch[2].StartTiming == DMAStartTiming.Special)
             {
@@ -444,12 +442,27 @@ namespace OptimeGBA
             }
         }
 
-        public void ExecuteHblank()
+        public void RepeatHblank()
         {
             for (uint ci = 0; ci < 4; ci++)
             {
                 DMAChannel c = Ch[ci];
-                if (c.StartTiming == DMAStartTiming.HBlank) {
+                if (c.StartTiming == DMAStartTiming.HBlank)
+                {
+                    c.DmaLength = c.DMACNT_L;
+                    ExecuteDma(c, ci);
+                }
+            }
+        }
+
+        public void RepeatVblank()
+        {
+            for (uint ci = 0; ci < 4; ci++)
+            {
+                DMAChannel c = Ch[ci];
+                if (c.StartTiming == DMAStartTiming.VBlank)
+                {
+                    c.DmaLength = c.DMACNT_L;
                     ExecuteDma(c, ci);
                 }
             }
