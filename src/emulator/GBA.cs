@@ -40,15 +40,15 @@ namespace OptimeGBA
         uint HaltTime = 0;
         public uint Step()
         {
-            Arm7.Execute();
+            uint cycles = Arm7.Execute();
 
-            Lcd.Tick(1);
-            Timers.Tick(1);
-            GbaAudio.Tick(1);
+            Lcd.Tick(cycles);
+            Timers.Tick(cycles);
+            GbaAudio.Tick(cycles);
 
             uint temp = HaltTime;
             HaltTime = 0;
-            return 1 + temp;
+            return cycles + temp;
         }
 
         public void Tick(uint cycles)
