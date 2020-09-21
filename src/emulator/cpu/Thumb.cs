@@ -721,6 +721,8 @@ namespace OptimeGBA
             arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.LineDebug($"Addr: {Util.HexN(addr, 8)}");
+            
+            arm7.ICycle();
         }
 
         public static void ImmOffsSTR(ARM7 arm7, ushort ins)
@@ -763,7 +765,8 @@ namespace OptimeGBA
 
             arm7.LineDebug("LDRB (1)");
             arm7.R[rd] = arm7.Read8(addr);
-
+            
+            arm7.ICycle();
         }
 
         public static void RegOffsSTR(ARM7 arm7, ushort ins) // STR (2)
@@ -839,6 +842,8 @@ namespace OptimeGBA
             }
 
             arm7.R[rd] = (uint)readVal;
+            
+            arm7.ICycle();
         }
 
         public static void RegOffsLDR(ARM7 arm7, ushort ins) // LDR (2)
@@ -867,6 +872,8 @@ namespace OptimeGBA
                 uint readVal = arm7.Read32(addr);
                 arm7.R[rd] = readVal;
             }
+            
+            arm7.ICycle();
         }
 
         public static void RegOffsLDRH(ARM7 arm7, ushort ins) // LDRH (2)
@@ -885,6 +892,8 @@ namespace OptimeGBA
             arm7.LineDebug("Load");
             // Take care of alignment
             arm7.R[rd] = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+            
+            arm7.ICycle();
         }
 
         public static void RegOffsLDRB(ARM7 arm7, ushort ins) // LDRB (2)
@@ -911,6 +920,8 @@ namespace OptimeGBA
                 arm7.LineDebug("STRB (2)");
                 arm7.Write8(addr, (byte)rdVal);
             }
+            
+            arm7.ICycle();
         }
 
         public static void RegOffsLDRSH(ARM7 arm7, ushort ins) // LDRSH
@@ -949,6 +960,8 @@ namespace OptimeGBA
             }
 
             arm7.R[rd] = (uint)readVal;
+            
+            arm7.ICycle();
         }
 
         public static void StackLDR(ARM7 arm7, ushort ins)
@@ -972,6 +985,8 @@ namespace OptimeGBA
                 uint readVal = arm7.Read32(addr);
                 arm7.R[rd] = readVal;
             }
+            
+            arm7.ICycle();
         }
 
         public static void StackSTR(ARM7 arm7, ushort ins)
@@ -983,6 +998,8 @@ namespace OptimeGBA
 
             uint addr = arm7.R[13] + (immed8 * 4);
             arm7.Write32(addr & ~3U, arm7.R[rd]);
+            
+            arm7.ICycle();
         }
 
         public static void ImmLDRH(ARM7 arm7, ushort ins)
@@ -999,6 +1016,8 @@ namespace OptimeGBA
 
             arm7.LineDebug("Load");
             arm7.R[rd] = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+
+            arm7.ICycle();
         }
 
         public static void ImmSTRH(ARM7 arm7, ushort ins)
@@ -1053,6 +1072,8 @@ namespace OptimeGBA
             }
 
             // LineDebug(regs);
+            
+            arm7.ICycle();
         }
 
         public static void PUSH(ARM7 arm7, ushort ins)
@@ -1189,6 +1210,8 @@ namespace OptimeGBA
             }
 
             // LineDebug(regs);
+            
+            arm7.ICycle();
         }
 
         public static void STMIA(ARM7 arm7, ushort ins)

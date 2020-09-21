@@ -162,6 +162,8 @@ namespace OptimeGBA
             }
 
             // arm7.LineDebug(regs);
+
+            arm7.ICycle();
         }
 
         public static void STM(ARM7 arm7, uint ins)
@@ -333,6 +335,8 @@ namespace OptimeGBA
             uint readVal = ARM7.RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
             arm7.Write32(addr & ~3u, storeValue);
             arm7.R[rd] = readVal;
+
+            arm7.ICycle();
         }
 
         public static void SWPB(ARM7 arm7, uint ins)
@@ -348,6 +352,8 @@ namespace OptimeGBA
             byte readVal = arm7.Read8(addr);
             arm7.Write8(addr, (byte)storeValue);
             arm7.R[rd] = readVal;
+
+            arm7.ICycle();
         }
 
         public static void MSR(ARM7 arm7, uint ins)
@@ -742,6 +748,8 @@ namespace OptimeGBA
                 arm7.R[rd] = loadVal;
 
                 if (rd == 15) arm7.FlushPipeline();
+
+                arm7.ICycle();
             }
         }
 
@@ -891,6 +899,7 @@ namespace OptimeGBA
             if (L)
             {
                 arm7.R[rd] = loadVal;
+                arm7.ICycle();
             }
 
             arm7.LineDebug($"Writeback: {(W ? "Yes" : "No")}");

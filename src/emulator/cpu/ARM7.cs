@@ -165,6 +165,14 @@ namespace OptimeGBA
             R[1] = 0x000000EA;
         }
 
+        public void FillPipeline() {
+            if (ThumbState) {
+                FillPipelineThumb();
+            } else {
+                FillPipelineArm();
+            }
+        }
+
         public void FillPipelineArm()
         {
             while (Pipeline < 2)
@@ -224,14 +232,12 @@ namespace OptimeGBA
             InstructionsRan++;
             InstructionCycles = 0;
 
-            if (PipelineDirty)
-            {
-                Error("Pipeline is dirty, NOT executing next instruction!");
-                return 1;
-            }
-#if DEBUG
+            // if (PipelineDirty)
+            // {
+            //     Error("Pipeline is dirty, NOT executing next instruction!");
+            //     return 1;
+            // }
             ResetDebug();
-#endif
 
             if (!ThumbState) // ARM mode
             {
@@ -1167,14 +1173,14 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
-            InstructionCycles += GetTiming8And16(addr);
+            InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             return Gba.Mem.Read8(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
-            InstructionCycles += GetTiming8And16(addr);
+            InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             return Gba.Mem.Read16(addr);
         }
 
@@ -1188,14 +1194,14 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
-            InstructionCycles += GetTiming8And16(addr);
+            InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             Gba.Mem.Write8(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
-            InstructionCycles += GetTiming8And16(addr);
+            InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             Gba.Mem.Write16(addr, val);
         }
 
@@ -1207,33 +1213,53 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint GetTiming8And16(uint addr)
-        {
-            switch ((addr >> 24) & 0xF)
-            {
-                case 0x0: return 1; // BIOS
-                case 0x1: return 1; // Unused
-                case 0x2: return 6; // EWRAM
-                case 0x3: return 1; // IWRAM
-                case 0x4: return 1; // I/O Registers
-                case 0x5: return 1; // PPU Palettes
-                case 0x6: return 1; // PPU VRAM
-                case 0x7: return 1; // PPU OAM
-
-                // Compensate for no prefetch buffer 5 -> 3
-                case 0x8: return 3; // Game Pak ROM/FlashROM 
-                case 0x9: return 3; // Game Pak ROM/FlashROM 
-                case 0xA: return 3; // Game Pak ROM/FlashROM 
-                case 0xB: return 3; // Game Pak ROM/FlashROM 
-                case 0xC: return 3; // Game Pak ROM/FlashROM 
-                case 0xD: return 3; // Game Pak ROM/FlashROM
-
-                case 0xE: return 5; // Game Pak SRAM/Flash
-                case 0xF: return 5; // Game Pak SRAM/Flash
-            }
-
-            return 1;
+        public void ICycle() {
+            InstructionCycles += 1;
         }
+
+        public byte[] Timing8And16 = {
+            1, // BIOS
+            1, // Unused
+            6, // EWRAM
+            1, // IWRAM
+            1, // I/O Registers
+            1, // PPU Palettes
+            1, // PPU VRAM
+            1, // PPU OAM
+
+            // Compensate for no prefetch buffer 5 -> 4
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM
+
+            5, // Game Pak SRAM/Flash
+            5, // Game Pak SRAM/Flash
+        };
+
+        public byte[] Timing32 = {
+            1, // BIOS
+            1, // Unused
+            6, // EWRAM
+            1, // IWRAM
+            1, // I/O Registers
+            1, // PPU Palettes
+            1, // PPU VRAM
+            1, // PPU OAM
+
+            // Compensate for no prefetch buffer 8 -> 7
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM
+
+            8, // Game Pak SRAM/Flash
+            8, // Game Pak SRAM/Flash
+        };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetTiming32(uint addr)
@@ -1400,7 +1426,8 @@ namespace OptimeGBA
                     uint rm = ins & 0xF;
                     LineDebug("RS: " + rs);
 
-                    R[15] += 4;
+                    FillPipeline();
+                    ICycle();
 
                     uint rnVal = R[rn];
                     uint rsVal = R[rs];
@@ -1498,7 +1525,6 @@ namespace OptimeGBA
                             break;
                     }
 
-                    R[15] -= 4;
                     return (shifterOperand, shifterCarryOut, rnVal);
                 }
             }
