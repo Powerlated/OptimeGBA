@@ -1187,7 +1187,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
-            InstructionCycles += GetTiming32(addr);
+            InstructionCycles += Timing32[(addr >> 24) & 0xF];
             return Gba.Mem.Read32(addr);
         }
 
@@ -1208,7 +1208,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
-            InstructionCycles += GetTiming32(addr);
+            InstructionCycles += Timing32[(addr >> 24) & 0xF];
             Gba.Mem.Write32(addr, val);
         }
 
@@ -1260,36 +1260,6 @@ namespace OptimeGBA
             8, // Game Pak SRAM/Flash
             8, // Game Pak SRAM/Flash
         };
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint GetTiming32(uint addr)
-        {
-            switch ((addr >> 24) & 0xF)
-            {
-                case 0x0: return 1; // BIOS
-                case 0x1: return 1; // Unused
-                case 0x2: return 3; // EWRAM
-                case 0x3: return 1; // IWRAM
-                case 0x4: return 1; // I/O Registers
-                case 0x5: return 1; // PPU Palettes
-                case 0x6: return 1; // PPU VRAM
-                case 0x7: return 1; // PPU OAM
-
-                // Compensate for no prefetch buffer 8 -> 5
-                case 0x8: return 5; // Game Pak ROM/FlashROM 
-                case 0x9: return 5; // Game Pak ROM/FlashROM 
-                case 0xA: return 5; // Game Pak ROM/FlashROM 
-                case 0xB: return 5; // Game Pak ROM/FlashROM 
-                case 0xC: return 5; // Game Pak ROM/FlashROM 
-                case 0xD: return 5; // Game Pak ROM/FlashROM
-
-
-                case 0xE: return 8; // Game Pak SRAM/Flash
-                case 0xF: return 8; // Game Pak SRAM/Flash
-            }
-
-            return 1;
-        }
 
         public static (uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
         {
