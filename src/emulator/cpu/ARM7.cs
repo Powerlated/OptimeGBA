@@ -118,9 +118,6 @@ namespace OptimeGBA
 
         public bool PipelineDirty = false;
 
-        public uint PendingCycles = 0;
-        public uint LastPendingCycles = 0;
-
         public long InstructionsRan = 0;
         public long InstructionsRanInterrupt = 0;
 
@@ -220,14 +217,17 @@ namespace OptimeGBA
             PipelineDirty = false;
         }
 
-        public void Execute()
+        public uint InstructionCycles = 0;
+
+        public uint Execute()
         {
             InstructionsRan++;
+            InstructionCycles = 0;
 
             if (PipelineDirty)
             {
                 Error("Pipeline is dirty, NOT executing next instruction!");
-                return;
+                return 1;
             }
 #if DEBUG
             ResetDebug();
@@ -301,9 +301,9 @@ namespace OptimeGBA
                 FlushPipeline();
 
                 // Error("IRQ, ENTERING IRQ MODE!");
-                return;
             }
 
+            return InstructionCycles;
         }
 
 
@@ -1167,43 +1167,42 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
-            PendingCycles += GetTiming8And16(addr);
+            InstructionCycles += GetTiming8And16(addr);
             return Gba.Mem.Read8(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
-            PendingCycles += GetTiming8And16(addr);
+            InstructionCycles += GetTiming8And16(addr);
             return Gba.Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
-            PendingCycles += GetTiming32(addr);
+            InstructionCycles += GetTiming32(addr);
             return Gba.Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
-            PendingCycles += GetTiming8And16(addr);
+            InstructionCycles += GetTiming8And16(addr);
             Gba.Mem.Write8(addr, val);
         }
-
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
-            PendingCycles += GetTiming8And16(addr);
+            InstructionCycles += GetTiming8And16(addr);
             Gba.Mem.Write16(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
-            PendingCycles += GetTiming32(addr);
+            InstructionCycles += GetTiming32(addr);
             Gba.Mem.Write32(addr, val);
         }
 
@@ -1212,22 +1211,25 @@ namespace OptimeGBA
         {
             switch ((addr >> 24) & 0xF)
             {
-                case 0x0: return 2; // BIOS
-                case 0x1: return 2; // Unused
+                case 0x0: return 1; // BIOS
+                case 0x1: return 1; // Unused
                 case 0x2: return 6; // EWRAM
                 case 0x3: return 1; // IWRAM
                 case 0x4: return 1; // I/O Registers
                 case 0x5: return 1; // PPU Palettes
                 case 0x6: return 1; // PPU VRAM
                 case 0x7: return 1; // PPU OAM
-                case 0x8: return 2; // Game Pak ROM/FlashROM 
-                case 0x9: return 2; // Game Pak ROM/FlashROM 
-                case 0xA: return 2; // Game Pak ROM/FlashROM 
-                case 0xB: return 2; // Game Pak ROM/FlashROM 
-                case 0xC: return 2; // Game Pak ROM/FlashROM 
-                case 0xD: return 2; // Game Pak SRAM/Flash
-                case 0xE: return 2; // Game Pak SRAM/Flash
-                case 0xF: return 2; // Game Pak SRAM/Flash
+
+                // Compensate for no prefetch buffer 5 -> 3
+                case 0x8: return 3; // Game Pak ROM/FlashROM 
+                case 0x9: return 3; // Game Pak ROM/FlashROM 
+                case 0xA: return 3; // Game Pak ROM/FlashROM 
+                case 0xB: return 3; // Game Pak ROM/FlashROM 
+                case 0xC: return 3; // Game Pak ROM/FlashROM 
+                case 0xD: return 3; // Game Pak ROM/FlashROM
+
+                case 0xE: return 5; // Game Pak SRAM/Flash
+                case 0xF: return 5; // Game Pak SRAM/Flash
             }
 
             return 1;
@@ -1238,22 +1240,26 @@ namespace OptimeGBA
         {
             switch ((addr >> 24) & 0xF)
             {
-                case 0x0: return 4; // BIOS
-                case 0x1: return 4; // Unused
+                case 0x0: return 1; // BIOS
+                case 0x1: return 1; // Unused
                 case 0x2: return 3; // EWRAM
                 case 0x3: return 1; // IWRAM
                 case 0x4: return 1; // I/O Registers
                 case 0x5: return 1; // PPU Palettes
                 case 0x6: return 1; // PPU VRAM
                 case 0x7: return 1; // PPU OAM
-                case 0x8: return 4; // Game Pak ROM/FlashROM 
-                case 0x9: return 4; // Game Pak ROM/FlashROM 
-                case 0xA: return 4; // Game Pak ROM/FlashROM 
-                case 0xB: return 4; // Game Pak ROM/FlashROM 
-                case 0xC: return 4; // Game Pak ROM/FlashROM 
-                case 0xD: return 4; // Game Pak SRAM/Flash
-                case 0xE: return 4; // Game Pak SRAM/Flash
-                case 0xF: return 4; // Game Pak SRAM/Flash
+
+                // Compensate for no prefetch buffer 8 -> 5
+                case 0x8: return 5; // Game Pak ROM/FlashROM 
+                case 0x9: return 5; // Game Pak ROM/FlashROM 
+                case 0xA: return 5; // Game Pak ROM/FlashROM 
+                case 0xB: return 5; // Game Pak ROM/FlashROM 
+                case 0xC: return 5; // Game Pak ROM/FlashROM 
+                case 0xD: return 5; // Game Pak ROM/FlashROM
+
+
+                case 0xE: return 8; // Game Pak SRAM/Flash
+                case 0xF: return 8; // Game Pak SRAM/Flash
             }
 
             return 1;

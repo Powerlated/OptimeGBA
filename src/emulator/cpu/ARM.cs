@@ -74,11 +74,11 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                 arm7.FlushPipeline();
                             }
                         }
@@ -86,11 +86,11 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                 arm7.FlushPipeline();
                             }
                         }
@@ -115,11 +115,11 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.R[r] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                 arm7.FlushPipeline();
                             }
                         }
@@ -127,11 +127,11 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.SetUserReg(r, arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC));
+                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
                                 arm7.FlushPipeline();
                             }
                         }
@@ -144,7 +144,7 @@ namespace OptimeGBA
             bool emptyRlist = (ins & 0xFFFF) == 0;
             if (emptyRlist)
             {
-                arm7.R[15] = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC);
                 arm7.FlushPipeline();
                 if (U)
                 {
@@ -217,11 +217,11 @@ namespace OptimeGBA
 
                         if (!useUserModeRegs)
                         {
-                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
                         }
                         else
                         {
-                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
                         }
 
                         if (!P) addr += 4;
@@ -242,11 +242,11 @@ namespace OptimeGBA
 
                         if (!useUserModeRegs)
                         {
-                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
                         }
                         else
                         {
-                            arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
                         }
 
                         if (!P) addr -= 4;
@@ -258,7 +258,7 @@ namespace OptimeGBA
             if (emptyRlist)
             {
                 arm7.LineDebug("Empty Rlist!");
-                arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, arm7.R[15]);
+                arm7.Write32(addr & 0xFFFFFFFC, arm7.R[15]);
                 if (U)
                 {
                     addr += 0x40;
@@ -330,8 +330,8 @@ namespace OptimeGBA
             uint storeValue = arm7.R[rm];
 
             arm7.LineDebug("SWP");
-            uint readVal = ARM7.RotateRight32(arm7.Gba.Mem.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
-            arm7.Gba.Mem.Write32(addr & ~3u, storeValue);
+            uint readVal = ARM7.RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
+            arm7.Write32(addr & ~3u, storeValue);
             arm7.R[rd] = readVal;
         }
 
@@ -345,8 +345,8 @@ namespace OptimeGBA
             uint storeValue = arm7.R[rm];
 
             arm7.LineDebug("SWPB");
-            byte readVal = arm7.Gba.Mem.Read8(addr);
-            arm7.Gba.Mem.Write8(addr, (byte)storeValue);
+            byte readVal = arm7.Read8(addr);
+            arm7.Write8(addr, (byte)storeValue);
             arm7.R[rd] = readVal;
         }
 
@@ -675,7 +675,7 @@ namespace OptimeGBA
             {
                 if (B)
                 {
-                    loadVal = arm7.Gba.Mem.Read8(addr);
+                    loadVal = arm7.Read8(addr);
                 }
                 else
                 {
@@ -684,14 +684,14 @@ namespace OptimeGBA
                     {
 
                         // If the address isn't word-aligned
-                        uint data = arm7.Gba.Mem.Read32(addr & 0xFFFFFFFC);
+                        uint data = arm7.Read32(addr & 0xFFFFFFFC);
                         loadVal = ARM7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
 
                         // Error("Misaligned LDR");
                     }
                     else
                     {
-                        loadVal = arm7.Gba.Mem.Read32(addr);
+                        loadVal = arm7.Read32(addr);
                     }
                 }
 
@@ -705,11 +705,11 @@ namespace OptimeGBA
                 uint storeVal = arm7.R[rd];
                 if (B)
                 {
-                    arm7.Gba.Mem.Write8(addr, (byte)storeVal);
+                    arm7.Write8(addr, (byte)storeVal);
                 }
                 else
                 {
-                    arm7.Gba.Mem.Write32(addr & 0xFFFFFFFC, storeVal);
+                    arm7.Write32(addr & 0xFFFFFFFC, storeVal);
                 }
 
                 arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
@@ -805,7 +805,7 @@ namespace OptimeGBA
                         if ((addr & 1) != 0)
                         {
                             // Misaligned, read byte instead.
-                            readVal = (int)arm7.Gba.Mem.Read8(addr);
+                            readVal = (int)arm7.Read8(addr);
                             // Sign extend
                             if ((readVal & BIT_7) != 0)
                             {
@@ -814,7 +814,7 @@ namespace OptimeGBA
                         }
                         else
                         {
-                            readVal = (int)arm7.Gba.Mem.Read16(addr);
+                            readVal = (int)arm7.Read16(addr);
                             // Sign extend
                             if ((readVal & BIT_15) != 0)
                             {
@@ -827,7 +827,7 @@ namespace OptimeGBA
                     {
                         arm7.LineDebug("Load signed byte");
 
-                        int val = (int)arm7.Gba.Mem.Read8(addr);
+                        int val = (int)arm7.Read8(addr);
                         if ((val & BIT_7) != 0)
                         {
                             val -= (int)BIT_8;
@@ -842,7 +842,7 @@ namespace OptimeGBA
                     {
                         arm7.LineDebug("Load unsigned halfword");
                         // Force halfword aligned, and rotate if unaligned
-                        loadVal = ARM7.RotateRight32(arm7.Gba.Mem.Read16(addr & ~1u), (byte)((addr & 1) * 8));
+                        loadVal = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)((addr & 1) * 8));
                     }
                 }
             }
@@ -866,7 +866,7 @@ namespace OptimeGBA
                     if (H)
                     {
                         arm7.LineDebug("Store halfword");
-                        arm7.Gba.Mem.Write16(addr & ~1u, (ushort)arm7.R[rd]);
+                        arm7.Write16(addr & ~1u, (ushort)arm7.R[rd]);
                     }
                 }
             }
