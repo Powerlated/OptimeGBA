@@ -181,7 +181,7 @@ void main()
             }
 
             SetPerFrameImGuiData(deltaSeconds);
-            UpdateImGuiInput(wnd);
+            if (wnd.Focused) UpdateImGuiInput(wnd);
 
             _frameBegun = true;
             ImGui.NewFrame();
