@@ -9,6 +9,8 @@
             "type": "shell",
             "args": [
                 "build",
+                "-c",
+                "FastDebug",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],
