@@ -512,6 +512,9 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
+        public readonly static uint[] CharWidthMaskTable = { 255, 511, 255, 511 };
+        public readonly static uint[] CharHeightMaskTable = { 255, 255, 511, 511 };
+
         public void DrawBackdropColor()
         {
             uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
@@ -530,16 +533,17 @@ namespace OptimeGBA
             uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
 
             uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+
+            uint pixelY = (bg.VerticalOffset + VCount) & CharHeightMaskTable[bg.ScreenSize];
+            uint tileY = pixelY / 8;
+            uint intraTileY = pixelY % 8;
+
             for (uint p = 0; p < 240; p++)
             {
-                uint pixelX = (bg.HorizontalOffset + p) % CharWidthTable[bg.ScreenSize];
-                uint pixelY = (bg.VerticalOffset + VCount) % CharHeightTable[bg.ScreenSize];
+                uint pixelX = (bg.HorizontalOffset + p) & CharWidthMaskTable[bg.ScreenSize];
 
                 uint tileX = pixelX / 8;
-                uint tileY = pixelY / 8;
-
                 uint intraTileX = pixelX % 8;
-                uint intraTileY = pixelY % 8;
 
                 // 2 bytes per tile
                 uint mapEntryIndex = (tileY * 64) + (tileX * 2);
@@ -551,13 +555,15 @@ namespace OptimeGBA
                 // Irrelevant in 4-bit color mode
                 uint palette = (mapEntry >> 12) & 15; // 4 bits
 
+                uint realIntraTileY = intraTileY;
+
                 if (xFlip) intraTileX ^= 7;
-                if (yFlip) intraTileY ^= 7;
+                if (yFlip) realIntraTileY ^= 7;
 
                 if (bg.Use8BitColor)
                 {
                     // 256 color, 64 bytes per tile, 8 bytes per row
-                    uint vramAddr = charBase + (tileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
+                    uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
                     uint vramValue = Vram[vramAddr];
 
                     uint finalColor = vramValue;
@@ -572,7 +578,7 @@ namespace OptimeGBA
                 else
                 {
                     // 16 color, 32 bytes per tile, 4 bytes per row
-                    uint vramAddr = charBase + (tileNumber * 32) + (intraTileY * 4) + (intraTileX / 2);
+                    uint vramAddr = charBase + (tileNumber * 32) + (realIntraTileY * 4) + (intraTileX / 2);
                     uint vramValue = Vram[vramAddr];
                     // Lower 4 bits is left pixel, upper 4 bits is right pixel
                     uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
