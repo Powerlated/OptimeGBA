@@ -460,14 +460,8 @@ namespace OptimeGBA
                 in1 *= this.leftMasterVolMul;
                 in2 *= this.rightMasterVolMul;
 
-                float out1 = in1 - this.capacitor1;
-                float out2 = in2 - this.capacitor2;
-
                 Out1 = (short)(in1 * 8);
                 Out2 = (short)(in2 * 8);
-
-                this.capacitor1 = (float)(in1 - out1 * CAPACITOR_FACTOR);
-                this.capacitor2 = (float)(in2 - out2 * CAPACITOR_FACTOR);
             }
 
             // The wave sample is visible to the CPU, so it's gotta be updated immediately
