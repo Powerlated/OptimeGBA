@@ -87,9 +87,9 @@ namespace OptimeGBA
                     return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
                     VramReads++;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         return Gba.Lcd.Vram[addr];
                     }
                     else
@@ -122,7 +122,7 @@ namespace OptimeGBA
         {
             if ((addr & 1) != 0)
             {
-                Gba.Arm7.Error("Misaligned Read16! " + Util.HexN(addr, 8));
+                Gba.Arm7.Error("Misaligned Read16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
 
             switch ((addr >> 24) & 0xF)
@@ -161,9 +161,9 @@ namespace OptimeGBA
                        );
                 case 0x6: // PPU VRAM
                     VramReads += 2;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         return (ushort)(
                             (Gba.Lcd.Vram[addr + 0] << 0) |
                             (Gba.Lcd.Vram[addr + 1] << 8)
@@ -212,7 +212,7 @@ namespace OptimeGBA
         {
             if ((addr & 3) != 0)
             {
-                Gba.Arm7.Error("Misaligned Read32! " + Util.HexN(addr, 8));
+                Gba.Arm7.Error("Misaligned Read32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
 
             switch ((addr >> 24) & 0xF)
@@ -259,9 +259,9 @@ namespace OptimeGBA
                              );
                 case 0x6: // PPU VRAM
                     VramReads += 4;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         return (uint)(
                             (Gba.Lcd.Vram[addr + 0] << 0) |
                             (Gba.Lcd.Vram[addr + 1] << 8) |
@@ -331,9 +331,9 @@ namespace OptimeGBA
                     addr &= 0x3FF;
                     return Gba.Lcd.Palettes[addr];
                 case 0x6: // PPU VRAM
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         return Gba.Lcd.Vram[addr];
                     }
                     else
@@ -419,9 +419,9 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites++;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         Gba.Lcd.Vram[addr] = val;
                     }
                     return;
@@ -448,7 +448,7 @@ namespace OptimeGBA
         {
             if ((addr & 1) != 0)
             {
-                Gba.Arm7.Error("Misaligned Write16! " + Util.HexN(addr, 8));
+                Gba.Arm7.Error("Misaligned Write16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
 
             switch ((addr >> 24) & 0xF)
@@ -480,9 +480,9 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 2;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
                         Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
                     }
@@ -517,7 +517,7 @@ namespace OptimeGBA
         {
             if ((addr & 3) != 0)
             {
-                Gba.Arm7.Error("Misaligned Write32! " + Util.HexN(addr, 8));
+                Gba.Arm7.Error("Misaligned Write32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
 
             switch ((addr >> 24) & 0xF)
@@ -556,9 +556,9 @@ namespace OptimeGBA
                     return;
                 case 0x6: // PPU VRAM
                     VramWrites += 4;
-                    if (addr < 0x6018000)
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
                     {
-                        addr -= 0x6000000;
                         Gba.Lcd.Vram[addr + 0] = (byte)(val >> 0);
                         Gba.Lcd.Vram[addr + 1] = (byte)(val >> 8);
                         Gba.Lcd.Vram[addr + 2] = (byte)(val >> 16);
