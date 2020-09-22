@@ -103,6 +103,20 @@ namespace OptimeGBA
         }
     }
 
+    public enum ObjShape
+    {
+        Square = 0,
+        Horizontal = 1,
+        Vertical = 2,
+    }
+
+    public enum ObjMode
+    {
+        Square = 0,
+        Horizontal = 1,
+        Vertical = 2,
+    }
+
     public class LCD
     {
         GBA Gba;
@@ -500,6 +514,9 @@ namespace OptimeGBA
                 case 1:
                     RenderMode1();
                     return;
+                case 2:
+                    RenderMode2();
+                    return;
                 case 3:
                     RenderMode3();
                     return;
@@ -596,6 +613,157 @@ namespace OptimeGBA
             }
         }
 
+        public readonly static uint[] SquareSizeTable = { 8, 16, 32, 64 };
+        public readonly static uint[] RectangularSide0SizeTable = { 16, 32, 32, 64 };
+        public readonly static uint[] RectangularSide1SizeTable = { 8, 8, 16, 32 };
+
+        public void RenderObjs(uint renderPriority)
+        {
+            // OAM address for the last sprite
+            uint oamBase = 1016;
+            for (uint s = 0; s < 128; s++)
+            {
+                uint attr2 = (uint)(Oam[oamBase + 5] << 8 | Oam[oamBase + 4]);
+
+                uint priority = (attr2 >> 10) & 0b11;
+
+                if (priority == renderPriority)
+                {
+                    uint attr0 = (uint)(Oam[oamBase + 1] << 8 | Oam[oamBase + 0]);
+                    uint attr1 = (uint)(Oam[oamBase + 3] << 8 | Oam[oamBase + 2]);
+
+                    uint yPos = attr0 & 255;
+                    bool affine = BitTest(attr0, 8);
+                    bool disabled = BitTest(attr0, 9);
+                    ObjMode mode = (ObjMode)((attr0 >> 10) & 0b11);
+                    bool mosaic = BitTest(attr0, 12);
+                    bool use8BitColor = BitTest(attr0, 13);
+                    ObjShape shape = (ObjShape)((attr0 >> 14) & 0b11);
+
+                    uint xPos = attr1 & 511;
+                    bool xFlip = BitTest(attr1, 12);
+                    bool yFlip = BitTest(attr1, 13);
+                    uint objSize = (attr1 >> 14) & 0b11;
+
+                    uint tileNumber = attr2 & 1023;
+                    uint palette = (attr2 >> 12) & 15;
+
+                    uint xSize = 0;
+                    uint ySize = 0;
+
+                    switch (shape)
+                    {
+                        case ObjShape.Square:
+                            xSize = SquareSizeTable[objSize];
+                            ySize = SquareSizeTable[objSize];
+                            break;
+                        case ObjShape.Horizontal:
+                            xSize = RectangularSide0SizeTable[objSize];
+                            ySize = RectangularSide1SizeTable[objSize];
+                            break;
+                        case ObjShape.Vertical:
+                            xSize = RectangularSide1SizeTable[objSize];
+                            ySize = RectangularSide0SizeTable[objSize];
+                            break;
+                    }
+
+                    if (!disabled && !affine)
+                    {
+                        int yEnd = ((int)yPos + (int)ySize) & 255;
+                        uint screenBase = (VCount * WIDTH) * BYTES_PER_PIXEL;
+                        uint screenLineBase = xPos * BYTES_PER_PIXEL;
+                        if ((VCount >= yPos && VCount < yEnd) || (yEnd < yPos && VCount < yEnd))
+                        {
+                            // y relative to the object itself
+                            int objPixelY = ((int)VCount - (int)yPos) & 255;
+
+                            if (yFlip)
+                            {
+                                objPixelY = (int)(ySize - objPixelY - 1);
+                            }
+
+                            uint intraTileY = (uint)(objPixelY & 7);
+                            uint tileY = (uint)(objPixelY / 8);
+
+                            // Tile numbers are halved in 256-color mode
+                            if (use8BitColor) tileNumber >>= 1;
+
+                            for (uint x = 0; x < xSize; x++)
+                            {
+                                if (screenLineBase < WIDTH * BYTES_PER_PIXEL)
+                                {
+                                    uint objPixelX = x;
+                                    if (xFlip)
+                                    {
+                                        objPixelX = xSize - objPixelX - 1;
+                                    }
+
+                                    uint intraTileX = objPixelX & 7;
+
+                                    uint charBase = 0x10000;
+
+                                    uint effectiveTileNumber = tileNumber + objPixelX / 8;
+
+                                    if (ObjCharacterVramMapping)
+                                    {
+                                        effectiveTileNumber += tileY * (xSize / 8);
+                                    }
+                                    else
+                                    {
+                                        if (use8BitColor)
+                                        {
+                                            effectiveTileNumber += 16 * tileY;
+                                        }
+                                        else
+                                        {
+                                            effectiveTileNumber += 32 * tileY;
+                                        }
+                                    }
+
+                                    if (use8BitColor)
+                                    {
+                                        // 256 color, 64 bytes per tile, 8 bytes per row
+                                        uint vramAddr = charBase + (effectiveTileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
+                                        uint vramValue = Vram[vramAddr];
+
+                                        uint finalColor = vramValue;
+
+                                        if (finalColor != 0)
+                                        {
+                                            ScreenBack[screenBase + screenLineBase + 0] = ProcessedPalettes[finalColor + 256, 0];
+                                            ScreenBack[screenBase + screenLineBase + 1] = ProcessedPalettes[finalColor + 256, 1];
+                                            ScreenBack[screenBase + screenLineBase + 2] = ProcessedPalettes[finalColor + 256, 2];
+                                        }
+                                    }
+                                    else
+                                    {
+                                        // 16 color, 32 bytes per tile, 4 bytes per row
+                                        uint vramAddr = charBase + (effectiveTileNumber * 32) + (intraTileY * 4) + (intraTileX / 2);
+                                        uint vramValue = Vram[vramAddr];
+                                        // Lower 4 bits is left pixel, upper 4 bits is right pixel
+                                        uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
+
+                                        uint finalColor = (palette * 16) + color;
+                                        if (color != 0)
+                                        {
+                                            ScreenBack[screenBase + screenLineBase + 0] = ProcessedPalettes[finalColor + 256, 0];
+                                            ScreenBack[screenBase + screenLineBase + 1] = ProcessedPalettes[finalColor + 256, 1];
+                                            ScreenBack[screenBase + screenLineBase + 2] = ProcessedPalettes[finalColor + 256, 2];
+                                        }
+                                    }
+                                }
+                                screenLineBase = (screenLineBase + 3) % (512 * BYTES_PER_PIXEL);
+
+                                x &= 511;
+                            }
+                        }
+                    }
+                }
+
+                oamBase -= 8;
+            }
+        }
+
         public void RenderMode0()
         {
             DrawBackdropColor();
@@ -605,6 +773,7 @@ namespace OptimeGBA
                 if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
                 if (ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
                 if (ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
+                if (ScreenDisplayObj) RenderObjs((uint)pri);
             }
 
         }
@@ -618,7 +787,17 @@ namespace OptimeGBA
                 // if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
                 if (ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
                 if (ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
+                if (ScreenDisplayObj) RenderObjs((uint)pri);
             }
+        }
+
+        public void RenderMode2()
+        {
+            DrawBackdropColor();
+            if (ScreenDisplayObj) RenderObjs(3);
+            if (ScreenDisplayObj) RenderObjs(2);
+            if (ScreenDisplayObj) RenderObjs(1);
+            if (ScreenDisplayObj) RenderObjs(0);
         }
 
         public void RenderMode4()
