@@ -3,27 +3,34 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public class FifoChannel
+    public class CircularBuffer<T>
     {
-        public byte[] Buffer = new byte[32];
+        public uint Size;
+        public T[] Buffer;
+        public T EmptyValue;
         public uint ReadPos = 0;
         public uint WritePos = 0;
-        public uint Bytes = 0;
+        public uint Entries = 0;
         public uint TotalPops = 0;
         public uint EmptyPops = 0;
         public uint FullInserts = 0;
         public uint Collisions = 0;
         public byte CurrentByte = 0;
+        
+        public CircularBuffer(uint size, T emptyValue) {
+            Size = size;
+            Buffer = new T[Size];
+            EmptyValue = emptyValue;
+        }
 
-
-        public void Insert(byte data)
+        public void Insert(T data)
         {
-            if (Bytes < 32)
+            if (Entries < Size)
             {
                 if (ReadPos == WritePos) Collisions++;
-                Bytes++;
+                Entries++;
                 Buffer[WritePos++] = data;
-                WritePos &= 31;
+                WritePos %= Size;
             }
             else
             {
@@ -31,26 +38,27 @@ namespace OptimeGBA
             }
         }
 
-        public byte Pop()
+        public T Pop()
         {
-            byte data = 0;
+            T data;
             TotalPops++;
-            if (Bytes > 0)
+            if (Entries > 0)
             {
-                Bytes--;
+                Entries--;
                 data = Buffer[ReadPos++];
-                ReadPos &= 31;
+                ReadPos %= Size;
             }
             else
             {
                 EmptyPops++;
+                data = EmptyValue;
             }
             return data;
         }
 
         public void Reset()
         {
-            Bytes = 0;
+            Entries = 0;
             ReadPos = 0;
             WritePos = 0;
         }
@@ -66,8 +74,8 @@ namespace OptimeGBA
 
         public GbAudio GbAudio = new GbAudio();
 
-        public FifoChannel A = new FifoChannel();
-        public FifoChannel B = new FifoChannel();
+        public CircularBuffer<byte> A = new CircularBuffer<byte>(32, 0);
+        public CircularBuffer<byte> B = new CircularBuffer<byte>(32, 0);
 
         uint BiasLevel = 0x100;
         uint AmplitudeRes;
@@ -207,21 +215,19 @@ namespace OptimeGBA
         public bool EnablePsg = true;
         public bool EnableFifo = true;
 
-        const uint GbAudioMax = 512; // Each time this hits, tick GB audio by 128 GB T-cycles
+        const uint GbAudioTimerMax = 512; // Each time this hits, tick GB audio by 128 GB T-cycles
         uint GbAudioTimer = 0;
 
-        const uint SampleMax = 512;
+        const uint SampleTimerMax = 512;
         uint SampleTimer = 0;
-        const uint SampleBufferSize = 128;
-        short[] SampleBuffer = new short[SampleBufferSize];
-        uint SampleBufferPos = 0;
+        public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
+        public bool AudioReady;
         public void Tick(uint cycles)
         {
-
             SampleTimer += cycles;
-            if (SampleTimer >= SampleMax)
+            if (SampleTimer >= SampleTimerMax)
             {
-                SampleTimer -= SampleMax;
+                SampleTimer -= SampleTimerMax;
 
                 short left = 0;
                 short right = 0;
@@ -244,31 +250,23 @@ namespace OptimeGBA
                     }
                 }
 
-                SampleBuffer[SampleBufferPos + 0] = (short)(left * 64);
-                SampleBuffer[SampleBufferPos + 1] = (short)(right * 64);
-                SampleBufferPos += 2;
-
-                if (SampleBufferPos >= SampleBufferSize)
-                {
-                    if (Gba.Provider.OutputAudio) Gba.Provider.AudioCallback(SampleBuffer);
-                    SampleBufferPos = 0;
-                }
+                SampleBuffer.Insert((short)(left * 64));
+                SampleBuffer.Insert((short)(right * 64));
             }
 
             GbAudioTimer += cycles;
-            if (GbAudioTimer >= GbAudioMax)
+            if (GbAudioTimer >= GbAudioTimerMax)
             {
-                GbAudioTimer -= GbAudioMax;
+                GbAudioTimer -= GbAudioTimerMax;
 
                 GbAudio.Tick(128); // Tick 128 T-cycles
             }
         }
 
-
         public void TimerOverflowFifoA()
         {
             A.CurrentByte = A.Pop();
-            if (A.Bytes <= 16)
+            if (A.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoA();
             }
@@ -276,7 +274,7 @@ namespace OptimeGBA
         public void TimerOverflowFifoB()
         {
             B.CurrentByte = B.Pop();
-            if (B.Bytes <= 16)
+            if (B.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoB();
             }

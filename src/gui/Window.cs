@@ -36,8 +36,9 @@ namespace OptimeGBAEmulator
 
         static bool SyncToAudio = true;
 
-        const uint AUDIO_SAMPLE_THRESHOLD = 1024;
+        const uint AUDIO_SAMPLE_THRESHOLD = 4096;
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 16384;
+        const int SAMPLES_PER_CALLBACK = 549;
 
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
@@ -49,7 +50,7 @@ namespace OptimeGBAEmulator
 
             want.channels = 2;
             want.freq = 32768;
-            want.samples = 64;
+            want.samples = SAMPLES_PER_CALLBACK;
             want.format = AUDIO_S16LSB;
             want.callback = NeedMoreAudioCallback;
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
@@ -59,13 +60,13 @@ namespace OptimeGBAEmulator
             {
                 ThreadSync.Reset();
                 ThreadSync.WaitOne();
-
-                while (ThreadCyclesQueued > 0)
-                {
-                    ThreadCyclesQueued -= (int)Gba.Step();
+                
+                RunFrame();
+                if (Gba.GbaAudio.SampleBuffer.Entries / 2 < AUDIO_SAMPLE_THRESHOLD) {
+                    RunFrame();
                 }
 
-                while (!SyncToAudio)
+                while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
                 {
                     Gba.Step();
                     ThreadCyclesQueued = 0;
@@ -73,27 +74,18 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public short[] AudioArray = new short[128];
+        public short[] AudioArray = new short[SAMPLES_PER_CALLBACK * 2];
         public void NeedMoreAudioCallback(IntPtr userdata, IntPtr stream, int len)
         {
             if (RunEmulator)
             {
-                const int cyclesPerSample = 16777216 / 32768;
-                if (Gba.GbaAudio.SampleBuffer.Entries < AUDIO_SAMPLE_FULL_THRESHOLD)
+                for (uint i = 0; i < SAMPLES_PER_CALLBACK * 2; i++)
                 {
-                    ThreadCyclesQueued += cyclesPerSample * 256;
-                    ThreadSync.Set();
+                    AudioArray[i] = Gba.GbaAudio.SampleBuffer.Pop();
                 }
-                if (Gba.GbaAudio.SampleBuffer.Entries > 128)
-                {
-                    for (uint i = 0; i < 128; i++)
-                    {
-                        AudioArray[i] = Gba.GbaAudio.SampleBuffer.Pop();
-                    }
 
-                    int bytes = sizeof(short) * AudioArray.Length;
-                    Marshal.Copy(AudioArray, 0, stream, AudioArray.Length);
-                }
+                int bytes = sizeof(short) * AudioArray.Length;
+                Marshal.Copy(AudioArray, 0, stream, AudioArray.Length);
             }
             else
             {
@@ -230,20 +222,17 @@ namespace OptimeGBAEmulator
 
             SyncToAudio = !KeyboardState.IsKeyDown(Key.Tab);
 
+            if (RunEmulator)
+            {
+                ThreadSync.Set();
+            }
         }
 
-        const int FrameIns = 70224;
+        const int FrameIns = 70224 * 4;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
-
-            // if (RunEmulator)
-            // {
-            //     // RunAudioSync(); // Same Thread
-            //     ThreadSync.Set(); // Multi-Thread
-            // }
-
             _controller.Update(this, (float)e.Time);
 
             // ImGui.Begin("It's a tileset");
@@ -270,24 +259,8 @@ namespace OptimeGBAEmulator
 
             Context.SwapBuffers();
 
-            // shader.Use();
-
-
-            // GL.BindBuffer(BufferTarget.ArrayBuffer, VertexBufferObject);
-            // GL.BufferData(BufferTarget.ArrayBuffer, vertices.Length * sizeof(float), vertices, BufferUsageHint.StaticDraw);
-
-            // GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
-            // int texCoordLocation = shader.GetAttribLocation("aTexCoord");
-            // GL.EnableVertexAttribArray(texCoordLocation);
-            // GL.VertexAttribPointer(texCoordLocation, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
-            // GL.EnableVertexAttribArray(0);
-
-            // GL.BindVertexArray(VertexArrayObject);
-            // GL.DrawArrays(PrimitiveType.Quads, 0, 4);
-
-            // GL.Flush();
-            // Context.SwapBuffers();
-
+            VSync = VSyncMode.Adaptive;
+            UpdateFrequency = 59.7275;
         }
 
         public void ResetGba()
