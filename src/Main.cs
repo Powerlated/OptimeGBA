@@ -1,11 +1,6 @@
 using System;
-using System.IO;
-using System.Drawing;
-using OpenGL;
-using OptimeGBA;
-using System.Threading;
-using ImGuiNET;
-using static Util;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.Common.Input;
 
 namespace OptimeGBAEmulator
 {
@@ -20,11 +15,11 @@ namespace OptimeGBAEmulator
         {
             using (Game game = new Game(1600, 900, "Optime GBA"))
             {
-                game.Icon = new Icon("icon.ico", new Size(32, 32));
+                // game.Icon = new WindowIcon(new Image());
 
                 // Run takes a double, which is how many frames per second it should strive to reach.
                 // You can leave that out and it'll just update as fast as the hardware will allow it.
-                game.VSync = OpenTK.VSyncMode.On;
+                // game.VSync = VSyncMode.Adaptive; 
                 game.Run();
             }
 

@@ -1,14 +1,13 @@
 using System.Diagnostics.Contracts;
 using ImGuiNET;
-using OpenTK;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Input;
+using OpenTK.Windowing.Desktop;
+using OpenTK.Windowing.Common.Input;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using OpenTK.Graphics;
-using System.Threading;
+using OpenTK.Mathematics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using OptimeGBAEmulator;
@@ -181,7 +180,7 @@ void main()
             }
 
             SetPerFrameImGuiData(deltaSeconds);
-            if (wnd.Focused) UpdateImGuiInput(wnd);
+            if (wnd.IsFocused) UpdateImGuiInput(wnd);
 
             _frameBegun = true;
             ImGui.NewFrame();
@@ -209,22 +208,23 @@ void main()
         {
             ImGuiIOPtr io = ImGui.GetIO();
 
-            MouseState MouseState = Mouse.GetCursorState();
-            KeyboardState KeyboardState = Keyboard.GetState();
+            MouseState MouseState = wnd.MouseState;
+            KeyboardState KeyboardState = wnd.KeyboardState;
 
-            io.MouseDown[0] = MouseState.LeftButton == ButtonState.Pressed;
-            io.MouseDown[1] = MouseState.RightButton == ButtonState.Pressed;
-            io.MouseDown[2] = MouseState.MiddleButton == ButtonState.Pressed;
+            io.MouseDown[0] = MouseState[MouseButton.Left];
+            io.MouseDown[1] = MouseState[MouseButton.Right];
+            io.MouseDown[2] = MouseState[MouseButton.Middle];
 
-            var screenPoint = new System.Drawing.Point(MouseState.X, MouseState.Y);
-            var point = wnd.PointToClient(screenPoint);
+            var screenPoint = new Vector2i((int)MouseState.X, (int)MouseState.Y);
+            var point = screenPoint;//wnd.PointToClient(screenPoint);
             io.MousePos = new System.Numerics.Vector2(point.X, point.Y);
-
-            io.MouseWheel = MouseState.Scroll.Y - PrevMouseState.Scroll.Y;
-            io.MouseWheelH = MouseState.Scroll.X - PrevMouseState.Scroll.X;
-
+            
             foreach (Key key in Enum.GetValues(typeof(Key)))
             {
+                if (key == Key.Unknown)
+                {
+                    continue;
+                }
                 io.KeysDown[(int)key] = KeyboardState.IsKeyDown(key);
             }
 
@@ -243,6 +243,13 @@ void main()
             PrevKeyboardState = KeyboardState;
         }
 
+        internal void MouseScroll(Vector2 offset)
+        {
+            ImGuiIOPtr io = ImGui.GetIO();
+
+            io.MouseWheel = offset.Y;
+            io.MouseWheelH = offset.X;
+        }
 
         internal void PressChar(char keyChar)
         {

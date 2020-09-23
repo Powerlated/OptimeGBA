@@ -1,8 +1,7 @@
-using OpenTK;
-using OpenTK.Graphics;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.Common.Input;
+using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL;
-using System.Drawing;
-using OpenTK.Input;
 using System;
 using System.IO;
 using ImGuiNET;
@@ -37,25 +36,70 @@ namespace OptimeGBAEmulator
 
         static bool SyncToAudio = true;
 
-        const uint AUDIO_SAMPLE_THRESHOLD = 8192;
+        const uint AUDIO_SAMPLE_THRESHOLD = 1024;
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 16384;
 
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
+        public int ThreadCyclesQueued;
         public void EmulationThreadHandler()
         {
+            SDL_Init(SDL_INIT_AUDIO);
+
+            want.channels = 2;
+            want.freq = 32768;
+            want.samples = 64;
+            want.format = AUDIO_S16LSB;
+            want.callback = NeedMoreAudioCallback;
+            AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+            SDL_PauseAudioDevice(AudioDevice, 0);
+
             while (true)
             {
                 ThreadSync.Reset();
                 ThreadSync.WaitOne();
-                while (RunEmulator)
+
+                while (ThreadCyclesQueued > 0)
                 {
-                    while ((GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD || !SyncToAudio) && !Gba.Arm7.Errored)
+                    ThreadCyclesQueued -= (int)Gba.Step();
+                }
+
+                while (!SyncToAudio)
+                {
+                    Gba.Step();
+                    ThreadCyclesQueued = 0;
+                }
+            }
+        }
+
+        public short[] AudioArray = new short[128];
+        public void NeedMoreAudioCallback(IntPtr userdata, IntPtr stream, int len)
+        {
+            if (RunEmulator)
+            {
+                const int cyclesPerSample = 16777216 / 32768;
+                if (Gba.GbaAudio.SampleBuffer.Entries < AUDIO_SAMPLE_FULL_THRESHOLD)
+                {
+                    ThreadCyclesQueued += cyclesPerSample * 256;
+                    ThreadSync.Set();
+                }
+                if (Gba.GbaAudio.SampleBuffer.Entries > 128)
+                {
+                    for (uint i = 0; i < 128; i++)
                     {
-                        RunFrame();
+                        AudioArray[i] = Gba.GbaAudio.SampleBuffer.Pop();
                     }
-                    Thread.Sleep(1);
+
+                    int bytes = sizeof(short) * AudioArray.Length;
+                    Marshal.Copy(AudioArray, 0, stream, AudioArray.Length);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < len; i++)
+                {
+                    Marshal.WriteByte(stream, i, 0);
                 }
             }
         }
@@ -87,18 +131,9 @@ namespace OptimeGBAEmulator
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public Game(int width, int height, string title) : base(width, height, GraphicsMode.Default, title)
+        public Game(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { })
         {
             // Init SDL
-
-            SDL_Init(SDL_INIT_AUDIO);
-
-            want.channels = 2;
-            want.freq = 32768;
-            want.format = AUDIO_S16LSB;
-            AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-            SDL_PauseAudioDevice(AudioDevice, 0);
-
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
             byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
@@ -140,12 +175,18 @@ namespace OptimeGBAEmulator
             RomList = Directory.GetFiles("roms", "*.gba");
         }
 
-        protected override void OnResize(EventArgs e)
+        protected override void OnResize(ResizeEventArgs e)
         {
             base.OnResize(e);
-            _controller._windowHeight = Height;
-            _controller._windowWidth = Width;
-            GL.Viewport(0, 0, Width, Height);
+            _controller.WindowResized(ClientSize.X, ClientSize.Y);
+            GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
+        }
+
+        protected override void OnMouseWheel(MouseWheelEventArgs e)
+        {
+            base.OnMouseWheel(e);
+
+            _controller.MouseScroll(e.Offset);
         }
 
         float[] vertices = {
@@ -154,7 +195,7 @@ namespace OptimeGBAEmulator
             -1f, -1f, 0.0f, 0.0f, 1.0f, // bottom left
             -1f,  1f, 0.0f, 0.0f, 0.0f  // top left
         };
-        protected override void OnLoad(EventArgs e)
+        protected override void OnLoad()
         {
             VertexArrayObject = GL.GenVertexArray();
             GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
@@ -164,32 +205,30 @@ namespace OptimeGBAEmulator
             // Disable texture filtering
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-            _controller = new ImGuiController(Width, Height);
+            _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 
             gbTexId = GL.GenTexture();
             tsTexId = GL.GenTexture();
 
-            base.OnLoad(e);
+            base.OnLoad();
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             base.OnUpdateFrame(e);
 
-            KeyboardState input = Keyboard.GetState();
+            Gba.Keypad.B = KeyboardState.IsKeyDown(Key.Z);
+            Gba.Keypad.A = KeyboardState.IsKeyDown(Key.X);
+            Gba.Keypad.Left = KeyboardState.IsKeyDown(Key.Left);
+            Gba.Keypad.Up = KeyboardState.IsKeyDown(Key.Up);
+            Gba.Keypad.Right = KeyboardState.IsKeyDown(Key.Right);
+            Gba.Keypad.Down = KeyboardState.IsKeyDown(Key.Down);
+            Gba.Keypad.Start = KeyboardState.IsKeyDown(Key.Enter) || KeyboardState.IsKeyDown(Key.KeypadEnter);
+            Gba.Keypad.Select = KeyboardState.IsKeyDown(Key.BackSpace);
+            Gba.Keypad.L = KeyboardState.IsKeyDown(Key.Q);
+            Gba.Keypad.R = KeyboardState.IsKeyDown(Key.E);
 
-            Gba.Keypad.B = input.IsKeyDown(Key.Z);
-            Gba.Keypad.A = input.IsKeyDown(Key.X);
-            Gba.Keypad.Left = input.IsKeyDown(Key.Left);
-            Gba.Keypad.Up = input.IsKeyDown(Key.Up);
-            Gba.Keypad.Right = input.IsKeyDown(Key.Right);
-            Gba.Keypad.Down = input.IsKeyDown(Key.Down);
-            Gba.Keypad.Start = input.IsKeyDown(Key.Enter) || input.IsKeyDown(Key.KeypadEnter);
-            Gba.Keypad.Select = input.IsKeyDown(Key.BackSpace);
-            Gba.Keypad.L = input.IsKeyDown(Key.Q);
-            Gba.Keypad.R = input.IsKeyDown(Key.E);
-
-            SyncToAudio = !input.IsKeyDown(Key.Tab);
+            SyncToAudio = !KeyboardState.IsKeyDown(Key.Tab);
 
         }
 
@@ -199,11 +238,11 @@ namespace OptimeGBAEmulator
         {
             base.OnRenderFrame(e);
 
-            if (RunEmulator)
-            {
-                // RunAudioSync(); // Same Thread
-                ThreadSync.Set(); // Multi-Thread
-            }
+            // if (RunEmulator)
+            // {
+            //     // RunAudioSync(); // Same Thread
+            //     ThreadSync.Set(); // Multi-Thread
+            // }
 
             _controller.Update(this, (float)e.Time);
 
