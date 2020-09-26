@@ -2,6 +2,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Common.Input;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Mathematics;
 using System;
 using System.IO;
 using ImGuiNET;
@@ -9,6 +10,7 @@ using System.Threading;
 using ImGuiUtils;
 using static Util;
 using System.Collections.Generic;
+using System.Runtime;
 using System.Numerics;
 using OptimeGBA;
 using Gee.External.Capstone.Arm;
@@ -32,13 +34,13 @@ namespace OptimeGBAEmulator
 
         GBA Gba;
         Thread EmulationThread;
-        ManualResetEvent ThreadSync = new ManualResetEvent(false);
+        AutoResetEvent ThreadSync = new AutoResetEvent(false);
 
         static bool SyncToAudio = true;
 
-        const uint AUDIO_SAMPLE_THRESHOLD = 4096;
-        const uint AUDIO_SAMPLE_FULL_THRESHOLD = 16384;
-        const int SAMPLES_PER_CALLBACK = 549;
+        const uint AUDIO_SAMPLE_THRESHOLD = 1024;
+        const uint AUDIO_SAMPLE_FULL_THRESHOLD = 1024;
+        const int SAMPLES_PER_CALLBACK = 32;
 
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
@@ -52,33 +54,54 @@ namespace OptimeGBAEmulator
             want.freq = 32768;
             want.samples = SAMPLES_PER_CALLBACK;
             want.format = AUDIO_S16LSB;
-            want.callback = NeedMoreAudioCallback;
+            // want.callback = NeedMoreAudioCallback;
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
             while (true)
             {
-                ThreadSync.Reset();
-                ThreadSync.WaitOne();
-                
-                RunFrame();
-                if (Gba.GbaAudio.SampleBuffer.Entries / 2 < AUDIO_SAMPLE_THRESHOLD) {
-                    RunFrame();
+                if (!RunEmulator)
+                {
+                    ThreadSync.WaitOne();
                 }
+
+                while (!FrameNow && RunEmulator) { }
+                FrameNow = false;
+
+                RunFrame();
+
+                // if (GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD)
+                // {
+                //     RunFrame();
+                // }
 
                 while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
                 {
                     Gba.Step();
                     ThreadCyclesQueued = 0;
                 }
+
+                if (!SyncToAudio) Thread.Sleep(1);
             }
         }
 
+        static bool FrameNow = false;
+
+        /*
         public short[] AudioArray = new short[SAMPLES_PER_CALLBACK * 2];
         public void NeedMoreAudioCallback(IntPtr userdata, IntPtr stream, int len)
         {
             if (RunEmulator)
             {
+                // const uint CyclesPerSample = 16777216 / 32768;
+                // if (Gba.GbaAudio.SampleBuffer.Entries / 2 < 4096)
+                // {
+                //     ThreadCyclesQueued += (int)(CyclesPerSample * SAMPLES_PER_CALLBACK * 4);
+                // }
+
+                // ThreadCyclesQueued += (int)(CyclesPerSample * SAMPLES_PER_CALLBACK * 4);
+                // ThreadSync.Set();
+
                 for (uint i = 0; i < SAMPLES_PER_CALLBACK * 2; i++)
                 {
                     AudioArray[i] = Gba.GbaAudio.SampleBuffer.Pop();
@@ -93,6 +116,15 @@ namespace OptimeGBAEmulator
                 {
                     Marshal.WriteByte(stream, i, 0);
                 }
+            }
+        }
+        */
+
+        public void RunCycles(int cycles)
+        {
+            while (cycles > 0 && !Gba.Arm7.Errored && RunEmulator)
+            {
+                cycles -= (int)Gba.Step();
             }
         }
 
@@ -123,7 +155,7 @@ namespace OptimeGBAEmulator
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public Game(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { })
+        public Game(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
         {
             // Init SDL
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
@@ -224,6 +256,7 @@ namespace OptimeGBAEmulator
 
             if (RunEmulator)
             {
+                FrameNow = true;
                 ThreadSync.Set();
             }
         }
@@ -558,7 +591,6 @@ namespace OptimeGBAEmulator
 
         public void DrawDebug()
         {
-
             if (ImGui.Begin("Debug"))
             {
                 ImGui.Columns(4);
@@ -825,6 +857,7 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
                 // ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
 
+                // ImGui.Text($"Buffer Samples: {Gba.GbaAudio.SampleBuffer.Entries / 2}");
                 ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
                 ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
 
@@ -979,8 +1012,6 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
             {
-                Random r = new Random();
-
                 gbTexId = 0;
 
                 // GL.ActiveTexture(TextureUnit.Texture0);
