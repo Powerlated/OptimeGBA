@@ -526,6 +526,9 @@ namespace OptimeGBA
             }
         }
 
+        public readonly static int[] CharWidthShiftTable = { 8, 9, 8, 9 };
+        public readonly static int[] CharHeightShiftTable = { 8, 8, 9, 9 };
+
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
@@ -551,20 +554,29 @@ namespace OptimeGBA
 
             uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
 
-            uint pixelY = (bg.VerticalOffset + VCount) & CharHeightMaskTable[bg.ScreenSize];
-            uint tileY = pixelY / 8;
-            uint intraTileY = pixelY % 8;
+            uint pixelY = bg.VerticalOffset + VCount;
+            uint pixelYWrapped = pixelY & 255;
+
+            uint verticalOffsetBlocks = (pixelY & CharHeightMaskTable[bg.ScreenSize]) >> CharHeightShiftTable[bg.ScreenSize];
+            uint mapVertOffset = 2048 * verticalOffsetBlocks;
+
+            uint tileY = pixelYWrapped >> 3;
+            uint intraTileY = pixelYWrapped & 7;
 
             for (uint p = 0; p < 240; p++)
             {
-                uint pixelX = (bg.HorizontalOffset + p) & CharWidthMaskTable[bg.ScreenSize];
+                uint pixelX = bg.HorizontalOffset + p;
+                uint pixelXWrapped = pixelX & 255;
 
-                uint tileX = pixelX / 8;
-                uint intraTileX = pixelX % 8;
+                uint horizontalOffsetBlocks = (pixelX & CharWidthMaskTable[bg.ScreenSize]) >> 8;
+                uint mapHoriOffset = 2048 * horizontalOffsetBlocks;
+
+                uint tileX = pixelXWrapped >> 3;
+                uint intraTileX = pixelXWrapped & 7;
 
                 // 2 bytes per tile
-                uint mapEntryIndex = (tileY * 64) + (tileX * 2);
-                uint mapEntry = (uint)(Vram[mapBase + mapEntryIndex + 1] << 8 | Vram[mapBase + mapEntryIndex]);
+                uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
+                uint mapEntry = (uint)(Vram[mapEntryIndex + 1] << 8 | Vram[mapEntryIndex]);
 
                 uint tileNumber = mapEntry & 1023; // 10 bits
                 bool xFlip = BitTest(mapEntry, 10);
