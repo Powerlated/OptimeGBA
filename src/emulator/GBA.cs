@@ -25,7 +25,7 @@ namespace OptimeGBA
             Provider = provider;
 
             Arm7 = new ARM7(this);
-            Mem = new Memory(this);
+            Mem = new Memory(this, provider);
             GbaAudio = new GBAAudio(this);
             Lcd = new LCD(this);
             Keypad = new Keypad();
@@ -35,10 +35,7 @@ namespace OptimeGBA
 
             Scheduler = new Scheduler();
 
-            provider.Bios.CopyTo(Mem.Bios, 0);
-            provider.Rom.CopyTo(Mem.Rom, 0);
             AudioCallback = provider.AudioCallback;
-
         }
 
         uint HaltTime = 0;

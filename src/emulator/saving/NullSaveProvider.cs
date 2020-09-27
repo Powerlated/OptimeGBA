@@ -2,7 +2,7 @@ using System;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    public class Sram : SaveProvider
+    public class NullSaveProvider : SaveProvider
     {
         public byte Read8(uint addr)
         {

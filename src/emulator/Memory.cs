@@ -11,7 +11,7 @@ namespace OptimeGBA
         GBA Gba;
 
 
-        public Memory(GBA gba)
+        public Memory(GBA gba, GbaProvider provider)
         {
             Gba = gba;
 
@@ -24,11 +24,59 @@ namespace OptimeGBA
             {
                 Iwram[i] = 0x00;
             }
+
+            provider.Bios.CopyTo(Bios, 0);
+            provider.Rom.CopyTo(Rom, 0);
+
+            // Detect save type
+
+            string[] strings = {
+                "NONE",
+                "EEPROM_",
+                "SRAM_",
+                "FLASH_",
+                "FLASH512_",
+                "FLASH1M_",
+            };
+            uint matchedIndex = 0;
+
+            for (uint i = 0; i < strings.Length; i++)
+            {
+                char[] chars = strings[i].ToCharArray();
+
+                int stringLength = chars.Length;
+                int matchLength = 0;
+                for (uint j = 0; j < provider.Rom.Length; j++) {
+                    if (provider.Rom[j] == chars[matchLength]) {
+                        matchLength++;
+                        if (matchLength >= chars.Length) {
+                            matchedIndex = i;
+                            goto breakOuterLoop;
+                        }
+                    } else {
+                        matchLength = 0;
+                    }
+                }
+            }
+            breakOuterLoop:
+
+            Console.WriteLine($"Save Type: {strings[matchedIndex]}");
+
+            switch (matchedIndex) {
+                case 0: SaveProvider = new NullSaveProvider(); break;
+                case 1: SaveProvider = new Eeprom(); break;
+                case 2: SaveProvider = new Sram(); break;
+                case 3: SaveProvider = new Flash(); break;
+                case 4: SaveProvider = new Flash(); break;
+                case 5: SaveProvider = new Flash(); break;
+            }
         }
 
         public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
         public bool LogHwioAccesses = false;
+
+        public SaveProvider SaveProvider = new NullSaveProvider();
 
         public long EwramWrites = 0;
         public long IwramWrites = 0;
@@ -54,8 +102,6 @@ namespace OptimeGBA
         public byte[] Ewram = new byte[262144];
         // Internal Work RAM
         public byte[] Iwram = new byte[32768];
-
-        public byte[] SaveMemory = new byte[131072];
 
         public byte Read8(uint addr)
         {
@@ -114,8 +160,7 @@ namespace OptimeGBA
                     return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
-                    return ReadSave(addr);
-                    break;
+                    return SaveProvider.Read8(addr);
             }
 
             return 0;
@@ -356,8 +401,7 @@ namespace OptimeGBA
                     return Rom[addr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
-                    return ReadSave(addr);
-                    break;
+                    return SaveProvider.Read8(addr);
             }
 
             return 0;
@@ -442,8 +486,8 @@ namespace OptimeGBA
                     break;
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
-                    WriteSave(addr, val);
-                    break;
+                    SaveProvider.Write8(addr, val);
+                    return;
             }
         }
 
@@ -671,138 +715,6 @@ namespace OptimeGBA
             else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
             {
                 Gba.HwControl.WriteHwio8(addr, val);
-            }
-        }
-
-
-        public bool EEPROMActive = false;
-        public bool EEPROMReadMode = false;
-        public bool EEPROMReadied = false;
-        public bool EEPROMReceivingAddr = false;
-        public bool EEPROMTerminate = false;
-        public uint EEPROMBitsRemaining = 0;
-        public uint EEPROMAddrBitsRemaining = 0;
-
-        // 1 entry per bit because I'm lazy
-        public byte[] EEPROM = new byte[0x10000];
-        public uint EEPROMAddr = 0;
-        public byte ReadBitEEPROM()
-        {
-            return EEPROM[EEPROMAddr];
-        }
-        public void WriteBitEEPROM(bool bit)
-        {
-            EEPROM[EEPROMAddr] = Convert.ToByte(bit);
-        }
-        public bool UseEEPROM = false;
-
-        public byte ReadSave(uint addr)
-        {
-            // Console.WriteLine("Save Read: " + Util.Hex(addr, 8));
-            if (UseEEPROM)
-            {
-                if (EEPROMActive)
-                {
-                    if (EEPROMReadMode)
-                    {
-                        if (EEPROMBitsRemaining > 64)
-                        {
-                            return 0;
-                        }
-                        else
-                        {
-                            Console.WriteLine("EEPROM Read");
-                            byte bit = ReadBitEEPROM();
-                            EEPROMAddr++;
-                            return bit;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                switch (addr)
-                {
-                    // Stub out Flash
-                    case 0x0E000000: return 0x62;
-                    case 0x0E000001: return 0x13;
-                        // case 0x0E000000: return 0xC2;
-                        // case 0x0E000001: return 0x09;
-                }
-            }
-            return 0xFF;
-        }
-
-        public void WriteSave(uint addr, uint val)
-        {
-            // Console.WriteLine("Save Write: " + Util.Hex(addr, 8));
-            if (UseEEPROM)
-            {
-                bool bit = BitTest(val, 0);
-                if (EEPROMActive)
-                {
-                    if (EEPROMBitsRemaining > 0)
-                    {
-                        if (!EEPROMReadMode)
-                        {
-                            Console.WriteLine("EEPROM Write!");
-                            WriteBitEEPROM(bit);
-                            EEPROMAddr++;
-                        }
-                    }
-                    else
-                    {
-                        if (bit == false)
-                        {
-                            EEPROMActive = false;
-                        }
-                    }
-                }
-                else if (EEPROMReceivingAddr)
-                {
-                    Console.WriteLine($"EEPROM Addr Write! {val & 1}");
-
-                    EEPROMAddr <<= 1;
-                    EEPROMAddr |= val & 1;
-                    EEPROMAddrBitsRemaining--;
-                    if (EEPROMAddrBitsRemaining == 0)
-                    {
-                        Console.WriteLine($"EEPROM Addr Set!");
-                        EEPROMActive = true;
-                    }
-                }
-                else
-                {
-                    if (EEPROMReadied)
-                    {
-                        Console.WriteLine("EEPROM Ready!");
-
-                        EEPROMReadMode = bit;
-                        EEPROMReceivingAddr = true;
-                        EEPROMAddrBitsRemaining = 6;
-                        EEPROMReadied = false;
-                        EEPROMAddr = 0;
-
-                        if (EEPROMReadMode)
-                        {
-                            Console.WriteLine("EEPROM Read Mode!");
-                            EEPROMBitsRemaining = 68;
-                        }
-                        else
-                        {
-                            Console.WriteLine("EEPROM Write Mode!");
-                            EEPROMBitsRemaining = 64;
-                        }
-                    }
-                    else
-                    {
-                        if (bit) EEPROMReadied = true;
-                    }
-                }
-            }
-            else
-            {
-
             }
         }
     }
