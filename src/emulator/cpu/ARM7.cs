@@ -165,10 +165,14 @@ namespace OptimeGBA
             R[1] = 0x000000EA;
         }
 
-        public void FillPipeline() {
-            if (ThumbState) {
+        public void FillPipeline()
+        {
+            if (ThumbState)
+            {
                 FillPipelineThumb();
-            } else {
+            }
+            else
+            {
                 FillPipelineArm();
             }
         }
@@ -1213,7 +1217,8 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ICycle() {
+        public void ICycle()
+        {
             InstructionCycles += 1;
         }
 
@@ -1261,6 +1266,7 @@ namespace OptimeGBA
             8, // Game Pak SRAM/Flash
         };
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static (uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
         {
             bool setFlags = (ins & BIT_20) != 0;
@@ -1269,6 +1275,7 @@ namespace OptimeGBA
             return (rd, setFlags);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins)
         {
             // ----- When using register as 2nd operand -----
