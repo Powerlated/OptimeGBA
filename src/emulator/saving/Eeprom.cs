@@ -25,7 +25,7 @@ namespace OptimeGBA
         }
 
 
-        public byte Read8(uint addr)
+        public override byte Read8(uint addr)
         {
             if (Active)
             {
@@ -48,7 +48,7 @@ namespace OptimeGBA
             return 0;
         }
 
-        public void Write8(uint addr, byte val)
+        public override void Write8(uint addr, byte val)
         {
             bool bit = BitTest(val, 0);
             if (Active)
@@ -111,6 +111,16 @@ namespace OptimeGBA
                     if (bit) Readied = true;
                 }
             }
+        }
+
+        public override byte[] GetSave()
+        {
+            return new byte[0];
+        }
+
+        public override void LoadSave(byte[] save)
+        {
+
         }
     }
 }

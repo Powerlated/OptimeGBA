@@ -31,7 +31,7 @@ namespace OptimeGBA
             // Detect save type
 
             string[] strings = {
-                "NONE",
+                "NONE_LOLOLLEXTRATONOTMATCHRANDOMSTRINGS",
                 "EEPROM_",
                 "SRAM_",
                 "FLASH_",

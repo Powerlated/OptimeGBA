@@ -148,11 +148,11 @@ namespace OptimeGBAEmulator
             // Init SDL
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
-            byte[] rom = System.IO.File.ReadAllBytes("roms/Pokemon - FireRed Version (USA).gba");
+            Gba = new GBA(new GbaProvider(bios, new byte[0], "", AudioReady));
+            LoadRomFromPath("roms/Pokemon - FireRed Version (USA).gba");
 
             SearchForRoms();
 
-            Gba = new GBA(new GbaProvider(bios, rom, AudioReady));
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -245,6 +245,11 @@ namespace OptimeGBAEmulator
                 FrameNow = true;
                 ThreadSync.Set();
             }
+
+            if (Gba.Mem.SaveProvider.Dirty)
+            {
+                DumpSav();
+            }
         }
 
         const int FrameCycles = 70224 * 4;
@@ -279,8 +284,10 @@ namespace OptimeGBAEmulator
 
         public void ResetGba()
         {
+            byte[] save = Gba.Mem.SaveProvider.GetSave();
             GbaProvider p = Gba.Provider;
             Gba = new GBA(p);
+            Gba.Mem.SaveProvider.LoadSave(save);
         }
 
         static int MemoryViewerInit = 1;
@@ -844,9 +851,11 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG1 Scroll X: {Gba.Lcd.Backgrounds[1].HorizontalOffset}");
                 ImGui.Text($"BG1 Scroll Y: {Gba.Lcd.Backgrounds[1].VerticalOffset}");
                 ImGui.Text($"BG2 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Affine Size: {LCD.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{LCD.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
                 ImGui.Text($"BG2 Scroll X: {Gba.Lcd.Backgrounds[2].HorizontalOffset}");
                 ImGui.Text($"BG2 Scroll Y: {Gba.Lcd.Backgrounds[2].VerticalOffset}");
                 ImGui.Text($"BG3 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Affine Size: {LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
 
@@ -1004,8 +1013,8 @@ namespace OptimeGBAEmulator
                     Gba.Lcd.ScreenFront
                 );
 
-                float height = BigScreen ? 240 * 4 : 240 * 2;
-                float width = BigScreen ? 160 * 4 : 160 * 2;
+                float height = BigScreen ? 240 * 5 : 240 * 2;
+                float width = BigScreen ? 160 * 5 : 160 * 2;
 
                 ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(height, width));
                 ImGui.SetWindowSize(new System.Numerics.Vector2(height + 16, width + 36));
@@ -1269,7 +1278,39 @@ namespace OptimeGBAEmulator
             byte[] rom = System.IO.File.ReadAllBytes(path);
             AudioCallback audioCallback = Gba.Provider.AudioCallback;
 
-            Gba = new GBA(new GbaProvider(bios, rom, audioCallback));
+            string savPath = path.Substring(0, path.Length - 3) + "sav";
+            byte[] sav = new byte[0];
+            if (System.IO.File.Exists(savPath))
+            {
+                Console.WriteLine(".sav exists, loading");
+                try
+                {
+                    sav = System.IO.File.ReadAllBytes(savPath);
+                }
+                catch
+                {
+                    Console.WriteLine("Failed to load .sav file!");
+                }
+            }
+            else
+            {
+                Console.WriteLine(".sav not available");
+            }
+
+            Gba = new GBA(new GbaProvider(bios, rom, savPath, audioCallback));
+            Gba.Mem.SaveProvider.LoadSave(sav);
+        }
+
+        public void DumpSav()
+        {
+            try
+            {
+                System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
+            }
+            catch
+            {
+                Console.WriteLine("Failed to write .sav file!");
+            }
         }
 
         public uint[][] PulseDuty = new uint[][] {
