@@ -49,10 +49,13 @@ namespace OptimeGBA
         public byte[] Bios = new byte[16384];
         public byte[] Rom = new byte[67108864];
 
+
         // External Work RAM
         public byte[] Ewram = new byte[262144];
         // Internal Work RAM
         public byte[] Iwram = new byte[32768];
+
+        public byte[] SaveMemory = new byte[131072];
 
         public byte Read8(uint addr)
         {
