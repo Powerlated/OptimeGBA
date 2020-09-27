@@ -21,6 +21,14 @@ namespace OptimeGBA
 
         public uint Id;
 
+        public uint RefPointX;
+        public uint RefPointY;
+
+        public uint AffineA;
+        public uint AffineB;
+        public uint AffineC;
+        public uint AffineD;
+
         public Background(uint id)
         {
             Id = id;
@@ -101,6 +109,50 @@ namespace OptimeGBA
                     break;
             }
         }
+
+        public byte ReadBGXY(uint addr)
+        {
+            byte offset = (byte)((addr & 3) << 8);
+            switch (addr)
+            {
+                case 0x0: // BGX_L
+                case 0x1: // BGX_L
+                case 0x2: // BGX_H
+                case 0x3: // BGX_H
+                    return (byte)(RefPointX >> offset);
+
+                case 0x4: // BGY_L
+                case 0x5: // BGY_L
+                case 0x6: // BGY_H
+                case 0x7: // BGY_H
+                    return (byte)(RefPointY >> offset);
+            }
+
+            return 0;
+        }
+
+        public void WriteBGXY(uint addr, byte val)
+        {
+            byte offset = (byte)((addr & 3) * 8);
+            switch (addr)
+            {
+                case 0x0: // BGX_L
+                case 0x1: // BGX_L
+                case 0x2: // BGX_H
+                case 0x3: // BGX_H
+                    RefPointX &= ~(0xFFu << offset);
+                    RefPointX |= (uint)(val << offset);
+                    break;
+
+                case 0x4: // BGY_L
+                case 0x5: // BGY_L
+                case 0x6: // BGY_H
+                case 0x7: // BGY_H
+                    RefPointY &= ~(0xFFu << offset);
+                    RefPointY |= (uint)(val << offset);
+                    break;
+            }
+        }
     }
 
     public enum ObjShape
@@ -173,8 +225,8 @@ namespace OptimeGBA
         public byte VCountSetting;
 
         // RGB, 24-bit
-        public byte[] ScreenFront = new byte[240 * 160 * 3];
-        public byte[] ScreenBack = new byte[240 * 160 * 3];
+        public byte[] ScreenFront = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
+        public byte[] ScreenBack = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
         const uint WIDTH = 240;
         const uint HEIGHT = 160;
         const uint BYTES_PER_PIXEL = 3;
@@ -193,8 +245,6 @@ namespace OptimeGBA
 
         const uint CharBlockBaseSize = 16384;
         const uint MapBlockBaseSize = 2048;
-
-
 
         public void SwapBuffers()
         {
@@ -295,6 +345,26 @@ namespace OptimeGBA
                 case 0x400001F: // BG3VOFS B1
                     return Backgrounds[3].ReadBGOFS(addr - 0x400001C);
 
+                case 0x4000028: // BG2X B0
+                case 0x4000029: // BG2X B1
+                case 0x400002A: // BG2X B2
+                case 0x400002B: // BG2X B3
+                case 0x400002C: // BG2Y B0
+                case 0x400002D: // BG2Y B1
+                case 0x400002E: // BG2Y B2
+                case 0x400002F: // BG2Y B3
+                    return Backgrounds[2].ReadBGXY(addr - 0x04000028);
+
+                case 0x4000038: // BG3X B0
+                case 0x4000039: // BG3X B1
+                case 0x400003A: // BG3X B2
+                case 0x400003B: // BG3X B3
+                case 0x400003C: // BG3Y B0
+                case 0x400003D: // BG3Y B1
+                case 0x400003E: // BG3Y B2
+                case 0x400003F: // BG3Y B3
+                    return Backgrounds[3].ReadBGXY(addr - 0x04000038);
+
                 case 0x4000050: // BLDCNT B0
                 case 0x4000051: // BLDCNT B1
                     return 0;
@@ -375,6 +445,28 @@ namespace OptimeGBA
                 case 0x400001E: // BG3VOFS B0
                 case 0x400001F: // BG3VOFS B1
                     Backgrounds[3].WriteBGOFS(addr - 0x400001C, val);
+                    break;
+
+                case 0x4000028: // BG2X B0
+                case 0x4000029: // BG2X B1
+                case 0x400002A: // BG2X B2
+                case 0x400002B: // BG2X B3
+                case 0x400002C: // BG2Y B0
+                case 0x400002D: // BG2Y B1
+                case 0x400002E: // BG2Y B2
+                case 0x400002F: // BG2Y B3
+                    Backgrounds[2].WriteBGXY(addr - 0x04000028, val);
+                    break;
+
+                case 0x4000038: // BG3X B0
+                case 0x4000039: // BG3X B1
+                case 0x400003A: // BG3X B2
+                case 0x400003B: // BG3X B3
+                case 0x400003C: // BG3Y B0
+                case 0x400003D: // BG3Y B1
+                case 0x400003E: // BG3Y B2
+                case 0x400003F: // BG3Y B3
+                    Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
                     break;
             }
         }
@@ -624,6 +716,59 @@ namespace OptimeGBA
             }
         }
 
+        public readonly static int[] AffineSizeShiftTable = { 7, 8, 9, 10 };
+        public readonly static uint[] AffineSizeTable = { 128, 256, 512, 1024 };
+        public readonly static uint[] AffineTileSizeTable = { 16, 32, 64, 128 };
+        public readonly static uint[] AffineSizeMask = { 127, 255, 511, 1023 };
+
+        public void RenderAffineBackground(Background bg)
+        {
+            uint xInteger = (bg.RefPointX >> 8) & 0x7FFFF;
+            uint yInteger = (bg.RefPointY >> 8) & 0x7FFFF;
+
+            uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
+            uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
+
+            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+
+            uint pixelY = (yInteger + VCount) & AffineSizeMask[bg.ScreenSize];
+            uint pixelYWrapped = pixelY & 255;
+
+            uint tileY = pixelYWrapped >> 3;
+            uint intraTileY = pixelYWrapped & 7;
+
+            for (uint p = 0; p < 240; p++)
+            {
+                uint pixelX = (xInteger + p) & AffineSizeMask[bg.ScreenSize];
+                uint pixelXWrapped = pixelX & 255;
+
+                uint tileX = pixelXWrapped >> 3;
+                uint intraTileX = pixelXWrapped & 7;
+
+                // 1 byte per tile
+                uint mapEntryIndex = mapBase + (tileY * AffineTileSizeTable[bg.ScreenSize]) + (tileX * 1);
+                uint tileNumber = Vram[mapEntryIndex];
+
+                uint realIntraTileY = intraTileY;
+
+                // Always 256color
+                // 256 color, 64 bytes per tile, 8 bytes per row
+                uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
+                uint vramValue = Vram[vramAddr];
+
+                uint finalColor = vramValue;
+
+                if (finalColor != 0)
+                {
+                    ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
+                    ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
+                    ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                }
+
+                screenBase += 3;
+            }
+        }
+
         public uint[,] OamPriorityListIds = new uint[4, 128];
         public uint[] OamPriorityListCounts = new uint[4];
 
@@ -839,8 +984,8 @@ namespace OptimeGBA
             DrawBackdropColor();
             for (int pri = 3; pri >= 0; pri--)
             {
-                // BG3 is affine BG
-                // if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
+                // BG2 is affine BG
+                if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderAffineBackground(Backgrounds[2]);
                 if (ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
                 if (ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
                 if (ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
