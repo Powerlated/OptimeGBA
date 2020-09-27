@@ -16,8 +16,9 @@ namespace OptimeGBA
         public uint FullInserts = 0;
         public uint Collisions = 0;
         public byte CurrentByte = 0;
-        
-        public CircularBuffer(uint size, T emptyValue) {
+
+        public CircularBuffer(uint size, T emptyValue)
+        {
             Size = size;
             Buffer = new T[Size];
             EmptyValue = emptyValue;
@@ -215,12 +216,12 @@ namespace OptimeGBA
         public bool EnablePsg = true;
         public bool EnableFifo = true;
 
-        const uint GbAudioTimerMax = 512; // Each time this hits, tick GB audio by 128 GB T-cycles
-        uint GbAudioTimer = 0;
-
         const uint SampleTimerMax = 512;
         uint SampleTimer = 0;
-        public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
+        // public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
+        public const uint SampleBufferMax = 64;
+        public short[] SampleBuffer = new short[SampleBufferMax];  
+        public uint SampleBufferPos = 0;
         public bool AudioReady;
         public void Tick(uint cycles)
         {
@@ -228,6 +229,8 @@ namespace OptimeGBA
             if (SampleTimer >= SampleTimerMax)
             {
                 SampleTimer -= SampleTimerMax;
+
+                GbAudio.Tick(128); // Tick 128 T-cycles
 
                 short left = 0;
                 short right = 0;
@@ -250,16 +253,14 @@ namespace OptimeGBA
                     }
                 }
 
-                SampleBuffer.Insert((short)(left * 64));
-                SampleBuffer.Insert((short)(right * 64));
-            }
+                SampleBuffer[SampleBufferPos++] = ((short)(left * 64));
+                SampleBuffer[SampleBufferPos++] = ((short)(right * 64));
 
-            GbAudioTimer += cycles;
-            if (GbAudioTimer >= GbAudioTimerMax)
-            {
-                GbAudioTimer -= GbAudioTimerMax;
+                if (SampleBufferPos >= SampleBufferMax) {
+                    SampleBufferPos = 0;
 
-                GbAudio.Tick(128); // Tick 128 T-cycles
+                    Gba.AudioCallback(SampleBuffer);
+                }
             }
         }
 

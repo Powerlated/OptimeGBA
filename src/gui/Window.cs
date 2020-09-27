@@ -60,28 +60,15 @@ namespace OptimeGBAEmulator
 
             while (true)
             {
-                if (!RunEmulator)
-                {
-                    ThreadSync.WaitOne();
-                }
-
-                while (!FrameNow && RunEmulator) { }
-                FrameNow = false;
+                ThreadSync.WaitOne();
 
                 RunFrame();
-
-                // if (GetAudioSamplesInQueue() < AUDIO_SAMPLE_THRESHOLD)
-                // {
-                //     RunFrame();
-                // }
 
                 while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
                 {
                     Gba.Step();
                     ThreadCyclesQueued = 0;
                 }
-
-                if (!SyncToAudio) Thread.Sleep(1);
             }
         }
 
@@ -128,12 +115,13 @@ namespace OptimeGBAEmulator
             }
         }
 
+        int CyclesLeft;
         public void RunFrame()
         {
-            int num = FrameIns;
-            while (num > 0 && !Gba.Arm7.Errored && RunEmulator)
+            CyclesLeft += FrameCycles;
+            while (CyclesLeft > 0 && !Gba.Arm7.Errored)
             {
-                num -= (int)Gba.Step();
+                CyclesLeft -= (int)Gba.Step();
             }
         }
 
@@ -176,21 +164,19 @@ namespace OptimeGBAEmulator
             SetupRegViewer();
         }
 
-        static void AudioReady(short[] data)
+        IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
+        void AudioReady(short[] data)
         {
             // Don't queue audio if too much is in buffer
             if (SyncToAudio || GetAudioSamplesInQueue() < AUDIO_SAMPLE_FULL_THRESHOLD)
             {
                 int bytes = sizeof(short) * data.Length;
 
-                IntPtr ptr = Marshal.AllocHGlobal(bytes);
-
-                Marshal.Copy(data, 0, ptr, data.Length);
+                Marshal.Copy(data, 0, AudioTempBufPtr, data.Length);
 
                 // Console.WriteLine("Outputting samples to SDL");
 
-                SDL_QueueAudio(AudioDevice, ptr, (uint)bytes);
-                Marshal.FreeHGlobal(ptr);
+                SDL_QueueAudio(AudioDevice, AudioTempBufPtr, (uint)bytes);
             }
         }
 
@@ -261,17 +247,12 @@ namespace OptimeGBAEmulator
             }
         }
 
-        const int FrameIns = 70224 * 4;
+        const int FrameCycles = 70224 * 4;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
             base.OnRenderFrame(e);
             _controller.Update(this, (float)e.Time);
-
-            // ImGui.Begin("It's a tileset");
-            // ImGui.Text($"Pointer: {tsTexId}");
-            // ImGui.Image((IntPtr)tsTexId, new System.Numerics.Vector2(256 * 2, 96 * 2));
-            // ImGui.End();
 
             DrawDisplay();
             DrawDebug();
@@ -292,7 +273,7 @@ namespace OptimeGBAEmulator
 
             Context.SwapBuffers();
 
-            VSync = VSyncMode.Adaptive;
+            VSync = VSyncMode.Off;
             UpdateFrequency = 59.7275;
         }
 
@@ -633,12 +614,7 @@ namespace OptimeGBAEmulator
 
                 if (ImGui.Button("Frame Advance"))
                 {
-                    int num = 280896;
-                    while (num > 0 && !Gba.Arm7.Errored)
-                    {
-                        Gba.Step();
-                        num--;
-                    }
+                    RunFrame();
                 }
 
                 if (ImGui.Button("Un-error"))
