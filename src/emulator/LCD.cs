@@ -526,8 +526,7 @@ namespace OptimeGBA
             }
         }
 
-        public readonly static int[] CharWidthShiftTable = { 8, 9, 8, 9 };
-        public readonly static int[] CharHeightShiftTable = { 8, 8, 9, 9 };
+        public readonly static int[] CharHeightShiftTable = { 8, 9, 8, 9 };
 
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
@@ -630,7 +629,8 @@ namespace OptimeGBA
 
         public void ScanOam()
         {
-            for (uint i = 0; i < 4; i++) {
+            for (uint i = 0; i < 4; i++)
+            {
                 OamPriorityListCounts[i] = 0;
             }
 
