@@ -38,9 +38,10 @@ namespace OptimeGBA
             AudioCallback = provider.AudioCallback;
         }
 
-        uint HaltTime = 0;
+        uint ExtraTicks = 0;
         public uint Step()
         {
+            ExtraTicks = 0;
             uint ticks = Arm7.Execute();
 
             Lcd.Tick(ticks);
@@ -54,7 +55,7 @@ namespace OptimeGBA
             //     long next = Scheduler.NextEventTicks;
             //     Scheduler.PopFirstEvent().Callback(current - next);
             // }
-            return ticks;
+            return ticks + ExtraTicks;
         }
 
         public void Tick(uint cycles)
@@ -63,7 +64,7 @@ namespace OptimeGBA
             Timers.Tick(cycles);
             GbaAudio.Tick(cycles);
 
-            // Audio.Tick(cycles);
+            ExtraTicks += cycles;
         }
     }
 }
