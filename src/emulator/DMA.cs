@@ -221,6 +221,9 @@ namespace OptimeGBA
             new DMAChannel(),
         };
 
+        static readonly uint[] DmaSourceMask = { 0x07FFFFFF, 0x0FFFFFFF, 0x0FFFFFFF, 0x0FFFFFFF };
+        static readonly uint[] DmaDestMask = { 0x07FFFFFF, 0x07FFFFFF, 0x07FFFFFF, 0x0FFFFFFFF };
+
         public DMA(GBA gba)
         {
             Gba = gba;
@@ -279,8 +282,8 @@ namespace OptimeGBA
         public void ExecuteDma(DMAChannel c, uint ci)
         {
             // Least significant 28 (or 27????) bits
-            c.DmaSource &= 0b1111111111111111111111111111;
-            c.DmaDest &= 0b111111111111111111111111111;
+            c.DmaSource &= DmaSourceMask[ci];
+            c.DmaDest &= DmaDestMask[ci];
 
             if (ci == 3)
             {
@@ -302,6 +305,41 @@ namespace OptimeGBA
             // Console.WriteLine($"DEST: {Util.HexN(destAddr, 7)}");
             // Console.WriteLine($"LENGTH: {Util.HexN(c.DmaLength, 4)}");
 
+            int destOffsPerUnit;
+            int sourceOffsPerUnit;
+            if (c.TransferType)
+            {
+                switch (c.DestAddrCtrl)
+                {
+                    case DMADestAddrCtrl.Increment: destOffsPerUnit = +4; break;
+                    case DMADestAddrCtrl.Decrement: destOffsPerUnit = -4; break;
+                    case DMADestAddrCtrl.IncrementReload: destOffsPerUnit = +4; break;
+                    default: destOffsPerUnit = 0; break;
+                }
+                switch (c.SrcAddrCtrl)
+                {
+                    case DMASrcAddrCtrl.Increment: sourceOffsPerUnit = +4; break;
+                    case DMASrcAddrCtrl.Decrement: sourceOffsPerUnit = -4; break;
+                    default: sourceOffsPerUnit = 0; break;
+                }
+            }
+            else
+            {
+                switch (c.DestAddrCtrl)
+                {
+                    case DMADestAddrCtrl.Increment: destOffsPerUnit = +2; break;
+                    case DMADestAddrCtrl.Decrement: destOffsPerUnit = -2; break;
+                    case DMADestAddrCtrl.IncrementReload: destOffsPerUnit = +2; break;
+                    default: destOffsPerUnit = 0; break;
+                }
+                switch (c.SrcAddrCtrl)
+                {
+                    case DMASrcAddrCtrl.Increment: sourceOffsPerUnit = +2; break;
+                    case DMASrcAddrCtrl.Decrement: sourceOffsPerUnit = -2; break;
+                    default: sourceOffsPerUnit = 0; break;
+                }
+            }
+
             uint origLength = c.DmaLength;
 
             for (; c.DmaLength > 0; c.DmaLength--)
@@ -311,38 +349,16 @@ namespace OptimeGBA
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
                     // Gba.Tick(ARM7.GetTiming32(srcAddr));
 
-                    switch (c.DestAddrCtrl)
-                    {
-                        case DMADestAddrCtrl.Increment: c.DmaDest += 4; break;
-                        case DMADestAddrCtrl.Decrement: c.DmaDest -= 4; break;
-                        case DMADestAddrCtrl.Fixed: break;
-                        case DMADestAddrCtrl.IncrementReload: c.DmaDest += 4; break;
-                    }
-                    switch (c.SrcAddrCtrl)
-                    {
-                        case DMASrcAddrCtrl.Increment: c.DmaSource += 4; break;
-                        case DMASrcAddrCtrl.Decrement: c.DmaSource -= 4; break;
-                        case DMASrcAddrCtrl.Fixed: break;
-                    }
+                    c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
+                    c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
                 }
                 else
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
                     // Gba.Tick(ARM7.GetTiming8And16(srcAddr));
 
-                    switch (c.DestAddrCtrl)
-                    {
-                        case DMADestAddrCtrl.Increment: c.DmaDest += 2; break;
-                        case DMADestAddrCtrl.Decrement: c.DmaDest -= 2; break;
-                        case DMADestAddrCtrl.Fixed: break;
-                        case DMADestAddrCtrl.IncrementReload: c.DmaDest += 2; break;
-                    }
-                    switch (c.SrcAddrCtrl)
-                    {
-                        case DMASrcAddrCtrl.Increment: c.DmaSource += 2; break;
-                        case DMASrcAddrCtrl.Decrement: c.DmaSource -= 2; break;
-                        case DMASrcAddrCtrl.Fixed: break;
-                    }
+                    c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
+                    c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
                 }
             }
 
