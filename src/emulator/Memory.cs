@@ -27,6 +27,7 @@ namespace OptimeGBA
 
             provider.Bios.CopyTo(Bios, 0);
             provider.Rom.CopyTo(Rom, 0);
+            RomSize = (uint)provider.Rom.Length;
 
             // Detect save type
 
@@ -46,31 +47,50 @@ namespace OptimeGBA
 
                 int stringLength = chars.Length;
                 int matchLength = 0;
-                for (uint j = 0; j < provider.Rom.Length; j++) {
-                    if (provider.Rom[j] == chars[matchLength]) {
+                for (uint j = 0; j < provider.Rom.Length; j++)
+                {
+                    if (provider.Rom[j] == chars[matchLength])
+                    {
                         matchLength++;
-                        if (matchLength >= chars.Length) {
+                        if (matchLength >= chars.Length)
+                        {
                             matchedIndex = i;
                             goto breakOuterLoop;
                         }
-                    } else {
+                    }
+                    else
+                    {
                         matchLength = 0;
                     }
                 }
             }
-            breakOuterLoop:
+        breakOuterLoop:
 
             Console.WriteLine($"Save Type: {strings[matchedIndex]}");
 
-            switch (matchedIndex) {
+            switch (matchedIndex)
+            {
                 case 0: SaveProvider = new NullSaveProvider(); break;
-                case 1: SaveProvider = new Eeprom(); break;
+                case 1:
+                    SaveProvider = new Eeprom(EepromSize.Eeprom64k);
+                    if (RomSize < 16777216)
+                    {
+                        EepromThreshold = 0x1000000;
+                    }
+                    else
+                    {
+                        EepromThreshold = 0x1FFFF00;
+                    }
+                    Console.WriteLine("EEPROM Threshold: " + Util.Hex(EepromThreshold, 8));
+                    break;
                 case 2: SaveProvider = new Sram(); break;
-                case 3: SaveProvider = new Flash(); break;
-                case 4: SaveProvider = new Flash(); break;
-                case 5: SaveProvider = new Flash(); break;
+                case 3: SaveProvider = new Flash(FlashSize.Flash512k); break;
+                case 4: SaveProvider = new Flash(FlashSize.Flash512k); break;
+                case 5: SaveProvider = new Flash(FlashSize.Flash1m); break;
             }
         }
+
+        public uint EepromThreshold = 0x2000000;
 
         public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
@@ -96,7 +116,7 @@ namespace OptimeGBA
 
         public byte[] Bios = new byte[16384];
         public byte[] Rom = new byte[67108864];
-
+        public uint RomSize;
 
         // External Work RAM
         public byte[] Ewram = new byte[262144];
@@ -236,10 +256,16 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 2;
-                    addr &= 0x1FFFFFF;
+
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        return SaveProvider.Read8(adjAddr);
+                    }
+
                     return (ushort)(
-                        (Rom[addr + 0] << 0) |
-                        (Rom[addr + 1] << 8)
+                        (Rom[adjAddr + 0] << 0) |
+                        (Rom[adjAddr + 1] << 8)
                     );
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
@@ -337,12 +363,18 @@ namespace OptimeGBA
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
                     RomReads += 4;
-                    addr &= 0x1FFFFFF;
+
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        return SaveProvider.Read8(adjAddr);
+                    }
+
                     return (uint)(
-                            (Rom[addr + 0] << 0) |
-                            (Rom[addr + 1] << 8) |
-                            (Rom[addr + 2] << 16) |
-                            (Rom[addr + 3] << 24)
+                            (Rom[adjAddr + 0] << 0) |
+                            (Rom[adjAddr + 1] << 8) |
+                            (Rom[adjAddr + 2] << 16) |
+                            (Rom[adjAddr + 3] << 24)
                          );
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
@@ -397,8 +429,14 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak SRAM/Flash
-                    addr &= 0x1FFFFFF;
-                    return Rom[addr];
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        Console.WriteLine("EEPROM Read");
+                        return SaveProvider.Read8(adjAddr);
+                    }
+
+                    return Rom[adjAddr];
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     return SaveProvider.Read8(addr);
@@ -483,6 +521,12 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        SaveProvider.Write8(adjAddr, val);
+                    }
                     break;
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash

@@ -2,114 +2,156 @@ using System;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
+    public enum EepromState
+    {
+        Ready,
+        StartRequest,
+        ReceiveRequestType,
+        ReceiveAddrForRead,
+        ReceiveAddrForWrite,
+        ReceiveDataForWrite,
+        ReceiveTerminatingZero
+    }
+
+    public enum EepromSize
+    {
+        Eeprom4k,
+        Eeprom64k
+    }
+
     public class Eeprom : SaveProvider
     {
-        public bool Active = false;
-        public bool ReadMode = false;
-        public bool Readied = false;
-        public bool ReceivingAddr = false;
-        public bool Terminate = false;
-        public uint BitsRemaining = 0;
-        public uint AddrBitsRemaining = 0;
+        EepromState State = EepromState.Ready;
+        EepromSize Size;
 
-        // 1 entry per bit because I'm lazy
-        public byte[] EEPROM = new byte[0x10000];
+        public byte[] EEPROM = new byte[0x2000];
         public uint Addr = 0;
+        public uint ReadAddr = 0;
+
+        public uint BitsRemaining = 0;
+        public uint ReadBitsRemaining = 0;
+
+        public Eeprom(EepromSize size)
+        {
+            Size = size;
+        }
+
         public byte ReadBitEEPROM()
         {
-            return EEPROM[Addr];
+            byte bitIndex = (byte)(Addr & 7);
+            uint index = Addr >> 3;
+            return (byte)(BitTest(EEPROM[index], bitIndex) ? 1 : 0);
         }
         public void WriteBitEEPROM(bool bit)
         {
-            EEPROM[Addr] = Convert.ToByte(bit);
+            byte bitIndex = (byte)(Addr & 7);
+            uint index = Addr >> 3;
+            EEPROM[index] = BitSet(EEPROM[index], bitIndex);
         }
-
 
         public override byte Read8(uint addr)
         {
-            if (Active)
+            byte val = 0;
+            if (ReadBitsRemaining > 0)
             {
-                if (ReadMode)
+                if (ReadBitsRemaining <= 64)
                 {
-                    if (BitsRemaining > 64)
-                    {
-                        return 0;
-                    }
-                    else
-                    {
-                        Console.WriteLine("EEPROM Read");
-                        byte bit = ReadBitEEPROM();
-                        Addr++;
-                        return bit;
-                    }
+                    val = ReadBitEEPROM();
+                    Addr++;
                 }
+                else
+                {
+                    val = 1;
+                }
+
+                ReadBitsRemaining--;
+                Console.WriteLine("[EEPROM] Read, bits remaining: " + ReadBitsRemaining);
+            }
+            else
+            {
+                ReadBitsRemaining = 68;
             }
 
-            return 0;
+            return val;
         }
 
         public override void Write8(uint addr, byte val)
         {
             bool bit = BitTest(val, 0);
-            if (Active)
+            switch (State)
             {
-                if (BitsRemaining > 0)
-                {
-                    if (!ReadMode)
+                case EepromState.Ready:
+                    if (bit)
                     {
-                        Console.WriteLine("EEPROM Write!");
-                        WriteBitEEPROM(bit);
-                        Addr++;
+                        Console.WriteLine("[EEPROM] Request started");
+                        State = EepromState.StartRequest;
                     }
-                }
-                else
-                {
-                    if (bit == false)
+                    break;
+                case EepromState.StartRequest:
+                    BitsRemaining = Size == EepromSize.Eeprom64k ? 14U : 6U;
+                    if (bit)
                     {
-                        Active = false;
-                    }
-                }
-            }
-            else if (ReceivingAddr)
-            {
-                Console.WriteLine($"EEPROM Addr Write! {val & 1}");
-
-                Addr <<= 1;
-                Addr |= (uint)(val & 1);
-                AddrBitsRemaining--;
-                if (AddrBitsRemaining == 0)
-                {
-                    Console.WriteLine($"EEPROM Addr Set!");
-                    Active = true;
-                }
-            }
-            else
-            {
-                if (Readied)
-                {
-                    Console.WriteLine("EEPROM Ready!");
-
-                    ReadMode = bit;
-                    ReceivingAddr = true;
-                    AddrBitsRemaining = 6;
-                    Readied = false;
-                    Addr = 0;
-
-                    if (ReadMode)
-                    {
-                        Console.WriteLine("EEPROM Read Mode!");
-                        BitsRemaining = 68;
+                        Console.WriteLine("[EEPROM] Receiving read address");
+                        State = EepromState.ReceiveAddrForRead;
+                        ReadAddr = 0;
                     }
                     else
                     {
-                        Console.WriteLine("EEPROM Write Mode!");
-                        BitsRemaining = 64;
+                        Console.WriteLine("[EEPROM] Receiving write address");
+                        State = EepromState.ReceiveAddrForWrite;
+                        Addr = 0;
                     }
-                }
-                else
-                {
-                    if (bit) Readied = true;
-                }
+                    break;
+                case EepromState.ReceiveAddrForRead:
+                    if (BitsRemaining > 0)
+                    {
+                        ReadAddr |= bit ? 1u : 0u;
+                        ReadAddr <<= 1;
+                        ReadAddr &= 0x3FFF;
+
+                        BitsRemaining--;
+                        Console.WriteLine($"[EEPROM] Setting read address ({bit}), bits remaining: {BitsRemaining}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("[EEPROM] Read address written");
+                        State = EepromState.ReceiveTerminatingZero;
+                        BitsRemaining = 68;
+                    }
+                    break;
+                case EepromState.ReceiveAddrForWrite:
+                    if (BitsRemaining > 0)
+                    {
+                        Addr |= bit ? 1u : 0u;
+                        Addr <<= 1;
+                        Addr &= 0x3FFF;
+
+                        BitsRemaining--;
+                        Console.WriteLine($"[EEPROM] Setting write address ({bit}), bits remaining: {BitsRemaining}");
+                    }
+                    else
+                    {
+                        BitsRemaining = 64;
+                        State = EepromState.ReceiveDataForWrite;
+                        Console.WriteLine("[EEPROM] Write address set: " + Util.Hex(Addr, 4));
+                    }
+                    break;
+                case EepromState.ReceiveDataForWrite:
+                    if (BitsRemaining > 0)
+                    {
+                        WriteBitEEPROM(bit);
+                        Addr++;
+                        BitsRemaining--;
+                        Console.WriteLine("[EEPROM] Write, bits remaining: " + BitsRemaining);
+                    }
+                    else
+                    {
+                        State = EepromState.Ready;
+                    }
+                    break;
+                case EepromState.ReceiveTerminatingZero:
+                    State = EepromState.Ready;
+                    break;
             }
         }
 
