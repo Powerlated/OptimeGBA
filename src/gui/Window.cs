@@ -24,7 +24,8 @@ namespace OptimeGBAEmulator
     public class Game : GameWindow
     {
         int gbTexId;
-        int tsTexId;
+        int bgPalTexId;
+        int objPalTexId;
         ImGuiController _controller;
         int VertexBufferObject;
         int VertexArrayObject;
@@ -218,7 +219,11 @@ namespace OptimeGBAEmulator
             _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
 
             gbTexId = GL.GenTexture();
-            tsTexId = GL.GenTexture();
+            bgPalTexId = GL.GenTexture();
+            objPalTexId = GL.GenTexture();
+
+            VSync = VSyncMode.Off;
+            UpdateFrequency = 59.7275;
 
             base.OnLoad();
         }
@@ -277,9 +282,6 @@ namespace OptimeGBAEmulator
             GL.Flush();
 
             Context.SwapBuffers();
-
-            VSync = VSyncMode.Off;
-            UpdateFrequency = 59.7275;
         }
 
         public void ResetGba()
@@ -577,6 +579,8 @@ namespace OptimeGBAEmulator
             }
         }
 
+        byte[] PaletteImageBuffer = new byte[16 * 16 * 3];
+
         public void DrawDebug()
         {
             if (ImGui.Begin("Debug"))
@@ -859,24 +863,26 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
 
+                ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg0);
+                ImGui.Checkbox("Debug BG1", ref Gba.Lcd.DebugEnableBg1);
+                ImGui.Checkbox("Debug BG2", ref Gba.Lcd.DebugEnableBg2);
+                ImGui.Checkbox("Debug BG3", ref Gba.Lcd.DebugEnableBg3);
+                ImGui.Checkbox("Debug OBJ", ref Gba.Lcd.DebugEnableObj);
 
                 ImGui.Columns(1);
                 ImGui.Separator();
 
                 ImGui.Text("Palettes");
 
-                byte[] image = new byte[16 * 16 * 3];
-
                 for (int p = 0; p < 256; p++)
                 {
                     int imgBase = p * 3;
-                    image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
-                    image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
-                    image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
+                    PaletteImageBuffer[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
+                    PaletteImageBuffer[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
+                    PaletteImageBuffer[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
                 }
 
-                int texId = GL.GenTexture();
-                GL.BindTexture(TextureTarget.Texture2D, texId);
+                GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
 
                 // TexParameter needed for something to display :)
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
@@ -892,22 +898,21 @@ namespace OptimeGBAEmulator
                     0,
                     PixelFormat.Rgb,
                     PixelType.UnsignedByte,
-                    image
+                    PaletteImageBuffer
                 );
 
                 // ImGui.Text($"Pointer: {texId}");
-                ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 8, 16 * 8));
+                ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
                 for (int p = 0; p < 256; p++)
                 {
                     int imgBase = p * 3;
-                    image[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p + 256, 0];
-                    image[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p + 256, 1];
-                    image[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p + 256, 2];
+                    PaletteImageBuffer[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p + 256, 0];
+                    PaletteImageBuffer[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p + 256, 1];
+                    PaletteImageBuffer[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p + 256, 2];
                 }
 
-                texId = GL.GenTexture();
-                GL.BindTexture(TextureTarget.Texture2D, texId);
+                GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
 
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
                 GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
@@ -922,10 +927,10 @@ namespace OptimeGBAEmulator
                     0,
                     PixelFormat.Rgb,
                     PixelType.UnsignedByte,
-                    image
+                    PaletteImageBuffer
                 );
 
-                ImGui.SameLine(); ImGui.Image((IntPtr)texId, new System.Numerics.Vector2(16 * 8, 16 * 8));
+                ImGui.SameLine(); ImGui.Image((IntPtr)objPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
                 ImGui.End();
 
@@ -1513,7 +1518,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("Wave");
                 float waveHz = Gba.GbaAudio.GbAudio.wave_getFrequencyHz();
                 bool waveActive = gbAudio.wave_enabled && gbAudio.wave_dacEnabled && (gbAudio.wave_outputLeft || gbAudio.wave_outputRight) && gbAudio.wave_volume != 0;
-                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 16 / waveHz, waveActive ? WaveShiftCodes[gbAudio.wave_volume] : 4);
+                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 32 / waveHz, waveActive ? WaveShiftCodes[gbAudio.wave_volume] : 4);
                 int waveNote = NoteFromFrequency(waveHz);
                 double waveCentsOff = CentsOffFromPitch(waveHz, waveNote);
                 ImGui.Text($"Pitch: {waveHz} hz");

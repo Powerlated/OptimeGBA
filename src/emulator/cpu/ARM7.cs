@@ -1222,7 +1222,7 @@ namespace OptimeGBA
             InstructionCycles += 1;
         }
 
-        public byte[] Timing8And16 = {
+        public static readonly byte[] Timing8And16 = {
             1, // BIOS
             1, // Unused
             3, // EWRAM
@@ -1244,7 +1244,7 @@ namespace OptimeGBA
             5, // Game Pak SRAM/Flash
         };
 
-        public byte[] Timing32 = {
+        public static readonly byte[] Timing32 = {
             1, // BIOS
             1, // Unused
             6, // EWRAM

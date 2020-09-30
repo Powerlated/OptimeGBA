@@ -15,11 +15,8 @@ namespace OptimeGBAEmulator
         {
             using (Game game = new Game(1600, 900, "Optime GBA"))
             {
-                // game.Icon = new WindowIcon(new Image());
+                game.Icon = new WindowIcon();
 
-                // Run takes a double, which is how many frames per second it should strive to reach.
-                // You can leave that out and it'll just update as fast as the hardware will allow it.
-                // game.VSync = VSyncMode.Adaptive; 
                 game.Run();
             }
 

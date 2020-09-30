@@ -215,6 +215,12 @@ namespace OptimeGBA
         public bool Window1DisplayFlag;
         public bool ObjWindowDisplayFlag;
 
+        public bool DebugEnableBg0 = true;
+        public bool DebugEnableBg1 = true;
+        public bool DebugEnableBg2 = true;
+        public bool DebugEnableBg3 = true;
+        public bool DebugEnableObj = true;
+
         // DISPSTAT
         public bool VBlank;
         public bool HBlank;
@@ -810,7 +816,7 @@ namespace OptimeGBA
                         break;
                 }
 
-                if (!disabled && !affine)
+                if (!disabled || affine)
                 {
                     int yEnd = ((int)yPos + (int)ySize) & 255;
                     if ((VCount >= yPos && VCount < yEnd) || (yEnd < yPos && VCount < yEnd))
@@ -969,11 +975,11 @@ namespace OptimeGBA
             DrawBackdropColor();
             for (int pri = 3; pri >= 0; pri--)
             {
-                if (ScreenDisplayBg3 && Backgrounds[3].Priority == pri) RenderCharBackground(Backgrounds[3]);
-                if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
-                if (ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
+                if (DebugEnableBg3 && ScreenDisplayBg3 && Backgrounds[3].Priority == pri) RenderCharBackground(Backgrounds[3]);
+                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
+                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
+                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
+                if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
             }
 
         }
@@ -985,10 +991,10 @@ namespace OptimeGBA
             for (int pri = 3; pri >= 0; pri--)
             {
                 // BG2 is affine BG
-                if (ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderAffineBackground(Backgrounds[2]);
-                if (ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
+                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderAffineBackground(Backgrounds[2]);
+                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
+                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
+                if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
             }
         }
 
@@ -996,10 +1002,10 @@ namespace OptimeGBA
         {
             ScanOam();
             DrawBackdropColor();
-            if (ScreenDisplayObj) RenderNoneAffineObjs(3);
-            if (ScreenDisplayObj) RenderNoneAffineObjs(2);
-            if (ScreenDisplayObj) RenderNoneAffineObjs(1);
-            if (ScreenDisplayObj) RenderNoneAffineObjs(0);
+            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(3);
+            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(2);
+            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(1);
+            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(0);
         }
 
         public void RenderMode4()
