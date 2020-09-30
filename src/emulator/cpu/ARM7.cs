@@ -1225,20 +1225,20 @@ namespace OptimeGBA
         public byte[] Timing8And16 = {
             1, // BIOS
             1, // Unused
-            6, // EWRAM
+            3, // EWRAM
             1, // IWRAM
             1, // I/O Registers
             1, // PPU Palettes
             1, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 5 -> 3
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM
+            // Compensate for no prefetch buffer 5 -> 4
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM
 
             5, // Game Pak SRAM/Flash
             5, // Game Pak SRAM/Flash
@@ -1254,13 +1254,13 @@ namespace OptimeGBA
             1, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 8 -> 6
-            6, // Game Pak ROM/FlashROM 
-            6, // Game Pak ROM/FlashROM 
-            6, // Game Pak ROM/FlashROM 
-            6, // Game Pak ROM/FlashROM 
-            6, // Game Pak ROM/FlashROM 
-            6, // Game Pak ROM/FlashROM
+            // Compensate for no prefetch buffer 8 -> 7
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM 
+            7, // Game Pak ROM/FlashROM
 
             8, // Game Pak SRAM/Flash
             8, // Game Pak SRAM/Flash
