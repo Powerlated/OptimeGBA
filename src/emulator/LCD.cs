@@ -169,7 +169,7 @@ namespace OptimeGBA
         Vertical = 2,
     }
 
-    public class LCD
+    public unsafe class LCD
     {
         GBA Gba;
         public LCD(GBA gba)
@@ -237,10 +237,16 @@ namespace OptimeGBA
         const uint HEIGHT = 160;
         const uint BYTES_PER_PIXEL = 3;
 
-        public byte[] Palettes = new byte[1024];
         public byte[,] ProcessedPalettes = new byte[512, 3];
-        public byte[] Vram = new byte[98304];
-        public byte[] Oam = new byte[1024];
+#if DEBUG
+        public byte[] Palettes = Memory.AllocateManagedArray(1024);
+        public byte[] Vram = Memory.AllocateManagedArray(98304);
+        public byte[] Oam = Memory.AllocateManagedArray(1024);
+#else
+        public byte* Palettes = Memory.AllocateUnmanagedArray(1024);
+        public byte* Vram = Memory.AllocateUnmanagedArray(98304);
+        public byte* Oam = Memory.AllocateUnmanagedArray(1024);
+#endif
 
         public uint TotalFrames;
 
