@@ -179,7 +179,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamReads++;
                     addr &= 0x3FF;
-                    return GetByte(Gba.Lcd.Oam, addr);
+                    return GetByte(Gba.Lcd.Settings.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -241,7 +241,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamReads += 2;
                     addr &= 0x3FF;
-                    return GetUshort(Gba.Lcd.Oam, addr);
+                    return GetUshort(Gba.Lcd.Settings.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -315,7 +315,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamReads += 4;
                     addr &= 0x3FF;
-                    return GetUint(Gba.Lcd.Oam, addr);
+                    return GetUint(Gba.Lcd.Settings.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -380,7 +380,7 @@ namespace OptimeGBA
                     }
                 case 0x7: // PPU OAM
                     addr &= 0x3FF;
-                    return GetByte(Gba.Lcd.Oam, addr);
+                    return GetByte(Gba.Lcd.Settings.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -473,7 +473,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamWrites++;
                     addr &= 0x3FF;
-                    SetByte(Gba.Lcd.Oam, addr, val);
+                    SetByte(Gba.Lcd.Settings.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -537,7 +537,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamWrites += 2;
                     addr &= 0x3FF;
-                    SetUshort(Gba.Lcd.Oam, addr, val);
+                    SetUshort(Gba.Lcd.Settings.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -602,7 +602,7 @@ namespace OptimeGBA
                 case 0x7: // PPU OAM
                     OamWrites += 4;
                     addr &= 0x3FF;
-                    SetUint(Gba.Lcd.Oam, addr, val);
+                    SetUint(Gba.Lcd.Settings.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 

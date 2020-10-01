@@ -4,17 +4,17 @@ using System;
 
 namespace OptimeGBA
 {
-    public class Background
+    public struct Background
     {
-        public uint Priority = 0;
-        public uint CharBaseBlock = 0;
-        public bool EnableMosaic = false;
-        public bool Use8BitColor = false;
-        public uint MapBaseBlock = 0;
-        public bool OverflowWrap = false;
-        public uint ScreenSize = 0;
+        public uint Priority;
+        public uint CharBaseBlock;
+        public bool EnableMosaic;
+        public bool Use8BitColor;
+        public uint MapBaseBlock;
+        public bool OverflowWrap;
+        public uint ScreenSize;
 
-        byte[] BGCNTValue = new byte[2];
+        byte[] BGCNTValue;
 
         public uint HorizontalOffset;
         public uint VerticalOffset;
@@ -32,6 +32,29 @@ namespace OptimeGBA
         public Background(uint id)
         {
             Id = id;
+
+            Priority = 0;
+            CharBaseBlock = 0;
+            EnableMosaic = false;
+            Use8BitColor = false;
+            MapBaseBlock = 0;
+            OverflowWrap = false;
+            ScreenSize = 0;
+
+            BGCNTValue = new byte[2];
+
+            HorizontalOffset = 0;
+            VerticalOffset = 0;
+
+            Id = 0;
+
+            RefPointX = 0;
+            RefPointY = 0;
+
+            AffineA = 0;
+            AffineB = 0;
+            AffineC = 0;
+            AffineD = 0;
         }
 
         public byte ReadBGCNT(uint addr)
@@ -155,6 +178,84 @@ namespace OptimeGBA
         }
     }
 
+    public struct RenderSettings
+    {
+        // BGCNT
+        public Background Background0;
+        public Background Background1;
+        public Background Background2;
+        public Background Background3;
+
+        // DISPCNT
+        public uint BgMode;
+        public bool CgbMode;
+        public bool DisplayFrameSelect;
+        public bool HBlankIntervalFree;
+        public bool ObjCharacterVramMapping;
+        public bool ForcedBlank;
+        public bool ScreenDisplayBg0;
+        public bool ScreenDisplayBg1;
+        public bool ScreenDisplayBg2;
+        public bool ScreenDisplayBg3;
+        public bool ScreenDisplayObj;
+        public bool Window0DisplayFlag;
+        public bool Window1DisplayFlag;
+        public bool ObjWindowDisplayFlag;
+
+        public byte[] Oam;
+
+        public RenderSettings(uint structHack = 0)
+        {
+            Background0 = new Background(0);
+            Background1 = new Background(1);
+            Background2 = new Background(2);
+            Background3 = new Background(3);
+
+            BgMode = 0;
+            CgbMode = false;
+            DisplayFrameSelect = false;
+            HBlankIntervalFree = false;
+            ObjCharacterVramMapping = false;
+            ForcedBlank = false;
+            ScreenDisplayBg0 = false;
+            ScreenDisplayBg1 = false;
+            ScreenDisplayBg2 = false;
+            ScreenDisplayBg3 = false;
+            ScreenDisplayObj = false;
+            Window0DisplayFlag = false;
+            Window1DisplayFlag = false;
+            ObjWindowDisplayFlag = false;
+
+            Oam = Memory.AllocateManagedArray(1024);
+        }
+
+        public RenderSettings(ref RenderSettings copy)
+        {
+            Background0 = copy.Background0;
+            Background1 = copy.Background1;
+            Background2 = copy.Background2;
+            Background3 = copy.Background3;
+
+            BgMode = copy.BgMode;
+            CgbMode = copy.CgbMode;
+            DisplayFrameSelect = copy.DisplayFrameSelect;
+            HBlankIntervalFree = copy.HBlankIntervalFree;
+            ObjCharacterVramMapping = copy.ObjCharacterVramMapping;
+            ForcedBlank = copy.ForcedBlank;
+            ScreenDisplayBg0 = copy.ScreenDisplayBg0;
+            ScreenDisplayBg1 = copy.ScreenDisplayBg1;
+            ScreenDisplayBg2 = copy.ScreenDisplayBg2;
+            ScreenDisplayBg3 = copy.ScreenDisplayBg3;
+            ScreenDisplayObj = copy.ScreenDisplayObj;
+            Window0DisplayFlag = copy.Window0DisplayFlag;
+            Window1DisplayFlag = copy.Window1DisplayFlag;
+            ObjWindowDisplayFlag = copy.ObjWindowDisplayFlag;
+
+            Oam = new byte[1024];
+            copy.Oam.CopyTo(Oam, 0);
+        }
+    }
+
     public enum ObjShape
     {
         Square = 0,
@@ -176,6 +277,16 @@ namespace OptimeGBA
         {
             Gba = gba;
 
+            ThreadSettings = new RenderSettings[HEIGHT];
+            for (int i = 0; i < HEIGHT; i++)
+            {
+                ThreadSettings[i] = new RenderSettings(0);
+            }
+            ThreadLcd = this;
+        }
+
+        static LCD()
+        {
             RenderThread = new Thread(RenderThreadFunction);
             RenderThread.Name = "Emulation Render Thread";
             RenderThread.Start();
@@ -186,49 +297,13 @@ namespace OptimeGBA
             Drawing, HBlank, VBlank
         }
 
-        public Thread RenderThread;
-        public ManualResetEventSlim RenderThreadSync = new ManualResetEventSlim(true);
-        public ManualResetEventSlim RenderThreadWait = new ManualResetEventSlim(true);
-        public bool RenderingDone = false;
-
-        // BGCNT
-        public Background[] Backgrounds = new Background[4] {
-            new Background(0),
-            new Background(1),
-            new Background(2),
-            new Background(3),
-        };
-
-        // DISPCNT
-        public uint BgMode;
-        public bool CgbMode;
-        public bool DisplayFrameSelect;
-        public bool HBlankIntervalFree;
-        public bool ObjCharacterVramMapping;
-        public bool ForcedBlank;
-        public bool ScreenDisplayBg0;
-        public bool ScreenDisplayBg1;
-        public bool ScreenDisplayBg2;
-        public bool ScreenDisplayBg3;
-        public bool ScreenDisplayObj;
-        public bool Window0DisplayFlag;
-        public bool Window1DisplayFlag;
-        public bool ObjWindowDisplayFlag;
-
-        public bool DebugEnableBg0 = true;
-        public bool DebugEnableBg1 = true;
-        public bool DebugEnableBg2 = true;
-        public bool DebugEnableBg3 = true;
-        public bool DebugEnableObj = true;
-
-        // DISPSTAT
-        public bool VBlank;
-        public bool HBlank;
-        public bool VCounterMatch;
-        public bool VBlankIrqEnable;
-        public bool HBlankIrqEnable;
-        public bool VCounterIrqEnable;
-        public byte VCountSetting;
+        public bool UseThreadedRenderer = true;
+        public static Thread RenderThread;
+        public static ManualResetEventSlim RenderThreadSync = new ManualResetEventSlim(true);
+        public static RenderSettings[] ThreadSettings;
+        public static uint ThreadVCount;
+        public static uint ThreadVCountShouldBeAt;
+        public static LCD ThreadLcd;
 
         // RGB, 24-bit
         public byte[] ScreenFront = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
@@ -241,12 +316,12 @@ namespace OptimeGBA
 #if DEBUG
         public byte[] Palettes = Memory.AllocateManagedArray(1024);
         public byte[] Vram = Memory.AllocateManagedArray(98304);
-        public byte[] Oam = Memory.AllocateManagedArray(1024);
 #else
         public byte* Palettes = Memory.AllocateUnmanagedArray(1024);
         public byte* Vram = Memory.AllocateUnmanagedArray(98304);
-        public byte* Oam = Memory.AllocateUnmanagedArray(1024);
 #endif
+
+        public RenderSettings Settings = new RenderSettings(0);
 
         public uint TotalFrames;
 
@@ -258,11 +333,30 @@ namespace OptimeGBA
         const uint CharBlockBaseSize = 16384;
         const uint MapBlockBaseSize = 2048;
 
+        public bool VBlank;
+        public bool HBlank;
+        public bool VCounterMatch;
+        public bool VBlankIrqEnable;
+        public bool HBlankIrqEnable;
+        public bool VCounterIrqEnable;
+        public byte VCountSetting;
+
+        public bool DebugEnableBg0 = true;
+        public bool DebugEnableBg1 = true;
+        public bool DebugEnableBg2 = true;
+        public bool DebugEnableBg3 = true;
+        public bool DebugEnableObj = true;
+
         public void SwapBuffers()
         {
             var temp = ScreenBack;
             ScreenBack = ScreenFront;
             ScreenFront = temp;
+
+            if (UseThreadedRenderer)
+            {
+
+            }
         }
 
         public void UpdatePalette(uint pal)
@@ -280,29 +374,28 @@ namespace OptimeGBA
             ProcessedPalettes[pal, 1] = (byte)(g * (255 / 31));
             ProcessedPalettes[pal, 2] = (byte)(b * (255 / 31));
         }
-
         public byte ReadHwio8(uint addr)
         {
             byte val = 0;
             switch (addr)
             {
                 case 0x4000000: // DISPCNT B0
-                    val |= (byte)(BgMode & 0b111);
-                    if (CgbMode) val = BitSet(val, 3);
-                    if (DisplayFrameSelect) val = BitSet(val, 4);
-                    if (HBlankIntervalFree) val = BitSet(val, 5);
-                    if (ObjCharacterVramMapping) val = BitSet(val, 6);
-                    if (ForcedBlank) val = BitSet(val, 7);
+                    val |= (byte)(Settings.BgMode & 0b111);
+                    if (Settings.CgbMode) val = BitSet(val, 3);
+                    if (Settings.DisplayFrameSelect) val = BitSet(val, 4);
+                    if (Settings.HBlankIntervalFree) val = BitSet(val, 5);
+                    if (Settings.ObjCharacterVramMapping) val = BitSet(val, 6);
+                    if (Settings.ForcedBlank) val = BitSet(val, 7);
                     break;
                 case 0x4000001: // DISPCNT B1
-                    if (ScreenDisplayBg0) val = BitSet(val, 8 - 8);
-                    if (ScreenDisplayBg1) val = BitSet(val, 9 - 8);
-                    if (ScreenDisplayBg2) val = BitSet(val, 10 - 8);
-                    if (ScreenDisplayBg3) val = BitSet(val, 11 - 8);
-                    if (ScreenDisplayObj) val = BitSet(val, 12 - 8);
-                    if (Window0DisplayFlag) val = BitSet(val, 13 - 8);
-                    if (Window1DisplayFlag) val = BitSet(val, 14 - 8);
-                    if (ObjWindowDisplayFlag) val = BitSet(val, 15 - 8);
+                    if (Settings.ScreenDisplayBg0) val = BitSet(val, 8 - 8);
+                    if (Settings.ScreenDisplayBg1) val = BitSet(val, 9 - 8);
+                    if (Settings.ScreenDisplayBg2) val = BitSet(val, 10 - 8);
+                    if (Settings.ScreenDisplayBg3) val = BitSet(val, 11 - 8);
+                    if (Settings.ScreenDisplayObj) val = BitSet(val, 12 - 8);
+                    if (Settings.Window0DisplayFlag) val = BitSet(val, 13 - 8);
+                    if (Settings.Window1DisplayFlag) val = BitSet(val, 14 - 8);
+                    if (Settings.ObjWindowDisplayFlag) val = BitSet(val, 15 - 8);
                     break;
 
                 case 0x4000004: // DISPSTAT B0
@@ -325,37 +418,37 @@ namespace OptimeGBA
 
                 case 0x4000008: // BG0CNT B0
                 case 0x4000009: // BG0CNT B1
-                    return Backgrounds[0].ReadBGCNT(addr - 0x4000008);
+                    return Settings.Background0.ReadBGCNT(addr - 0x4000008);
                 case 0x400000A: // BG1CNT B0
                 case 0x400000B: // BG1CNT B1
-                    return Backgrounds[1].ReadBGCNT(addr - 0x400000A);
+                    return Settings.Background1.ReadBGCNT(addr - 0x400000A);
                 case 0x400000C: // BG2CNT B0
                 case 0x400000D: // BG2CNT B1
-                    return Backgrounds[2].ReadBGCNT(addr - 0x400000C);
+                    return Settings.Background2.ReadBGCNT(addr - 0x400000C);
                 case 0x400000E: // BG3CNT B0
                 case 0x400000F: // BG3CNT B1
-                    return Backgrounds[3].ReadBGCNT(addr - 0x400000E);
+                    return Settings.Background3.ReadBGCNT(addr - 0x400000E);
 
                 case 0x4000010: // BG0HOFS B0
                 case 0x4000011: // BG0HOFS B1
                 case 0x4000012: // BG0VOFS B0
                 case 0x4000013: // BG0VOFS B1
-                    return Backgrounds[0].ReadBGOFS(addr - 0x4000010);
+                    return Settings.Background0.ReadBGOFS(addr - 0x4000010);
                 case 0x4000014: // BG1HOFS B0
                 case 0x4000015: // BG1HOFS B1
                 case 0x4000016: // BG1VOFS B0
                 case 0x4000017: // BG1VOFS B1
-                    return Backgrounds[1].ReadBGOFS(addr - 0x4000014);
+                    return Settings.Background1.ReadBGOFS(addr - 0x4000014);
                 case 0x4000018: // BG2HOFS B0
                 case 0x4000019: // BG2HOFS B1
                 case 0x400001A: // BG2VOFS B0
                 case 0x400001B: // BG2VOFS B1
-                    return Backgrounds[2].ReadBGOFS(addr - 0x4000018);
+                    return Settings.Background2.ReadBGOFS(addr - 0x4000018);
                 case 0x400001C: // BG3HOFS B0
                 case 0x400001D: // BG3HOFS B1
                 case 0x400001E: // BG3VOFS B0
                 case 0x400001F: // BG3VOFS B1
-                    return Backgrounds[3].ReadBGOFS(addr - 0x400001C);
+                    return Settings.Background3.ReadBGOFS(addr - 0x400001C);
 
                 case 0x4000028: // BG2X B0
                 case 0x4000029: // BG2X B1
@@ -365,7 +458,7 @@ namespace OptimeGBA
                 case 0x400002D: // BG2Y B1
                 case 0x400002E: // BG2Y B2
                 case 0x400002F: // BG2Y B3
-                    return Backgrounds[2].ReadBGXY(addr - 0x04000028);
+                    return Settings.Background2.ReadBGXY(addr - 0x04000028);
 
                 case 0x4000038: // BG3X B0
                 case 0x4000039: // BG3X B1
@@ -375,7 +468,7 @@ namespace OptimeGBA
                 case 0x400003D: // BG3Y B1
                 case 0x400003E: // BG3Y B2
                 case 0x400003F: // BG3Y B3
-                    return Backgrounds[3].ReadBGXY(addr - 0x04000038);
+                    return Settings.Background3.ReadBGXY(addr - 0x04000038);
 
                 case 0x4000050: // BLDCNT B0
                 case 0x4000051: // BLDCNT B1
@@ -390,22 +483,22 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000000: // DISPCNT B0
-                    BgMode = (uint)(val & 0b111);
-                    CgbMode = BitTest(val, 3);
-                    DisplayFrameSelect = BitTest(val, 4);
-                    HBlankIntervalFree = BitTest(val, 5);
-                    ObjCharacterVramMapping = BitTest(val, 6);
-                    ForcedBlank = BitTest(val, 7);
+                    Settings.BgMode = (uint)(val & 0b111);
+                    Settings.CgbMode = BitTest(val, 3);
+                    Settings.DisplayFrameSelect = BitTest(val, 4);
+                    Settings.HBlankIntervalFree = BitTest(val, 5);
+                    Settings.ObjCharacterVramMapping = BitTest(val, 6);
+                    Settings.ForcedBlank = BitTest(val, 7);
                     break;
                 case 0x4000001: // DISPCNT B1
-                    ScreenDisplayBg0 = BitTest(val, 8 - 8);
-                    ScreenDisplayBg1 = BitTest(val, 9 - 8);
-                    ScreenDisplayBg2 = BitTest(val, 10 - 8);
-                    ScreenDisplayBg3 = BitTest(val, 11 - 8);
-                    ScreenDisplayObj = BitTest(val, 12 - 8);
-                    Window0DisplayFlag = BitTest(val, 13 - 8);
-                    Window1DisplayFlag = BitTest(val, 14 - 8);
-                    ObjWindowDisplayFlag = BitTest(val, 15 - 8);
+                    Settings.ScreenDisplayBg0 = BitTest(val, 8 - 8);
+                    Settings.ScreenDisplayBg1 = BitTest(val, 9 - 8);
+                    Settings.ScreenDisplayBg2 = BitTest(val, 10 - 8);
+                    Settings.ScreenDisplayBg3 = BitTest(val, 11 - 8);
+                    Settings.ScreenDisplayObj = BitTest(val, 12 - 8);
+                    Settings.Window0DisplayFlag = BitTest(val, 13 - 8);
+                    Settings.Window1DisplayFlag = BitTest(val, 14 - 8);
+                    Settings.ObjWindowDisplayFlag = BitTest(val, 15 - 8);
                     break;
 
                 case 0x4000004: // DISPSTAT B0
@@ -419,44 +512,44 @@ namespace OptimeGBA
 
                 case 0x4000008: // BG0CNT B0
                 case 0x4000009: // BG0CNT B1
-                    Backgrounds[0].WriteBGCNT(addr - 0x4000008, val);
+                    Settings.Background0.WriteBGCNT(addr - 0x4000008, val);
                     break;
                 case 0x400000A: // BG1CNT B0
                 case 0x400000B: // BG1CNT B1
-                    Backgrounds[1].WriteBGCNT(addr - 0x400000A, val);
+                    Settings.Background1.WriteBGCNT(addr - 0x400000A, val);
                     break;
                 case 0x400000C: // BG2CNT B0
                 case 0x400000D: // BG2CNT B1
-                    Backgrounds[2].WriteBGCNT(addr - 0x400000C, val);
+                    Settings.Background2.WriteBGCNT(addr - 0x400000C, val);
                     break;
                 case 0x400000E: // BG3CNT B0
                 case 0x400000F: // BG3CNT B1
-                    Backgrounds[3].WriteBGCNT(addr - 0x400000E, val);
+                    Settings.Background3.WriteBGCNT(addr - 0x400000E, val);
                     break;
 
                 case 0x4000010: // BG0HOFS B0
                 case 0x4000011: // BG0HOFS B1
                 case 0x4000012: // BG0VOFS B0
                 case 0x4000013: // BG0VOFS B1
-                    Backgrounds[0].WriteBGOFS(addr - 0x4000010, val);
+                    Settings.Background0.WriteBGOFS(addr - 0x4000010, val);
                     break;
                 case 0x4000014: // BG1HOFS B0
                 case 0x4000015: // BG1HOFS B1
                 case 0x4000016: // BG1VOFS B0
                 case 0x4000017: // BG1VOFS B1
-                    Backgrounds[1].WriteBGOFS(addr - 0x4000014, val);
+                    Settings.Background1.WriteBGOFS(addr - 0x4000014, val);
                     break;
                 case 0x4000018: // BG2HOFS B0
                 case 0x4000019: // BG2HOFS B1
                 case 0x400001A: // BG2VOFS B0
                 case 0x400001B: // BG2VOFS B1
-                    Backgrounds[2].WriteBGOFS(addr - 0x4000018, val);
+                    Settings.Background2.WriteBGOFS(addr - 0x4000018, val);
                     break;
                 case 0x400001C: // BG3HOFS B0
                 case 0x400001D: // BG3HOFS B1
                 case 0x400001E: // BG3VOFS B0
                 case 0x400001F: // BG3VOFS B1
-                    Backgrounds[3].WriteBGOFS(addr - 0x400001C, val);
+                    Settings.Background3.WriteBGOFS(addr - 0x400001C, val);
                     break;
 
                 case 0x4000028: // BG2X B0
@@ -467,7 +560,7 @@ namespace OptimeGBA
                 case 0x400002D: // BG2Y B1
                 case 0x400002E: // BG2Y B2
                 case 0x400002F: // BG2Y B3
-                    Backgrounds[2].WriteBGXY(addr - 0x04000028, val);
+                    Settings.Background2.WriteBGXY(addr - 0x04000028, val);
                     break;
 
                 case 0x4000038: // BG3X B0
@@ -478,7 +571,7 @@ namespace OptimeGBA
                 case 0x400003D: // BG3Y B1
                 case 0x400003E: // BG3Y B2
                 case 0x400003F: // BG3Y B3
-                    Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
+                    Settings.Background3.WriteBGXY(addr - 0x04000038, val);
                     break;
             }
         }
@@ -495,7 +588,18 @@ namespace OptimeGBA
                         {
                             lcdEnum = LCDEnum.HBlank;
                             HBlank = true;
-                            RenderScanline();
+
+                            if (!UseThreadedRenderer)
+                            {
+                                RenderScanline(VCount, ref Settings);
+                            }
+                            else
+                            {
+                                // Copy data for offthread rendering
+                                ThreadSettings[VCount] = new RenderSettings(ref Settings);
+                                ThreadVCountShouldBeAt = VCount;
+                                ActivateRenderThread();
+                            }
 
                             if (HBlankIrqEnable)
                             {
@@ -512,11 +616,6 @@ namespace OptimeGBA
                             CycleCount -= 1232;
 
                             HBlank = false;
-
-                            // if (VCount < 160)
-                            // {
-                            //     WaitForRenderingFinish();
-                            // }
 
                             if (VCount != 227)
                             {
@@ -541,7 +640,12 @@ namespace OptimeGBA
                                         }
 
                                         TotalFrames++;
-                                        SwapBuffers();
+
+
+                                        if (!UseThreadedRenderer)
+                                        {
+                                            SwapBuffers();
+                                        }
                                     }
                                 }
                                 else
@@ -559,6 +663,9 @@ namespace OptimeGBA
                                 }
                                 lcdEnum = LCDEnum.Drawing;
                                 VBlank = false;
+
+                                ThreadVCount = 0;
+                                ThreadVCountShouldBeAt = 0;
                             }
                         }
                     }
@@ -583,49 +690,48 @@ namespace OptimeGBA
 
         public void ActivateRenderThread()
         {
-            RenderingDone = false;
             RenderThreadSync.Set();
         }
 
-        public void WaitForRenderingFinish()
-        {
-            if (!RenderingDone)
-            {
-                RenderThreadWait.Wait();
-                RenderThreadWait.Reset();
-            }
-        }
-
-        public void RenderThreadFunction()
+        public static void RenderThreadFunction()
         {
             while (true)
             {
-                RenderThreadSync.Wait();
                 RenderThreadSync.Reset();
-                RenderScanline();
-                RenderThreadWait.Set();
-                RenderingDone = true;
+                RenderThreadSync.Wait();
+
+                while (ThreadVCount < ThreadVCountShouldBeAt)
+                {
+                    ThreadLcd.RenderScanline(ThreadVCount, ref ThreadSettings[ThreadVCount]);
+                    ThreadVCount++;
+
+                    if (ThreadVCount == HEIGHT - 1)
+                    {
+                        ThreadLcd.SwapBuffers();
+                    }
+                }
+
             }
         }
 
-        public void RenderScanline()
+        public void RenderScanline(uint vCount, ref RenderSettings settings)
         {
-            switch (BgMode)
+            switch (settings.BgMode)
             {
                 case 0:
-                    RenderMode0();
+                    RenderMode0(vCount, ref settings);
                     return;
                 case 1:
-                    RenderMode1();
+                    RenderMode1(vCount, ref settings);
                     return;
                 case 2:
-                    RenderMode2();
+                    RenderMode2(vCount, ref settings);
                     return;
                 case 3:
-                    RenderMode3();
+                    RenderMode3(vCount, ref settings);
                     return;
                 case 4:
-                    RenderMode4();
+                    RenderMode4(vCount, ref settings);
                     return;
             }
         }
@@ -638,9 +744,9 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthMaskTable = { 255, 511, 255, 511 };
         public readonly static uint[] CharHeightMaskTable = { 255, 255, 511, 511 };
 
-        public void DrawBackdropColor()
+        public void DrawBackdropColor(uint vCount)
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = vCount * WIDTH * BYTES_PER_PIXEL;
 
             for (uint p = 0; p < 240; p++)
             {
@@ -650,14 +756,14 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderCharBackground(Background bg)
+        public void RenderCharBackground(uint vCount, ref Background bg)
         {
             uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
             uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
 
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = vCount * WIDTH * BYTES_PER_PIXEL;
 
-            uint pixelY = bg.VerticalOffset + VCount;
+            uint pixelY = bg.VerticalOffset + vCount;
             uint pixelYWrapped = pixelY & 255;
 
             uint verticalOffsetBlocks = (pixelY & CharHeightMaskTable[bg.ScreenSize]) >> CharHeightShiftTable[bg.ScreenSize];
@@ -733,7 +839,7 @@ namespace OptimeGBA
         public readonly static uint[] AffineTileSizeTable = { 16, 32, 64, 128 };
         public readonly static uint[] AffineSizeMask = { 127, 255, 511, 1023 };
 
-        public void RenderAffineBackground(Background bg)
+        public void RenderAffineBackground(uint vCount, ref Background bg)
         {
             uint xInteger = (bg.RefPointX >> 8) & 0x7FFFF;
             uint yInteger = (bg.RefPointY >> 8) & 0x7FFFF;
@@ -741,9 +847,9 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
             uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
 
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = vCount * WIDTH * BYTES_PER_PIXEL;
 
-            uint pixelY = (yInteger + VCount) & AffineSizeMask[bg.ScreenSize];
+            uint pixelY = (yInteger + vCount) & AffineSizeMask[bg.ScreenSize];
             uint pixelYWrapped = pixelY & 255;
 
             uint tileY = pixelYWrapped >> 3;
@@ -784,7 +890,7 @@ namespace OptimeGBA
         public uint[,] OamPriorityListIds = new uint[4, 128];
         public uint[] OamPriorityListCounts = new uint[4];
 
-        public void ScanOam()
+        public void ScanOam(uint vCount, ref RenderSettings settings)
         {
             for (uint i = 0; i < 4; i++)
             {
@@ -795,9 +901,9 @@ namespace OptimeGBA
             uint oamBase = 1016;
             for (int s = 127; s >= 0; s--)
             {
-                uint attr0 = (uint)(Oam[oamBase + 1] << 8 | Oam[oamBase + 0]);
-                uint attr1High = (uint)(Oam[oamBase + 3]);
-                uint attr2High = (uint)(Oam[oamBase + 5]);
+                uint attr0 = (uint)(settings.Oam[oamBase + 1] << 8 | settings.Oam[oamBase + 0]);
+                uint attr1High = (uint)(settings.Oam[oamBase + 3]);
+                uint attr2High = (uint)(settings.Oam[oamBase + 5]);
 
                 uint yPos = attr0 & 255;
                 bool affine = BitTest(attr0, 8);
@@ -825,7 +931,7 @@ namespace OptimeGBA
                 if (!disabled || affine)
                 {
                     int yEnd = ((int)yPos + (int)ySize) & 255;
-                    if ((VCount >= yPos && VCount < yEnd) || (yEnd < yPos && VCount < yEnd))
+                    if ((vCount >= yPos && vCount < yEnd) || (yEnd < yPos && vCount < yEnd))
                     {
                         OamPriorityListIds[priority, OamPriorityListCounts[priority]] = (uint)s;
                         OamPriorityListCounts[priority]++;
@@ -840,7 +946,7 @@ namespace OptimeGBA
         public readonly static uint[] RectangularSide0SizeTable = { 16, 32, 32, 64 };
         public readonly static uint[] RectangularSide1SizeTable = { 8, 8, 16, 32 };
 
-        public void RenderNoneAffineObjs(uint renderPriority)
+        public void RenderNoneAffineObjs(uint vCount, ref RenderSettings settings, uint renderPriority)
         {
             uint count = OamPriorityListCounts[renderPriority];
             for (uint i = 0; i < count; i++)
@@ -848,9 +954,9 @@ namespace OptimeGBA
                 uint spriteId = OamPriorityListIds[renderPriority, i];
                 uint oamBase = spriteId * 8;
 
-                uint attr0 = (uint)(Oam[oamBase + 1] << 8 | Oam[oamBase + 0]);
-                uint attr1 = (uint)(Oam[oamBase + 3] << 8 | Oam[oamBase + 2]);
-                uint attr2 = (uint)(Oam[oamBase + 5] << 8 | Oam[oamBase + 4]);
+                uint attr0 = (uint)(settings.Oam[oamBase + 1] << 8 | settings.Oam[oamBase + 0]);
+                uint attr1 = (uint)(settings.Oam[oamBase + 3] << 8 | settings.Oam[oamBase + 2]);
+                uint attr2 = (uint)(settings.Oam[oamBase + 5] << 8 | settings.Oam[oamBase + 4]);
 
                 uint yPos = attr0 & 255;
                 // bool affine = BitTest(attr0, 8);
@@ -887,11 +993,11 @@ namespace OptimeGBA
                 }
 
                 int yEnd = ((int)yPos + (int)ySize) & 255;
-                uint screenBase = (VCount * WIDTH) * BYTES_PER_PIXEL;
+                uint screenBase = (vCount * WIDTH) * BYTES_PER_PIXEL;
                 uint screenLineBase = xPos * BYTES_PER_PIXEL;
 
                 // y relative to the object itself
-                int objPixelY = ((int)VCount - (int)yPos) & 255;
+                int objPixelY = ((int)vCount - (int)yPos) & 255;
 
                 if (yFlip)
                 {
@@ -920,7 +1026,7 @@ namespace OptimeGBA
 
                         uint effectiveTileNumber = tileNumber + objPixelX / 8;
 
-                        if (ObjCharacterVramMapping)
+                        if (settings.ObjCharacterVramMapping)
                         {
                             effectiveTileNumber += tileY * (xSize / 8);
                         }
@@ -975,49 +1081,49 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderMode0()
+        public void RenderMode0(uint vCount, ref RenderSettings settings)
         {
-            ScanOam();
-            DrawBackdropColor();
+            ScanOam(vCount, ref settings);
+            DrawBackdropColor(vCount);
             for (int pri = 3; pri >= 0; pri--)
             {
-                if (DebugEnableBg3 && ScreenDisplayBg3 && Backgrounds[3].Priority == pri) RenderCharBackground(Backgrounds[3]);
-                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
-                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
+                if (DebugEnableBg3 && settings.ScreenDisplayBg3 && settings.Background3.Priority == pri) RenderCharBackground(vCount, ref settings.Background3);
+                if (DebugEnableBg2 && settings.ScreenDisplayBg2 && settings.Background2.Priority == pri) RenderCharBackground(vCount, ref settings.Background2);
+                if (DebugEnableBg1 && settings.ScreenDisplayBg1 && settings.Background1.Priority == pri) RenderCharBackground(vCount, ref settings.Background1);
+                if (DebugEnableBg0 && settings.ScreenDisplayBg0 && settings.Background0.Priority == pri) RenderCharBackground(vCount, ref settings.Background0);
+                if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, (uint)pri);
             }
 
         }
 
-        public void RenderMode1()
+        public void RenderMode1(uint vCount, ref RenderSettings settings)
         {
-            ScanOam();
-            DrawBackdropColor();
+            ScanOam(vCount, ref settings);
+            DrawBackdropColor(vCount);
             for (int pri = 3; pri >= 0; pri--)
             {
                 // BG2 is affine BG
-                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderAffineBackground(Backgrounds[2]);
-                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs((uint)pri);
+                if (DebugEnableBg2 && settings.ScreenDisplayBg2 && settings.Background2.Priority == pri) RenderAffineBackground(vCount, ref settings.Background2);
+                if (DebugEnableBg1 && settings.ScreenDisplayBg1 && settings.Background1.Priority == pri) RenderCharBackground(vCount, ref settings.Background1);
+                if (DebugEnableBg0 && settings.ScreenDisplayBg0 && settings.Background0.Priority == pri) RenderCharBackground(vCount, ref settings.Background0);
+                if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, (uint)pri);
             }
         }
 
-        public void RenderMode2()
+        public void RenderMode2(uint vCount, ref RenderSettings settings)
         {
-            ScanOam();
-            DrawBackdropColor();
-            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(3);
-            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(2);
-            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(1);
-            if (DebugEnableObj && ScreenDisplayObj) RenderNoneAffineObjs(0);
+            ScanOam(vCount, ref settings);
+            DrawBackdropColor(vCount);
+            if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, 3);
+            if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, 2);
+            if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, 1);
+            if (DebugEnableObj && settings.ScreenDisplayObj) RenderNoneAffineObjs(vCount, ref settings, 0);
         }
 
-        public void RenderMode4()
+        public void RenderMode4(uint vCount, ref RenderSettings settings)
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
-            uint vramBase = 0x0 + (VCount * WIDTH);
+            uint screenBase = vCount * WIDTH * BYTES_PER_PIXEL;
+            uint vramBase = 0x0 + (vCount * WIDTH);
 
             for (uint p = 0; p < WIDTH; p++)
             {
@@ -1032,10 +1138,10 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderMode3()
+        public void RenderMode3(uint vCount, ref RenderSettings settings)
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
-            uint vramBase = 0x0 + (VCount * WIDTH * 2);
+            uint screenBase = vCount * WIDTH * BYTES_PER_PIXEL;
+            uint vramBase = 0x0 + (vCount * WIDTH * 2);
 
             for (uint p = 0; p < WIDTH; p++)
             {
