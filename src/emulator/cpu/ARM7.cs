@@ -692,7 +692,13 @@ namespace OptimeGBA
                         }
                         else if ((ins & 0b1110000000000000) == 0b1110000000000000) // BL, BLX - Branch With Link (Optional Exchange)
                         {
-                            return Thumb.BL;
+                            uint H = (uint)((ins >> 11) & 0b11);
+                            switch (H)
+                            {
+                                case 0b10: return Thumb.BLUpperFill;
+                                case 0b11: return Thumb.BLToThumb;
+                                case 0b01: return Thumb.BLToArm;
+                            }
                         }
                     }
                     break;

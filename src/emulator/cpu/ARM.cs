@@ -506,13 +506,8 @@ namespace OptimeGBA
                 if (signed)
                 {
                     // SMLAL
-                    long rmValExt = (long)rmVal;
-                    long rsValExt = (long)rsVal;
-
-                    const long sub = (1L << 32);
-
-                    if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
-                    if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
+                    long rmValExt = (long)(rmVal << 32) >> 32;
+                    long rsValExt = (long)(rsVal << 32) >> 32;
 
                     longLo = (ulong)(((rsValExt * rmValExt) & 0xFFFFFFFF) + arm7.R[rdLo]);
                     longHi = (ulong)((rsValExt * rmValExt) >> 32) + arm7.R[rdHi] + (longLo > 0xFFFFFFFF ? 1U : 0);
@@ -531,13 +526,8 @@ namespace OptimeGBA
                 if (signed)
                 {
                     // SMULL
-                    long rmValExt = (long)rmVal;
-                    long rsValExt = (long)rsVal;
-
-                    const long sub = (1L << 32);
-
-                    if ((rmVal & (1u << 31)) != 0) rmValExt -= sub;
-                    if ((rsVal & (1u << 31)) != 0) rsValExt -= sub;
+                    long rmValExt = (long)(rmVal << 32) >> 32;
+                    long rsValExt = (long)(rsVal << 32) >> 32;
 
                     longLo = (ulong)((rsValExt * rmValExt));
                     longHi = (ulong)((rsValExt * rmValExt) >> 32);
@@ -813,21 +803,13 @@ namespace OptimeGBA
                         if ((addr & 1) != 0)
                         {
                             // Misaligned, read byte instead.
-                            readVal = (int)arm7.Read8(addr);
                             // Sign extend
-                            if ((readVal & BIT_7) != 0)
-                            {
-                                readVal -= (int)BIT_8;
-                            }
+                            readVal = (sbyte)arm7.Read8(addr);
                         }
                         else
                         {
-                            readVal = (int)arm7.Read16(addr);
                             // Sign extend
-                            if ((readVal & BIT_15) != 0)
-                            {
-                                readVal -= (int)BIT_16;
-                            }
+                            readVal = (short)arm7.Read16(addr);
                         }
                         loadVal = (uint)readVal;
                     }
@@ -835,11 +817,7 @@ namespace OptimeGBA
                     {
                         arm7.LineDebug("Load signed byte");
 
-                        int val = (int)arm7.Read8(addr);
-                        if ((val & BIT_7) != 0)
-                        {
-                            val -= (int)BIT_8;
-                        }
+                        int val = (sbyte)arm7.Read8(addr);
 
                         loadVal = (uint)val;
                     }

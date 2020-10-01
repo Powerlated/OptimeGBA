@@ -834,12 +834,8 @@ namespace OptimeGBA
 
             arm7.LineDebug("LDRSB");
 
-            int readVal = (int)arm7.Read8(addr);
             // Sign extend
-            if ((readVal & BIT_7) != 0)
-            {
-                readVal -= (int)BIT_8;
-            }
+            int readVal = (sbyte)arm7.Read8(addr);
 
             arm7.R[rd] = (uint)readVal;
 
@@ -942,21 +938,11 @@ namespace OptimeGBA
             if ((addr & 1) != 0)
             {
                 // Misaligned, read byte instead.
-                readVal = (int)arm7.Read8(addr);
-                // Sign extend
-                if ((readVal & BIT_7) != 0)
-                {
-                    readVal -= (int)BIT_8;
-                }
+                readVal = (sbyte)arm7.Read8(addr);
             }
             else
             {
-                readVal = (int)arm7.Read16(addr);
-                // Sign extend
-                if ((readVal & BIT_15) != 0)
-                {
-                    readVal -= (int)BIT_16;
-                }
+                readVal = (short)arm7.Read16(addr);
             }
 
             arm7.R[rd] = (uint)readVal;
@@ -1305,60 +1291,54 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        public static void BL(ARM7 arm7, ushort ins)
+        public static void BLUpperFill(ARM7 arm7, ushort ins)
         {
             arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
 
             uint H = (uint)((ins >> 11) & 0b11);
             int offset11 = ins & 0b11111111111;
 
-            switch (H)
-            {
-                case 0b10:
-                    {
-                        offset11 <<= 12;
+            offset11 <<= 12;
 
-                        // Sign extend
-                        if ((offset11 & BIT_22) != 0)
-                        {
-                            arm7.LineDebug("Negative");
-                            offset11 -= (int)BIT_23;
-                        }
-                        else
-                        {
-                            arm7.LineDebug("Positive");
-                        }
+            // Sign extend
+            offset11 = ((int)offset11 << 9) >> 9;
 
-                        arm7.LineDebug($"offset11: {offset11}");
-                        arm7.R[14] = (uint)(arm7.R[15] + offset11);
-                        arm7.LineDebug("Upper fill");
-                    }
-                    break;
-                case 0b11:
-                    {
-                        uint oldR14 = arm7.R[14];
-                        arm7.R[14] = (arm7.R[15] - 2) | 1;
-                        arm7.R[15] = (uint)(oldR14 + (offset11 << 1));
-                        arm7.R[15] &= 0xFFFFFFFE;
-                        arm7.FlushPipeline();
-                        arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
-                        arm7.LineDebug("Stay in THUMB state");
-                    }
-                    break;
-                case 0b01:
-                    {
-                        uint oldR14 = arm7.R[14];
-                        arm7.R[14] = (arm7.R[15] - 2) | 1;
-                        arm7.R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
-                        arm7.R[15] &= 0xFFFFFFFE;
-                        arm7.FlushPipeline();
-                        arm7.ThumbState = false;
-                        arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
-                        arm7.LineDebug("Exit THUMB state");
-                    }
-                    break;
-            }
+            arm7.LineDebug($"offset11: {offset11}");
+            arm7.R[14] = (uint)(arm7.R[15] + offset11);
+            arm7.LineDebug("Upper fill");
         }
+
+        public static void BLToThumb(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
+
+            int offset11 = ins & 0b11111111111;
+
+            uint oldR14 = arm7.R[14];
+            arm7.R[14] = (arm7.R[15] - 2) | 1;
+            arm7.R[15] = (uint)(oldR14 + (offset11 << 1));
+            arm7.R[15] &= 0xFFFFFFFE;
+            arm7.FlushPipeline();
+            arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
+            arm7.LineDebug("Stay in THUMB state");
+        }
+
+        public static void BLToArm(ARM7 arm7, ushort ins)
+        {
+            arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
+
+            int offset11 = ins & 0b11111111111;
+
+            uint oldR14 = arm7.R[14];
+            arm7.R[14] = (arm7.R[15] - 2) | 1;
+            arm7.R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
+            arm7.R[15] &= 0xFFFFFFFE;
+            arm7.FlushPipeline();
+            arm7.ThumbState = false;
+            arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
+            arm7.LineDebug("Exit THUMB state");
+        }
+
 
         public static void Invalid(ARM7 arm7, ushort ins)
         {
