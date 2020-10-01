@@ -1138,14 +1138,14 @@ namespace OptimeGBA
 
         public String Debug = "";
 
-        [Conditional("DEBUG")]
+        [Conditional("DONT")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ResetDebug()
         {
             Debug = "";
         }
 
-        [Conditional("DEBUG")]
+        [Conditional("DONT")]
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void LineDebug(String s)
         {
