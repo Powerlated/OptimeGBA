@@ -222,8 +222,6 @@ namespace OptimeGBA
         public bool DebugEnableObj = true;
 
         // DISPSTAT
-        public bool VBlank;
-        public bool HBlank;
         public bool VCounterMatch;
         public bool VBlankIrqEnable;
         public bool HBlankIrqEnable;
@@ -306,8 +304,10 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000004: // DISPSTAT B0
-                    if (VBlank) val = BitSet(val, 0);
-                    if (HBlank) val = BitSet(val, 1);
+                    // Vblank flag is set in scanlines 160-226, not including 227 for some reason
+                    if (VCount >= 160 && VCount <= 226) val = BitSet(val, 0);
+                    // Hblank flag is set at cycle 1006, not cycle 960
+                    if (CycleCount >= 1006) val = BitSet(val, 1);
                     if (VCounterMatch) val = BitSet(val, 2);
                     if (VBlankIrqEnable) val = BitSet(val, 3);
                     if (HBlankIrqEnable) val = BitSet(val, 4);
@@ -494,13 +494,13 @@ namespace OptimeGBA
                         if (CycleCount >= 960)
                         {
                             lcdEnum = LCDEnum.HBlank;
-                            HBlank = true;
                             RenderScanline();
 
                             if (HBlankIrqEnable)
                             {
                                 Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
                             }
+
                             Gba.Dma.RepeatHblank();
                         }
                     }
@@ -511,8 +511,6 @@ namespace OptimeGBA
                         {
                             CycleCount -= 1232;
 
-                            HBlank = false;
-
                             // if (VCount < 160)
                             // {
                             //     WaitForRenderingFinish();
@@ -522,6 +520,7 @@ namespace OptimeGBA
                             {
                                 VCount++;
                                 VCounterMatch = VCount == VCountSetting;
+
                                 if (VCounterMatch && VCounterIrqEnable)
                                 {
                                     Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
@@ -529,7 +528,6 @@ namespace OptimeGBA
                                 if (VCount > 159)
                                 {
                                     lcdEnum = LCDEnum.VBlank;
-                                    VBlank = true;
 
                                     if (VCount == 160)
                                     {
@@ -558,7 +556,6 @@ namespace OptimeGBA
                                     // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                                 }
                                 lcdEnum = LCDEnum.Drawing;
-                                VBlank = false;
                             }
                         }
                     }
@@ -567,9 +564,8 @@ namespace OptimeGBA
                     {
                         if (CycleCount >= 960)
                         {
-                            HBlank = true;
                             lcdEnum = LCDEnum.HBlank;
-
+                            
                             if (HBlankIrqEnable)
                             {
                                 Gba.HwControl.FlagInterrupt(Interrupt.HBlank);

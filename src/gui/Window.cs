@@ -252,7 +252,7 @@ namespace OptimeGBAEmulator
             Gba.Keypad.L = KeyboardState.IsKeyDown(Key.Q);
             Gba.Keypad.R = KeyboardState.IsKeyDown(Key.E);
 
-            SyncToAudio = !KeyboardState.IsKeyDown(Key.Tab);
+            SyncToAudio = !(KeyboardState.IsKeyDown(Key.Tab) || KeyboardState.IsKeyDown(Key.Space));
             // SyncToAudio = false;
 
             if (RunEmulator)

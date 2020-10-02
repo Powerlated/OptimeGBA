@@ -457,23 +457,10 @@ namespace OptimeGBA
                     break;
                 case 0x5: // PPU Palettes
                     // Gba.Arm7.Error("Write: Palette8");
-                    PaletteWrites++;
-                    addr &= 0x3FF;
-                    SetByte(Gba.Lcd.Palettes, addr, val);
-                    Gba.Lcd.UpdatePalette(addr / 2);
                     return;
                 case 0x6: // PPU VRAM
-                    VramWrites++;
-                    addr &= 0x1FFFF;
-                    if (addr < 0x18000)
-                    {
-                        SetByte(Gba.Lcd.Vram, addr, val);
-                    }
                     return;
                 case 0x7: // PPU OAM
-                    OamWrites++;
-                    addr &= 0x3FF;
-                    SetByte(Gba.Lcd.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 

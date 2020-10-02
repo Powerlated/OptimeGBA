@@ -165,6 +165,7 @@ namespace OptimeGBA
             R[1] = 0x000000EA;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FillPipeline()
         {
             if (ThumbState)
@@ -177,6 +178,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FillPipelineArm()
         {
             while (Pipeline < 2)
@@ -185,6 +187,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineArm()
         {
             ARMDecode = ARMFetch;
@@ -194,6 +197,7 @@ namespace OptimeGBA
             Pipeline++;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FillPipelineThumb()
         {
             while (Pipeline < 2)
@@ -202,6 +206,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineThumb()
         {
 
@@ -212,6 +217,7 @@ namespace OptimeGBA
             Pipeline++;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FlushPipeline()
         {
             Pipeline = 0;
@@ -1238,13 +1244,13 @@ namespace OptimeGBA
             1, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 5 -> 4
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM
+            // Compensate for no prefetch buffer 5 -> 3
+            3, // Game Pak ROM/FlashROM 
+            3, // Game Pak ROM/FlashROM 
+            3, // Game Pak ROM/FlashROM 
+            3, // Game Pak ROM/FlashROM 
+            3, // Game Pak ROM/FlashROM 
+            3, // Game Pak ROM/FlashROM
 
             5, // Game Pak SRAM/Flash
             5, // Game Pak SRAM/Flash
@@ -1256,17 +1262,17 @@ namespace OptimeGBA
             6, // EWRAM
             1, // IWRAM
             1, // I/O Registers
-            1, // PPU Palettes
-            1, // PPU VRAM
+            2, // PPU Palettes
+            2, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 8 -> 7
-            7, // Game Pak ROM/FlashROM 
-            7, // Game Pak ROM/FlashROM 
-            7, // Game Pak ROM/FlashROM 
-            7, // Game Pak ROM/FlashROM 
-            7, // Game Pak ROM/FlashROM 
-            7, // Game Pak ROM/FlashROM
+            // Compensate for no prefetch buffer 8 -> 5
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM
 
             8, // Game Pak SRAM/Flash
             8, // Game Pak SRAM/Flash
