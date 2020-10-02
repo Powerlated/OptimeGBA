@@ -208,6 +208,8 @@ namespace OptimeGBAEmulator
         };
         protected override void OnLoad()
         {
+            base.OnLoad();
+
             VertexArrayObject = GL.GenVertexArray();
             GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
             VertexBufferObject = GL.GenBuffer();
@@ -225,8 +227,15 @@ namespace OptimeGBAEmulator
             VSync = VSyncMode.Off;
             UpdateFrequency = 59.7275;
 
-            base.OnLoad();
+            FileDrop += (FileDropEventArgs args) =>
+            {
+                LoadRomFromPath(args.FileNames[0]);
+            };
         }
+
+        public double Time;
+        public bool RecordTime;
+        public uint RecordStartFrames;
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
@@ -244,11 +253,17 @@ namespace OptimeGBAEmulator
             Gba.Keypad.R = KeyboardState.IsKeyDown(Key.E);
 
             SyncToAudio = !KeyboardState.IsKeyDown(Key.Tab);
+            // SyncToAudio = false;
 
             if (RunEmulator)
             {
                 FrameNow = true;
                 ThreadSync.Set();
+            }
+
+            if (RecordTime)
+            {
+                Time += e.Time;
             }
 
             if (Gba.Mem.SaveProvider.Dirty)
@@ -628,6 +643,18 @@ namespace OptimeGBAEmulator
                     RunFrame();
                 }
 
+                if (ImGui.Button("Start Time"))
+                {
+                    RecordTime = true;
+                    Time = 0;
+                    RecordStartFrames = Gba.Lcd.TotalFrames;
+                }
+
+                if (ImGui.Button("Stop Time"))
+                {
+                    RecordTime = false;
+                }
+
                 if (ImGui.Button("Un-error"))
                 {
                     Gba.Arm7.Errored = false;
@@ -751,8 +778,16 @@ namespace OptimeGBAEmulator
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
+                if (RecordTime)
+                {
+                    ImGui.Text($"Timed Frames: {Gba.Lcd.TotalFrames - RecordStartFrames}");
+                    ImGui.Text($"Timed Seconds: {Time}");
+                    ImGui.Text($"Timed FPS: {(uint)(Gba.Lcd.TotalFrames - RecordStartFrames) / Time}");
+                }
+
                 ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
                 ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
+
 
                 ImGuiColumnSeparator();
 
@@ -862,7 +897,6 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG3 Affine Size: {LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
-
                 ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg0);
                 ImGui.Checkbox("Debug BG1", ref Gba.Lcd.DebugEnableBg1);
                 ImGui.Checkbox("Debug BG2", ref Gba.Lcd.DebugEnableBg2);
