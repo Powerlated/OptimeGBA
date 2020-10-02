@@ -172,18 +172,17 @@ namespace OptimeGBA
     public unsafe class LCD
     {
         GBA Gba;
-        public LCD(GBA gba)
+        Scheduler Scheduler;
+        public LCD(GBA gba, Scheduler scheduler)
         {
             Gba = gba;
+            Scheduler = scheduler;
 
             RenderThread = new Thread(RenderThreadFunction);
             RenderThread.Name = "Emulation Render Thread";
             RenderThread.Start();
-        }
 
-        public enum LCDEnum
-        {
-            Drawing, HBlank, VBlank
+            Scheduler.AddEventRelative(SchedulerId.Lcd, 960, EndDrawingToHblank);
         }
 
         public Thread RenderThread;
@@ -250,11 +249,14 @@ namespace OptimeGBA
 
         public uint VCount;
 
-        public uint CycleCount;
-        public LCDEnum lcdEnum;
-
+        public long ScanlineStartCycles;
         const uint CharBlockBaseSize = 16384;
         const uint MapBlockBaseSize = 2048;
+
+        public long GetScanlineCycles()
+        {
+            return Scheduler.CurrentTicks - ScanlineStartCycles;
+        }
 
         public void SwapBuffers()
         {
@@ -307,7 +309,7 @@ namespace OptimeGBA
                     // Vblank flag is set in scanlines 160-226, not including 227 for some reason
                     if (VCount >= 160 && VCount <= 226) val = BitSet(val, 0);
                     // Hblank flag is set at cycle 1006, not cycle 960
-                    if (CycleCount >= 1006) val = BitSet(val, 1);
+                    if (GetScanlineCycles() >= 1006) val = BitSet(val, 1);
                     if (VCounterMatch) val = BitSet(val, 2);
                     if (VBlankIrqEnable) val = BitSet(val, 3);
                     if (HBlankIrqEnable) val = BitSet(val, 4);
@@ -483,97 +485,76 @@ namespace OptimeGBA
             }
         }
 
-        public void Tick(uint cycles)
+
+
+        public void EndDrawingToHblank(long cyclesLate)
         {
-            // This is called every 16 cycles
-            CycleCount += cycles;
-            switch (lcdEnum)
+            Scheduler.AddEventRelative(SchedulerId.Lcd, 272 - cyclesLate, EndHblank);
+
+            RenderScanline();
+
+            if (HBlankIrqEnable)
             {
-                case LCDEnum.Drawing:
+                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+            }
+
+            Gba.Dma.RepeatHblank();
+        }
+
+        public void EndVblankToHblank(long cyclesLate)
+        {
+            Scheduler.AddEventRelative(SchedulerId.Lcd, 272 - cyclesLate, EndHblank);
+
+            if (HBlankIrqEnable)
+            {
+                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+            }
+        }
+
+        public void EndHblank(long cyclesLate)
+        {
+            ScanlineStartCycles = Scheduler.CurrentTicks;
+            
+            if (VCount != 227)
+            {
+                VCount++;
+                VCounterMatch = VCount == VCountSetting;
+
+                if (VCounterMatch && VCounterIrqEnable)
+                {
+                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                }
+                if (VCount > 159)
+                {
+                    Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndVblankToHblank);
+
+                    if (VCount == 160)
                     {
-                        if (CycleCount >= 960)
+                        Gba.Dma.RepeatVblank();
+
+                        if (VBlankIrqEnable)
                         {
-                            lcdEnum = LCDEnum.HBlank;
-                            RenderScanline();
-
-                            if (HBlankIrqEnable)
-                            {
-                                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
-                            }
-
-                            Gba.Dma.RepeatHblank();
+                            Gba.HwControl.FlagInterrupt(Interrupt.VBlank);
                         }
+
+                        TotalFrames++;
+                        SwapBuffers();
                     }
-                    break;
-                case LCDEnum.HBlank:
-                    {
-                        if (CycleCount >= 1232)
-                        {
-                            CycleCount -= 1232;
-
-                            // if (VCount < 160)
-                            // {
-                            //     WaitForRenderingFinish();
-                            // }
-
-                            if (VCount != 227)
-                            {
-                                VCount++;
-                                VCounterMatch = VCount == VCountSetting;
-
-                                if (VCounterMatch && VCounterIrqEnable)
-                                {
-                                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
-                                }
-                                if (VCount > 159)
-                                {
-                                    lcdEnum = LCDEnum.VBlank;
-
-                                    if (VCount == 160)
-                                    {
-                                        Gba.Dma.RepeatVblank();
-
-                                        if (VBlankIrqEnable)
-                                        {
-                                            Gba.HwControl.FlagInterrupt(Interrupt.VBlank);
-                                        }
-
-                                        TotalFrames++;
-                                        SwapBuffers();
-                                    }
-                                }
-                                else
-                                {
-                                    lcdEnum = LCDEnum.Drawing;
-                                }
-                            }
-                            else
-                            {
-                                VCount = 0;
-                                VCounterMatch = VCount == VCountSetting;
-                                if (VCounterMatch && VCounterIrqEnable)
-                                {
-                                    // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
-                                }
-                                lcdEnum = LCDEnum.Drawing;
-                            }
-                        }
-                    }
-                    break;
-                case LCDEnum.VBlank:
-                    {
-                        if (CycleCount >= 960)
-                        {
-                            lcdEnum = LCDEnum.HBlank;
-                            
-                            if (HBlankIrqEnable)
-                            {
-                                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
-                            }
-                        }
-                    }
-                    break;
-
+                }
+                else
+                {
+                    Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndDrawingToHblank);
+                }
+            }
+            else
+            {
+                VCount = 0;
+                VCounterMatch = VCount == VCountSetting;
+                if (VCounterMatch && VCounterIrqEnable)
+                {
+                    // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                }
+                Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndDrawingToHblank);
             }
         }
 

@@ -280,6 +280,7 @@ namespace OptimeGBAEmulator
             _controller.Update(this, (float)e.Time);
 
             DrawDisplay();
+            DrawSchedulerInfo();
             DrawDebug();
             DrawInstrViewer();
             DrawInstrInfo();
@@ -786,8 +787,7 @@ namespace OptimeGBAEmulator
                 }
 
                 ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
-                ImGui.Text($"Scanline Cycles: {Gba.Lcd.CycleCount}");
-
+                ImGui.Text($"Scanline Cycles: {Gba.Lcd.GetScanlineCycles()}");
 
                 ImGuiColumnSeparator();
 
@@ -1597,5 +1597,44 @@ namespace OptimeGBAEmulator
         {
             return Math.Floor(1200 * Math.Log(frequency / FrequencyFromNote(note)) / Math.Log(2));
         }
+
+        public void DrawSchedulerInfo()
+        {
+            if (ImGui.Begin("Scheduler"))
+            {
+                ImGui.Text($"Current Ticks: {Gba.Scheduler.CurrentTicks}");
+                ImGui.Text($"Next event at: {Gba.Scheduler.NextEventTicks}");
+                ImGui.Text($"Events queued: {Gba.Scheduler.HeapSize}");
+
+                ImGui.Separator();
+
+                ImGui.Columns(3);
+
+                ImGui.Text("Index");
+                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 50);
+                ImGui.NextColumn();
+                ImGui.Text("Ticks");
+                ImGui.NextColumn();
+                ImGui.Text("ID");
+                ImGui.NextColumn();
+
+                ImGui.Separator();
+
+                for (int i = 0; i < Gba.Scheduler.HeapSize; i++)
+                {
+                    var evt = Gba.Scheduler.Heap[i];
+                    ImGui.Text(i.ToString());
+                    ImGui.NextColumn();
+                    ImGui.Text((evt.Ticks - Gba.Scheduler.CurrentTicks).ToString());
+                    ImGui.NextColumn();
+                    ImGui.Text(Scheduler.ResolveId(evt.Id));
+                    ImGui.NextColumn();
+                }
+                ImGui.Columns(1);
+
+                ImGui.End();
+            }
+        }
+
     }
 }

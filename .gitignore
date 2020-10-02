@@ -5,3 +5,5 @@ imgui.ini
 *.txt
 dmg_boot.bin
 tests/
+.vs
+Properties

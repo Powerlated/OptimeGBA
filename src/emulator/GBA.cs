@@ -24,16 +24,17 @@ namespace OptimeGBA
         {
             Provider = provider;
 
+            Scheduler = new Scheduler();
+
             Arm7 = new ARM7(this);
             Mem = new Memory(this, provider);
-            GbaAudio = new GBAAudio(this);
-            Lcd = new LCD(this);
+            GbaAudio = new GBAAudio(this, Scheduler);
+            Lcd = new LCD(this, Scheduler);
             Keypad = new Keypad();
             Dma = new DMA(this);
-            Timers = new Timers(this);
+            Timers = new Timers(this, Scheduler);
             HwControl = new HWControl(this);
 
-            Scheduler = new Scheduler();
 
             AudioCallback = provider.AudioCallback;
         }
@@ -44,26 +45,20 @@ namespace OptimeGBA
             ExtraTicks = 0;
             uint ticks = Arm7.Execute();
 
-            Lcd.Tick(ticks);
-            Timers.Tick(ticks);
-            GbaAudio.Tick(ticks);
+            Scheduler.CurrentTicks += ticks;
+            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
+            {
+                long current = Scheduler.CurrentTicks;
+                long next = Scheduler.NextEventTicks;
+                Scheduler.PopFirstEvent().Callback(current - next);
+            }
 
-            // Scheduler.CurrentTicks += ticks;
-            // while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
-            // {
-            //     long current = Scheduler.CurrentTicks;
-            //     long next = Scheduler.NextEventTicks;
-            //     Scheduler.PopFirstEvent().Callback(current - next);
-            // }
             return ticks + ExtraTicks;
         }
 
         public void Tick(uint cycles)
         {
-            Lcd.Tick(cycles);
-            Timers.Tick(cycles);
-            GbaAudio.Tick(cycles);
-
+            Scheduler.CurrentTicks += cycles;
             ExtraTicks += cycles;
         }
     }

@@ -68,9 +68,13 @@ namespace OptimeGBA
     public class GBAAudio
     {
         GBA Gba;
-        public GBAAudio(GBA gba)
+        Scheduler Scheduler;
+        public GBAAudio(GBA gba, Scheduler scheduler)
         {
             Gba = gba;
+            Scheduler = scheduler;
+
+            Scheduler.AddEventRelative(SchedulerId.ApuSample, SampleTimerMax, Sample);
         }
 
         public GbAudio GbAudio = new GbAudio();
@@ -217,51 +221,48 @@ namespace OptimeGBA
         public bool EnableFifo = true;
 
         const uint SampleTimerMax = 512;
-        uint SampleTimer = 0;
         // public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
         public const uint SampleBufferMax = 64;
-        public short[] SampleBuffer = new short[SampleBufferMax];  
+        public short[] SampleBuffer = new short[SampleBufferMax];
         public uint SampleBufferPos = 0;
         public bool AudioReady;
-        public void Tick(uint cycles)
+
+        public void Sample(long cyclesLate)
         {
-            SampleTimer += cycles;
-            if (SampleTimer >= SampleTimerMax)
+            GbAudio.Tick(128); // Tick 128 T-cycles
+
+            short left = 0;
+            short right = 0;
+
+            if (MasterEnable)
             {
-                SampleTimer -= SampleTimerMax;
-
-                GbAudio.Tick(128); // Tick 128 T-cycles
-
-                short left = 0;
-                short right = 0;
-
-                if (MasterEnable)
+                if (EnablePsg)
                 {
-                    if (EnablePsg)
-                    {
-                        left += GbAudio.Out1;
-                        right += GbAudio.Out2;
-                    }
-                    if (EnableFifo)
-                    {
-                        short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
-                        short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
-                        if (DmaSoundAEnableLeft) left += a;
-                        if (DmaSoundBEnableLeft) left += b;
-                        if (DmaSoundAEnableRight) right += a;
-                        if (DmaSoundBEnableRight) right += b;
-                    }
+                    left += GbAudio.Out1;
+                    right += GbAudio.Out2;
                 }
-
-                SampleBuffer[SampleBufferPos++] = ((short)(left * 64));
-                SampleBuffer[SampleBufferPos++] = ((short)(right * 64));
-
-                if (SampleBufferPos >= SampleBufferMax) {
-                    SampleBufferPos = 0;
-
-                    Gba.AudioCallback(SampleBuffer);
+                if (EnableFifo)
+                {
+                    short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
+                    short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
+                    if (DmaSoundAEnableLeft) left += a;
+                    if (DmaSoundBEnableLeft) left += b;
+                    if (DmaSoundAEnableRight) right += a;
+                    if (DmaSoundBEnableRight) right += b;
                 }
             }
+
+            SampleBuffer[SampleBufferPos++] = ((short)(left * 64));
+            SampleBuffer[SampleBufferPos++] = ((short)(right * 64));
+
+            if (SampleBufferPos >= SampleBufferMax)
+            {
+                SampleBufferPos = 0;
+
+                Gba.AudioCallback(SampleBuffer);
+            }
+
+            Scheduler.AddEventRelative(SchedulerId.ApuSample, SampleTimerMax - cyclesLate, Sample);
         }
 
         public void TimerOverflowFifoA()

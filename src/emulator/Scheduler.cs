@@ -6,7 +6,13 @@ namespace OptimeGBA
 
     public enum SchedulerId : byte
     {
-        None = 255
+        None = 255,
+        Lcd = 0,
+        ApuSample = 1,
+        Timer0 = 2,
+        Timer1 = 3,
+        Timer2 = 4,
+        Timer3 = 5,
     }
 
     public class SchedulerEvent
@@ -41,14 +47,30 @@ namespace OptimeGBA
         public long CurrentTicks = 0;
         public long NextEventTicks = 0;
 
-        SchedulerEvent[] Heap = new SchedulerEvent[64];
-        uint HeapSize = 0;
+        public SchedulerEvent[] Heap = new SchedulerEvent[64];
+        public uint HeapSize = 0;
 
         SchedulerEvent ReturnEvent = Scheduler.createEmptyEvent();
 
         static SchedulerEvent createEmptyEvent()
         {
             return new SchedulerEvent(SchedulerId.None, 0, (long ticks) => { });
+        }
+
+        public static string ResolveId(SchedulerId id)
+        {
+            switch (id)
+            {
+                case SchedulerId.None: return "None";
+                case SchedulerId.Lcd: return "LCD Event";
+                case SchedulerId.ApuSample: return "APU Sample";
+                case SchedulerId.Timer0: return "Timer 0 Overflow";
+                case SchedulerId.Timer1: return "Timer 1 Overflow";
+                case SchedulerId.Timer2: return "Timer 2 Overflow";
+                case SchedulerId.Timer3: return "Timer 3 Overflow";
+                default:
+                    return "<SchedulerId not found>";
+            }
         }
 
         public void AddEventRelative(SchedulerId id, long ticks, SchedulerCallback callback)

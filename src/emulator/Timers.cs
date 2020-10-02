@@ -5,8 +5,13 @@ namespace OptimeGBA
 {
     public class Timer
     {
+        public uint Id = 0;
+        public Timers Timers;
+
         public uint CounterVal = 0;
         public uint ReloadVal = 0;
+
+        public long EnableCycles = 0;
 
         public static readonly uint[] PrescalerDivs = {
             1, 64, 256, 1024
@@ -20,16 +25,22 @@ namespace OptimeGBA
         public bool EnableIrq = false;
         public bool Enabled = false;
 
+        public Timer(Timers timers, uint id)
+        {
+            Id = id;
+            Timers = timers;
+        }
+
         public byte ReadHwio8(uint addr)
         {
             byte val = 0;
             switch (addr)
             {
                 case 0x00: // TMCNT_L B0
-                    val = (byte)(CounterVal >> 0);
+                    val = (byte)(CalculateCounter() >> 0);
                     break;
                 case 0x01: // TMCNT_L B1
-                    val = (byte)(CounterVal >> 8);
+                    val = (byte)(CalculateCounter() >> 8);
                     break;
                 case 0x02: // TMCNT_H B0
                     val |= (byte)(PrescalerSel & 0b11);
@@ -79,37 +90,110 @@ namespace OptimeGBA
             if (!Enabled)
             {
                 Reload();
+                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
+                EnableCycles = Timers.Scheduler.CurrentTicks;
+                // Console.WriteLine($"[Timer] {Id} Enable");
             }
 
             Enabled = true;
         }
 
+        public uint CalculateCounter()
+        {
+            long diff = Timers.Scheduler.CurrentTicks - EnableCycles;
+            diff /= PrescalerDiv;
+
+            if (Enabled)
+            {
+                return (ushort)(CounterVal + diff);
+            }
+            else
+            {
+                return (ushort)CounterVal;
+            }
+        }
+
+        public long CalculateOverflowCycles()
+        {
+            uint max = 0x10000;
+            uint diff = max - CounterVal;
+
+            return diff;
+        }
+
         public void Disable()
         {
+            CounterVal = CalculateCounter();
             Enabled = false;
+
+            Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
         }
 
         public void Reload()
         {
             CounterVal = ReloadVal;
         }
+
+        public void TimerOverflow(long cyclesLate)
+        {
+            // On overflow, refill with reload value
+            CounterVal = ReloadVal;
+
+            if (Id < 2)
+            {
+                Timers.Gba.GbaAudio.TimerOverflow(Id);
+            }
+
+            if (Id < 3)
+            {
+                if (Timers.T[Id + 1].CountUpTiming)
+                {
+                    UnscheduledTimerIncrement();
+                }
+            }
+
+            if (EnableIrq)
+            {
+                Timers.Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.Timer0Overflow + Id));
+            }
+
+            if (!CountUpTiming)
+            {
+                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles() - cyclesLate, TimerOverflow);
+            }
+            EnableCycles = Timers.Scheduler.CurrentTicks - cyclesLate;
+            // Console.WriteLine($"[Timer] {Id} Overflow");
+        }
+
+        public void UnscheduledTimerIncrement()
+        {
+            CounterVal++;
+            if (CounterVal > 0xFFFF)
+            {
+                TimerOverflow(0);
+            }
+        }
     }
 
     public class Timers
     {
-        GBA Gba;
+        public GBA Gba;
+        public Scheduler Scheduler;
 
-        public Timers(GBA gba)
+        public Timers(GBA gba, Scheduler scheduler)
         {
             Gba = gba;
+            Scheduler = scheduler;
+
+            T = new Timer[4] {
+                new Timer(this, 0),
+                new Timer(this, 1),
+                new Timer(this, 2),
+                new Timer(this, 3),
+            };
         }
 
-        public Timer[] T = new Timer[4] {
-            new Timer(),
-            new Timer(),
-            new Timer(),
-            new Timer(),
-        };
+        public Timer[] T;
 
         public byte ReadHwio8(uint addr)
         {
@@ -155,59 +239,6 @@ namespace OptimeGBA
                 return;
             }
             throw new Exception("This shouldn't happen.");
-        }
-
-        public void TimerOverflow(Timer t, uint ti)
-        {
-            // On overflow, refill with reload value
-            t.CounterVal = t.ReloadVal;
-
-            if (ti < 2)
-            {
-                Gba.GbaAudio.TimerOverflow(ti);
-
-                if (T[ti + 1].CountUpTiming)
-                {
-                    TimerIncrement(t, ti);
-                }
-            }
-
-            if (t.EnableIrq)
-            {
-                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.Timer0Overflow + ti));
-            }
-        }
-
-        public void TimerIncrement(Timer t, uint ti)
-        {
-            t.CounterVal++;
-            if (t.CounterVal > 0xFFFF)
-            {
-                TimerOverflow(t, ti);
-            }
-        }
-
-        public void Tick(uint cycles)
-        {
-            for (uint ti = 0; ti < 4; ti++)
-            {
-                Timer t = T[ti];
-
-                // throw new Exception("Implement timer cascading");
-                if (!t.CountUpTiming)
-                {
-                    if (t.Enabled)
-                    {
-                        t.Prescaler += cycles;
-                        while (t.Prescaler >= t.PrescalerDiv)
-                        {
-                            t.Prescaler -= t.PrescalerDiv;
-
-                            TimerIncrement(t, ti);
-                        }
-                    }
-                }
-            }
         }
     }
 }
