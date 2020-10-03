@@ -514,7 +514,7 @@ namespace OptimeGBA
         public void EndHblank(long cyclesLate)
         {
             ScanlineStartCycles = Scheduler.CurrentTicks;
-            
+
             if (VCount != 227)
             {
                 VCount++;
@@ -643,18 +643,18 @@ namespace OptimeGBA
             uint tileY = pixelYWrapped >> 3;
             uint intraTileY = pixelYWrapped & 7;
 
-            for (uint p = 0; p < 240; p++)
+            uint pixelX = bg.HorizontalOffset;
+            uint screenPixelX = 0;
+            uint tp = pixelX & 7;
+
+            while (true)
             {
-                uint pixelX = bg.HorizontalOffset + p;
                 uint pixelXWrapped = pixelX & 255;
 
+                // 2 bytes per tile
+                uint tileX = pixelXWrapped >> 3;
                 uint horizontalOffsetBlocks = (pixelX & CharWidthMaskTable[bg.ScreenSize]) >> 8;
                 uint mapHoriOffset = 2048 * horizontalOffsetBlocks;
-
-                uint tileX = pixelXWrapped >> 3;
-                uint intraTileX = pixelXWrapped & 7;
-
-                // 2 bytes per tile
                 uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
                 uint mapEntry = (uint)(Vram[mapEntryIndex + 1] << 8 | Vram[mapEntryIndex]);
 
@@ -665,43 +665,65 @@ namespace OptimeGBA
                 uint palette = (mapEntry >> 12) & 15; // 4 bits
 
                 uint realIntraTileY = intraTileY;
-
-                if (xFlip) intraTileX ^= 7;
                 if (yFlip) realIntraTileY ^= 7;
 
                 if (bg.Use8BitColor)
                 {
-                    // 256 color, 64 bytes per tile, 8 bytes per row
-                    uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
-                    uint vramValue = Vram[vramAddr];
-
-                    uint finalColor = vramValue;
-
-                    if (finalColor != 0)
+                    for (; tp < 8; tp++)
                     {
-                        ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
-                        ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
-                        ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                        uint intraTileX = tp;
+                        if (xFlip) intraTileX ^= 7;
+
+                        // 256 color, 64 bytes per tile, 8 bytes per row
+                        uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
+                        uint vramValue = Vram[vramAddr];
+
+                        uint finalColor = vramValue;
+
+                        if (finalColor != 0)
+                        {
+                            ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
+                            ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
+                            ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                        }
+
+                        screenBase += 3;
+
+                        pixelX++;
+                        screenPixelX++;
+                        if (screenPixelX >= WIDTH) return;
                     }
                 }
                 else
                 {
-                    // 16 color, 32 bytes per tile, 4 bytes per row
-                    uint vramAddr = charBase + (tileNumber * 32) + (realIntraTileY * 4) + (intraTileX / 2);
-                    uint vramValue = Vram[vramAddr];
-                    // Lower 4 bits is left pixel, upper 4 bits is right pixel
-                    uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
-
-                    uint finalColor = (palette * 16) + color;
-                    if (color != 0)
+                    for (; tp < 8; tp++)
                     {
-                        ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
-                        ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
-                        ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                        uint intraTileX = tp;
+                        if (xFlip) intraTileX ^= 7;
+
+                        // 16 color, 32 bytes per tile, 4 bytes per row
+                        uint vramAddr = charBase + (tileNumber * 32) + (realIntraTileY * 4) + (intraTileX / 2);
+                        uint vramValue = Vram[vramAddr];
+                        // Lower 4 bits is left pixel, upper 4 bits is right pixel
+                        uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
+
+                        uint finalColor = (palette * 16) + color;
+                        if (color != 0)
+                        {
+                            ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
+                            ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
+                            ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                        }
+
+                        screenBase += 3;
+
+                        pixelX++;
+                        screenPixelX++;
+                        if (screenPixelX >= WIDTH) return;
                     }
                 }
 
-                screenBase += 3;
+                tp = 0;
             }
         }
 
