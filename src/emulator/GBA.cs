@@ -1,3 +1,4 @@
+using System;
 
 namespace OptimeGBA
 {
@@ -60,6 +61,19 @@ namespace OptimeGBA
         {
             Scheduler.CurrentTicks += cycles;
             ExtraTicks += cycles;
+        }
+
+        public void HaltSkip(long cyclesLate)
+        {
+            long before = Scheduler.CurrentTicks;
+            while (!HwControl.Available)
+            {
+                long ticksPassed = Scheduler.NextEventTicks - Scheduler.CurrentTicks;
+                Scheduler.CurrentTicks = Scheduler.NextEventTicks;
+                Scheduler.PopFirstEvent().Callback(0);
+
+                ExtraTicks += (uint)ticksPassed;
+            }
         }
     }
 }

@@ -169,11 +169,10 @@ namespace OptimeGBA
                 case 0x4000301: // HALTCNT
                     if (BitTest(val, 7))
                     {
-                    
                     }
                     else
                     {
-                        // Gba.Halt();
+                        Gba.Scheduler.AddEventRelative(SchedulerId.HaltSkip, 0, Gba.HaltSkip);
                     }
                     break;
             }
@@ -223,45 +222,25 @@ namespace OptimeGBA
         {
             Available = false;
             if (IF_VBlank && IE_VBlank) { Available = true; }
-            if (IF_HBlank && IE_HBlank) { Available = true; }
-            if (IF_VCounterMatch && IE_VCounterMatch) { Available = true; }
-            if (IF_Timer0Overflow && IE_Timer0Overflow) { Available = true; }
-            if (IF_Timer1Overflow && IE_Timer1Overflow) { Available = true; }
-            if (IF_Timer2Overflow && IE_Timer2Overflow) { Available = true; }
-            if (IF_Timer3Overflow && IE_Timer3Overflow) { Available = true; }
-            if (IF_Serial && IE_Serial) { Available = true; }
-            if (IF_DMA0 && IE_DMA0) { Available = true; }
-            if (IF_DMA1 && IE_DMA1) { Available = true; }
-            if (IF_DMA2 && IE_DMA2) { Available = true; }
-            if (IF_DMA3 && IE_DMA3) { Available = true; }
-            if (IF_Keypad && IE_Keypad) { Available = true; }
-            if (IF_GamePak && IE_GamePak) { Available = true; }
+            else if (IF_HBlank && IE_HBlank) { Available = true; }
+            else if (IF_VCounterMatch && IE_VCounterMatch) { Available = true; }
+            else if (IF_Timer0Overflow && IE_Timer0Overflow) { Available = true; }
+            else if (IF_Timer1Overflow && IE_Timer1Overflow) { Available = true; }
+            else if (IF_Timer2Overflow && IE_Timer2Overflow) { Available = true; }
+            else if (IF_Timer3Overflow && IE_Timer3Overflow) { Available = true; }
+            else if (IF_Serial && IE_Serial) { Available = true; }
+            else if (IF_DMA0 && IE_DMA0) { Available = true; }
+            else if (IF_DMA1 && IE_DMA1) { Available = true; }
+            else if (IF_DMA2 && IE_DMA2) { Available = true; }
+            else if (IF_DMA3 && IE_DMA3) { Available = true; }
+            else if (IF_Keypad && IE_Keypad) { Available = true; }
+            else if (IF_GamePak && IE_GamePak) { Available = true; }
 
             // if (available && IME && !AvailableAndEnabled)
             // {
             //     Gba.Arm7.IRQ = true;
             // }
             AvailableAndEnabled = Available && IME;
-        }
-
-        public bool CheckAvailable()
-        {
-            if (IF_VBlank && IE_VBlank) { return true; }
-            if (IF_HBlank && IE_HBlank) { return true; }
-            if (IF_VCounterMatch && IE_VCounterMatch) { return true; }
-            if (IF_Timer0Overflow && IE_Timer0Overflow) { return true; }
-            if (IF_Timer1Overflow && IE_Timer1Overflow) { return true; }
-            if (IF_Timer2Overflow && IE_Timer2Overflow) { return true; }
-            if (IF_Timer3Overflow && IE_Timer3Overflow) { return true; }
-            if (IF_Serial && IE_Serial) { return true; }
-            if (IF_DMA0 && IE_DMA0) { return true; }
-            if (IF_DMA1 && IE_DMA1) { return true; }
-            if (IF_DMA2 && IE_DMA2) { return true; }
-            if (IF_DMA3 && IE_DMA3) { return true; }
-            if (IF_Keypad && IE_Keypad) { return true; }
-            if (IF_GamePak && IE_GamePak) { return true; }
-
-            return false;
         }
     }
 }

@@ -13,6 +13,7 @@ namespace OptimeGBA
         Timer1 = 3,
         Timer2 = 4,
         Timer3 = 5,
+        HaltSkip = 6,
     }
 
     public class SchedulerEvent
