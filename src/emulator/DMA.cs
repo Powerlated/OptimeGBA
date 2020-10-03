@@ -431,8 +431,10 @@ namespace OptimeGBA
                     case DMASrcAddrCtrl.Fixed: break;
                 }
 
-                Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                // TODO: Applying proper timing to sound DMAs causes crackling in certain games including PMD.
+                // This only happens with scheduled timers, which leads me to believe the real problem is in there.
+                // Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                // Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;

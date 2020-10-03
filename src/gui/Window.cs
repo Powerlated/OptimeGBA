@@ -808,10 +808,10 @@ namespace OptimeGBAEmulator
 
                 ImGuiColumnSeparator();
 
-                ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CounterVal, 4)}");
-                ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CounterVal, 4)}");
-                ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CounterVal, 4)}");
-                ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CounterVal, 4)}");
+                ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CalculateCounter(), 4)}");
                 ImGui.Text("");
                 ImGui.Text($"Timer 0 Reload: {Hex(Gba.Timers.T[0].ReloadVal, 4)}");
                 ImGui.Text($"Timer 1 Reload: {Hex(Gba.Timers.T[1].ReloadVal, 4)}");

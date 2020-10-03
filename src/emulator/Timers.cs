@@ -113,20 +113,35 @@ namespace OptimeGBA
             }
         }
 
+        public void Reschedule()
+        {
+            if (Enabled)
+            {
+                CounterVal = ReloadVal;
+                EnableCycles = Timers.Scheduler.CurrentTicks;
+
+                Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
+                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
+            }
+        }
+
         public long CalculateOverflowCycles()
         {
             uint max = 0x10000;
             uint diff = max - CounterVal;
 
-            return diff;
+            return diff * PrescalerDiv;
         }
 
         public void Disable()
         {
-            CounterVal = CalculateCounter();
-            Enabled = false;
+            if (Enabled)
+            {
+                CounterVal = CalculateCounter();
+                Enabled = false;
 
-            Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
+                Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
+            }
         }
 
         public void Reload()
