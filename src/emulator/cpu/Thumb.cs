@@ -463,10 +463,8 @@ namespace OptimeGBA
         {
             arm7.LineDebug("ADD (4)");
 
-            uint rd = (uint)((ins >> 0) & 0b111);
-            uint rm = (uint)((ins >> 3) & 0b111);
-            rd += BitTest(ins, 7) ? BIT_3 : 0;
-            rm += BitTest(ins, 6) ? BIT_3 : 0;
+            uint rd = (uint)((ins >> 0) & 0b111) | ((ins & BIT_7) >> 4);
+            uint rm = (uint)((ins >> 3) & 0b111) | ((ins & BIT_6) >> 3);
             uint rdVal = arm7.R[rd];
             uint rmVal = arm7.R[rm];
 
@@ -483,12 +481,8 @@ namespace OptimeGBA
         {
             arm7.LineDebug("CMP (3)");
 
-            uint rn = (uint)((ins >> 0) & 0b111);
-            uint rm = (uint)((ins >> 3) & 0b111);
-
-            rn += BitTest(ins, 7) ? BIT_3 : 0;
-            rm += BitTest(ins, 6) ? BIT_3 : 0;
-
+            uint rn = (uint)((ins >> 0) & 0b111) | ((ins & BIT_7) >> 4);
+            uint rm = (uint)((ins >> 3) & 0b111) | ((ins & BIT_6) >> 3);
             uint rnVal = arm7.R[rn];
             uint rmVal = arm7.R[rm];
 
@@ -504,10 +498,8 @@ namespace OptimeGBA
         {
             arm7.LineDebug("MOV (3)");
 
-            uint rd = (uint)((ins >> 0) & 0b111);
-            uint rm = (uint)((ins >> 3) & 0b111);
-            rd += BitTest(ins, 7) ? BIT_3 : 0;
-            rm += BitTest(ins, 6) ? BIT_3 : 0;
+            uint rd = (uint)((ins >> 0) & 0b111) | ((ins & BIT_7) >> 4);
+            uint rm = (uint)((ins >> 3) & 0b111) | ((ins & BIT_6) >> 3);
 
             arm7.R[rd] = arm7.R[rm];
 
@@ -1253,15 +1245,7 @@ namespace OptimeGBA
                 // B
                 int offset = (int)(ins & 0xFF) << 1;
                 // Signed with Two's Complement
-                if ((offset & BIT_8) != 0)
-                {
-                    arm7.LineDebug("Taken, Backward Branch");
-                    offset -= (int)BIT_9;
-                }
-                else
-                {
-                    arm7.LineDebug("Taken, Forward Branch");
-                }
+                offset = (offset << 23) >> 23;
 
                 arm7.R[15] = (uint)(arm7.R[15] + offset);
                 arm7.FlushPipeline();
@@ -1276,16 +1260,7 @@ namespace OptimeGBA
         {
             arm7.LineDebug("B | Unconditional Branch");
             int signedImmed11 = (int)(ins & 0b11111111111) << 1;
-
-            if ((signedImmed11 & BIT_11) != 0)
-            {
-                arm7.LineDebug("Backward Branch");
-                signedImmed11 -= (int)BIT_12;
-            }
-            else
-            {
-                arm7.LineDebug("Forward Branch");
-            }
+            signedImmed11 = (signedImmed11 << 20) >> 20;
 
             arm7.R[15] = (uint)(arm7.R[15] + signedImmed11);
             arm7.FlushPipeline();
