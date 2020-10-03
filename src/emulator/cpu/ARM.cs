@@ -555,100 +555,21 @@ namespace OptimeGBA
             }
         }
 
-        public static void RegularLDRSTR(ARM7 arm7, uint ins)
+        public static void RegularLDR(ARM7 arm7, uint ins)
         {
-            // LDR/STR (Load Register)/(Store Register)
-            arm7.LineDebug("LDR/STR (Load Register)/(Store Register)");
+            // LDR (Load Register)
+            arm7.LineDebug("LDR (Load Register)");
 
             uint rn = (ins >> 16) & 0xF;
             uint rd = (ins >> 12) & 0xF;
             uint rnValue = arm7.R[rn];
 
-            bool registerOffset = BitTest(ins, 25);
             bool P = BitTest(ins, 24); // post-indexed / offset addressing 
             bool U = BitTest(ins, 23); // invert
             bool B = BitTest(ins, 22);
             bool W = BitTest(ins, 21);
-            bool L = BitTest(ins, 20);
 
-
-            uint offset;
-            if (registerOffset)
-            {
-                // Register offset
-                arm7.LineDebug($"Register Offset");
-                uint rmVal = arm7.R[ins & 0xF];
-
-                if ((ins & 0b111111110000) == 0b000000000000)
-                {
-                    arm7.LineDebug($"Non-scaled");
-                    offset = rmVal;
-                }
-                else
-                {
-                    arm7.LineDebug($"Scaled");
-
-                    uint shiftType = (ins >> 5) & 0b11;
-                    byte shiftBits = (byte)((ins >> 7) & 0b11111);
-                    switch (shiftType)
-                    {
-                        case 0b00:
-                            offset = ARM7.LogicalShiftLeft32(rmVal, shiftBits);
-                            break;
-                        case 0b01:
-                            if (shiftBits == 0)
-                            {
-                                offset = 0;
-                            }
-                            else
-                            {
-                                offset = ARM7.LogicalShiftRight32(rmVal, shiftBits);
-                            }
-                            break;
-                        case 0b10:
-                            if (shiftBits == 0)
-                            {
-                                if (BitTest(rmVal, 31))
-                                {
-                                    offset = 0xFFFFFFFF;
-                                }
-                                else
-                                {
-                                    offset = 0;
-                                }
-                            }
-                            else
-                            {
-                                offset = ARM7.ArithmeticShiftRight32(rmVal, shiftBits);
-                            }
-                            break;
-                        case 0b11:
-                            if (shiftBits == 0)
-                            {
-                                offset = ARM7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (ARM7.LogicalShiftRight32(rmVal, 1));
-                            }
-                            else
-                            {
-                                offset = ARM7.RotateRight32(rmVal, shiftBits);
-                            }
-                            break;
-                        default:
-                            throw new Exception("Invalid shift code?");
-                    }
-                }
-
-            }
-            else
-            {
-                // Immediate offset
-                arm7.LineDebug($"Immediate Offset");
-
-                // if (L && U && !registerOffset && rd == 0 && (ins & 0b111111111111) == 0) Error("sdfsdf");
-
-
-                // This IS NOT A SHIFTED 32-BIT IMMEDIATE, IT'S PLAIN 12-BIT!
-                offset = ins & 0b111111111111;
-            }
+            uint offset = RegularLDRSTRDecode(arm7, ins);
 
             uint addr = rnValue;
             if (P)
@@ -667,52 +588,30 @@ namespace OptimeGBA
             arm7.LineDebug($"Rd: R{rd}");
 
             uint loadVal = 0;
-            if (L)
+            if (B)
             {
-                if (B)
-                {
-                    loadVal = arm7.Read8(addr);
-                }
-                else
-                {
-
-                    if ((addr & 0b11) != 0)
-                    {
-
-                        // If the address isn't word-aligned
-                        uint data = arm7.Read32(addr & 0xFFFFFFFC);
-                        loadVal = ARM7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
-
-                        // Error("Misaligned LDR");
-                    }
-                    else
-                    {
-                        loadVal = arm7.Read32(addr);
-                    }
-                }
-
-                arm7.LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
-                arm7.LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
+                loadVal = arm7.Read8(addr);
             }
             else
             {
-                arm7.R[15] += 4;
 
-                uint storeVal = arm7.R[rd];
-                if (B)
+                if ((addr & 0b11) != 0)
                 {
-                    arm7.Write8(addr, (byte)storeVal);
+
+                    // If the address isn't word-aligned
+                    uint data = arm7.Read32(addr & 0xFFFFFFFC);
+                    loadVal = ARM7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
+
+                    // Error("Misaligned LDR");
                 }
                 else
                 {
-                    arm7.Write32(addr & 0xFFFFFFFC, storeVal);
+                    loadVal = arm7.Read32(addr);
                 }
-
-                arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
-                arm7.LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
-
-                arm7.R[15] -= 4;
             }
+
+            arm7.LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
+            arm7.LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
 
             if (!P)
             {
@@ -733,14 +632,158 @@ namespace OptimeGBA
 
             // Register loading happens after writeback, so if writeback register and Rd are the same, 
             // the writeback value would be overwritten by Rd.
-            if (L)
+            arm7.R[rd] = loadVal;
+
+            if (rd == 15) arm7.FlushPipeline();
+
+            arm7.ICycle();
+        }
+
+        public static void RegularSTR(ARM7 arm7, uint ins)
+        {
+            // STR (Store Register)
+            arm7.LineDebug("STR (Store Register)");
+
+            uint rn = (ins >> 16) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rnValue = arm7.R[rn];
+
+            bool P = BitTest(ins, 24); // post-indexed / offset addressing 
+            bool U = BitTest(ins, 23); // invert
+            bool B = BitTest(ins, 22);
+            bool W = BitTest(ins, 21);
+
+            uint offset = RegularLDRSTRDecode(arm7, ins);
+
+            uint addr = rnValue;
+            if (P)
             {
-                arm7.R[rd] = loadVal;
-
-                if (rd == 15) arm7.FlushPipeline();
-
-                arm7.ICycle();
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
             }
+
+            arm7.LineDebug($"Rn: R{rn}");
+            arm7.LineDebug($"Rd: R{rd}");
+
+            arm7.R[15] += 4;
+
+            uint storeVal = arm7.R[rd];
+            if (B)
+            {
+                arm7.Write8(addr, (byte)storeVal);
+            }
+            else
+            {
+                arm7.Write32(addr & 0xFFFFFFFC, storeVal);
+            }
+
+            arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
+            arm7.LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
+
+            arm7.R[15] -= 4;
+
+            if (!P)
+            {
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
+            }
+
+            if (W || !P)
+            {
+                arm7.R[rn] = addr;
+            }
+        }
+
+
+        public static uint RegularLDRSTRDecode(ARM7 arm7, uint ins)
+        {
+            bool registerOffset = BitTest(ins, 25);
+
+            if (registerOffset)
+            {
+                // Register offset
+                arm7.LineDebug($"Register Offset");
+                uint rmVal = arm7.R[ins & 0xF];
+
+                if ((ins & 0b111111110000) == 0b000000000000)
+                {
+                    arm7.LineDebug($"Non-scaled");
+                    return rmVal;
+                }
+                else
+                {
+                    arm7.LineDebug($"Scaled");
+
+                    uint shiftType = (ins >> 5) & 0b11;
+                    byte shiftBits = (byte)((ins >> 7) & 0b11111);
+                    switch (shiftType)
+                    {
+                        case 0b00:
+                            return ARM7.LogicalShiftLeft32(rmVal, shiftBits);
+                        case 0b01:
+                            if (shiftBits == 0)
+                            {
+                                return 0;
+                            }
+                            else
+                            {
+                                return ARM7.LogicalShiftRight32(rmVal, shiftBits);
+                            }
+                        case 0b10:
+                            if (shiftBits == 0)
+                            {
+                                // if (BitTest(rmVal, 31))
+                                // {
+                                //     return 0xFFFFFFFF;
+                                // }
+                                // else
+                                // {
+                                //     return 0;
+                                // }
+                                return (uint)((int)rmVal >> 31);
+                            }
+                            else
+                            {
+                                return ARM7.ArithmeticShiftRight32(rmVal, shiftBits);
+                            }
+                        default:
+                        case 0b11:
+                            if (shiftBits == 0)
+                            {
+                                return ARM7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (ARM7.LogicalShiftRight32(rmVal, 1));
+                            }
+                            else
+                            {
+                                return ARM7.RotateRight32(rmVal, shiftBits);
+                            }
+                    }
+                }
+
+            }
+            else
+            {
+                // Immediate offset
+                arm7.LineDebug($"Immediate Offset");
+
+                // if (L && U && !registerOffset && rd == 0 && (ins & 0b111111111111) == 0) Error("sdfsdf");
+
+
+                // This IS NOT A SHIFTED 32-BIT IMMEDIATE, IT'S PLAIN 12-BIT!
+                return ins & 0b111111111111;
+            }
+
         }
 
         public static void SpecialLDRSTR(ARM7 arm7, uint ins)

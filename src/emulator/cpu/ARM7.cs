@@ -427,7 +427,15 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
             {
-                return Arm.RegularLDRSTR;
+                bool L = BitTest(ins, 20);
+                if (L)
+                {
+                    return Arm.RegularLDR;
+                }
+                else
+                {
+                    return Arm.RegularSTR;
+                }
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
