@@ -10,6 +10,15 @@
     <TieredCompilation>true</TieredCompilation>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <StartupObject>OptimeGBAEmulator.MainSDL</StartupObject>
+
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+
+    <IlcInvariantGlobalization>true</IlcInvariantGlobalization>
+    <RootAllApplicationAssemblies>false</RootAllApplicationAssemblies>
+    <IlcGenerateCompleteTypeMetadata>false</IlcGenerateCompleteTypeMetadata>
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.ico"> 
@@ -22,5 +31,8 @@
 
     <Compile Remove="src/gui/**" />
     <Compile Remove="src/MainOpenTK.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="icon.raw" />
   </ItemGroup>
 </Project>

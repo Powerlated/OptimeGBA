@@ -91,7 +91,7 @@ namespace OptimeGBA
             {
                 Reload();
                 Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
-                EnableCycles = Timers.Scheduler.CurrentTicks;
+                EnableCycles = CalculateAlignedCurrentTicks();
                 // Console.WriteLine($"[Timer] {Id} Enable");
             }
 
@@ -118,7 +118,7 @@ namespace OptimeGBA
             if (Enabled)
             {
                 CounterVal = ReloadVal;
-                EnableCycles = Timers.Scheduler.CurrentTicks;
+                EnableCycles = CalculateAlignedCurrentTicks();
 
                 Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
                 Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
@@ -130,7 +130,22 @@ namespace OptimeGBA
             uint max = 0x10000;
             uint diff = max - CounterVal;
 
+            // Align to the master clock
+            uint prescalerMod = diff % PrescalerDiv;
+            diff -= prescalerMod;
+            diff += PrescalerDiv;
+
             return diff * PrescalerDiv;
+        }
+
+        public long CalculateAlignedCurrentTicks()
+        {
+            long ticks = Timers.Scheduler.CurrentTicks;
+            long prescalerMod = Timers.Scheduler.CurrentTicks % PrescalerDiv;
+            ticks -= prescalerMod;
+            ticks += PrescalerDiv;
+
+            return ticks;
         }
 
         public void Disable()
@@ -176,7 +191,7 @@ namespace OptimeGBA
             {
                 Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles() - cyclesLate, TimerOverflow);
             }
-            EnableCycles = Timers.Scheduler.CurrentTicks - cyclesLate;
+            EnableCycles = CalculateAlignedCurrentTicks() - cyclesLate;
             // Console.WriteLine($"[Timer] {Id} Overflow");
         }
 

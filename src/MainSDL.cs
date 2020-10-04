@@ -1,5 +1,7 @@
 using static SDL2.SDL;
 using System;
+using System.IO;
+using System.Text;
 using System.Runtime.InteropServices;
 using OptimeGBA;
 
@@ -14,6 +16,10 @@ namespace OptimeGBAEmulator
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
+        static double Fps;
+
+        const double SecondsPerFrame = 1D / (16777216D / 280896D);
+
         static IntPtr Window;
         static IntPtr Renderer;
 
@@ -21,15 +27,15 @@ namespace OptimeGBAEmulator
 
         static bool Sync = true;
 
+        static bool IntegerScaling = false;
+        static bool IsFullscreen = false;
+        static bool Stretched = false;
+
         public static void Main(string[] args)
         {
             SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO);
 
-            if (args.Length == 0)
-            {
-                Log("Please provide the path to a ROM file.");
-                return;
-            }
+            bool GuiMode = args.Length == 0;
 
             Window = SDL_CreateWindow("Optime GBA", 0, 0, 960, 640, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
@@ -47,8 +53,75 @@ namespace OptimeGBAEmulator
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
-            string romPath = args[0];
+            string romPath;
             byte[] rom;
+            byte[] bios;
+            const string biosPath = "gba_bios.bin";
+
+            if (!GuiMode)
+            {
+                romPath = args[0];
+            }
+            else
+            {
+                Stream img = typeof(MainSDL).Assembly.GetManifestResourceStream("OptimeGBA-SDL.icon.raw");
+                byte[] streamBytes = ReadFully(img);
+
+                const int logoWidth = 34;
+                const int logoHeight = 21;
+                const int logoBpp = 4;
+
+                IntPtr iconTexture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STATIC, logoWidth, logoHeight);
+                IntPtr data = Marshal.AllocHGlobal(streamBytes.Length);
+                Marshal.Copy(streamBytes, 0, data, streamBytes.Length);
+                SDL_UpdateTexture(iconTexture, IntPtr.Zero, data, logoWidth * logoBpp);
+                Marshal.FreeHGlobal(data);
+
+                SDL_EventState(SDL_EventType.SDL_DROPFILE, SDL_ENABLE);
+                bool done = false;
+
+                String filename = "";
+                while (!done)
+                {
+                    SDL_Event evt;
+                    while (SDL_PollEvent(out evt) != 0)
+                    {
+                        switch (evt.type)
+                        {
+                            case SDL_EventType.SDL_QUIT:
+                                Environment.Exit(0);
+                                break;
+
+                            case SDL_EventType.SDL_DROPFILE:
+                                filename = Marshal.PtrToStringUTF8(evt.drop.file);
+                                done = true;
+                                break;
+                        }
+
+                        SDL_Rect dest = new SDL_Rect();
+                        SDL_GetWindowSize(Window, out int w, out int h);
+
+                        double ratio = Math.Min((double)h / (double)logoHeight, (double)w / (double)logoWidth);
+                        int fillWidth;
+                        int fillHeight;
+
+                        fillWidth = (int)(ratio * logoWidth);
+                        fillHeight = (int)(ratio * logoHeight);
+
+                        dest.w = fillWidth;
+                        dest.h = fillHeight;
+                        dest.x = (int)((w - fillWidth) / 2);
+                        dest.y = (int)((h - fillHeight) / 2);
+
+                        SDL_RenderClear(Renderer);
+                        SDL_RenderCopy(Renderer, iconTexture, IntPtr.Zero, ref dest);
+                        SDL_RenderPresent(Renderer);
+
+                    }
+                }
+                romPath = filename;
+            }
+
             if (!System.IO.File.Exists(romPath))
             {
                 Log("The ROM file you provided does not exist.");
@@ -67,8 +140,6 @@ namespace OptimeGBAEmulator
                 }
             }
 
-            byte[] bios;
-            const string biosPath = "gba_bios.bin";
             if (!System.IO.File.Exists(biosPath))
             {
                 SdlMessage("Error", "Please place a valid GBA BIOS in the same directory as OptimeGBA.exe named \"gba_bios.bin\"");
@@ -82,13 +153,14 @@ namespace OptimeGBAEmulator
                 }
                 catch
                 {
-                    Log("A GBA BIOS was provided, but there was an issue loading it.");
+                    SdlMessage("Error", "A GBA BIOS was provided, but there was an issue loading it.");
                     return;
                 }
             }
 
             string savPath = romPath.Substring(0, romPath.Length - 3) + "sav";
             byte[] sav = new byte[0];
+
             if (System.IO.File.Exists(savPath))
             {
                 Log(".sav exists, loading");
@@ -145,6 +217,20 @@ namespace OptimeGBAEmulator
                         case SDL_EventType.SDL_KEYDOWN:
                             KeyEvent(evt.key);
                             break;
+
+                        case SDL_EventType.SDL_DROPFILE:
+                            var filename = Marshal.PtrToStringUTF8(evt.drop.file);
+                            try
+                            {
+                                Gba.Provider.Rom = System.IO.File.ReadAllBytes(filename);
+                                ResetDue = true;
+                            }
+                            catch
+                            {
+                                Log("An error occurred loading the dropped ROM file.");
+                                return;
+                            }
+                            break;
                     }
                 }
 
@@ -162,10 +248,17 @@ namespace OptimeGBAEmulator
                 double currentSec = getTime();
                 if (Sync)
                 {
+                    // Reset time if behind schedule
+                    if (currentSec - nextFrameAt >= SecondsPerFrame)
+                    {
+                        double diff = currentSec - nextFrameAt;
+                        Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
+                        nextFrameAt = currentSec;
+                    }
 
                     if (currentSec >= nextFrameAt)
                     {
-                        nextFrameAt += 1D / (4194304D / 70224D);
+                        nextFrameAt += SecondsPerFrame;
 
                         RunFrame();
                     }
@@ -183,9 +276,9 @@ namespace OptimeGBAEmulator
                     double frames = CyclesRan / 280896;
                     CyclesRan = 0;
 
-                    double fps = frames / diff;
                     // Use Math.Floor to truncate to 2 decimal places
-                    SDL_SetWindowTitle(Window, "Optime GBA - " + Math.Floor(fps * 100) / 100 + " fps");
+                    Fps = Math.Floor((frames / diff) * 100) / 100;
+                    UpdateTitle();
 
                     fpsEvalTimer += 1;
                 }
@@ -198,12 +291,32 @@ namespace OptimeGBAEmulator
                 SDL_Rect dest = new SDL_Rect();
                 SDL_GetWindowSize(Window, out int w, out int h);
                 double ratio = Math.Min((double)h / (double)LCD.HEIGHT, (double)w / (double)LCD.WIDTH);
-                int fillWidth = (int)(ratio * LCD.WIDTH);
-                int fillHeight = (int)(ratio * LCD.HEIGHT);
-                dest.w = fillWidth;
-                dest.h = fillHeight;
-                dest.x = (int)((w - fillWidth) / 2);
-                dest.y = (int)((h - fillHeight) / 2);
+                int fillWidth;
+                int fillHeight;
+                if (!Stretched)
+                {
+                    if (IntegerScaling)
+                    {
+                        fillWidth = ((int)(ratio * LCD.WIDTH) / LCD.WIDTH) * LCD.WIDTH;
+                        fillHeight = ((int)(ratio * LCD.HEIGHT) / LCD.HEIGHT) * LCD.HEIGHT;
+                    }
+                    else
+                    {
+                        fillWidth = (int)(ratio * LCD.WIDTH);
+                        fillHeight = (int)(ratio * LCD.HEIGHT);
+                    }
+                    dest.w = fillWidth;
+                    dest.h = fillHeight;
+                    dest.x = (int)((w - fillWidth) / 2);
+                    dest.y = (int)((h - fillHeight) / 2);
+                }
+                else
+                {
+                    dest.w = w;
+                    dest.h = h;
+                    dest.x = 0;
+                    dest.y = 0;
+                }
 
                 SDL_RenderClear(Renderer);
                 SDL_RenderCopy(Renderer, texture, IntPtr.Zero, ref dest);
@@ -236,7 +349,22 @@ namespace OptimeGBAEmulator
             SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags.SDL_MESSAGEBOX_INFORMATION, title, msg, Window);
         }
 
+        public static byte[] ReadFully(Stream input)
+        {
+            byte[] buffer = new byte[16 * 1024];
+            using (MemoryStream ms = new MemoryStream())
+            {
+                int read;
+                while ((read = input.Read(buffer, 0, buffer.Length)) > 0)
+                {
+                    ms.Write(buffer, 0, read);
+                }
+                return ms.ToArray();
+            }
+        }
+
         static bool LCtrl;
+        static bool LAlt;
         static bool Tab;
         static bool Space;
 
@@ -257,6 +385,7 @@ namespace OptimeGBAEmulator
                 case SDL_Keycode.SDLK_BACKSPACE:
                     Gba.Keypad.Select = pressed;
                     break;
+                case SDL_Keycode.SDLK_RETURN:
                 case SDL_Keycode.SDLK_KP_ENTER:
                     Gba.Keypad.Start = pressed;
                     break;
@@ -286,6 +415,13 @@ namespace OptimeGBAEmulator
                 case SDL_Keycode.SDLK_LCTRL:
                     LCtrl = pressed;
                     break;
+            }
+
+            switch (kb.keysym.sym)
+            {
+                case SDL_Keycode.SDLK_LALT:
+                    LAlt = pressed;
+                    break;
 
                 case SDL_Keycode.SDLK_r:
                     if (LCtrl)
@@ -293,7 +429,41 @@ namespace OptimeGBAEmulator
                         ResetDue = true;
                     }
                     break;
+
+                case SDL_Keycode.SDLK_i:
+                    if (pressed)
+                    {
+                        IntegerScaling = !IntegerScaling;
+                    }
+                    break;
+
+                case SDL_Keycode.SDLK_u:
+                    if (pressed)
+                    {
+                        Stretched = !Stretched;
+                    }
+                    break;
+
+                case SDL_Keycode.SDLK_RETURN:
+                case SDL_Keycode.SDLK_KP_ENTER:
+                    if (pressed && LAlt)
+                    {
+                        ToggleFullscreen();
+                    }
+                    break;
+
+                case SDL_Keycode.SDLK_F11:
+                    if (pressed)
+                    {
+                        ToggleFullscreen();
+                    }
+                    break;
             }
+        }
+
+        public static void UpdateTitle()
+        {
+            SDL_SetWindowTitle(Window, "Optime GBA - " + Fps + " fps - " + GetAudioSamplesInQueue() + " samples queued");
         }
 
         const int FrameCycles = 70224 * 4;
@@ -316,6 +486,20 @@ namespace OptimeGBAEmulator
             while (CyclesLeft > 0)
             {
                 CyclesLeft -= (int)Gba.Step();
+            }
+        }
+
+        public static void ToggleFullscreen()
+        {
+            if (IsFullscreen)
+            {
+                SDL_SetWindowFullscreen(Window, 0);
+                IsFullscreen = false;
+            }
+            else
+            {
+                SDL_SetWindowFullscreen(Window, (uint)SDL_WindowFlags.SDL_WINDOW_FULLSCREEN_DESKTOP);
+                IsFullscreen = true;
             }
         }
 

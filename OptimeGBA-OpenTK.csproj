@@ -10,6 +10,8 @@
     <TieredCompilation>true</TieredCompilation>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <StartupObject>OptimeGBAEmulator.MainOpenTK</StartupObject>
+
+    <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.ico"> 
