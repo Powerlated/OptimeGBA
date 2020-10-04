@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk" ToolsVersion="Current">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+    <FileUpgradeFlags>
+    </FileUpgradeFlags>
+    <UpgradeBackupLocation>
+    </UpgradeBackupLocation>
+    <OldToolsVersion>Current</OldToolsVersion>
+    <TieredCompilation>true</TieredCompilation>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <StartupObject>OptimeGBAEmulator.MainSDL</StartupObject>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="icon.ico"> 
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory> 
+    </Content> 
+    <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
+    <PackageReference Include="Microsoft.Win32.SystemEvents" Version="4.7.0" />
+    <PackageReference Include="SDL2-CS" Version="2.0.0.0" />
+    <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
+
+    <Compile Remove="src/gui/**" />
+    <Compile Remove="src/MainOpenTK.cs" />
+  </ItemGroup>
+</Project>

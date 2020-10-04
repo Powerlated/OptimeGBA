@@ -183,6 +183,11 @@ namespace OptimeGBA
             RenderThread.Start();
 
             Scheduler.AddEventRelative(SchedulerId.Lcd, 960, EndDrawingToHblank);
+
+            for (uint i= 0; i < ScreenFront.Length; i++) {
+                ScreenFront[i] = 0xFF;
+                ScreenBack[i] = 0xFF;
+            }
         }
 
         public Thread RenderThread;
@@ -230,9 +235,9 @@ namespace OptimeGBA
         // RGB, 24-bit
         public byte[] ScreenFront = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
         public byte[] ScreenBack = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
-        const uint WIDTH = 240;
-        const uint HEIGHT = 160;
-        const uint BYTES_PER_PIXEL = 3;
+        public const byte WIDTH = 240;
+        public const byte HEIGHT = 160;
+        public const byte BYTES_PER_PIXEL = 4;
 
         public byte[,] ProcessedPalettes = new byte[512, 3];
 #if DEBUG
@@ -621,9 +626,10 @@ namespace OptimeGBA
 
             for (uint p = 0; p < 240; p++)
             {
-                ScreenBack[screenBase++] = ProcessedPalettes[0, 0];
-                ScreenBack[screenBase++] = ProcessedPalettes[0, 1];
-                ScreenBack[screenBase++] = ProcessedPalettes[0, 2];
+                ScreenBack[screenBase + 0] = ProcessedPalettes[0, 0];
+                ScreenBack[screenBase + 1] = ProcessedPalettes[0, 1];
+                ScreenBack[screenBase + 2] = ProcessedPalettes[0, 2];
+                screenBase += BYTES_PER_PIXEL; 
             }
         }
 
@@ -687,7 +693,7 @@ namespace OptimeGBA
                             ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
                         }
 
-                        screenBase += 3;
+                        screenBase += BYTES_PER_PIXEL;
 
                         pixelX++;
                         screenPixelX++;
@@ -715,7 +721,7 @@ namespace OptimeGBA
                             ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
                         }
 
-                        screenBase += 3;
+                        screenBase += BYTES_PER_PIXEL;
 
                         pixelX++;
                         screenPixelX++;
@@ -776,7 +782,7 @@ namespace OptimeGBA
                     ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
                 }
 
-                screenBase += 3;
+                screenBase += BYTES_PER_PIXEL;
             }
         }
 
@@ -967,7 +973,7 @@ namespace OptimeGBA
                             }
                         }
                     }
-                    screenLineBase = (screenLineBase + 3) % (512 * BYTES_PER_PIXEL);
+                    screenLineBase = (screenLineBase + BYTES_PER_PIXEL) % (512 * BYTES_PER_PIXEL);
 
                     x &= 511;
                 }

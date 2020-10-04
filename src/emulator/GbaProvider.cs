@@ -13,12 +13,12 @@ namespace OptimeGBA
 
         public string SavPath;
 
-        public GbaProvider(byte[] bios, byte[] rom, string romPath, AudioCallback audioCallback)
+        public GbaProvider(byte[] bios, byte[] rom, string savPath, AudioCallback audioCallback)
         {
             Bios = bios;
             Rom = rom;
             AudioCallback = audioCallback;
-            SavPath = romPath;
+            SavPath = savPath;
         }
     }
 }

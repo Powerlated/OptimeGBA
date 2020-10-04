@@ -165,8 +165,8 @@ namespace OptimeGBAEmulator
             SetupRegViewer();
         }
 
-        IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
-        void AudioReady(short[] data)
+        static IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
+        static void AudioReady(short[] data)
         {
             // Don't queue audio if too much is in buffer
             if (SyncToAudio || GetAudioSamplesInQueue() < AUDIO_SAMPLE_FULL_THRESHOLD)
@@ -1043,11 +1043,11 @@ namespace OptimeGBAEmulator
                 GL.TexImage2D(
                     TextureTarget.Texture2D,
                     0,
-                    PixelInternalFormat.Rgb,
+                    PixelInternalFormat.Rgba,
                     240,
                     160,
                     0,
-                    PixelFormat.Rgb,
+                    PixelFormat.Rgba,
                     PixelType.UnsignedByte,
                     Gba.Lcd.ScreenFront
                 );

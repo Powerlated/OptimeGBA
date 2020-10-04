@@ -7,3 +7,4 @@ dmg_boot.bin
 tests/
 .vs
 Properties
+*.bin

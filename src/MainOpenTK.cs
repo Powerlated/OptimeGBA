@@ -4,7 +4,7 @@ using OpenTK.Windowing.Common.Input;
 
 namespace OptimeGBAEmulator
 {
-    class OptimeGBAEmulator
+    class MainOpenTK
     {
         static IntPtr window = IntPtr.Zero;
         static IntPtr glcontext;
