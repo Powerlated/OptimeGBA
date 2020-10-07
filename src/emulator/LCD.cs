@@ -184,7 +184,8 @@ namespace OptimeGBA
 
             Scheduler.AddEventRelative(SchedulerId.Lcd, 960, EndDrawingToHblank);
 
-            for (uint i= 0; i < ScreenFront.Length; i++) {
+            for (uint i = 0; i < ScreenBufferSize; i++)
+            {
                 ScreenFront[i] = 0xFF;
                 ScreenBack[i] = 0xFF;
             }
@@ -233,8 +234,15 @@ namespace OptimeGBA
         public byte VCountSetting;
 
         // RGB, 24-bit
-        public byte[] ScreenFront = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
-        public byte[] ScreenBack = new byte[WIDTH * HEIGHT * BYTES_PER_PIXEL];
+        public const int ScreenBufferSize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
+#if DEBUG
+        public byte[] ScreenFront = Memory.AllocateManagedArray(ScreenBufferSize);
+        public byte[] ScreenBack = Memory.AllocateManagedArray(ScreenBufferSize);
+#else   
+        public byte* ScreenFront = Memory.AllocateUnmanagedArray(ScreenBufferSize);
+        public byte* ScreenBack = Memory.AllocateUnmanagedArray(ScreenBufferSize);
+#endif
+
         public const byte WIDTH = 240;
         public const byte HEIGHT = 160;
         public const byte BYTES_PER_PIXEL = 4;
@@ -629,7 +637,7 @@ namespace OptimeGBA
                 ScreenBack[screenBase + 0] = ProcessedPalettes[0, 0];
                 ScreenBack[screenBase + 1] = ProcessedPalettes[0, 1];
                 ScreenBack[screenBase + 2] = ProcessedPalettes[0, 2];
-                screenBase += BYTES_PER_PIXEL; 
+                screenBase += BYTES_PER_PIXEL;
             }
         }
 

@@ -152,12 +152,14 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
 
+#if DEBUG
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
                         uint count;
                         HwioReadLog.TryGetValue(addr, out count);
                         HwioReadLog[addr] = count + 1;
                     }
+#endif
 
                     HwioReads++;
                     return ReadHwio8(addr);
@@ -199,10 +201,12 @@ namespace OptimeGBA
 
         public ushort Read16(uint addr)
         {
+#if DEBUG
             if ((addr & 1) != 0)
             {
                 Gba.Arm7.Error("Misaligned Read16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
+#endif
 
             switch ((addr >> 24) & 0xF)
             {
@@ -274,10 +278,12 @@ namespace OptimeGBA
 
         public uint Read32(uint addr)
         {
+#if DEBUG
             if ((addr & 3) != 0)
             {
                 Gba.Arm7.Error("Misaligned Read32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
+#endif
 
             switch ((addr >> 24) & 0xF)
             {
@@ -445,12 +451,14 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
 
+#if DEBUG
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
                         uint count;
                         HwioWriteLog.TryGetValue(addr, out count);
                         HwioWriteLog[addr] = count + 1;
                     }
+#endif
 
                     HwioWrites++;
                     WriteHwio8(addr, val);
@@ -484,10 +492,12 @@ namespace OptimeGBA
 
         public void Write16(uint addr, ushort val)
         {
+#if DEBUG
             if ((addr & 1) != 0)
             {
                 Gba.Arm7.Error("Misaligned Write16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
+#endif
 
             switch ((addr >> 24) & 0xF)
             {
@@ -548,10 +558,12 @@ namespace OptimeGBA
 
         public void Write32(uint addr, uint val)
         {
+#if DEBUG
             if ((addr & 3) != 0)
             {
                 Gba.Arm7.Error("Misaligned Write32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Gba.Arm7.R[15], 8));
             }
+#endif
 
             switch ((addr >> 24) & 0xF)
             {
