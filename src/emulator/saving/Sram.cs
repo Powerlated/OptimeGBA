@@ -2,14 +2,15 @@ using System;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    public class Sram : SaveProvider
+    public sealed class Sram : SaveProvider
     {
         byte[] Memory = new byte[65536];
 
         public override byte Read8(uint addr)
         {
             addr -= 0xE000000;
-            if (addr < Memory.Length) {
+            if (addr < Memory.Length)
+            {
                 return Memory[addr];
             }
             return 0;
@@ -18,7 +19,8 @@ namespace OptimeGBA
         public override void Write8(uint addr, byte val)
         {
             addr -= 0xE000000;
-            if (addr < Memory.Length) {
+            if (addr < Memory.Length)
+            {
                 Memory[addr] = val;
                 Dirty = true;
             }

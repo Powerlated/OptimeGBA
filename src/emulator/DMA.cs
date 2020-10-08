@@ -27,7 +27,7 @@ namespace OptimeGBA
         PROHIBITED = 3,
     }
 
-    public class DMAChannel
+    public sealed class DMAChannel
     {
         public uint DMASAD;
         public uint DMADAD;
@@ -211,7 +211,7 @@ namespace OptimeGBA
         }
     }
 
-    public class DMA
+    public sealed class DMA
     {
         GBA Gba;
 

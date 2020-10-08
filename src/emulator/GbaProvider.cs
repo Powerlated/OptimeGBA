@@ -2,7 +2,7 @@ public delegate void AudioCallback(short[] stereo16BitInterleavedData);
 
 namespace OptimeGBA
 {
-    public class GbaProvider
+    public sealed class GbaProvider
     {
         public bool OutputAudio = true;
         public bool BootBios = false;

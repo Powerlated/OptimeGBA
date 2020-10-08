@@ -7,7 +7,7 @@ using OptimeGBA;
 
 namespace OptimeGBAEmulator
 {
-    public unsafe class MainSDL
+    public sealed unsafe class MainSDL
     {
         const uint AUDIO_SAMPLE_THRESHOLD = 1024;
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 1024;
@@ -37,7 +37,7 @@ namespace OptimeGBAEmulator
 
             bool GuiMode = args.Length == 0;
 
-            Window = SDL_CreateWindow("Optime GBA", 0, 0, 960, 640, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
+            Window = SDL_CreateWindow("Optime GBA", 0, 0, LCD.WIDTH * 4, LCD.HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
 
@@ -283,10 +283,14 @@ namespace OptimeGBAEmulator
                     fpsEvalTimer += 1;
                 }
 
+#if DEBUG
                 fixed (byte* pixels = &Gba.Lcd.ScreenFront[0])
                 {
                     SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
                 }
+#else
+                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
+#endif
 
                 SDL_Rect dest = new SDL_Rect();
                 SDL_GetWindowSize(Window, out int w, out int h);
@@ -387,7 +391,10 @@ namespace OptimeGBAEmulator
                     break;
                 case SDL_Keycode.SDLK_RETURN:
                 case SDL_Keycode.SDLK_KP_ENTER:
-                    Gba.Keypad.Start = pressed;
+                    if (!LAlt)
+                    {
+                        Gba.Keypad.Start = pressed;
+                    }
                     break;
 
                 case SDL_Keycode.SDLK_LEFT:
@@ -459,11 +466,57 @@ namespace OptimeGBAEmulator
                     }
                     break;
             }
+
+            if (pressed)
+            {
+                switch (kb.keysym.sym)
+                {
+                    case SDL_Keycode.SDLK_F3:
+                        Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;
+                        UpdateTitle();
+                        break;
+                    case SDL_Keycode.SDLK_F4:
+                        Gba.GbaAudio.DebugEnableB = !Gba.GbaAudio.DebugEnableB;
+                        UpdateTitle();
+                        break;
+                    case SDL_Keycode.SDLK_F5:
+                        Gba.GbaAudio.GbAudio.enable1Out = !Gba.GbaAudio.GbAudio.enable1Out;
+                        UpdateTitle();
+                        break;
+                    case SDL_Keycode.SDLK_F6:
+                        Gba.GbaAudio.GbAudio.enable2Out = !Gba.GbaAudio.GbAudio.enable2Out;
+                        UpdateTitle();
+                        break;
+                    case SDL_Keycode.SDLK_F7:
+                        Gba.GbaAudio.GbAudio.enable3Out = !Gba.GbaAudio.GbAudio.enable3Out;
+                        UpdateTitle();
+                        break;
+                    case SDL_Keycode.SDLK_F8:
+                        Gba.GbaAudio.GbAudio.enable4Out = !Gba.GbaAudio.GbAudio.enable4Out;
+                        UpdateTitle();
+                        break;
+                }
+            }
         }
 
         public static void UpdateTitle()
         {
-            SDL_SetWindowTitle(Window, "Optime GBA - " + Fps + " fps - " + GetAudioSamplesInQueue() + " samples queued");
+            bool fA = Gba.GbaAudio.DebugEnableA;
+            bool fB = Gba.GbaAudio.DebugEnableB;
+            bool p1 = Gba.GbaAudio.GbAudio.enable1Out;
+            bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
+            bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
+            bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
+            SDL_SetWindowTitle(
+                Window,
+                "Optime GBA - " + Fps + " fps - " + GetAudioSamplesInQueue() + " samples queued | " +
+                (fA ? "A " : "- ") +
+                (fB ? "B " : "- ") +
+                (p1 ? "1 " : "- ") +
+                (p2 ? "2 " : "- ") +
+                (p3 ? "3 " : "- ") +
+                (p4 ? "4 " : "- ")
+            );
         }
 
         const int FrameCycles = 70224 * 4;

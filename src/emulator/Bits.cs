@@ -2,7 +2,7 @@ using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
-    class Bits
+    sealed class Bits
     {
         public const uint BIT_0 = (1 << 0);
         public const uint BIT_1 = (1 << 1);

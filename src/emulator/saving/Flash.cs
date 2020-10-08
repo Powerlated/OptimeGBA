@@ -26,7 +26,7 @@ namespace OptimeGBA
         Flash1m
     }
 
-    public class Flash : SaveProvider
+    public sealed class Flash : SaveProvider
     {
         FlashState State = FlashState.InitialState;
         FlashStateSecondary StateSecondary = FlashStateSecondary.Ready;

@@ -7,7 +7,7 @@ using System.Runtime.InteropServices;
 
 namespace OptimeGBA
 {
-    public unsafe class Memory
+    public sealed unsafe class Memory
     {
         GBA Gba;
 

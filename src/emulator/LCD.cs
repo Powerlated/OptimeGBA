@@ -4,7 +4,7 @@ using System;
 
 namespace OptimeGBA
 {
-    public class Background
+    public sealed class Background
     {
         public uint Priority = 0;
         public uint CharBaseBlock = 0;
@@ -169,7 +169,7 @@ namespace OptimeGBA
         Vertical = 2,
     }
 
-    public unsafe class LCD
+    public sealed unsafe class LCD
     {
         GBA Gba;
         Scheduler Scheduler;

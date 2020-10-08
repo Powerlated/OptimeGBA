@@ -3,7 +3,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public class CircularBuffer<T>
+    public sealed class CircularBuffer<T>
     {
         public uint Size;
         public T[] Buffer;
@@ -65,7 +65,7 @@ namespace OptimeGBA
         }
     }
 
-    public class GBAAudio
+    public sealed class GBAAudio
     {
         GBA Gba;
         Scheduler Scheduler;
@@ -78,6 +78,9 @@ namespace OptimeGBA
         }
 
         public GbAudio GbAudio = new GbAudio();
+
+        public bool DebugEnableA = true;
+        public bool DebugEnableB = true;
 
         public CircularBuffer<byte> A = new CircularBuffer<byte>(32, 0);
         public CircularBuffer<byte> B = new CircularBuffer<byte>(32, 0);
@@ -245,10 +248,16 @@ namespace OptimeGBA
                 {
                     short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
                     short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
-                    if (DmaSoundAEnableLeft) left += a;
-                    if (DmaSoundBEnableLeft) left += b;
-                    if (DmaSoundAEnableRight) right += a;
-                    if (DmaSoundBEnableRight) right += b;
+                    if (DebugEnableA)
+                    {
+                        if (DmaSoundAEnableLeft) left += a;
+                        if (DmaSoundAEnableRight) right += a;
+                    }
+                    if (DebugEnableB)
+                    {
+                        if (DmaSoundBEnableLeft) left += b;
+                        if (DmaSoundBEnableRight) right += b;
+                    }
                 }
             }
 

@@ -6,7 +6,7 @@ using OptimeGBA;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    public class GbAudio
+    public sealed class GbAudio
     {
         public static byte[] SEVEN_BIT_NOISE = GenerateNoiseBuffer(true);
         public static byte[] FIFTEEN_BIT_NOISE = GenerateNoiseBuffer(false);
@@ -305,10 +305,10 @@ namespace OptimeGBA
             this.updateWaveVal();
         }
 
-        bool enable1Out = true;
-        bool enable2Out = true;
-        bool enable3Out = true;
-        bool enable4Out = true;
+        public bool enable1Out = true;
+        public bool enable2Out = true;
+        public bool enable3Out = true;
+        public bool enable4Out = true;
 
         void updatePulse1Val()
         {
@@ -394,8 +394,11 @@ namespace OptimeGBA
                             this.updatePulse1Val();
                         }
                     }
-                    if (this.pulse1_outputLeft) in1 += this.pulse1Val;
-                    if (this.pulse1_outputRight) in2 += this.pulse1Val;
+                    if (this.enable1Out)
+                    {
+                        if (this.pulse1_outputLeft) in1 += this.pulse1Val;
+                        if (this.pulse1_outputRight) in2 += this.pulse1Val;
+                    }
                 }
                 if (this.pulse2_dacEnabled)
                 {
@@ -411,8 +414,11 @@ namespace OptimeGBA
                             this.updatePulse2Val();
                         }
                     }
-                    if (this.pulse2_outputLeft) in1 += this.pulse2Val;
-                    if (this.pulse2_outputRight) in2 += this.pulse2Val;
+                    if (this.enable2Out)
+                    {
+                        if (this.pulse2_outputLeft) in1 += this.pulse2Val;
+                        if (this.pulse2_outputRight) in2 += this.pulse2Val;
+                    }
                 }
                 if (this.wave_dacEnabled)
                 {
@@ -436,8 +442,11 @@ namespace OptimeGBA
                             this.updateWaveVal();
                         }
                     }
-                    if (this.wave_outputLeft) in1 += this.waveVal;
-                    if (this.wave_outputRight) in2 += this.waveVal;
+                    if (this.enable3Out)
+                    {
+                        if (this.wave_outputLeft) in1 += this.waveVal;
+                        if (this.wave_outputRight) in2 += this.waveVal;
+                    }
                 }
                 if (this.noise_dacEnabled)
                 {
@@ -453,8 +462,11 @@ namespace OptimeGBA
                             this.updateNoiseVal();
                         }
                     }
-                    if (this.noise_outputLeft) in1 += this.noiseVal;
-                    if (this.noise_outputRight) in2 += this.noiseVal;
+                    if (this.enable4Out)
+                    {
+                        if (this.noise_outputLeft) in1 += this.noiseVal;
+                        if (this.noise_outputRight) in2 += this.noiseVal;
+                    }
                 }
 
                 in1 *= this.leftMasterVolMul;

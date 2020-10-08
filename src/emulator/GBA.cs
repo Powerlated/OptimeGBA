@@ -3,7 +3,7 @@ using System;
 namespace OptimeGBA
 {
 
-    public class GBA
+    public sealed class GBA
     {
         public GbaProvider Provider;
 

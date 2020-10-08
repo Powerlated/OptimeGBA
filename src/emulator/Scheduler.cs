@@ -16,7 +16,7 @@ namespace OptimeGBA
         HaltSkip = 6,
     }
 
-    public class SchedulerEvent
+    public sealed class SchedulerEvent
     {
         public SchedulerId Id;
         public long Ticks;
@@ -31,7 +31,7 @@ namespace OptimeGBA
         }
     }
 
-    public class Scheduler
+    public sealed class Scheduler
     {
         static uint Parent(uint n) { return (n - 1) >> 1; }
         static uint LeftChild(uint n) { return n * 2 + 1; }

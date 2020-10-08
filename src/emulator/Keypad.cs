@@ -2,7 +2,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public class Keypad
+    public sealed class Keypad
     {
         public bool A;
         public bool B;

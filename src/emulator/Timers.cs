@@ -3,7 +3,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public class Timer
+    public sealed class Timer
     {
         public uint Id = 0;
         public Timers Timers;
@@ -205,7 +205,7 @@ namespace OptimeGBA
         }
     }
 
-    public class Timers
+    public sealed class Timers
     {
         public GBA Gba;
         public Scheduler Scheduler;

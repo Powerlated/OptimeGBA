@@ -2,7 +2,7 @@ using System;
 using static OptimeGBA.Bits;
 namespace OptimeGBA
 {
-    public class NullSaveProvider : SaveProvider
+    public sealed class NullSaveProvider : SaveProvider
     {
         public override byte Read8(uint addr)
         {

@@ -19,7 +19,7 @@ namespace OptimeGBA
         Eeprom64k
     }
 
-    public class Eeprom : SaveProvider
+    public sealed class Eeprom : SaveProvider
     {
         EepromState State = EepromState.Ready;
         EepromSize Size;

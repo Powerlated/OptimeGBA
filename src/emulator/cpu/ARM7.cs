@@ -5,7 +5,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public class ARM7
+    public sealed class ARM7
     {
         public enum ARM7Mode
         {
