@@ -607,23 +607,39 @@ namespace OptimeGBA
 
         public void RenderScanline()
         {
-            switch (BgMode)
+            if (!ForcedBlank)
             {
-                case 0:
-                    RenderMode0();
-                    return;
-                case 1:
-                    RenderMode1();
-                    return;
-                case 2:
-                    RenderMode2();
-                    return;
-                case 3:
-                    RenderMode3();
-                    return;
-                case 4:
-                    RenderMode4();
-                    return;
+                switch (BgMode)
+                {
+                    case 0:
+                        RenderMode0();
+                        return;
+                    case 1:
+                        RenderMode1();
+                        return;
+                    case 2:
+                        RenderMode2();
+                        return;
+                    case 3:
+                        RenderMode3();
+                        return;
+                    case 4:
+                        RenderMode4();
+                        return;
+                }
+            }
+            else
+            {
+                // Render white
+                uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+
+                for (uint p = 0; p < 240; p++)
+                {
+                    ScreenBack[screenBase + 0] = 0xFF;
+                    ScreenBack[screenBase + 1] = 0xFF;
+                    ScreenBack[screenBase + 2] = 0xFF;
+                    screenBase += BYTES_PER_PIXEL;
+                }
             }
         }
 
