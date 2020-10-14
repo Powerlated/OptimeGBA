@@ -225,7 +225,7 @@ namespace OptimeGBA
 
         const uint SampleTimerMax = 512;
         // public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
-        public const uint SampleBufferMax = 64;
+        public const uint SampleBufferMax = 256;
         public short[] SampleBuffer = new short[SampleBufferMax];
         public uint SampleBufferPos = 0;
         public bool AudioReady;
