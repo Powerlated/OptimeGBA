@@ -36,8 +36,13 @@ namespace OptimeGBA
             Timers = new Timers(this, Scheduler);
             HwControl = new HWControl(this);
 
-
             AudioCallback = provider.AudioCallback;
+
+            #if UNSAFE 
+            Console.WriteLine("Starting in memory UNSAFE mode");
+            #else
+            Console.WriteLine("Starting in memory SAFE mode");
+            #endif
         }
 
         uint ExtraTicks = 0;
@@ -55,6 +60,23 @@ namespace OptimeGBA
             }
 
             return ticks + ExtraTicks;
+        }
+
+        public uint SchedulerStep()
+        {
+            ExtraTicks = 0;
+
+            uint executed = 0;
+            while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
+            {
+                uint cycles = Arm7.Execute();
+                Scheduler.CurrentTicks += cycles;
+                executed += cycles;
+            }
+            long next = Scheduler.NextEventTicks;
+            Scheduler.PopFirstEvent().Callback(Scheduler.CurrentTicks - next);
+
+            return executed + ExtraTicks;
         }
 
         public void Tick(uint cycles)

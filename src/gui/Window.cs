@@ -1032,7 +1032,7 @@ namespace OptimeGBAEmulator
         }
 
         public bool BigScreen = false;
-        public void DrawDisplay()
+        public unsafe void DrawDisplay()
         {
             if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
             {
@@ -1049,8 +1049,13 @@ namespace OptimeGBAEmulator
                     0,
                     PixelFormat.Rgba,
                     PixelType.UnsignedByte,
+#if UNSAFE
+                    (IntPtr)Gba.Lcd.ScreenFront
+#else
                     Gba.Lcd.ScreenFront
+#endif
                 );
+
 
                 float height = BigScreen ? 240 * 5 : 240 * 2;
                 float width = BigScreen ? 160 * 5 : 160 * 2;

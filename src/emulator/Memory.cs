@@ -119,16 +119,16 @@ namespace OptimeGBA
         public const int IwramSize = 32768;
         public uint RomSize;
 
-#if DEBUG
-        public byte[] Bios = Memory.AllocateManagedArray(BiosSize);
-        public byte[] Rom = Memory.AllocateManagedArray(MaxRomSize);
-        public byte[] Ewram = Memory.AllocateManagedArray(EwramSize);
-        public byte[] Iwram = Memory.AllocateManagedArray(IwramSize);
-#else
+#if UNSAFE
         public byte* Bios = Memory.AllocateUnmanagedArray(BiosSize);
         public byte* Rom = Memory.AllocateUnmanagedArray(MaxRomSize);
         public byte* Ewram = Memory.AllocateUnmanagedArray(EwramSize);
         public byte* Iwram = Memory.AllocateUnmanagedArray(IwramSize);
+#else
+        public byte[] Bios = Memory.AllocateManagedArray(BiosSize);
+        public byte[] Rom = Memory.AllocateManagedArray(MaxRomSize);
+        public byte[] Ewram = Memory.AllocateManagedArray(EwramSize);
+        public byte[] Iwram = Memory.AllocateManagedArray(IwramSize);
 #endif
 
         public byte Read8(uint addr)

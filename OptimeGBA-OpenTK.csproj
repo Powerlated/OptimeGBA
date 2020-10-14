@@ -11,6 +11,8 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <StartupObject>OptimeGBAEmulator.MainOpenTK</StartupObject>
 
+    <!-- <DefineConstants>UNSAFE</DefineConstants> -->
+
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>

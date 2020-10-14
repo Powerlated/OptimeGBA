@@ -235,12 +235,12 @@ namespace OptimeGBA
 
         // RGB, 24-bit
         public const int ScreenBufferSize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
-#if DEBUG
-        public byte[] ScreenFront = Memory.AllocateManagedArray(ScreenBufferSize);
-        public byte[] ScreenBack = Memory.AllocateManagedArray(ScreenBufferSize);
-#else   
+#if UNSAFE
         public byte* ScreenFront = Memory.AllocateUnmanagedArray(ScreenBufferSize);
         public byte* ScreenBack = Memory.AllocateUnmanagedArray(ScreenBufferSize);
+#else   
+        public byte[] ScreenFront = Memory.AllocateManagedArray(ScreenBufferSize);
+        public byte[] ScreenBack = Memory.AllocateManagedArray(ScreenBufferSize);
 #endif
 
         public const byte WIDTH = 240;
@@ -248,14 +248,14 @@ namespace OptimeGBA
         public const byte BYTES_PER_PIXEL = 4;
 
         public byte[,] ProcessedPalettes = new byte[512, 3];
-#if DEBUG
-        public byte[] Palettes = Memory.AllocateManagedArray(1024);
-        public byte[] Vram = Memory.AllocateManagedArray(98304);
-        public byte[] Oam = Memory.AllocateManagedArray(1024);
-#else
+#if UNSAFE
         public byte* Palettes = Memory.AllocateUnmanagedArray(1024);
         public byte* Vram = Memory.AllocateUnmanagedArray(98304);
         public byte* Oam = Memory.AllocateUnmanagedArray(1024);
+#else
+        public byte[] Palettes = Memory.AllocateManagedArray(1024);
+        public byte[] Vram = Memory.AllocateManagedArray(98304);
+        public byte[] Oam = Memory.AllocateManagedArray(1024);
 #endif
 
         public uint TotalFrames;
@@ -289,9 +289,16 @@ namespace OptimeGBA
             byte g = (byte)((data >> 5) & 0b11111);
             byte b = (byte)((data >> 10) & 0b11111);
 
-            ProcessedPalettes[pal, 0] = (byte)(r * (255 / 31));
-            ProcessedPalettes[pal, 1] = (byte)(g * (255 / 31));
-            ProcessedPalettes[pal, 2] = (byte)(b * (255 / 31));
+            // byuu color correction, customized for my tastes
+            double lcdGamma = 4.0, outGamma = 3.0;
+
+            double lb = Math.Pow(b / 31.0, lcdGamma);
+            double lg = Math.Pow(g / 31.0, lcdGamma);
+            double lr = Math.Pow(r / 31.0, lcdGamma);
+
+            ProcessedPalettes[pal, 0] = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
+            ProcessedPalettes[pal, 1] = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
+            ProcessedPalettes[pal, 2] = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
         }
 
         public byte ReadHwio8(uint addr)

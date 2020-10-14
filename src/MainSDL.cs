@@ -53,6 +53,8 @@ namespace OptimeGBAEmulator
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
+            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, LCD.WIDTH, LCD.HEIGHT);
+
             string romPath;
             byte[] rom;
             byte[] bios;
@@ -122,6 +124,8 @@ namespace OptimeGBAEmulator
                 romPath = filename;
             }
 
+            reload:
+
             if (!System.IO.File.Exists(romPath))
             {
                 Log("The ROM file you provided does not exist.");
@@ -178,8 +182,6 @@ namespace OptimeGBAEmulator
                 Log(".sav not available");
             }
 
-            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, LCD.WIDTH, LCD.HEIGHT);
-
             var provider = new GbaProvider(bios, rom, savPath, AudioReady);
             provider.BootBios = true;
             Gba = new GBA(provider);
@@ -222,8 +224,8 @@ namespace OptimeGBAEmulator
                             var filename = Marshal.PtrToStringUTF8(evt.drop.file);
                             try
                             {
-                                Gba.Provider.Rom = System.IO.File.ReadAllBytes(filename);
-                                ResetDue = true;
+                                romPath = filename;
+                                goto reload;
                             }
                             catch
                             {
@@ -283,13 +285,13 @@ namespace OptimeGBAEmulator
                     fpsEvalTimer += 1;
                 }
 
-#if DEBUG
+#if UNSAFE
+                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
+#else
                 fixed (byte* pixels = &Gba.Lcd.ScreenFront[0])
                 {
                     SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
                 }
-#else
-                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
 #endif
 
                 SDL_Rect dest = new SDL_Rect();
@@ -528,7 +530,7 @@ namespace OptimeGBAEmulator
             CyclesRan += FrameCycles;
             while (CyclesLeft > 0)
             {
-                CyclesLeft -= (int)Gba.Step();
+                CyclesLeft -= (int)Gba.SchedulerStep();
             }
         }
 
