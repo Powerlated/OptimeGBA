@@ -71,7 +71,7 @@ namespace OptimeGBA
             {
                 case 0: SaveProvider = new NullSaveProvider(); break;
                 case 1:
-                    SaveProvider = new Eeprom(EepromSize.Eeprom64k);
+                    SaveProvider = new Eeprom(Gba, EepromSize.Eeprom64k);
                     if (RomSize < 16777216)
                     {
                         EepromThreshold = 0x1000000;
@@ -152,14 +152,12 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
 
-#if DEBUG
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
                         uint count;
                         HwioReadLog.TryGetValue(addr, out count);
                         HwioReadLog[addr] = count + 1;
                     }
-#endif
 
                     HwioReads++;
                     return ReadHwio8(addr);
@@ -451,14 +449,12 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
 
-#if DEBUG
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
                         uint count;
                         HwioWriteLog.TryGetValue(addr, out count);
                         HwioWriteLog[addr] = count + 1;
                     }
-#endif
 
                     HwioWrites++;
                     WriteHwio8(addr, val);
@@ -541,7 +537,14 @@ namespace OptimeGBA
                 case 0xA: // Game Pak ROM/FlashROM 
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
-                case 0xD: // Game Pak SRAM/Flash
+                case 0xD: // Game Pak ROM/FlashROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        SaveProvider.Write8(adjAddr, (byte)val);
+                    }
+                    break;
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     goto default;
