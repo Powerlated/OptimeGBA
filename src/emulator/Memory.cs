@@ -809,6 +809,19 @@ namespace OptimeGBA
             return arr;
         }
 
+        public static uint* AllocateUnmanagedArray32(int size)
+        {
+            uint* arr = (uint*)Marshal.AllocHGlobal(size * sizeof(uint)).ToPointer();
+
+            // Zero out array
+            for (int i = 0; i < size; i++)
+            {
+                arr[i] = 0;
+            }
+
+            return arr;
+        }
+
         public static void FreeUnmanagedArray(byte* arr)
         {
             Marshal.FreeHGlobal(new IntPtr(arr));
@@ -817,6 +830,11 @@ namespace OptimeGBA
         public static byte[] AllocateManagedArray(int size)
         {
             return new byte[size];
+        }
+
+        public static uint[] AllocateManagedArray32(int size)
+        {
+            return new uint[size];
         }
     }
 }

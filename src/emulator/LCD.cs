@@ -234,20 +234,20 @@ namespace OptimeGBA
         public byte VCountSetting;
 
         // RGB, 24-bit
-        public const int ScreenBufferSize = WIDTH * HEIGHT * BYTES_PER_PIXEL;
+        public const int ScreenBufferSize = WIDTH * HEIGHT;
 #if UNSAFE
-        public byte* ScreenFront = Memory.AllocateUnmanagedArray(ScreenBufferSize);
-        public byte* ScreenBack = Memory.AllocateUnmanagedArray(ScreenBufferSize);
+        public uint* ScreenFront = Memory.AllocateUnmanagedArray32(ScreenBufferSize);
+        public uint* ScreenBack = Memory.AllocateUnmanagedArray32(ScreenBufferSize);
 #else   
-        public byte[] ScreenFront = Memory.AllocateManagedArray(ScreenBufferSize);
-        public byte[] ScreenBack = Memory.AllocateManagedArray(ScreenBufferSize);
+        public uint[] ScreenFront = Memory.AllocateManagedArray32(ScreenBufferSize);
+        public uint[] ScreenBack = Memory.AllocateManagedArray32(ScreenBufferSize);
 #endif
 
         public const byte WIDTH = 240;
         public const byte HEIGHT = 160;
         public const byte BYTES_PER_PIXEL = 4;
 
-        public byte[,] ProcessedPalettes = new byte[512, 3];
+        public uint[] ProcessedPalettes = new uint[512];
 #if UNSAFE
         public byte* Palettes = Memory.AllocateUnmanagedArray(1024);
         public byte* Vram = Memory.AllocateUnmanagedArray(98304);
@@ -296,9 +296,11 @@ namespace OptimeGBA
             double lg = Math.Pow(g / 31.0, lcdGamma);
             double lr = Math.Pow(r / 31.0, lcdGamma);
 
-            ProcessedPalettes[pal, 0] = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
-            ProcessedPalettes[pal, 1] = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
-            ProcessedPalettes[pal, 2] = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+            byte fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
+            byte fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
+            byte fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+
+            ProcessedPalettes[pal] = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
         }
 
         public byte ReadHwio8(uint addr)
@@ -631,14 +633,12 @@ namespace OptimeGBA
             else
             {
                 // Render white
-                uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+                uint screenBase = VCount * WIDTH;
 
                 for (uint p = 0; p < 240; p++)
                 {
-                    ScreenBack[screenBase + 0] = 0xFF;
-                    ScreenBack[screenBase + 1] = 0xFF;
-                    ScreenBack[screenBase + 2] = 0xFF;
-                    screenBase += BYTES_PER_PIXEL;
+                    ScreenBack[screenBase] = 0xFFFFFFFF;
+                    screenBase++;
                 }
             }
         }
@@ -653,14 +653,12 @@ namespace OptimeGBA
 
         public void DrawBackdropColor()
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = VCount * WIDTH;
 
             for (uint p = 0; p < 240; p++)
             {
-                ScreenBack[screenBase + 0] = ProcessedPalettes[0, 0];
-                ScreenBack[screenBase + 1] = ProcessedPalettes[0, 1];
-                ScreenBack[screenBase + 2] = ProcessedPalettes[0, 2];
-                screenBase += BYTES_PER_PIXEL;
+                ScreenBack[screenBase] = ProcessedPalettes[0];
+                screenBase++;
             }
         }
 
@@ -669,7 +667,7 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
             uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
 
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = VCount * WIDTH;
 
             uint pixelY = bg.VerticalOffset + VCount;
             uint pixelYWrapped = pixelY & 255;
@@ -719,12 +717,10 @@ namespace OptimeGBA
 
                         if (finalColor != 0)
                         {
-                            ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
-                            ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
-                            ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                            ScreenBack[screenBase] = ProcessedPalettes[finalColor];
                         }
 
-                        screenBase += BYTES_PER_PIXEL;
+                        screenBase++;
 
                         pixelX++;
                         screenPixelX++;
@@ -747,12 +743,10 @@ namespace OptimeGBA
                         uint finalColor = (palette * 16) + color;
                         if (color != 0)
                         {
-                            ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
-                            ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
-                            ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                            ScreenBack[screenBase] = ProcessedPalettes[finalColor];
                         }
 
-                        screenBase += BYTES_PER_PIXEL;
+                        screenBase++;
 
                         pixelX++;
                         screenPixelX++;
@@ -777,7 +771,7 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
             uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
 
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = VCount * WIDTH;
 
             uint pixelY = (yInteger + VCount) & AffineSizeMask[bg.ScreenSize];
             uint pixelYWrapped = pixelY & 255;
@@ -808,12 +802,10 @@ namespace OptimeGBA
 
                 if (finalColor != 0)
                 {
-                    ScreenBack[screenBase + 0] = ProcessedPalettes[finalColor, 0];
-                    ScreenBack[screenBase + 1] = ProcessedPalettes[finalColor, 1];
-                    ScreenBack[screenBase + 2] = ProcessedPalettes[finalColor, 2];
+                    ScreenBack[screenBase] = ProcessedPalettes[finalColor];
                 }
 
-                screenBase += BYTES_PER_PIXEL;
+                screenBase++;
             }
         }
 
@@ -923,8 +915,8 @@ namespace OptimeGBA
                 }
 
                 int yEnd = ((int)yPos + (int)ySize) & 255;
-                uint screenBase = (VCount * WIDTH) * BYTES_PER_PIXEL;
-                uint screenLineBase = xPos * BYTES_PER_PIXEL;
+                uint screenBase = (VCount * WIDTH);
+                uint screenLineBase = xPos;
 
                 // y relative to the object itself
                 int objPixelY = ((int)VCount - (int)yPos) & 255;
@@ -942,7 +934,7 @@ namespace OptimeGBA
 
                 for (uint x = 0; x < xSize; x++)
                 {
-                    if (screenLineBase < WIDTH * BYTES_PER_PIXEL)
+                    if (screenLineBase < WIDTH)
                     {
                         uint objPixelX = x;
                         if (xFlip)
@@ -982,9 +974,7 @@ namespace OptimeGBA
 
                             if (finalColor != 0)
                             {
-                                ScreenBack[screenBase + screenLineBase + 0] = ProcessedPalettes[finalColor + 256, 0];
-                                ScreenBack[screenBase + screenLineBase + 1] = ProcessedPalettes[finalColor + 256, 1];
-                                ScreenBack[screenBase + screenLineBase + 2] = ProcessedPalettes[finalColor + 256, 2];
+                                ScreenBack[screenBase + screenLineBase] = ProcessedPalettes[finalColor + 256];
                             }
                         }
                         else
@@ -998,13 +988,11 @@ namespace OptimeGBA
                             uint finalColor = (palette * 16) + color;
                             if (color != 0)
                             {
-                                ScreenBack[screenBase + screenLineBase + 0] = ProcessedPalettes[finalColor + 256, 0];
-                                ScreenBack[screenBase + screenLineBase + 1] = ProcessedPalettes[finalColor + 256, 1];
-                                ScreenBack[screenBase + screenLineBase + 2] = ProcessedPalettes[finalColor + 256, 2];
+                                ScreenBack[screenBase + screenLineBase] = ProcessedPalettes[finalColor + 256];
                             }
                         }
                     }
-                    screenLineBase = (screenLineBase + BYTES_PER_PIXEL) % (512 * BYTES_PER_PIXEL);
+                    screenLineBase = (screenLineBase + 1) % 512;
 
                     x &= 511;
                 }
@@ -1052,25 +1040,23 @@ namespace OptimeGBA
 
         public void RenderMode4()
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = VCount * WIDTH;
             uint vramBase = 0x0 + (VCount * WIDTH);
 
             for (uint p = 0; p < WIDTH; p++)
             {
                 uint vramVal = Vram[vramBase];
 
-                ScreenBack[screenBase + 0] = ProcessedPalettes[vramVal, 0];
-                ScreenBack[screenBase + 1] = ProcessedPalettes[vramVal, 1];
-                ScreenBack[screenBase + 2] = ProcessedPalettes[vramVal, 2];
+                ScreenBack[screenBase] = ProcessedPalettes[vramVal];
 
                 vramBase++;
-                screenBase += BYTES_PER_PIXEL;
+                screenBase++;
             }
         }
 
         public void RenderMode3()
         {
-            uint screenBase = VCount * WIDTH * BYTES_PER_PIXEL;
+            uint screenBase = VCount * WIDTH;
             uint vramBase = 0x0 + (VCount * WIDTH * 2);
 
             for (uint p = 0; p < WIDTH; p++)
@@ -1084,11 +1070,13 @@ namespace OptimeGBA
                 byte g = (byte)((data >> 5) & 0b11111);
                 byte b = (byte)((data >> 10) & 0b11111);
 
-                ScreenBack[screenBase + 0] = (byte)(r * (255 / 31));
-                ScreenBack[screenBase + 1] = (byte)(g * (255 / 31));
-                ScreenBack[screenBase + 2] = (byte)(b * (255 / 31));
+                byte fr = (byte)(r * (255 / 31));
+                byte fg = (byte)(g * (255 / 31));
+                byte fb = (byte)(b * (255 / 31));
 
-                screenBase += BYTES_PER_PIXEL;
+                ScreenBack[screenBase] = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+
+                screenBase++;
                 vramBase += 2;
             }
         }

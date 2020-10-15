@@ -232,7 +232,6 @@ namespace OptimeGBAEmulator
                                 Log("An error occurred loading the dropped ROM file.");
                                 return;
                             }
-                            break;
                     }
                 }
 
@@ -288,7 +287,7 @@ namespace OptimeGBAEmulator
 #if UNSAFE
                 SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
 #else
-                fixed (byte* pixels = &Gba.Lcd.ScreenFront[0])
+                fixed (uint* pixels = &Gba.Lcd.ScreenFront[0])
                 {
                     SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
                 }

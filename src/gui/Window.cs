@@ -595,7 +595,7 @@ namespace OptimeGBAEmulator
             }
         }
 
-        byte[] PaletteImageBuffer = new byte[16 * 16 * 3];
+        uint[] PaletteImageBuffer = new uint[16 * 16];
 
         public void DrawDebug()
         {
@@ -910,10 +910,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    int imgBase = p * 3;
-                    PaletteImageBuffer[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p, 0];
-                    PaletteImageBuffer[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p, 1];
-                    PaletteImageBuffer[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p, 2];
+                    PaletteImageBuffer[p] = Gba.Lcd.ProcessedPalettes[p];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
@@ -930,7 +927,7 @@ namespace OptimeGBAEmulator
                     16,
                     16,
                     0,
-                    PixelFormat.Rgb,
+                    PixelFormat.Rgba,
                     PixelType.UnsignedByte,
                     PaletteImageBuffer
                 );
@@ -940,10 +937,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    int imgBase = p * 3;
-                    PaletteImageBuffer[imgBase + 0] = Gba.Lcd.ProcessedPalettes[p + 256, 0];
-                    PaletteImageBuffer[imgBase + 1] = Gba.Lcd.ProcessedPalettes[p + 256, 1];
-                    PaletteImageBuffer[imgBase + 2] = Gba.Lcd.ProcessedPalettes[p + 256, 2];
+                    PaletteImageBuffer[p] = Gba.Lcd.ProcessedPalettes[p + 256];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
@@ -959,7 +953,7 @@ namespace OptimeGBAEmulator
                     16,
                     16,
                     0,
-                    PixelFormat.Rgb,
+                    PixelFormat.Rgba,
                     PixelType.UnsignedByte,
                     PaletteImageBuffer
                 );
