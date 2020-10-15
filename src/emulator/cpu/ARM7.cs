@@ -154,6 +154,8 @@ namespace OptimeGBA
             {
                 BiosInit();
             }
+
+            FillPipelineArm();
         }
 
         public void BiosInit()
@@ -163,19 +165,6 @@ namespace OptimeGBA
 
             R[0] = 0x08000000;
             R[1] = 0x000000EA;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FillPipeline()
-        {
-            if (ThumbState)
-            {
-                FillPipelineThumb();
-            }
-            else
-            {
-                FillPipelineArm();
-            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -198,6 +187,15 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void FetchPipelineArmIfNotFull()
+        {
+            if (Pipeline < 2)
+            {
+                FetchPipelineArm();
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FillPipelineThumb()
         {
             while (Pipeline < 2)
@@ -215,6 +213,15 @@ namespace OptimeGBA
             R[15] += 2;
 
             Pipeline++;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void FetchPipelineThumbIfNotFull()
+        {
+            if (Pipeline < 2)
+            {
+                FetchPipelineThumb();
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -255,9 +262,6 @@ namespace OptimeGBA
 
                 LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
-                // Fill the pipeline if it's not full
-                FillPipelineArm();
-
                 uint ins = ARMDecode;
                 Pipeline--;
                 LastLastIns = LastIns;
@@ -274,13 +278,13 @@ namespace OptimeGBA
                 {
                     ArmDispatch[((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF)](this, ins);
                 }
+
+                // Fill the pipeline if it's not full
+                FetchPipelineArmIfNotFull();
             }
             else // THUMB mode
             {
                 LineDebug($"R15: ${Util.HexN(R[15], 4)}");
-
-                // Fill the pipeline if it's not full
-                FillPipelineThumb();
 
                 ushort ins = THUMBDecode;
                 Pipeline--;
@@ -290,6 +294,9 @@ namespace OptimeGBA
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
                 ThumbDispatch[ins >> 6](this, ins);
+
+                // Fill the pipeline if it's not full
+                FetchPipelineThumbIfNotFull();
             }
 
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
@@ -1423,12 +1430,13 @@ namespace OptimeGBA
                     uint rm = ins & 0xF;
                     LineDebug("RS: " + rs);
 
-                    FillPipeline();
                     ICycle();
 
+                    R[15] += 4;
                     uint rnVal = R[rn];
                     uint rsVal = R[rs];
                     uint rmVal = R[rm];
+                    R[15] -= 4;
 
                     shiftBits = (byte)(rsVal & 0b11111111);
 

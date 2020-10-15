@@ -27,7 +27,6 @@ namespace OptimeGBA
 
             Scheduler = new Scheduler();
 
-            Arm7 = new ARM7(this);
             Mem = new Memory(this, provider);
             GbaAudio = new GBAAudio(this, Scheduler);
             Lcd = new LCD(this, Scheduler);
@@ -35,6 +34,7 @@ namespace OptimeGBA
             Dma = new DMA(this);
             Timers = new Timers(this, Scheduler);
             HwControl = new HWControl(this);
+            Arm7 = new ARM7(this);
 
             AudioCallback = provider.AudioCallback;
 

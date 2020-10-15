@@ -644,6 +644,8 @@ namespace OptimeGBA
             // STR (Store Register)
             arm7.LineDebug("STR (Store Register)");
 
+            arm7.FetchPipelineArm();
+
             uint rn = (ins >> 16) & 0xF;
             uint rd = (ins >> 12) & 0xF;
             uint rnValue = arm7.R[rn];
