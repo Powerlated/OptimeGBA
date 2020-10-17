@@ -180,7 +180,7 @@ namespace OptimeGBA
         public void FetchPipelineArm()
         {
             ARMDecode = ARMFetch;
-            ARMFetch = Read32(R[15]);
+            ARMFetch = Read32InstrFetch(R[15]);
             R[15] += 4;
 
             Pipeline++;
@@ -209,7 +209,7 @@ namespace OptimeGBA
         {
 
             THUMBDecode = THUMBFetch;
-            THUMBFetch = Read16(R[15]);
+            THUMBFetch = Read16InstrFetch(R[15]);
             R[15] += 2;
 
             Pipeline++;
@@ -246,7 +246,9 @@ namespace OptimeGBA
 
         public uint Execute()
         {
+#if OPENTK_DEBUGGER
             InstructionsRan++;
+#endif
             InstructionCycles = 0;
 
             // if (PipelineDirty)
@@ -264,8 +266,10 @@ namespace OptimeGBA
 
                 uint ins = ARMDecode;
                 Pipeline--;
+#if OPENTK_DEBUGGER
                 LastLastIns = LastIns;
                 LastIns = ins;
+#endif
 
                 LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
                 LineDebug($"Cond: ${ins >> 28:X}");
@@ -288,8 +292,10 @@ namespace OptimeGBA
 
                 ushort ins = THUMBDecode;
                 Pipeline--;
+#if OPENTK_DEBUGGER
                 LastLastIns = LastIns;
                 LastIns = ins;
+#endif
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
@@ -1223,6 +1229,20 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ushort Read16InstrFetch(uint addr)
+        {
+            InstructionCycles += Timing8And16InstrFetch[(addr >> 24) & 0xF];
+            return Gba.Mem.Read16(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint Read32InstrFetch(uint addr)
+        {
+            InstructionCycles += Timing32InstrFetch[(addr >> 24) & 0xF];
+            return Gba.Mem.Read32(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
@@ -1259,13 +1279,12 @@ namespace OptimeGBA
             1, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 5 -> 3
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM 
-            3, // Game Pak ROM/FlashROM
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM 
+            5, // Game Pak ROM/FlashROM
 
             5, // Game Pak SRAM/Flash
             5, // Game Pak SRAM/Flash
@@ -1281,13 +1300,56 @@ namespace OptimeGBA
             2, // PPU VRAM
             1, // PPU OAM
 
-            // Compensate for no prefetch buffer 8 -> 5
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM
+            8, // Game Pak ROM/FlashROM 
+            8, // Game Pak ROM/FlashROM 
+            8, // Game Pak ROM/FlashROM 
+            8, // Game Pak ROM/FlashROM 
+            8, // Game Pak ROM/FlashROM 
+            8, // Game Pak ROM/FlashROM
+
+            8, // Game Pak SRAM/Flash
+            8, // Game Pak SRAM/Flash
+        };
+
+        public static readonly byte[] Timing8And16InstrFetch = {
+            1, // BIOS
+            1, // Unused
+            3, // EWRAM
+            1, // IWRAM
+            1, // I/O Registers
+            1, // PPU Palettes
+            1, // PPU VRAM
+            1, // PPU OAM
+
+            // Compensate for no prefetch buffer 5 -> 2
+            2, // Game Pak ROM/FlashROM 
+            2, // Game Pak ROM/FlashROM 
+            2, // Game Pak ROM/FlashROM 
+            2, // Game Pak ROM/FlashROM 
+            2, // Game Pak ROM/FlashROM 
+            2, // Game Pak ROM/FlashROM
+
+            5, // Game Pak SRAM/Flash
+            5, // Game Pak SRAM/Flash
+        };
+
+        public static readonly byte[] Timing32InstrFetch = {
+            1, // BIOS
+            1, // Unused
+            6, // EWRAM
+            1, // IWRAM
+            1, // I/O Registers
+            2, // PPU Palettes
+            2, // PPU VRAM
+            1, // PPU OAM
+
+            // Compensate for no prefetch buffer 8 -> 4
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM 
+            4, // Game Pak ROM/FlashROM
 
             8, // Game Pak SRAM/Flash
             8, // Game Pak SRAM/Flash

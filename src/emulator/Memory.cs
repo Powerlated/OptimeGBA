@@ -136,17 +136,23 @@ namespace OptimeGBA
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
+#if OPENTK_DEBUGGER
                     BiosReads++;
+#endif
                     addr &= 0x3FFF;
                     return GetByte(Bios, addr);
                 case 0x1: // Unused
                     break;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramReads++;
+#endif
                     addr &= 0x3FFFF;
                     return GetByte(Ewram, addr);
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramReads++;
+#endif
                     addr &= 0x7FFF;
                     return GetByte(Iwram, addr);
                 case 0x4: // I/O Registers
@@ -159,14 +165,20 @@ namespace OptimeGBA
                         HwioReadLog[addr] = count + 1;
                     }
 
+#if OPENTK_DEBUGGER
                     HwioReads++;
+#endif
                     return ReadHwio8(addr);
                 case 0x5: // PPU Palettes
+#if OPENTK_DEBUGGER
                     PaletteReads++;
+#endif
                     addr &= 0x3FF;
                     return GetByte(Gba.Lcd.Palettes, addr);
                 case 0x6: // PPU VRAM
+#if OPENTK_DEBUGGER
                     VramReads++;
+#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
@@ -177,7 +189,9 @@ namespace OptimeGBA
                         return 0;
                     }
                 case 0x7: // PPU OAM
+#if OPENTK_DEBUGGER
                     OamReads++;
+#endif
                     addr &= 0x3FF;
                     return GetByte(Gba.Lcd.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
@@ -186,7 +200,9 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
+#if OPENTK_DEBUGGER
                     RomReads++;
+#endif
                     addr &= 0x1FFFFFF;
                     return GetByte(Rom, addr);
                 case 0xE: // Game Pak SRAM/Flash
@@ -209,27 +225,37 @@ namespace OptimeGBA
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
+#if OPENTK_DEBUGGER
                     BiosReads += 2;
+#endif
                     addr &= 0x3FFF;
                     return GetUshort(Bios, addr);
                 case 0x1: // Unused
                     goto default;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramReads += 2;
+#endif
                     addr &= 0x3FFFF;
                     return GetUshort(Ewram, addr);
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramReads += 2;
+#endif
                     addr &= 0x7FFF;
                     return GetUshort(Iwram, addr);
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
+#if OPENTK_DEBUGGER
                     PaletteReads += 2;
+#endif
                     addr &= 0x3FF;
                     return GetUshort(Gba.Lcd.Palettes, addr);
                 case 0x6: // PPU VRAM
+#if OPENTK_DEBUGGER
                     VramReads += 2;
+#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
@@ -241,7 +267,9 @@ namespace OptimeGBA
                     }
 
                 case 0x7: // PPU OAM
+#if OPENTK_DEBUGGER
                     OamReads += 2;
+#endif
                     addr &= 0x3FF;
                     return GetUshort(Gba.Lcd.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
@@ -250,7 +278,9 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
+#if OPENTK_DEBUGGER
                     RomReads += 2;
+#endif
 
                     uint adjAddr = addr & 0x1FFFFFF;
                     if (adjAddr >= EepromThreshold)
@@ -286,27 +316,37 @@ namespace OptimeGBA
             switch ((addr >> 24) & 0xF)
             {
                 case 0x0: // BIOS
+#if OPENTK_DEBUGGER
                     BiosReads += 4;
+#endif
                     addr &= 0x3FFF;
                     return GetUint(Bios, addr);
                 case 0x1: // Unused
                     goto default;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramReads += 4;
+#endif
                     addr &= 0x3FFFF;
                     return GetUint(Ewram, addr);
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramReads += 4;
+#endif
                     addr &= 0x7FFF;
                     return GetUint(Iwram, addr);
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
+#if OPENTK_DEBUGGER
                     PaletteReads += 4;
+#endif
                     addr &= 0x3FF;
                     return GetUint(Gba.Lcd.Palettes, addr);
                 case 0x6: // PPU VRAM
+#if OPENTK_DEBUGGER
                     VramReads += 4;
+#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
@@ -317,7 +357,9 @@ namespace OptimeGBA
                         return 0;
                     }
                 case 0x7: // PPU OAM
+#if OPENTK_DEBUGGER
                     OamReads += 4;
+#endif
                     addr &= 0x3FF;
                     return GetUint(Gba.Lcd.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
@@ -326,7 +368,9 @@ namespace OptimeGBA
                 case 0xB: // Game Pak ROM/FlashROM 
                 case 0xC: // Game Pak ROM/FlashROM 
                 case 0xD: // Game Pak ROM/FlashROM 
+#if OPENTK_DEBUGGER
                     RomReads += 4;
+#endif
 
                     uint adjAddr = addr & 0x1FFFFFF;
                     if (adjAddr >= EepromThreshold)
@@ -437,12 +481,16 @@ namespace OptimeGBA
                 case 0x1: // Unused
                     return;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramWrites++;
+#endif
                     addr &= 0x3FFFF;
                     SetByte(Ewram, addr, val);
                     break;
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramWrites++;
+#endif
                     addr &= 0x7FFF;
                     SetByte(Iwram, addr, val);
                     break;
@@ -456,7 +504,9 @@ namespace OptimeGBA
                         HwioWriteLog[addr] = count + 1;
                     }
 
+#if OPENTK_DEBUGGER
                     HwioWrites++;
+#endif
                     WriteHwio8(addr, val);
                     break;
                 case 0x5: // PPU Palettes
@@ -501,26 +551,34 @@ namespace OptimeGBA
                 case 0x1: // Unused
                     return;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramWrites += 2;
+#endif
                     addr &= 0x3FFFF;
                     SetUshort(Ewram, addr, val);
                     return;
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramWrites += 2;
+#endif
                     addr &= 0x7FFF;
                     SetUshort(Iwram, addr, val);
                     return;
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
-                    // Gba.Arm7.Error("Write: Palette16");
+                          // Gba.Arm7.Error("Write: Palette16");
+#if OPENTK_DEBUGGER
                     PaletteWrites += 2;
+#endif
                     addr &= 0x3FF;
                     SetUshort(Gba.Lcd.Palettes, addr, val);
                     Gba.Lcd.UpdatePalette((addr & ~1u) / 2);
                     return;
                 case 0x6: // PPU VRAM
+#if OPENTK_DEBUGGER
                     VramWrites += 2;
+#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
@@ -528,7 +586,9 @@ namespace OptimeGBA
                     }
                     return;
                 case 0x7: // PPU OAM
+#if OPENTK_DEBUGGER
                     OamWrites += 2;
+#endif
                     addr &= 0x3FF;
                     SetUshort(Gba.Lcd.Oam, addr, val);
                     return;
@@ -574,27 +634,35 @@ namespace OptimeGBA
                 case 0x1: // Unused
                     return;
                 case 0x2: // EWRAM
+#if OPENTK_DEBUGGER
                     EwramWrites += 4;
+#endif
                     addr &= 0x3FFFF;
                     SetUint(Ewram, addr, val);
                     return;
                 case 0x3: // IWRAM
+#if OPENTK_DEBUGGER
                     IwramWrites += 4;
+#endif
                     addr &= 0x7FFF;
                     SetUint(Iwram, addr, val);
                     return;
                 case 0x4: // I/O Registers
                     goto default;
                 case 0x5: // PPU Palettes
-                    // Gba.Arm7.Error("Write: Palette32");
+                          // Gba.Arm7.Error("Write: Palette32");
+#if OPENTK_DEBUGGER
                     PaletteWrites += 4;
+#endif
                     addr &= 0x3FF;
                     SetUint(Gba.Lcd.Palettes, addr, val);
                     Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 0);
                     Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 1);
                     return;
                 case 0x6: // PPU VRAM
+#if OPENTK_DEBUGGER
                     VramWrites += 4;
+#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
@@ -602,7 +670,9 @@ namespace OptimeGBA
                     }
                     return;
                 case 0x7: // PPU OAM
+#if OPENTK_DEBUGGER
                     OamWrites += 4;
+#endif
                     addr &= 0x3FF;
                     SetUint(Gba.Lcd.Oam, addr, val);
                     return;

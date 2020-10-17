@@ -12,6 +12,7 @@
     <StartupObject>OptimeGBAEmulator.MainOpenTK</StartupObject>
 
     <!-- <DefineConstants>UNSAFE</DefineConstants> -->
+    <DefineConstants>OPENTK_DEBUGGER</DefineConstants>
 
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
