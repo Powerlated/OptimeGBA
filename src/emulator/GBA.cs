@@ -38,11 +38,11 @@ namespace OptimeGBA
 
             AudioCallback = provider.AudioCallback;
 
-            #if UNSAFE 
+#if UNSAFE
             Console.WriteLine("Starting in memory UNSAFE mode");
-            #else
+#else
             Console.WriteLine("Starting in memory SAFE mode");
-            #endif
+#endif
         }
 
         uint ExtraTicks = 0;

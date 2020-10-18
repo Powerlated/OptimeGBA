@@ -18,10 +18,11 @@ using System.Text;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using static SDL2.SDL;
+using System.Linq;
 
 namespace OptimeGBAEmulator
 {
-    public class Game : GameWindow
+    public unsafe class Game : GameWindow
     {
         int gbTexId;
         int bgPalTexId;
@@ -290,6 +291,7 @@ namespace OptimeGBAEmulator
             DrawHwioLog();
             DrawBankedRegisters();
             DrawSoundVisualizer();
+            DrawCpuProfiler();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
             GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -1269,6 +1271,68 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public Dictionary<ThumbExecutor, uint> CpuProfilerDictThumb = new Dictionary<ThumbExecutor, uint>();
+        public Dictionary<ArmExecutor, uint> CpuProfilerDictArm = new Dictionary<ArmExecutor, uint>();
+        public void DrawCpuProfiler()
+        {
+            if (ImGui.Begin("CPU Profiler"))
+            {
+                foreach (var key in new List<ThumbExecutor>(CpuProfilerDictThumb.Keys))
+                {
+                    CpuProfilerDictThumb[key] = 0;
+                }
+                foreach (var key in new List<ArmExecutor>(CpuProfilerDictArm.Keys))
+                {
+                    CpuProfilerDictArm[key] = 0;
+                }
+
+                for (int ti = 0; ti < 1024; ti++)
+                {
+                    ThumbExecutor k = ARM7.ThumbDispatch[ti];
+                    if (!CpuProfilerDictThumb.TryGetValue(k, out uint val)) {
+                        CpuProfilerDictThumb[k] = 0;
+                    }
+                    CpuProfilerDictThumb[k] += Gba.Arm7.ThumbExecutorProfile[ti];
+                }
+
+                for (int ai = 0; ai < 4096; ai++)
+                {
+                    ArmExecutor k = ARM7.ArmDispatch[ai];
+                    if (!CpuProfilerDictArm.TryGetValue(k, out uint val)) {
+                        CpuProfilerDictArm[k] = 0;
+                    }
+                    CpuProfilerDictArm[k] += Gba.Arm7.ArmExecutorProfile[ai];
+                }
+
+                ImGui.Columns(1);
+                ImGui.Text("THUMB Mode");
+                ImGui.Columns(2);
+                
+                foreach (var (k, v) in CpuProfilerDictThumb.OrderByDescending(p => p.Value))
+                {
+                    ImGui.Text(k.Method.Name);
+                    ImGui.NextColumn();
+                    ImGui.Text(v.ToString());
+                    ImGui.NextColumn();
+                }
+                ImGui.Separator();
+
+                ImGui.Columns(1);
+                ImGui.Text("ARM Mode");
+                ImGui.Columns(2);
+                
+                foreach (var (k, v) in CpuProfilerDictArm.OrderByDescending(p => p.Value))
+                {
+                    ImGui.Text(k.Method.Name);
+                    ImGui.NextColumn();
+                    ImGui.Text(v.ToString());
+                    ImGui.NextColumn();
+                }
+
+                ImGui.End();
+            }
+        }
+
         public void DrawHwioLog()
         {
             if (ImGui.Begin("HWIO Log"))
@@ -1350,17 +1414,6 @@ namespace OptimeGBAEmulator
                 Console.WriteLine("Failed to write .sav file!");
             }
         }
-
-        public uint[][] PulseDuty = new uint[][] {
-            new uint[] {0, 0, 0, 0, 0, 0, 0, 1},
-            new uint[] {1, 0, 0, 0, 0, 0, 0, 1},
-            new uint[] {1, 0, 0, 0, 0, 1, 1, 1},
-            new uint[] {0, 1, 1, 1, 1, 1, 1, 0},
-        };
-
-        public uint[] NoiseDivisors = { 8, 16, 32, 48, 63, 80, 96, 112 };
-
-        public int[] WaveShiftCodes = { 4, 0, 1, 2 };
 
         public void DrawPulseBox(int duty, float widthMul, float heightMul)
         {
@@ -1461,7 +1514,6 @@ namespace OptimeGBAEmulator
             }
         }
 
-        uint NoisePos = 0;
         public void DrawNoiseBox(byte[] noiseArray, float widthMul, float heightMul)
         {
             ImDrawListPtr dl = ImGui.GetWindowDrawList();
@@ -1567,6 +1619,19 @@ namespace OptimeGBAEmulator
                 ImGui.End();
             }
         }
+
+        uint NoisePos = 0;
+
+        public uint[][] PulseDuty = new uint[][] {
+            new uint[] {0, 0, 0, 0, 0, 0, 0, 1},
+            new uint[] {1, 0, 0, 0, 0, 0, 0, 1},
+            new uint[] {1, 0, 0, 0, 0, 1, 1, 1},
+            new uint[] {0, 1, 1, 1, 1, 1, 1, 0},
+        };
+
+        public uint[] NoiseDivisors = { 8, 16, 32, 48, 63, 80, 96, 112 };
+
+        public int[] WaveShiftCodes = { 4, 0, 1, 2 };
 
         string[] noteStrings = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
 

@@ -6,7 +6,7 @@ namespace OptimeGBA
 {
     public delegate void ArmExecutor(ARM7 arm7, uint ins);
 
-    public static class Arm
+    public unsafe static class Arm
     {
         public static void SWI(ARM7 arm7, uint ins)
         {
@@ -644,11 +644,11 @@ namespace OptimeGBA
             // STR (Store Register)
             arm7.LineDebug("STR (Store Register)");
 
-            arm7.FetchPipelineArm();
-
             uint rn = (ins >> 16) & 0xF;
             uint rd = (ins >> 12) & 0xF;
             uint rnValue = arm7.R[rn];
+
+            arm7.FetchPipelineArm();
 
             bool P = BitTest(ins, 24); // post-indexed / offset addressing 
             bool U = BitTest(ins, 23); // invert
@@ -1065,7 +1065,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = (long)rnValue + (long)shifterOperand + (arm7.Carry ? 1U : 0) > 0xFFFFFFFFL; // C
-                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand + (arm7.Carry ? 1U : 0), final); // V
+                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // V
             }
         }
 
@@ -1089,7 +1089,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !((long)shifterOperand + (long)(!arm7.Carry ? 1U : 0) > rnValue); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand + (!arm7.Carry ? 1U : 0), aluOut); // V
+                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
             }
         }
 
@@ -1112,8 +1112,8 @@ namespace OptimeGBA
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = !(rnValue + (!arm7.Carry ? 1U : 0U) > shifterOperand); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue + (!arm7.Carry ? 1U : 0), aluOut); // V
+                arm7.Carry = !((long)rnValue + (long)(!arm7.Carry ? 1U : 0) > shifterOperand); // C
+                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
             }
         }
 

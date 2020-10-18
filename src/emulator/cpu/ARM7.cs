@@ -5,7 +5,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public sealed class ARM7
+    public unsafe sealed class ARM7
     {
         public enum ARM7Mode
         {
@@ -54,6 +54,9 @@ namespace OptimeGBA
 
         public bool Errored = false;
 
+        public uint[] ThumbExecutorProfile = new uint[1024];
+        public uint[] ArmExecutorProfile = new uint[4096];
+
         public const uint VectorReset = 0x00;
         public const uint VectorUndefined = 0x04;
         public const uint VectorSoftwareInterrupt = 0x08;
@@ -64,7 +67,12 @@ namespace OptimeGBA
         public const uint VectorFIQ = 0x1C;
 
         public GBA Gba;
+
+#if UNSAFE
+        public uint* R = Memory.AllocateUnmanagedArray32(16);
+#else
         public uint[] R = new uint[16];
+#endif
 
         public uint R8usr;
         public uint R9usr;
@@ -258,6 +266,21 @@ namespace OptimeGBA
             // }
             ResetDebug();
 
+            // if (R[15] == 0x03006498)
+            // {
+            //     Error("Breakpoint");
+            // }
+
+            // if (R[2] == 0xFF03FF03)
+            // {
+            //     Error("R2 Breakpoint");
+            // }
+
+            // if (R[14] == 0x3FC0FFC0)
+            // {
+            //     Error("R14 Breakpoint");
+            // }
+
             if (!ThumbState) // ARM mode
             {
                 // Current Instruction Fetch
@@ -280,7 +303,11 @@ namespace OptimeGBA
 
                 if (conditionMet)
                 {
-                    ArmDispatch[((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF)](this, ins);
+                    uint decodeBits = ((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF);
+#if OPENTK_DEBUGGER
+                    ArmExecutorProfile[decodeBits]++;
+#endif
+                    ArmDispatch[decodeBits](this, ins);
                 }
 
                 // Fill the pipeline if it's not full
@@ -299,7 +326,11 @@ namespace OptimeGBA
 
                 LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
-                ThumbDispatch[ins >> 6](this, ins);
+                int decodeBits = ins >> 6;
+#if OPENTK_DEBUGGER
+                ThumbExecutorProfile[decodeBits]++;
+#endif
+                ThumbDispatch[decodeBits](this, ins);
 
                 // Fill the pipeline if it's not full
                 FetchPipelineThumbIfNotFull();
@@ -736,6 +767,7 @@ namespace OptimeGBA
             return Thumb.Invalid;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CheckCondition(uint code)
         {
             switch (code)
@@ -1377,11 +1409,11 @@ namespace OptimeGBA
             if (useImmediate32)
             {
                 uint rn = (ins >> 16) & 0xF; // Rn
-                uint rs = (ins >> 8) & 0xF;
-                uint rm = ins & 0xF;
+                // uint rs = (ins >> 8) & 0xF;
+                // uint rm = ins & 0xF;
                 uint rnVal = R[rn];
-                uint rsVal = R[rs];
-                uint rmVal = R[rm];
+                // uint rsVal = R[rs];
+                // uint rmVal = R[rm];
 
                 uint rotateBits = ((ins >> 8) & 0xF) * 2;
                 uint constant = ins & 0xFF;
@@ -1414,10 +1446,10 @@ namespace OptimeGBA
                     shiftBits = (byte)((ins >> 7) & 0b11111);
 
                     uint rn = (ins >> 16) & 0xF; // Rn
-                    uint rs = (ins >> 8) & 0xF;
+                    // uint rs = (ins >> 8) & 0xF;
                     uint rm = ins & 0xF;
                     uint rnVal = R[rn];
-                    uint rsVal = R[rs];
+                    // uint rsVal = R[rs];
                     uint rmVal = R[rm];
 
                     switch (shiftType)
@@ -1509,22 +1541,25 @@ namespace OptimeGBA
                             {
                                 shifterOperand = rmVal;
                                 shifterCarryOut = Carry;
+                                break;
                             }
-                            else if (shiftBits < 32)
+
+                            if (shiftBits >= 32)
                             {
-                                shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
-                                shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
-                            }
-                            else if (shiftBits == 32)
-                            {
+                                if (shiftBits > 32)
+                                {
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterCarryOut = BitTest(rmVal, 0);
+                                }
                                 shifterOperand = 0;
-                                shifterCarryOut = BitTest(rmVal, 0);
+                                break;
                             }
-                            else
-                            {
-                                shifterOperand = 0;
-                                shifterCarryOut = false;
-                            }
+
+                            shifterOperand = rmVal << shiftBits;
+                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
                             break;
                         case 0b01:
                             if (shiftBits == 0)
@@ -1579,12 +1614,7 @@ namespace OptimeGBA
                                 shifterOperand = rmVal;
                                 shifterCarryOut = Carry;
                             }
-                            else if ((shiftBits & 0b11111) == 0)
-                            {
-                                shifterOperand = rmVal;
-                                shifterCarryOut = BitTest(rmVal, 31);
-                            }
-                            else if ((shiftBits & 0b11111) > 0)
+                            else
                             {
                                 shifterOperand = RotateRight32(rmVal, (byte)(shiftBits & 0b11111));
                                 shifterCarryOut = BitTest(rmVal, (byte)((shiftBits & 0b11111) - 1));
