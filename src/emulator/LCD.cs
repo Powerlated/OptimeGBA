@@ -178,10 +178,6 @@ namespace OptimeGBA
             Gba = gba;
             Scheduler = scheduler;
 
-            RenderThread = new Thread(RenderThreadFunction);
-            RenderThread.Name = "Emulation Render Thread";
-            RenderThread.Start();
-
             Scheduler.AddEventRelative(SchedulerId.Lcd, 960, EndDrawingToHblank);
 
             for (uint i = 0; i < ScreenBufferSize; i++)
@@ -191,9 +187,15 @@ namespace OptimeGBA
             }
         }
 
-        public Thread RenderThread;
-        public ManualResetEventSlim RenderThreadSync = new ManualResetEventSlim(true);
-        public ManualResetEventSlim RenderThreadWait = new ManualResetEventSlim(true);
+#if DS_RESOLUTION
+        public const int WIDTH = 256;
+        public const int HEIGHT = 192;
+#else
+        public const int WIDTH = 240;
+        public const int HEIGHT = 160;
+#endif
+        public const int BYTES_PER_PIXEL = 4;
+
         public bool RenderingDone = false;
 
         // BGCNT
@@ -242,10 +244,6 @@ namespace OptimeGBA
         public uint[] ScreenFront = Memory.AllocateManagedArray32(ScreenBufferSize);
         public uint[] ScreenBack = Memory.AllocateManagedArray32(ScreenBufferSize);
 #endif
-
-        public const byte WIDTH = 240;
-        public const byte HEIGHT = 160;
-        public const byte BYTES_PER_PIXEL = 4;
 
         public uint[] ProcessedPalettes = new uint[512];
 #if UNSAFE
@@ -552,6 +550,14 @@ namespace OptimeGBA
 
                     if (VCount == 160)
                     {
+#if DS_RESOLUTION
+                        while (VCount < HEIGHT) {
+                            RenderScanline();
+                            VCount++;
+                        }
+                        VCount = 160;
+#endif
+
                         Gba.Dma.RepeatVblank();
 
                         if (VBlankIrqEnable)
@@ -561,6 +567,8 @@ namespace OptimeGBA
 
                         TotalFrames++;
                         SwapBuffers();
+
+                        RenderingDone = true;
                     }
                 }
                 else
@@ -577,33 +585,6 @@ namespace OptimeGBA
                     // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndDrawingToHblank);
-            }
-        }
-
-        public void ActivateRenderThread()
-        {
-            RenderingDone = false;
-            RenderThreadSync.Set();
-        }
-
-        public void WaitForRenderingFinish()
-        {
-            if (!RenderingDone)
-            {
-                RenderThreadWait.Wait();
-                RenderThreadWait.Reset();
-            }
-        }
-
-        public void RenderThreadFunction()
-        {
-            while (true)
-            {
-                RenderThreadSync.Wait();
-                RenderThreadSync.Reset();
-                RenderScanline();
-                RenderThreadWait.Set();
-                RenderingDone = true;
             }
         }
 
@@ -663,7 +644,7 @@ namespace OptimeGBA
         {
             uint screenBase = VCount * WIDTH;
 
-            for (uint p = 0; p < 240; p++)
+            for (uint p = 0; p < WIDTH; p++)
             {
                 ScreenBack[screenBase] = ProcessedPalettes[0];
                 screenBase++;
