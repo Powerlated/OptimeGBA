@@ -9,6 +9,7 @@
             "type": "shell",
             "args": [
                 "build",
+                "OptimeGBA-SDL.csproj",
                 "-c",
                 "FastDebug",
                 "/property:GenerateFullPaths=true",
