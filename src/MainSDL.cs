@@ -1,5 +1,6 @@
 using static SDL2.SDL;
 using System;
+using System.Threading;
 using System.IO;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -31,15 +32,25 @@ namespace OptimeGBAEmulator
         static bool IsFullscreen = false;
         static bool Stretched = false;
 
+        static bool Excepted = false;
+        static string ExceptionMessage = "";
+
+        static Thread EmulationThread;
+        static AutoResetEvent ThreadSync = new AutoResetEvent(false);
+
         public static void Main(string[] args)
         {
+            EmulationThread = new Thread(EmulationThreadHandler);
+            EmulationThread.Name = "Emulation Core";
+            EmulationThread.Start();
+
             SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO);
 
             bool GuiMode = args.Length == 0;
 
             Window = SDL_CreateWindow("Optime GBA", 0, 0, LCD.WIDTH * 4, LCD.HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-            Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
+            Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
 
             SDL_SetWindowMinimumSize(Window, LCD.WIDTH, LCD.HEIGHT);
 
@@ -118,13 +129,12 @@ namespace OptimeGBAEmulator
                         SDL_RenderClear(Renderer);
                         SDL_RenderCopy(Renderer, iconTexture, IntPtr.Zero, ref dest);
                         SDL_RenderPresent(Renderer);
-
                     }
                 }
                 romPath = filename;
             }
 
-            reload:
+        reload:
 
             if (!System.IO.File.Exists(romPath))
             {
@@ -247,27 +257,20 @@ namespace OptimeGBAEmulator
                 }
 
                 double currentSec = getTime();
-                if (Sync)
+
+                // Reset time if behind schedule
+                if (currentSec - nextFrameAt >= SecondsPerFrame)
                 {
-                    // Reset time if behind schedule
-                    if (currentSec - nextFrameAt >= SecondsPerFrame)
-                    {
-                        double diff = currentSec - nextFrameAt;
-                        Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
-                        nextFrameAt = currentSec;
-                    }
-
-                    if (currentSec >= nextFrameAt)
-                    {
-                        nextFrameAt += SecondsPerFrame;
-
-                        RunFrame();
-                    }
+                    double diff = currentSec - nextFrameAt;
+                    Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
+                    nextFrameAt = currentSec;
                 }
-                else
+
+                if (currentSec >= nextFrameAt)
                 {
-                    nextFrameAt = getTime();
-                    RunFrame();
+                    nextFrameAt += SecondsPerFrame;
+
+                    ThreadSync.Set();
                 }
 
                 if (currentSec >= fpsEvalTimer)
@@ -339,6 +342,11 @@ namespace OptimeGBAEmulator
                         Console.WriteLine("Failed to write .sav file!");
                     }
                 }
+
+                if (Excepted)
+                {
+                    SdlMessage("Exception Caught", ExceptionMessage);
+                }
             }
 
             SDL_DestroyRenderer(Renderer);
@@ -409,6 +417,13 @@ namespace OptimeGBAEmulator
                     break;
                 case SDL_Keycode.SDLK_DOWN:
                     Gba.Keypad.Down = pressed;
+                    break;
+
+                case SDL_Keycode.SDLK_q:
+                    Gba.Keypad.L = pressed;
+                    break;
+                case SDL_Keycode.SDLK_e:
+                    Gba.Keypad.R = pressed;
                     break;
 
                 case SDL_Keycode.SDLK_SPACE:
@@ -523,6 +538,30 @@ namespace OptimeGBAEmulator
         const int FrameCycles = 70224 * 4;
         static int CyclesLeft;
         static long CyclesRan;
+
+        public static void EmulationThreadHandler()
+        {
+            try
+            {
+                while (true)
+                {
+                    ThreadSync.WaitOne();
+
+                    RunFrame();
+
+                    while (!Sync)
+                    {
+                        RunFrame();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                ExceptionMessage = e.ToString();
+                Excepted = true;
+            }
+        }
+
         public static void RunFrame()
         {
             CyclesLeft += FrameCycles;
