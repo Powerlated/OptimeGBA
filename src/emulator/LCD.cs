@@ -263,8 +263,8 @@ namespace OptimeGBA
         public uint VCount;
 
         public long ScanlineStartCycles;
-        const uint CharBlockBaseSize = 16384;
-        const uint MapBlockBaseSize = 2048;
+        const uint CharBlockSize = 16384;
+        const uint MapBlockSize = 2048;
 
         public long GetScanlineCycles()
         {
@@ -643,13 +643,21 @@ namespace OptimeGBA
             }
         }
 
-        public readonly static int[] CharHeightShiftTable = { 8, 9, 8, 9 };
+        public readonly static uint[] CharBlockHeightTable = {
+            0, 0, // Size 0 - 256x256
+            0, 0, // Size 1 - 512x256
+            0, 1, // Size 2 - 256x512
+            0, 2, // Size 3 - 512x512
+        };
+        public readonly static uint[] CharBlockWidthTable = {
+            0, 0, // Size 0 - 256x256
+            0, 1, // Size 1 - 512x256
+            0, 0, // Size 2 - 256x512
+            0, 1, // Size 3 - 512x512
+        };
 
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
-
-        public readonly static uint[] CharWidthMaskTable = { 255, 511, 255, 511 };
-        public readonly static uint[] CharHeightMaskTable = { 255, 255, 511, 511 };
 
         public void DrawBackdropColor()
         {
@@ -664,16 +672,17 @@ namespace OptimeGBA
 
         public void RenderCharBackground(Background bg)
         {
-            uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
-            uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
+            uint charBase = bg.CharBaseBlock * CharBlockSize;
+            uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
             uint screenBase = VCount * WIDTH;
 
             uint pixelY = bg.VerticalOffset + VCount;
             uint pixelYWrapped = pixelY & 255;
 
-            uint verticalOffsetBlocks = (pixelY & CharHeightMaskTable[bg.ScreenSize]) >> CharHeightShiftTable[bg.ScreenSize];
-            uint mapVertOffset = 2048 * verticalOffsetBlocks;
+            uint screenSizeBase = bg.ScreenSize * 2;
+            uint verticalOffsetBlocks = CharBlockHeightTable[screenSizeBase + ((pixelY & 511) >> 8)];
+            uint mapVertOffset = MapBlockSize * verticalOffsetBlocks;
 
             uint tileY = pixelYWrapped >> 3;
             uint intraTileY = pixelYWrapped & 7;
@@ -688,8 +697,8 @@ namespace OptimeGBA
 
                 // 2 bytes per tile
                 uint tileX = pixelXWrapped >> 3;
-                uint horizontalOffsetBlocks = (pixelX & CharWidthMaskTable[bg.ScreenSize]) >> 8;
-                uint mapHoriOffset = 2048 * horizontalOffsetBlocks;
+                uint horizontalOffsetBlocks = CharBlockWidthTable[screenSizeBase + ((pixelX & 511) >> 8)];
+                uint mapHoriOffset = MapBlockSize * horizontalOffsetBlocks;
                 uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
                 uint mapEntry = (uint)(Vram[mapEntryIndex + 1] << 8 | Vram[mapEntryIndex]);
 
@@ -704,13 +713,14 @@ namespace OptimeGBA
 
                 if (bg.Use8BitColor)
                 {
+                    uint vramAddrTile = charBase + (tileNumber * 64) + (realIntraTileY * 8);
                     for (; tp < 8; tp++)
                     {
                         uint intraTileX = tp;
                         if (xFlip) intraTileX ^= 7;
 
                         // 256 color, 64 bytes per tile, 8 bytes per row
-                        uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
+                        uint vramAddr = vramAddrTile + (intraTileX / 1);
                         uint vramValue = Vram[vramAddr];
 
                         uint finalColor = vramValue;
@@ -729,18 +739,20 @@ namespace OptimeGBA
                 }
                 else
                 {
+                    uint vramTileAddr = charBase + (tileNumber * 32) + (realIntraTileY * 4);
+                    uint palettebase = (palette * 16);
                     for (; tp < 8; tp++)
                     {
                         uint intraTileX = tp;
                         if (xFlip) intraTileX ^= 7;
 
+                        uint vramAddr = vramTileAddr + (intraTileX / 2);
                         // 16 color, 32 bytes per tile, 4 bytes per row
-                        uint vramAddr = charBase + (tileNumber * 32) + (realIntraTileY * 4) + (intraTileX / 2);
                         uint vramValue = Vram[vramAddr];
                         // Lower 4 bits is left pixel, upper 4 bits is right pixel
                         uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
 
-                        uint finalColor = (palette * 16) + color;
+                        uint finalColor = palettebase + color;
                         if (color != 0)
                         {
                             ScreenBack[screenBase] = ProcessedPalettes[finalColor];
@@ -768,8 +780,8 @@ namespace OptimeGBA
             uint xInteger = (bg.RefPointX >> 8) & 0x7FFFF;
             uint yInteger = (bg.RefPointY >> 8) & 0x7FFFF;
 
-            uint charBase = bg.CharBaseBlock * CharBlockBaseSize;
-            uint mapBase = bg.MapBaseBlock * MapBlockBaseSize;
+            uint charBase = bg.CharBaseBlock * CharBlockSize;
+            uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
             uint screenBase = VCount * WIDTH;
 
