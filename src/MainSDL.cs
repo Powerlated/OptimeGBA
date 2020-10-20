@@ -18,6 +18,7 @@ namespace OptimeGBAEmulator
         static uint AudioDevice;
 
         static double Fps;
+        static double Mips;
 
         const double SecondsPerFrame = 1D / (16777216D / 280896D);
 
@@ -275,13 +276,16 @@ namespace OptimeGBAEmulator
 
                 if (currentSec >= fpsEvalTimer)
                 {
-
                     double diff = currentSec - fpsEvalTimer + 1;
                     double frames = CyclesRan / 280896;
                     CyclesRan = 0;
 
+                    double mips = (double)Gba.Arm7.InstructionsRan / 1000000D;
+                    Gba.Arm7.InstructionsRan = 0;
+
                     // Use Math.Floor to truncate to 2 decimal places
                     Fps = Math.Floor((frames / diff) * 100) / 100;
+                    Mips = Math.Floor((mips / diff) * 100) / 100;
                     UpdateTitle();
 
                     fpsEvalTimer += 1;
@@ -533,7 +537,7 @@ namespace OptimeGBAEmulator
             bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
             SDL_SetWindowTitle(
                 Window,
-                "Optime GBA - " + Fps + " fps - " + GetAudioSamplesInQueue() + " samples queued | " +
+                "Optime GBA - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
                 (fA ? "A " : "- ") +
                 (fB ? "B " : "- ") +
                 (p1 ? "1 " : "- ") +

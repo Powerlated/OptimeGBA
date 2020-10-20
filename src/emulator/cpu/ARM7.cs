@@ -254,9 +254,7 @@ namespace OptimeGBA
 
         public uint Execute()
         {
-#if OPENTK_DEBUGGER
             InstructionsRan++;
-#endif
             InstructionCycles = 0;
 
             // if (PipelineDirty)
@@ -1230,13 +1228,13 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool CheckOverflowSub(uint val1, uint val2, uint result)
         {
-            return ((val1 ^ val2) & 0x80000000u) != 0 && ((val1 ^ result) & 0x80000000u) != 0;
+            return ((val1 ^ val2) & ((val1 ^ result)) & 0x80000000) != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool CheckOverflowAdd(uint val1, uint val2, uint result)
         {
-            return ((val1 ^ val2) & 0x80000000u) == 0 && ((val1 ^ result) & 0x80000000u) != 0;
+            return (~(val1 ^ val2) & ((val1 ^ result)) & 0x80000000) != 0;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
