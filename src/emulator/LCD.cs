@@ -971,9 +971,6 @@ namespace OptimeGBA
                                 objPixelX = (int)(xSize - objPixelX - 1);
                             }
 
-                            uint intraTileY = (uint)(objPixelY & 7);
-                            uint tileY = (uint)(objPixelY / 8);
-
                             PlaceObjPixel(objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
                         }
                         screenLineBase = (screenLineBase + 1) % 512;
@@ -997,48 +994,57 @@ namespace OptimeGBA
                     short pC = (short)Memory.GetUshort(Oam, pBase + 22);
                     short pD = (short)Memory.GetUshort(Oam, pBase + 30);
 
+                    uint xofs;
+                    uint yofs;
+
+                    int xfofs;
+                    int yfofs;
+
+                    if (!doubleSize)
+                    {
+                        xofs = xSize / 2;
+                        yofs = ySize / 2;
+
+                        xfofs = 0;
+                        yfofs = 0;
+                    }
+                    else
+                    {
+                        xofs = xSize;
+                        yofs = ySize;
+
+                        xfofs = -(int)xofs / 2;
+                        yfofs = -(int)yofs / 2;
+                    }
+
+                    int origXEdge0 = (int)(0 - xofs);
+                    int origYEdge0 = (int)(objPixelY - yofs);
+                    int objPixelXEdge0 = (int)(((pA * origXEdge0 + pB * origYEdge0) + (xofs << 8)) + (xfofs << 8));
+                    int objPixelYEdge0 = (int)(((pC * origXEdge0 + pD * origYEdge0) + (yofs << 8)) + (yfofs << 8));
+
+                    int origXEdge1 = (int)(xSize - xofs);
+                    int origYEdge1 = (int)(objPixelY - yofs);
+                    int objPixelXEdge1 = (int)(((pA * origXEdge1 + pB * origYEdge1) + (xofs << 8)) + (xfofs << 8));
+                    int objPixelYEdge1 = (int)(((pC * origXEdge1 + pD * origYEdge1) + (yofs << 8)) + (yfofs << 8));
+
+                    short xPerPixel = (short)((objPixelXEdge1 - objPixelXEdge0) / xSize);
+                    short yPerPixel = (short)((objPixelYEdge1 - objPixelYEdge0) / xSize);
+
                     for (int x = 0; x < renderXSize; x++)
                     {
                         if (screenLineBase < WIDTH)
                         {
-                            uint xofs;
-                            uint yofs;
+                            uint lerpedObjPixelX = (uint)(objPixelXEdge0 >> 8);
+                            uint lerpedObjPixelY = (uint)(objPixelYEdge0 >> 8);
 
-                            int xfofs;
-                            int yfofs;
-
-                            if (!doubleSize)
+                            if (lerpedObjPixelX < xSize && lerpedObjPixelY < ySize)
                             {
-                                xofs = xSize / 2;
-                                yofs = ySize / 2;
-
-                                xfofs = 0;
-                                yfofs = 0;
-                            }
-                            else
-                            {
-                                xofs = xSize;
-                                yofs = ySize;
-
-                                xfofs = -(int)xofs / 2;
-                                yfofs = -(int)yofs / 2;
-                            }
-
-                            int origX = (int)(x - xofs);
-                            int origY = (int)(objPixelY - yofs);
-
-                            int renderObjPixelX = (int)((pA * origX + pB * origY >> 8) + xofs) + xfofs;
-                            int renderObjPixelY = (int)((pC * origX + pD * origY >> 8) + yofs) + yfofs;
-
-                            bool xWithin = renderObjPixelX >= 0 && renderObjPixelX < xSize;
-                            bool yWithin = renderObjPixelY >= 0 && renderObjPixelY < ySize;
-                            bool pixelEligible = xWithin && yWithin;
-
-                            if (pixelEligible)
-                            {
-                                PlaceObjPixel(renderObjPixelX, renderObjPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
+                                PlaceObjPixel((int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
                             }
                         }
+                        objPixelXEdge0 += xPerPixel;
+                        objPixelYEdge0 += yPerPixel;
+
                         screenLineBase = (screenLineBase + 1) % 512;
                     }
                 }
@@ -1052,7 +1058,7 @@ namespace OptimeGBA
 
             uint tileY = (uint)(objY / 8);
 
-            uint charBase = 0x10000;
+            const uint charBase = 0x10000;
 
             uint effectiveTileNumber = (uint)(tile + objX / 8);
 
