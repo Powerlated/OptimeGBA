@@ -1017,18 +1017,26 @@ namespace OptimeGBA
                         yfofs = -(int)yofs / 2;
                     }
 
+                    // Left edge
                     int origXEdge0 = (int)(0 - xofs);
-                    int origYEdge0 = (int)(objPixelY - yofs);
-                    int objPixelXEdge0 = (int)(((pA * origXEdge0 + pB * origYEdge0) + (xofs << 8)) + (xfofs << 8));
-                    int objPixelYEdge0 = (int)(((pC * origXEdge0 + pD * origYEdge0) + (yofs << 8)) + (yfofs << 8));
+                    int origY = (int)(objPixelY - yofs);
 
-                    int origXEdge1 = (int)(xSize - xofs);
-                    int origYEdge1 = (int)(objPixelY - yofs);
-                    int objPixelXEdge1 = (int)(((pA * origXEdge1 + pB * origYEdge1) + (xofs << 8)) + (xfofs << 8));
-                    int objPixelYEdge1 = (int)(((pC * origXEdge1 + pD * origYEdge1) + (yofs << 8)) + (yfofs << 8));
+                    // Precalculate parameters for left and right matrix multiplications
+                    int pBY = pB * origY;
+                    int pDY = pD * origY;
+                    int shiftedXOfs = (int)(xofs + xfofs << 8);
+                    int shiftedYOfs = (int)(yofs + yfofs << 8);
 
-                    short xPerPixel = (short)((objPixelXEdge1 - objPixelXEdge0) / xSize);
-                    short yPerPixel = (short)((objPixelYEdge1 - objPixelYEdge0) / xSize);
+                    int objPixelXEdge0 = (int)(pA * origXEdge0 + pBY + shiftedXOfs);
+                    int objPixelYEdge0 = (int)(pC * origXEdge0 + pDY + shiftedYOfs);
+
+                    // Right edge
+                    int origXEdge1 = (int)(1 - xofs);
+                    int objPixelXEdge1 = (int)(pA * origXEdge1 + pBY + shiftedXOfs);
+                    int objPixelYEdge1 = (int)(pC * origXEdge1 + pDY + shiftedYOfs);
+
+                    int xPerPixel = objPixelXEdge1 - objPixelXEdge0;
+                    int yPerPixel = objPixelYEdge1 - objPixelYEdge0;
 
                     for (int x = 0; x < renderXSize; x++)
                     {
