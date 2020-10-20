@@ -264,6 +264,8 @@ namespace OptimeGBA
         const uint CharBlockSize = 16384;
         const uint MapBlockSize = 2048;
 
+        public bool ColorCorrection = true;
+
         public long GetScanlineCycles()
         {
             return Scheduler.CurrentTicks - ScanlineStartCycles;
@@ -287,18 +289,51 @@ namespace OptimeGBA
             byte g = (byte)((data >> 5) & 0b11111);
             byte b = (byte)((data >> 10) & 0b11111);
 
-            // byuu color correction, customized for my tastes
-            double lcdGamma = 4.0, outGamma = 3.0;
+            byte fr;
+            byte fg;
+            byte fb;
 
-            double lb = Math.Pow(b / 31.0, lcdGamma);
-            double lg = Math.Pow(g / 31.0, lcdGamma);
-            double lr = Math.Pow(r / 31.0, lcdGamma);
+            if (ColorCorrection)
+            {
+                // byuu color correction, customized for my tastes
+                double lcdGamma = 4.0, outGamma = 3.0;
 
-            byte fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
-            byte fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
-            byte fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+                double lb = Math.Pow(b / 31.0, lcdGamma);
+                double lg = Math.Pow(g / 31.0, lcdGamma);
+                double lr = Math.Pow(r / 31.0, lcdGamma);
+
+                fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
+                fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
+                fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+            }
+            else
+            {
+                fr = (byte)((255 / 31) * r);
+                fg = (byte)((255 / 31) * g);
+                fb = (byte)((255 / 31) * b);
+            }
 
             ProcessedPalettes[pal] = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+        }
+
+        public void RefreshPalettes()
+        {
+            for (uint i = 0; i < 512; i++)
+            {
+                UpdatePalette(i);
+            }
+        }
+
+        public void EnableColorCorrection()
+        {
+            ColorCorrection = true;
+            RefreshPalettes();
+        }
+
+        public void DisableColorCorrection()
+        {
+            ColorCorrection = false;
+            RefreshPalettes();
         }
 
         public byte ReadHwio8(uint addr)

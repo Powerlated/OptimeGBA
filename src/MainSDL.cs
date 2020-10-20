@@ -487,6 +487,14 @@ namespace OptimeGBAEmulator
             {
                 switch (kb.keysym.sym)
                 {
+                    case SDL_Keycode.SDLK_F1:
+                        if (Gba.Lcd.ColorCorrection) {
+                            Gba.Lcd.DisableColorCorrection();
+                        } else {
+                            Gba.Lcd.EnableColorCorrection();
+                        }
+                        break;
+
                     case SDL_Keycode.SDLK_F3:
                         Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;
                         UpdateTitle();
