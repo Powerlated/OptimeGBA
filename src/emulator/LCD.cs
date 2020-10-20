@@ -958,44 +958,48 @@ namespace OptimeGBA
                 // Tile numbers are halved in 256-color mode
                 if (use8BitColor) tileNumber >>= 1;
 
-                short pA = 0;
-                short pB = 0;
-                short pC = 0;
-                short pD = 0;
-
-                if (affine)
+                if (!affine)
                 {
+                    for (uint x = 0; x < xSize; x++)
+                    {
+                        if (screenLineBase < WIDTH)
+                        {
+                            int objPixelX = (int)x;
+
+                            if (xFlip)
+                            {
+                                objPixelX = (int)(xSize - objPixelX - 1);
+                            }
+
+                            uint intraTileY = (uint)(objPixelY & 7);
+                            uint tileY = (uint)(objPixelY / 8);
+
+                            PlaceObjPixel(objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
+                        }
+                        screenLineBase = (screenLineBase + 1) % 512;
+                    }
+                }
+                else
+                {
+                    uint renderXSize = xSize;
+
+                    bool doubleSize = BitTest(attr0, 9);
+                    if (doubleSize)
+                    {
+                        renderXSize *= 2;
+                    }
+
                     uint parameterId = (attr1 >> 9) & 0b11111;
                     uint pBase = parameterId * 32;
 
-                    pA = (short)Memory.GetUshort(Oam, pBase + 6);
-                    pB = (short)Memory.GetUshort(Oam, pBase + 14);
-                    pC = (short)Memory.GetUshort(Oam, pBase + 22);
-                    pD = (short)Memory.GetUshort(Oam, pBase + 30);
-                }
+                    short pA = (short)Memory.GetUshort(Oam, pBase + 6);
+                    short pB = (short)Memory.GetUshort(Oam, pBase + 14);
+                    short pC = (short)Memory.GetUshort(Oam, pBase + 22);
+                    short pD = (short)Memory.GetUshort(Oam, pBase + 30);
 
-                uint renderXSize = xSize;
-                bool doubleSize = BitTest(attr0, 9);
-
-                if (affine && doubleSize)
-                {
-                    renderXSize *= 2;
-                }
-
-                for (uint x = 0; x < renderXSize; x++)
-                {
-                    if (screenLineBase < WIDTH)
+                    for (int x = 0; x < renderXSize; x++)
                     {
-                        int objPixelX = (int)x;
-
-                        int renderObjPixelX = (int)objPixelX;
-                        int renderObjPixelY = (int)objPixelY;
-
-                        if (xFlip)
-                        {
-                            renderObjPixelX = (int)(xSize - objPixelX - 1);
-                        }
-                        else if (affine)
+                        if (screenLineBase < WIDTH)
                         {
                             uint xofs;
                             uint yofs;
@@ -1020,75 +1024,79 @@ namespace OptimeGBA
                                 yfofs = -(int)yofs / 2;
                             }
 
-                            int origX = (int)(objPixelX - xofs);
+                            int origX = (int)(x - xofs);
                             int origY = (int)(objPixelY - yofs);
 
-                            renderObjPixelX = (int)((pA * origX + pB * origY >> 8) + xofs) + xfofs;
-                            renderObjPixelY = (int)((pC * origX + pD * origY >> 8) + yofs) + yfofs;
-                        }
+                            int renderObjPixelX = (int)((pA * origX + pB * origY >> 8) + xofs) + xfofs;
+                            int renderObjPixelY = (int)((pC * origX + pD * origY >> 8) + yofs) + yfofs;
 
-                        uint intraTileY = (uint)(renderObjPixelY & 7);
-                        uint tileY = (uint)(renderObjPixelY / 8);
+                            bool xWithin = renderObjPixelX >= 0 && renderObjPixelX < xSize;
+                            bool yWithin = renderObjPixelY >= 0 && renderObjPixelY < ySize;
+                            bool pixelEligible = xWithin && yWithin;
 
-                        bool xWithin = renderObjPixelX >= 0 && renderObjPixelX < xSize;
-                        bool yWithin = renderObjPixelY >= 0 && renderObjPixelY < ySize;
-                        bool pixelEligible = xWithin && yWithin;
-
-                        // ScreenBack[screenBase + screenLineBase] = 0x00FF0000;
-                        if (pixelEligible)
-                        {
-                            uint intraTileX = (uint)(renderObjPixelX & 7);
-
-                            uint charBase = 0x10000;
-
-                            uint effectiveTileNumber = (uint)(tileNumber + renderObjPixelX / 8);
-
-                            if (ObjCharacterVramMapping)
+                            if (pixelEligible)
                             {
-                                effectiveTileNumber += tileY * (xSize / 8);
-                            }
-                            else
-                            {
-                                if (use8BitColor)
-                                {
-                                    effectiveTileNumber += 16 * tileY;
-                                }
-                                else
-                                {
-                                    effectiveTileNumber += 32 * tileY;
-                                }
-                            }
-
-                            if (use8BitColor)
-                            {
-                                // 256 color, 64 bytes per tile, 8 bytes per row
-                                uint vramAddr = charBase + (effectiveTileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
-                                uint vramValue = Vram[vramAddr];
-
-                                uint finalColor = vramValue;
-
-                                if (finalColor != 0)
-                                {
-                                    ScreenBack[screenBase + screenLineBase] = ProcessedPalettes[finalColor + 256];
-                                }
-                            }
-                            else
-                            {
-                                // 16 color, 32 bytes per tile, 4 bytes per row
-                                uint vramAddr = charBase + (effectiveTileNumber * 32) + (intraTileY * 4) + (intraTileX / 2);
-                                uint vramValue = Vram[vramAddr];
-                                // Lower 4 bits is left pixel, upper 4 bits is right pixel
-                                uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
-
-                                uint finalColor = (palette * 16) + color;
-                                if (color != 0)
-                                {
-                                    ScreenBack[screenBase + screenLineBase] = ProcessedPalettes[finalColor + 256];
-                                }
+                                PlaceObjPixel(renderObjPixelX, renderObjPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
                             }
                         }
+                        screenLineBase = (screenLineBase + 1) % 512;
                     }
-                    screenLineBase = (screenLineBase + 1) % 512;
+                }
+            }
+        }
+
+        public void PlaceObjPixel(int objX, int objY, uint tile, uint width, bool use8BitColor, uint screenIndex, uint palette)
+        {
+            uint intraTileX = (uint)(objX & 7);
+            uint intraTileY = (uint)(objY & 7);
+
+            uint tileY = (uint)(objY / 8);
+
+            uint charBase = 0x10000;
+
+            uint effectiveTileNumber = (uint)(tile + objX / 8);
+
+            if (ObjCharacterVramMapping)
+            {
+                effectiveTileNumber += tileY * (width / 8);
+            }
+            else
+            {
+                if (use8BitColor)
+                {
+                    effectiveTileNumber += 16 * tileY;
+                }
+                else
+                {
+                    effectiveTileNumber += 32 * tileY;
+                }
+            }
+
+            if (use8BitColor)
+            {
+                // 256 color, 64 bytes per tile, 8 bytes per row
+                uint vramAddr = charBase + (effectiveTileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
+                uint vramValue = Vram[vramAddr];
+
+                uint finalColor = vramValue;
+
+                if (finalColor != 0)
+                {
+                    ScreenBack[screenIndex] = ProcessedPalettes[finalColor + 256];
+                }
+            }
+            else
+            {
+                // 16 color, 32 bytes per tile, 4 bytes per row
+                uint vramAddr = charBase + (effectiveTileNumber * 32) + (intraTileY * 4) + (intraTileX / 2);
+                uint vramValue = Vram[vramAddr];
+                // Lower 4 bits is left pixel, upper 4 bits is right pixel
+                uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
+
+                uint finalColor = (palette * 16) + color;
+                if (color != 0)
+                {
+                    ScreenBack[screenIndex] = ProcessedPalettes[finalColor + 256];
                 }
             }
         }
