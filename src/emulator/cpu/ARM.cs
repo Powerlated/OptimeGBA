@@ -1301,7 +1301,6 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(~shifterOperand, 31); // N
                 arm7.Zero = ~shifterOperand == 0; // Z
                 arm7.Carry = shifterCarryOut; ; // C
-
                 if (rd == 15)
                 {
                     arm7.SetCPSR(arm7.GetSPSR());
