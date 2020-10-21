@@ -932,16 +932,21 @@ namespace OptimeGBA
 
             uint final = rnValue & shifterOperand;
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31);
                 arm7.Zero = final == 0;
                 arm7.Carry = shifterCarryOut;
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -954,16 +959,21 @@ namespace OptimeGBA
 
             uint final = rnValue ^ shifterOperand;
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31);
                 arm7.Zero = final == 0;
                 arm7.Carry = shifterCarryOut;
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -977,19 +987,22 @@ namespace OptimeGBA
             uint aluOut = rnValue - shifterOperand;
 
             arm7.R[rd] = aluOut;
-            if (setFlags && rd == 15)
-            {
-                // throw new Exception("CPSR = SPSR if current mode has SPSR");
-                arm7.SetCPSR(arm7.GetSPSR());
-                arm7.FlushPipeline();
-                // Error("");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !(shifterOperand > rnValue); // C
                 arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1003,17 +1016,22 @@ namespace OptimeGBA
             uint aluOut = shifterOperand - rnValue;
 
             arm7.R[rd] = aluOut;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !(rnValue > shifterOperand); // C
                 arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1026,17 +1044,22 @@ namespace OptimeGBA
 
             uint final = rnValue + shifterOperand;
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
                 arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // C
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1049,17 +1072,22 @@ namespace OptimeGBA
 
             uint final = rnValue + shifterOperand + (arm7.Carry ? 1U : 0);
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = (long)rnValue + (long)shifterOperand + (arm7.Carry ? 1U : 0) > 0xFFFFFFFFL; // C
                 arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // V
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1073,17 +1101,22 @@ namespace OptimeGBA
             uint aluOut = rnValue - shifterOperand - (!arm7.Carry ? 1U : 0U);
 
             arm7.R[rd] = aluOut;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !((long)shifterOperand + (long)(!arm7.Carry ? 1U : 0) > rnValue); // C
                 arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1097,17 +1130,22 @@ namespace OptimeGBA
             uint aluOut = shifterOperand - rnValue - (!arm7.Carry ? 1U : 0U);
 
             arm7.R[rd] = aluOut;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !((long)rnValue + (long)(!arm7.Carry ? 1U : 0) > shifterOperand); // C
                 arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1133,12 +1171,10 @@ namespace OptimeGBA
             arm7.LineDebug("TEQ");
 
             uint aluOut = rnValue ^ shifterOperand;
-            if (setFlags)
-            {
-                arm7.Negative = BitTest(aluOut, 31); // N
-                arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = shifterCarryOut; // C
-            }
+
+            arm7.Negative = BitTest(aluOut, 31); // N
+            arm7.Zero = aluOut == 0; // Z
+            arm7.Carry = shifterCarryOut; // C
         }
 
         public static void DataCMP(ARM7 arm7, uint ins)
@@ -1150,13 +1186,11 @@ namespace OptimeGBA
             arm7.LineDebug("CMP");
 
             uint aluOut = rnValue - shifterOperand;
-            if (setFlags)
-            {
-                arm7.Negative = BitTest(aluOut, 31); // N
-                arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = rnValue >= shifterOperand; // C
-                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
-            }
+
+            arm7.Negative = BitTest(aluOut, 31); // N
+            arm7.Zero = aluOut == 0; // Z
+            arm7.Carry = rnValue >= shifterOperand; // C
+            arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
         }
 
         public static void DataCMN(ARM7 arm7, uint ins)
@@ -1167,13 +1201,11 @@ namespace OptimeGBA
             arm7.LineDebug("CMN");
 
             uint aluOut = rnValue + shifterOperand;
-            if (setFlags)
-            {
-                arm7.Negative = BitTest(aluOut, 31); // N
-                arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFF; // C
-                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
-            }
+
+            arm7.Negative = BitTest(aluOut, 31); // N
+            arm7.Zero = aluOut == 0; // Z
+            arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFF; // C
+            arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
         }
 
         public static void DataORR(ARM7 arm7, uint ins)
@@ -1183,19 +1215,23 @@ namespace OptimeGBA
 
             arm7.LineDebug("ORR");
 
-
             uint final = rnValue | shifterOperand;
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31);
                 arm7.Zero = final == 0;
                 arm7.Carry = shifterCarryOut;
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1216,12 +1252,12 @@ namespace OptimeGBA
                 if (rd == 15)
                 {
                     arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
                 }
             }
-
-            if (rd == 15)
+            else
             {
-                arm7.FlushPipeline();
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1234,16 +1270,21 @@ namespace OptimeGBA
 
             uint final = rnValue & ~shifterOperand;
             arm7.R[rd] = final;
-            if (setFlags && rd == 15)
-            {
-                // TODO: CPSR = SPSR if current mode has SPSR
-                throw new Exception("CPSR = SPSR if current mode has SPSR");
-            }
-            else if (setFlags)
+            if (setFlags)
             {
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = shifterCarryOut; // C
+
+                if (rd == 15)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
+                }
+            }
+            else
+            {
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 
@@ -1261,17 +1302,15 @@ namespace OptimeGBA
                 arm7.Zero = ~shifterOperand == 0; // Z
                 arm7.Carry = shifterCarryOut; ; // C
 
-
                 if (rd == 15)
                 {
-                    // TODO: Set CPSR to SPSR here
-                    throw new Exception("CPSR = SPSR if current mode has SPSR");
+                    arm7.SetCPSR(arm7.GetSPSR());
+                    arm7.FlushPipeline();
                 }
             }
-
-            if (rd == 15)
+            else
             {
-                arm7.FlushPipeline();
+                if (rd == 15) arm7.FlushPipeline();
             }
         }
 

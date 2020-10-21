@@ -279,6 +279,34 @@ namespace OptimeGBA
             //     Error("R14 Breakpoint");
             // }
 
+            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
+            {
+                // Error("sdfkjadfdjsjklfads interupt lol");
+                InstructionsRanInterrupt = InstructionsRan;
+
+                SPSR_irq = GetCPSR();
+                if (ThumbState)
+                {
+                    FillPipelineThumb();
+                    R14irq = R[15] - 0;
+                }
+                else
+                {
+                    FillPipelineArm();
+                    R14irq = R[15] - 4;
+                }
+                SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
+                ThumbState = false; // Back to ARM state
+                IRQDisable = true;
+                // FIQDisable = true;
+
+                R[15] = VectorIRQ;
+                FlushPipeline();
+
+                // Error("IRQ, ENTERING IRQ MODE!");
+            }
+
+
             if (!ThumbState) // ARM mode
             {
                 // Current Instruction Fetch
@@ -332,33 +360,6 @@ namespace OptimeGBA
 
                 // Fill the pipeline if it's not full
                 FetchPipelineThumbIfNotFull();
-            }
-
-            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
-            {
-                // Error("sdfkjadfdjsjklfads interupt lol");
-                InstructionsRanInterrupt = InstructionsRan;
-
-                SPSR_irq = GetCPSR();
-                if (ThumbState)
-                {
-                    FillPipelineThumb();
-                    R14irq = R[15] - 0;
-                }
-                else
-                {
-                    FillPipelineArm();
-                    R14irq = R[15] - 4;
-                }
-                SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
-                ThumbState = false; // Back to ARM state
-                IRQDisable = true;
-                // FIQDisable = true;
-
-                R[15] = VectorIRQ;
-                FlushPipeline();
-
-                // Error("IRQ, ENTERING IRQ MODE!");
             }
 
             return InstructionCycles;
