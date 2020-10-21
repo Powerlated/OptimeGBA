@@ -352,8 +352,8 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
-                    Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Scheduler.CurrentTicks += ARM7.Timing32[(c.DmaSource >> 24) & 0xF];
+                    Gba.Scheduler.CurrentTicks += ARM7.Timing32[(c.DmaDest >> 24) & 0xF];
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -361,8 +361,8 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
-                    Gba.Tick(ARM7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(ARM7.Timing8And16[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Scheduler.CurrentTicks += ARM7.Timing8And16[(c.DmaSource >> 24) & 0xF];
+                    Gba.Scheduler.CurrentTicks += ARM7.Timing8And16[(c.DmaDest >> 24) & 0xF];
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -433,8 +433,8 @@ namespace OptimeGBA
 
                 // TODO: Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
-                // Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                // Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;
