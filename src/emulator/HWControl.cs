@@ -110,7 +110,7 @@ namespace OptimeGBA
 
         public void CheckAndFireInterrupts()
         {
-            Available = (IE & IF & 0x03FF) != 0;
+            Available = (IE & IF & 0x3FFF) != 0;
 
             // if (available && IME && !AvailableAndEnabled)
             // {
