@@ -80,6 +80,11 @@ namespace OptimeGBA
             return (i >> start) & (0xFFFFFFFF >> (31 - (end - start)));
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte BitReverse8(byte i)
+        {
+            return (byte)((i * 0x0202020202U & 0x010884422010U) % 1023);
+        }
         // public bool bitReset(uint i, uint bit)
         // {
         //     return i & (~(1 << bit));

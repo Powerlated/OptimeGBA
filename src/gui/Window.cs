@@ -707,11 +707,11 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                if (ImGui.Button("Step 100000"))
+                if (ImGui.Button("Step 250000"))
                 {
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
-                        int num = 100000;
+                        int num = 250000;
                         while (num > 0 && !Gba.Arm7.Errored)
                         {
                             Gba.Step();

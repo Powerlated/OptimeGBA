@@ -56,88 +56,76 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            bool disableWriteback = false;
-            // No writeback if base register is included in the register list when loading.
-
+            uint bitsSet = (uint)System.Numerics.BitOperations.PopCount(ins & 0xFFFF);
+            uint writebackValue;
             if (U)
             {
-                for (byte r = 0; r < 16; r++)
+                if (W)
                 {
-                    if (BitTest(ins, r))
-                    {
-                        if (r == rn && L) disableWriteback = true;
-                        // regs += $"R{r} ";
-
-                        if (P) addr += 4;
-
-                        if (!useUserModeRegs)
-                        {
-                            if (r != 15)
-                            {
-                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
-                        }
-                        else
-                        {
-                            if (r != 15)
-                            {
-                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
-                        }
-
-                        if (!P) addr += 4;
-                    }
+                    writebackValue = addr + bitsSet * 4;
+                }
+                else
+                {
+                    writebackValue = addr;
                 }
             }
             else
             {
-                for (byte ri = 0; ri < 16; ri++)
+                if (W)
                 {
-                    byte r = (byte)(ri ^ 0b1111);
-                    if (BitTest(ins, r))
+                    writebackValue = addr - bitsSet * 4;
+                }
+                else
+                {
+                    writebackValue = addr;
+                }
+                if (P)
+                {
+                    addr = addr - bitsSet * 4 - 4;
+                }
+                else
+                {
+                    addr = addr - bitsSet * 4 + 4;
+                }
+            }
+
+            if (W)
+            {
+                arm7.R[rn] = writebackValue;
+            }
+
+            for (byte r = 0; r < 16; r++)
+            {
+                if (BitTest(ins, r))
+                {
+                    if (P) addr += 4;
+
+                    if (!useUserModeRegs)
                     {
-                        if (r == rn && L) disableWriteback = true;
-                        // regs += $"R{r} ";
-
-                        if (P) addr -= 4;
-
-                        if (!useUserModeRegs)
+                        if (r != 15)
                         {
-                            if (r != 15)
-                            {
-                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
                         }
                         else
                         {
-                            if (r != 15)
-                            {
-                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            arm7.FlushPipeline();
                         }
-
-                        if (!P) addr -= 4;
                     }
+                    else
+                    {
+                        if (r != 15)
+                        {
+                            arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
+                        }
+                        else
+                        {
+                            arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            arm7.FlushPipeline();
+                        }
+                    }
+
+                    if (!P) addr += 4;
                 }
             }
 
@@ -148,17 +136,12 @@ namespace OptimeGBA
                 arm7.FlushPipeline();
                 if (U)
                 {
-                    addr += 0x40;
+                    arm7.R[rn] += 0x40;
                 }
                 else
                 {
-                    addr -= 0x40;
+                    arm7.R[rn] -= 0x40;
                 }
-            }
-
-            if (W && !disableWriteback)
-            {
-                arm7.R[rn] = addr;
             }
 
             // arm7.LineDebug(regs);
@@ -201,81 +184,94 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            bool disableWriteback = false;
-            // No writeback if base register is included in the register list when loading.
-
-            arm7.R[15] += 4;
-
+            uint bitsSet = (uint)System.Numerics.BitOperations.PopCount(ins & 0xFFFF);
+            uint writebackValue;
             if (U)
             {
-                for (byte r = 0; r < 16; r++)
+                if (W)
                 {
-                    if (BitTest(ins, r))
-                    {
-                        if (r == rn && L) disableWriteback = true;
-                        // regs += $"R{r} ";
-
-                        if (P) addr += 4;
-
-                        if (!useUserModeRegs)
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
-                        }
-                        else
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
-                        }
-
-                        if (!P) addr += 4;
-                    }
+                    writebackValue = addr + bitsSet * 4;
+                }
+                else
+                {
+                    writebackValue = addr;
                 }
             }
             else
             {
-                for (byte ri = 0; ri < 16; ri++)
+                if (W)
                 {
-                    byte r = (byte)(ri ^ 0b1111);
-                    if (BitTest(ins, r))
-                    {
-                        if (r == rn && L) disableWriteback = true;
-                        // regs += $"R{r} ";
-
-                        if (P) addr -= 4;
-
-                        if (!useUserModeRegs)
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
-                        }
-                        else
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
-                        }
-
-                        if (!P) addr -= 4;
-                    }
-                }
-            }
-
-            bool emptyRlist = (ins & 0xFFFF) == 0;
-            if (emptyRlist)
-            {
-                arm7.LineDebug("Empty Rlist!");
-                arm7.Write32(addr & 0xFFFFFFFC, arm7.R[15]);
-                if (U)
-                {
-                    addr += 0x40;
+                    writebackValue = addr - bitsSet * 4;
                 }
                 else
                 {
-                    addr -= 0x40;
+                    writebackValue = addr;
+                }
+                if (P)
+                {
+                    addr = addr - bitsSet * 4 - 4;
+                }
+                else
+                {
+                    addr = addr - bitsSet * 4 + 4;
                 }
             }
 
-            arm7.R[15] -= 4;
+            arm7.FetchPipelineArm();
 
-            if (W && !disableWriteback)
+            for (byte r = 0; r < 16; r++)
             {
-                arm7.R[rn] = addr;
+                if (BitTest(ins, r))
+                {
+                    // regs += $"R{r} ";
+
+                    if (P) addr += 4;
+
+                    if (!useUserModeRegs)
+                    {
+                        arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                    }
+                    else
+                    {
+                        arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
+                    }
+
+                    if (!P) addr += 4;
+
+                    arm7.R[rn] = writebackValue;
+                }
+            }
+
+            // Empty register list
+            if ((ins & 0xFFFF) == 0)
+            {
+                arm7.LineDebug("Empty Rlist!");
+                if (P)
+                {
+                    if (U)
+                    {
+                        arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
+                        arm7.R[rn] += 0x40;
+                    }
+                    else
+                    {
+                        arm7.R[rn] -= 0x40;
+                        arm7.Write32(arm7.R[rn], arm7.R[15]);
+                    }
+                }
+                else
+                {
+                    if (U)
+                    {
+                        arm7.Write32(arm7.R[rn], arm7.R[15]);
+                        arm7.R[rn] += 0x40;
+                    }
+                    else
+                    {
+                        arm7.R[rn] -= 0x40;
+                        arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
+                    }
+                }
             }
 
             // arm7.LineDebug(regs);
@@ -647,8 +643,6 @@ namespace OptimeGBA
             uint rn = (ins >> 16) & 0xF;
             uint rd = (ins >> 12) & 0xF;
             uint rnValue = arm7.R[rn];
-
-            arm7.FetchPipelineArm();
 
             bool P = BitTest(ins, 24); // post-indexed / offset addressing 
             bool U = BitTest(ins, 23); // invert

@@ -1136,14 +1136,21 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.R[3] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.R[4] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.R[5] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.R[6] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.R[7] = arm7.Read32(addr & ~3u); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            uint registerList = ins & 0xFFU;
+            uint registerCount = (uint)System.Numerics.BitOperations.PopCount(registerList);
+            uint writebackVal = arm7.R[rn] + registerCount * 4;
+
+            uint register = 0;
+            for (; registerList != 0; registerList >>= 1)
+            {
+                if (BitTest(registerList, 0))
+                {
+                    arm7.R[register] = arm7.Read32(addr & ~3u);
+                    addr += 4;
+                    arm7.R[rn] = writebackVal;
+                }
+                register++;
+            }
 
             // Handle empty rlist
             if ((ins & 0xFF) == 0)
@@ -1167,14 +1174,23 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Write32(addr & ~3u, arm7.R[0]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Write32(addr & ~3u, arm7.R[1]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.Write32(addr & ~3u, arm7.R[2]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 3)) { /* regs += "R3 "; */ arm7.Write32(addr & ~3u, arm7.R[3]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 4)) { /* regs += "R4 "; */ arm7.Write32(addr & ~3u, arm7.R[4]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 5)) { /* regs += "R5 "; */ arm7.Write32(addr & ~3u, arm7.R[5]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 6)) { /* regs += "R6 "; */ arm7.Write32(addr & ~3u, arm7.R[6]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
-            if (BitTest(ins, 7)) { /* regs += "R7 "; */ arm7.Write32(addr & ~3u, arm7.R[7]); addr += 4; arm7.R[rn] = arm7.R[rn] + 4; }
+            arm7.FetchPipelineThumb();
+
+            uint registerList = ins & 0xFFU;
+            uint registerCount = (uint)System.Numerics.BitOperations.PopCount(registerList);
+            uint writebackVal = arm7.R[rn] + registerCount * 4;
+
+            uint register = 0;
+            for (; registerList != 0; registerList >>= 1)
+            {
+                if (BitTest(registerList, 0))
+                {
+                    arm7.Write32(addr & ~3u, arm7.R[register]);
+                    addr += 4;
+                    arm7.R[rn] = writebackVal;
+                }
+                register++;
+            }
 
             // Handle empty rlist
             if ((ins & 0xFF) == 0)

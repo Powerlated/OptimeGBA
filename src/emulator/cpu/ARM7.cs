@@ -951,10 +951,10 @@ namespace OptimeGBA
 
             }
 
-            Error("No SPSR in this mode!");
+            // Error("No SPSR in this mode!");
             return GetCPSR();
-        }
 
+        }
         public void SetSPSR(uint set)
         {
             switch (Mode)
