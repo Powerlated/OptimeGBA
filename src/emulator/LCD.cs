@@ -182,8 +182,8 @@ namespace OptimeGBA
 
             for (uint i = 0; i < ScreenBufferSize; i++)
             {
-                ScreenFront[i] = 0xFF;
-                ScreenBack[i] = 0xFF;
+                ScreenFront[i] = 0xFFFFFFFF;
+                ScreenBack[i] = 0xFFFFFFFF;
             }
         }
 
@@ -1022,18 +1022,18 @@ namespace OptimeGBA
                     int origY = (int)(objPixelY - yofs);
 
                     // Precalculate parameters for left and right matrix multiplications
-                    int pBY = pB * origY;
-                    int pDY = pD * origY;
                     int shiftedXOfs = (int)(xofs + xfofs << 8);
                     int shiftedYOfs = (int)(yofs + yfofs << 8);
+                    int pBYOffset = pB * origY + shiftedXOfs;
+                    int pDYOffset = pD * origY + shiftedYOfs;
 
-                    int objPixelXEdge0 = (int)(pA * origXEdge0 + pBY + shiftedXOfs);
-                    int objPixelYEdge0 = (int)(pC * origXEdge0 + pDY + shiftedYOfs);
+                    int objPixelXEdge0 = (int)(pA * origXEdge0 + pBYOffset);
+                    int objPixelYEdge0 = (int)(pC * origXEdge0 + pDYOffset);
 
                     // Right edge
                     int origXEdge1 = (int)(1 - xofs);
-                    int objPixelXEdge1 = (int)(pA * origXEdge1 + pBY + shiftedXOfs);
-                    int objPixelYEdge1 = (int)(pC * origXEdge1 + pDY + shiftedYOfs);
+                    int objPixelXEdge1 = (int)(pA * origXEdge1 + pBYOffset);
+                    int objPixelYEdge1 = (int)(pC * origXEdge1 + pDYOffset);
 
                     int xPerPixel = objPixelXEdge1 - objPixelXEdge0;
                     int yPerPixel = objPixelYEdge1 - objPixelYEdge0;
