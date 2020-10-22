@@ -932,6 +932,20 @@ namespace OptimeGBA
             SetMode(val & 0b01111);
         }
 
+        public void SetCPSRfromMSR(uint val)
+        {
+            Negative = BitTest(val, 31);
+            Zero = BitTest(val, 30);
+            Carry = BitTest(val, 29);
+            Overflow = BitTest(val, 28);
+            Sticky = BitTest(val, 27);
+
+            IRQDisable = BitTest(val, 7);
+            FIQDisable = BitTest(val, 6);
+
+            SetMode(val & 0b01111);
+        }
+
         public uint GetSPSR()
         {
             switch (Mode)

@@ -352,8 +352,8 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
-                    Gba.Scheduler.CurrentTicks += ARM7.Timing32[(c.DmaSource >> 24) & 0xF];
-                    Gba.Scheduler.CurrentTicks += ARM7.Timing32[(c.DmaDest >> 24) & 0xF];
+                    Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -361,8 +361,8 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
-                    Gba.Scheduler.CurrentTicks += ARM7.Timing8And16[(c.DmaSource >> 24) & 0xF];
-                    Gba.Scheduler.CurrentTicks += ARM7.Timing8And16[(c.DmaDest >> 24) & 0xF];
+                    Gba.Tick(ARM7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(ARM7.Timing8And16[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -441,7 +441,7 @@ namespace OptimeGBA
 
             if (c.FinishedIRQ)
             {
-                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+                // Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
             }
 
             DmaLock = false;
