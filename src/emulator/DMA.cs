@@ -379,10 +379,10 @@ namespace OptimeGBA
                 }
             }
 
-            // if (c.FinishedIRQ && c.DmaLength == 0)
-            // {
-            //     Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
-            // }
+            if (c.FinishedIRQ)
+            {
+                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+            }
 
             DmaLock = false;
         }
@@ -433,15 +433,15 @@ namespace OptimeGBA
 
                 // TODO: Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
-                Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                // Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                // Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;
 
             if (c.FinishedIRQ)
             {
-                // Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
             }
 
             DmaLock = false;
