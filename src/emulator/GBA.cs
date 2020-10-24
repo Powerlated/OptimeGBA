@@ -62,19 +62,44 @@ namespace OptimeGBA
             return ticks + ExtraTicks;
         }
 
-        public uint SchedulerStep()
+        public void DoNothing(long cyclesLate) {}
+
+        public void StateChange()
+        {
+            Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
+        }
+
+        public uint StateStep()
         {
             ExtraTicks = 0;
 
             uint executed = 0;
-            while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
+            if (!Arm7.ThumbState)
             {
-                uint cycles = Arm7.Execute();
-                Scheduler.CurrentTicks += cycles;
-                executed += cycles;
+                while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
+                {
+                    uint cycles = Arm7.ExecuteArm();
+                    Scheduler.CurrentTicks += cycles;
+                    executed += cycles;
+                }
             }
-            long next = Scheduler.NextEventTicks;
-            Scheduler.PopFirstEvent().Callback(Scheduler.CurrentTicks - next);
+            else
+            {
+                while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
+                {
+                    uint cycles = Arm7.ExecuteThumb();
+                    Scheduler.CurrentTicks += cycles;
+                    executed += cycles;
+                }
+            }
+            Arm7.CheckInterrupts();
+
+            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
+            {
+                long current = Scheduler.CurrentTicks;
+                long next = Scheduler.NextEventTicks;
+                Scheduler.PopFirstEvent().Callback(current - next);
+            }
 
             return executed + ExtraTicks;
         }

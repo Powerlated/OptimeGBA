@@ -580,7 +580,7 @@ namespace OptimeGBAEmulator
             CyclesRan += FrameCycles;
             while (CyclesLeft > 0)
             {
-                CyclesLeft -= (int)Gba.SchedulerStep();
+                CyclesLeft -= (int)Gba.StateStep();
             }
         }
 

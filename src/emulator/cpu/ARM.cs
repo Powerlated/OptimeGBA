@@ -307,6 +307,7 @@ namespace OptimeGBA
             arm7.ThumbState = BitTest(rmValue, 0);
             if (arm7.ThumbState)
             {
+                arm7.Gba.StateChange();
                 arm7.LineDebug("Switch to THUMB State");
             }
             else
@@ -316,6 +317,7 @@ namespace OptimeGBA
 
             arm7.R[15] = (rmValue & 0xFFFFFFFE);
             arm7.FlushPipeline();
+
         }
 
         public static void SWP(Arm7 arm7, uint ins)

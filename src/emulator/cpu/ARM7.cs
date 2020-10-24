@@ -257,114 +257,120 @@ namespace OptimeGBA
             InstructionsRan++;
             InstructionCycles = 0;
 
-            // if (PipelineDirty)
-            // {
-            //     Error("Pipeline is dirty, NOT executing next instruction!");
-            //     return 1;
-            // }
-            ResetDebug();
-
-            // if (R[15] == 0x03006498)
-            // {
-            //     Error("Breakpoint");
-            // }
-
-            // if (R[2] == 0xFF03FF03)
-            // {
-            //     Error("R2 Breakpoint");
-            // }
-
-            // if (R[14] == 0x3FC0FFC0)
-            // {
-            //     Error("R14 Breakpoint");
-            // }
-
-            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
-            {
-                // Error("sdfkjadfdjsjklfads interupt lol");
-                InstructionsRanInterrupt = InstructionsRan;
-
-                SPSR_irq = GetCPSR();
-                if (ThumbState)
-                {
-                    FillPipelineThumb();
-                    R14irq = R[15] - 0;
-                }
-                else
-                {
-                    FillPipelineArm();
-                    R14irq = R[15] - 4;
-                }
-                SetMode((uint)Arm7Mode.IRQ); // Go into SVC / Supervisor mode
-                ThumbState = false; // Back to ARM state
-                IRQDisable = true;
-                // FIQDisable = true;
-
-                R[15] = VectorIRQ;
-                FlushPipeline();
-
-                // Error("IRQ, ENTERING IRQ MODE!");
-            }
-
-
             if (!ThumbState) // ARM mode
             {
-                // Current Instruction Fetch
-
-                LineDebug($"R15: ${Util.HexN(R[15], 4)}");
-
-                uint ins = ARMDecode;
-                Pipeline--;
-#if OPENTK_DEBUGGER
-                LastLastIns = LastIns;
-                LastIns = ins;
-#endif
-
-                LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
-                LineDebug($"Cond: ${ins >> 28:X}");
-
-                uint condition = (ins >> 28) & 0xF;
-
-                bool conditionMet = CheckCondition(condition);
-
-                if (conditionMet)
-                {
-                    uint decodeBits = ((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF);
-#if OPENTK_DEBUGGER
-                    ArmExecutorProfile[decodeBits]++;
-#endif
-                    ArmDispatch[decodeBits](this, ins);
-                }
-
-                // Fill the pipeline if it's not full
-                FetchPipelineArmIfNotFull();
+                ExecuteArm();
             }
             else // THUMB mode
             {
-                LineDebug($"R15: ${Util.HexN(R[15], 4)}");
-
-                ushort ins = THUMBDecode;
-                Pipeline--;
-#if OPENTK_DEBUGGER
-                LastLastIns = LastIns;
-                LastIns = ins;
-#endif
-
-                LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
-
-                int decodeBits = ins >> 6;
-#if OPENTK_DEBUGGER
-                ThumbExecutorProfile[decodeBits]++;
-#endif
-                ThumbDispatch[decodeBits](this, ins);
-
-                // Fill the pipeline if it's not full
-                FetchPipelineThumbIfNotFull();
+                ExecuteThumb();
             }
+
+            CheckInterrupts();
 
             return InstructionCycles;
         }
 
+        public uint ExecuteArm()
+        {
+            InstructionsRan++;
+            InstructionCycles = 0;
+
+            LineDebug($"R15: ${Util.HexN(R[15], 4)}");
+
+            uint ins = ARMDecode;
+            Pipeline--;
+#if OPENTK_DEBUGGER
+            LastLastIns = LastIns;
+            LastIns = ins;
+#endif
+
+            LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
+            LineDebug($"Cond: ${ins >> 28:X}");
+
+            uint condition = (ins >> 28) & 0xF;
+
+            bool conditionMet = CheckCondition(condition);
+
+            if (conditionMet)
+            {
+                uint decodeBits = ((ins >> 16) & 0xFF0) | ((ins >> 4) & 0xF);
+#if OPENTK_DEBUGGER
+                ArmExecutorProfile[decodeBits]++;
+#endif
+                ArmDispatch[decodeBits](this, ins);
+            }
+
+            // Fill the pipeline if it's not full
+            FetchPipelineArmIfNotFull();
+
+            return InstructionCycles;
+        }
+
+        public uint ExecuteThumb()
+        {
+            InstructionsRan++;
+            InstructionCycles = 0;
+
+            LineDebug($"R15: ${Util.HexN(R[15], 4)}");
+
+            ushort ins = THUMBDecode;
+            int decodeBits = ins >> 6;
+
+            Pipeline--;
+#if OPENTK_DEBUGGER
+            InstructionsRan++;
+            InstructionCycles = 0;
+            LastLastIns = LastIns;
+            LastIns = ins;
+            ThumbExecutorProfile[decodeBits]++;
+#endif
+            LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
+
+            ThumbDispatch[decodeBits](this, ins);
+
+            // Fill the pipeline if it's not full
+            FetchPipelineThumbIfNotFull();
+
+            return InstructionCycles;
+        }
+
+        public void CheckInterrupts()
+        {
+            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
+            {
+                DispatchInterrupt();
+            }
+        }
+
+        public void DispatchInterrupt()
+        {
+            // Error("sdfkjadfdjsjklfads interupt lol");
+#if OPENTK_DEBUGGER
+            InstructionsRanInterrupt = InstructionsRan;
+#endif
+
+            SPSR_irq = GetCPSR();
+            if (ThumbState)
+            {
+                FillPipelineThumb();
+                R14irq = R[15] - 0;
+            }
+            else
+            {
+                FillPipelineArm();
+                R14irq = R[15] - 4;
+            }
+            SetMode((uint)Arm7Mode.IRQ); // Go into SVC / Supervisor mode
+            ThumbState = false; // Back to ARM state
+            IRQDisable = true;
+            // FIQDisable = true;
+
+            R[15] = VectorIRQ;
+            FlushPipeline();
+
+            // Error("IRQ, ENTERING IRQ MODE!");
+        }
 
         public static ArmExecutor GetInstructionArm(uint ins)
         {
@@ -929,6 +935,8 @@ namespace OptimeGBA
             ThumbState = BitTest(val, 5);
 
             SetMode(val & 0b01111);
+
+            Gba.StateChange();
         }
 
         public void SetCPSRfromMSR(uint val)

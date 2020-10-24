@@ -514,6 +514,8 @@ namespace OptimeGBA
             arm7.ThumbState = BitTest(val, 0);
             arm7.R[15] = val & 0xFFFFFFFE;
             arm7.FlushPipeline();
+
+            arm7.Gba.StateChange();
         }
 
         public static void LDRLiteralPool(Arm7 arm7, ushort ins)
@@ -1214,6 +1216,8 @@ namespace OptimeGBA
 
             arm7.R[15] = Arm7.VectorSoftwareInterrupt;
             arm7.FlushPipeline();
+
+            arm7.Gba.StateChange();
         }
 
         public static void ConditionalB(Arm7 arm7, ushort ins)
@@ -1294,6 +1298,8 @@ namespace OptimeGBA
             arm7.ThumbState = false;
             arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
             arm7.LineDebug("Exit THUMB state");
+
+            arm7.Gba.StateChange();
         }
 
 

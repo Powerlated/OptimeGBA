@@ -111,11 +111,6 @@ namespace OptimeGBA
         public void CheckAndFireInterrupts()
         {
             Available = (IE & IF & 0x3FFF) != 0;
-
-            // if (available && IME && !AvailableAndEnabled)
-            // {
-            //     Gba.Arm7.IRQ = true;
-            // }
             AvailableAndEnabled = Available && IME;
         }
     }

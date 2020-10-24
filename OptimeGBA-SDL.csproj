@@ -20,7 +20,7 @@
     <IlcOptimizationPreference>Speed</IlcOptimizationPreference>
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
 
-    <!-- <DefineConstants>DS_RESOLUTION</DefineConstants> -->
+    <!-- <DefineConstants>UNSAFE</DefineConstants> -->
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.ico"> 

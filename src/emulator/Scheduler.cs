@@ -16,13 +16,12 @@ namespace OptimeGBA
         HaltSkip = 6,
     }
 
-    public sealed class SchedulerEvent
+    public struct SchedulerEvent
     {
         public SchedulerId Id;
         public long Ticks;
         public SchedulerCallback Callback;
-        public byte Number = 0;
-
+        
         public SchedulerEvent(SchedulerId id, long ticks, SchedulerCallback callback)
         {
             this.Id = id;

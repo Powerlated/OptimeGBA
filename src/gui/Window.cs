@@ -34,7 +34,7 @@ namespace OptimeGBAEmulator
         string[] Log;
         int LogIndex = -0;
 
-        GBA Gba;
+        Gba Gba;
         Thread EmulationThread;
         AutoResetEvent ThreadSync = new AutoResetEvent(false);
 
@@ -150,7 +150,7 @@ namespace OptimeGBAEmulator
             // Init SDL
             byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
-            Gba = new GBA(new GbaProvider(bios, new byte[0], "", AudioReady));
+            Gba = new Gba(new GbaProvider(bios, new byte[0], "", AudioReady));
             LoadRomFromPath("roms/Pokemon - FireRed Version (USA).gba");
 
             SearchForRoms();
@@ -306,7 +306,7 @@ namespace OptimeGBAEmulator
         {
             byte[] save = Gba.Mem.SaveProvider.GetSave();
             GbaProvider p = Gba.Provider;
-            Gba = new GBA(p);
+            Gba = new Gba(p);
             Gba.Mem.SaveProvider.LoadSave(save);
         }
 
@@ -885,18 +885,18 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
                 ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
 
-                ImGui.Text($"BG0 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[0].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[0].ScreenSize]}");
+                ImGui.Text($"BG0 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[0].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[0].ScreenSize]}");
                 ImGui.Text($"BG0 Scroll X: {Gba.Lcd.Backgrounds[0].HorizontalOffset}");
                 ImGui.Text($"BG0 Scroll Y: {Gba.Lcd.Backgrounds[0].VerticalOffset}");
-                ImGui.Text($"BG1 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[1].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[1].ScreenSize]}");
+                ImGui.Text($"BG1 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[1].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[1].ScreenSize]}");
                 ImGui.Text($"BG1 Scroll X: {Gba.Lcd.Backgrounds[1].HorizontalOffset}");
                 ImGui.Text($"BG1 Scroll Y: {Gba.Lcd.Backgrounds[1].VerticalOffset}");
-                ImGui.Text($"BG2 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Affine Size: {LCD.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{LCD.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Affine Size: {Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
                 ImGui.Text($"BG2 Scroll X: {Gba.Lcd.Backgrounds[2].HorizontalOffset}");
                 ImGui.Text($"BG2 Scroll Y: {Gba.Lcd.Backgrounds[2].VerticalOffset}");
-                ImGui.Text($"BG3 Size X/Y: {LCD.CharWidthTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.CharHeightTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Affine Size: {LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{LCD.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Affine Size: {Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
                 ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg0);
@@ -1288,7 +1288,7 @@ namespace OptimeGBAEmulator
 
                 for (int ti = 0; ti < 1024; ti++)
                 {
-                    ThumbExecutor k = ARM7.ThumbDispatch[ti];
+                    ThumbExecutor k = Arm7.ThumbDispatch[ti];
                     if (!CpuProfilerDictThumb.TryGetValue(k, out uint val)) {
                         CpuProfilerDictThumb[k] = 0;
                     }
@@ -1297,7 +1297,7 @@ namespace OptimeGBAEmulator
 
                 for (int ai = 0; ai < 4096; ai++)
                 {
-                    ArmExecutor k = ARM7.ArmDispatch[ai];
+                    ArmExecutor k = Arm7.ArmDispatch[ai];
                     if (!CpuProfilerDictArm.TryGetValue(k, out uint val)) {
                         CpuProfilerDictArm[k] = 0;
                     }
@@ -1399,7 +1399,7 @@ namespace OptimeGBAEmulator
                 Console.WriteLine(".sav not available");
             }
 
-            Gba = new GBA(new GbaProvider(bios, rom, savPath, audioCallback));
+            Gba = new Gba(new GbaProvider(bios, rom, savPath, audioCallback));
             Gba.Mem.SaveProvider.LoadSave(sav);
         }
 
