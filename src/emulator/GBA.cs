@@ -3,38 +3,38 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class GBA
+    public sealed class Gba
     {
         public GbaProvider Provider;
 
-        public ARM7 Arm7;
+        public Arm7 Arm7;
         public Memory Mem;
-        public GBAAudio GbaAudio;
-        public LCD Lcd;
-        public DMA Dma;
+        public GbaAudio GbaAudio;
+        public Lcd Lcd;
+        public Dma Dma;
         public Keypad Keypad;
         public Timers Timers;
-        public HWControl HwControl;
+        public HwControl HwControl;
 
         public Scheduler Scheduler;
 
         public AudioCallback AudioCallback;
 
         public uint[] registers = new uint[16];
-        public GBA(GbaProvider provider)
+        public Gba(GbaProvider provider)
         {
             Provider = provider;
 
             Scheduler = new Scheduler();
 
             Mem = new Memory(this, provider);
-            GbaAudio = new GBAAudio(this, Scheduler);
-            Lcd = new LCD(this, Scheduler);
+            GbaAudio = new GbaAudio(this, Scheduler);
+            Lcd = new Lcd(this, Scheduler);
             Keypad = new Keypad();
-            Dma = new DMA(this);
+            Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);
-            HwControl = new HWControl(this);
-            Arm7 = new ARM7(this);
+            HwControl = new HwControl(this);
+            Arm7 = new Arm7(this);
 
             AudioCallback = provider.AudioCallback;
 

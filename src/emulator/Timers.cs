@@ -207,10 +207,10 @@ namespace OptimeGBA
 
     public sealed class Timers
     {
-        public GBA Gba;
+        public Gba Gba;
         public Scheduler Scheduler;
 
-        public Timers(GBA gba, Scheduler scheduler)
+        public Timers(Gba gba, Scheduler scheduler)
         {
             Gba = gba;
             Scheduler = scheduler;

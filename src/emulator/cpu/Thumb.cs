@@ -3,11 +3,11 @@ using static Util;
 
 namespace OptimeGBA
 {
-    public delegate void ThumbExecutor(ARM7 arm7, ushort ins);
+    public delegate void ThumbExecutor(Arm7 arm7, ushort ins);
 
     public unsafe sealed class Thumb
     {
-        public static void MovImmediate(ARM7 arm7, ushort ins)
+        public static void MovImmediate(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 8) & 0b111);
             uint immed8 = ins & 0xFFu;
@@ -20,7 +20,7 @@ namespace OptimeGBA
             arm7.Zero = immed8 == 0;
         }
 
-        public static void CmpImmediate(ARM7 arm7, ushort ins)
+        public static void CmpImmediate(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 8) & 0b111);
             uint immed8 = ins & 0xFFu;
@@ -33,10 +33,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(alu_out, 31);
             arm7.Zero = alu_out == 0;
             arm7.Carry = !(immed8 > rnVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rnVal, immed8, alu_out);
+            arm7.Overflow = Arm7.CheckOverflowSub(rnVal, immed8, alu_out);
         }
 
-        public static void AddImmediate(ARM7 arm7, ushort ins)
+        public static void AddImmediate(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 8) & 0b111);
             uint immed8 = ins & 0xFFu;
@@ -50,10 +50,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = (long)rdVal + (long)immed8 > 0xFFFFFFFF;
-            arm7.Overflow = ARM7.CheckOverflowAdd(rdVal, immed8, final);
+            arm7.Overflow = Arm7.CheckOverflowAdd(rdVal, immed8, final);
         }
 
-        public static void SubImmediate(ARM7 arm7, ushort ins)
+        public static void SubImmediate(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 8) & 0b111);
             uint immed8 = ins & 0xFFu;
@@ -68,11 +68,11 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = !(immed8 > rdVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rdVal, immed8, final);
+            arm7.Overflow = Arm7.CheckOverflowSub(rdVal, immed8, final);
         }
 
 
-        public static void DataAND(ARM7 arm7, ushort ins) // AND
+        public static void DataAND(Arm7 arm7, ushort ins) // AND
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -90,7 +90,7 @@ namespace OptimeGBA
             arm7.Zero = final == 0;
         }
 
-        public static void DataEOR(ARM7 arm7, ushort ins) // EOR
+        public static void DataEOR(Arm7 arm7, ushort ins) // EOR
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -108,7 +108,7 @@ namespace OptimeGBA
             arm7.Zero = rdVal == 0;
         }
 
-        public static void DataLSL(ARM7 arm7, ushort ins) // LSL (2)
+        public static void DataLSL(Arm7 arm7, ushort ins) // LSL (2)
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -126,7 +126,7 @@ namespace OptimeGBA
             else if ((rsValue & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
-                rdValue = ARM7.LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
+                rdValue = Arm7.LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
             }
             else if ((rsValue & 0xFF) == 32)
             {
@@ -145,7 +145,7 @@ namespace OptimeGBA
             arm7.Zero = rdValue == 0;
         }
 
-        public static void DataLSR(ARM7 arm7, ushort ins) // LSR (2)
+        public static void DataLSR(Arm7 arm7, ushort ins) // LSR (2)
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -164,7 +164,7 @@ namespace OptimeGBA
             else if ((rsVal & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                arm7.R[rd] = ARM7.LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                arm7.R[rd] = Arm7.LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
             }
             else if ((rsVal & 0xFF) == 32)
             {
@@ -183,7 +183,7 @@ namespace OptimeGBA
             arm7.Zero = rdVal == 0;
         }
 
-        public static void DataASR(ARM7 arm7, ushort ins) // ASR (2)
+        public static void DataASR(Arm7 arm7, ushort ins) // ASR (2)
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -203,7 +203,7 @@ namespace OptimeGBA
             else if ((rsVal & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                rdVal = ARM7.ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                rdVal = Arm7.ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
             }
             else
             {
@@ -224,7 +224,7 @@ namespace OptimeGBA
             arm7.Zero = rdVal == 0;
         }
 
-        public static void DataADC(ARM7 arm7, ushort ins) // ADC
+        public static void DataADC(Arm7 arm7, ushort ins) // ADC
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -241,10 +241,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = rdVal == 0;
             arm7.Carry = (long)rdVal + (long)rmVal + (arm7.Carry ? 1U : 0) > 0xFFFFFFFF;
-            arm7.Overflow = ARM7.CheckOverflowAdd(rdVal, rmVal, final);
+            arm7.Overflow = Arm7.CheckOverflowAdd(rdVal, rmVal, final);
         }
 
-        public static void DataSBC(ARM7 arm7, ushort ins) // SBC
+        public static void DataSBC(Arm7 arm7, ushort ins) // SBC
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -263,10 +263,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = !((long)rmVal + (!arm7.Carry ? 1U : 0) > rdVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rdVal, rmVal, final);
+            arm7.Overflow = Arm7.CheckOverflowSub(rdVal, rmVal, final);
         }
 
-        public static void DataROR(ARM7 arm7, ushort ins) // ROR
+        public static void DataROR(Arm7 arm7, ushort ins) // ROR
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -290,7 +290,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
-                rdVal = ARM7.RotateRight32(rdVal, (byte)(rsVal & 0b11111));
+                rdVal = Arm7.RotateRight32(rdVal, (byte)(rsVal & 0b11111));
                 arm7.R[rd] = rdVal;
             }
 
@@ -298,7 +298,7 @@ namespace OptimeGBA
             arm7.Zero = rdVal == 0;
         }
 
-        public static void DataTST(ARM7 arm7, ushort ins) // TST
+        public static void DataTST(Arm7 arm7, ushort ins) // TST
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -317,7 +317,7 @@ namespace OptimeGBA
             arm7.Zero = final == 0;
         }
 
-        public static void DataNEG(ARM7 arm7, ushort ins) // NEG / RSB
+        public static void DataNEG(Arm7 arm7, ushort ins) // NEG / RSB
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -336,10 +336,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = !(rmVal > 0);
-            arm7.Overflow = ARM7.CheckOverflowSub(0, rmVal, final);
+            arm7.Overflow = Arm7.CheckOverflowSub(0, rmVal, final);
         }
 
-        public static void DataCMP(ARM7 arm7, ushort ins) // CMP (2)
+        public static void DataCMP(Arm7 arm7, ushort ins) // CMP (2)
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -357,10 +357,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(alu_out, 31);
             arm7.Zero = alu_out == 0;
             arm7.Carry = !(rmVal > rnVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rnVal, rmVal, alu_out);
+            arm7.Overflow = Arm7.CheckOverflowSub(rnVal, rmVal, alu_out);
         }
 
-        public static void DataCMN(ARM7 arm7, ushort ins)  // CMN
+        public static void DataCMN(Arm7 arm7, ushort ins)  // CMN
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -378,10 +378,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(alu_out, 31);
             arm7.Zero = alu_out == 0;
             arm7.Carry = (long)rmVal + (long)rnVal > 0xFFFFFFFF;
-            arm7.Overflow = ARM7.CheckOverflowAdd(rnVal, rmVal, alu_out);
+            arm7.Overflow = Arm7.CheckOverflowAdd(rnVal, rmVal, alu_out);
         }
 
-        public static void DataORR(ARM7 arm7, ushort ins) // ORR
+        public static void DataORR(Arm7 arm7, ushort ins) // ORR
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -396,7 +396,7 @@ namespace OptimeGBA
             arm7.Zero = arm7.R[rd] == 0;
         }
 
-        public static void DataMUL(ARM7 arm7, ushort ins) // MUL
+        public static void DataMUL(Arm7 arm7, ushort ins) // MUL
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -416,7 +416,7 @@ namespace OptimeGBA
             arm7.Zero = rdVal == 0;
         }
 
-        public static void DataBIC(ARM7 arm7, ushort ins) // BIC
+        public static void DataBIC(Arm7 arm7, ushort ins) // BIC
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -436,7 +436,7 @@ namespace OptimeGBA
             arm7.Zero = final == 0;
         }
 
-        public static void DataMVN(ARM7 arm7, ushort ins) // MVN
+        public static void DataMVN(Arm7 arm7, ushort ins) // MVN
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding
             uint rd = (uint)((ins >> 0) & 0b111);
@@ -452,7 +452,7 @@ namespace OptimeGBA
         }
 
 
-        public static void SpecialDataADD(ARM7 arm7, ushort ins) // ADD (4)
+        public static void SpecialDataADD(Arm7 arm7, ushort ins) // ADD (4)
         {
             arm7.LineDebug("ADD (4)");
 
@@ -470,7 +470,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void SpecialDataCMP(ARM7 arm7, ushort ins) // CMP (3)
+        public static void SpecialDataCMP(Arm7 arm7, ushort ins) // CMP (3)
         {
             arm7.LineDebug("CMP (3)");
 
@@ -484,10 +484,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(alu_out, 31);
             arm7.Zero = alu_out == 0;
             arm7.Carry = !(rmVal > rnVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rnVal, rmVal, alu_out);
+            arm7.Overflow = Arm7.CheckOverflowSub(rnVal, rmVal, alu_out);
         }
 
-        public static void SpecialDataMOV(ARM7 arm7, ushort ins)// MOV (3)
+        public static void SpecialDataMOV(Arm7 arm7, ushort ins)// MOV (3)
         {
             arm7.LineDebug("MOV (3)");
 
@@ -503,7 +503,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void SpecialDataBX(ARM7 arm7, ushort ins) // BX
+        public static void SpecialDataBX(Arm7 arm7, ushort ins) // BX
         {
             arm7.LineDebug("BX | Optionally switch back to ARM state");
 
@@ -516,7 +516,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        public static void LDRLiteralPool(ARM7 arm7, ushort ins)
+        public static void LDRLiteralPool(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LDR (3) | PC Relative, 8-bit Immediate");
 
@@ -527,10 +527,10 @@ namespace OptimeGBA
 
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
         }
 
-        public static void ImmShiftLSL(ARM7 arm7, ushort ins)
+        public static void ImmShiftLSL(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LSL (1) | Logical Shift Left");
 
@@ -545,14 +545,14 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmValue, (byte)(32 - immed5));
-                arm7.R[rd] = ARM7.LogicalShiftLeft32(rmValue, (byte)immed5);
+                arm7.R[rd] = Arm7.LogicalShiftLeft32(rmValue, (byte)immed5);
             }
 
             arm7.Negative = BitTest(arm7.R[rd], 31);
             arm7.Zero = arm7.R[rd] == 0;
         }
 
-        public static void ImmShiftLSR(ARM7 arm7, ushort ins)
+        public static void ImmShiftLSR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LSR (1)");
 
@@ -571,7 +571,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmVal, (byte)(immed5 - 1));
-                final = ARM7.LogicalShiftRight32(rmVal, (byte)immed5);
+                final = Arm7.LogicalShiftRight32(rmVal, (byte)immed5);
             }
 
             arm7.R[rd] = final;
@@ -580,7 +580,7 @@ namespace OptimeGBA
             arm7.Zero = final == 0;
         }
 
-        public static void ImmShiftASR(ARM7 arm7, ushort ins)
+        public static void ImmShiftASR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ASR (1)");
 
@@ -603,14 +603,14 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmValue, (byte)(immed5 - 1));
-                arm7.R[rd] = ARM7.ArithmeticShiftRight32(rmValue, (byte)immed5);
+                arm7.R[rd] = Arm7.ArithmeticShiftRight32(rmValue, (byte)immed5);
             }
 
             arm7.Negative = BitTest(arm7.R[rd], 31);
             arm7.Zero = arm7.R[rd] == 0;
         }
 
-        public static void ImmAluADD1(ARM7 arm7, ushort ins)
+        public static void ImmAluADD1(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ADD (3)");
 
@@ -623,10 +623,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = (long)rnVal + (long)rmVal > 0xFFFFFFFF;
-            arm7.Overflow = ARM7.CheckOverflowAdd(rnVal, rmVal, final);
+            arm7.Overflow = Arm7.CheckOverflowAdd(rnVal, rmVal, final);
         }
 
-        public static void ImmAluSUB1(ARM7 arm7, ushort ins)
+        public static void ImmAluSUB1(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("SUB (3)");
 
@@ -640,10 +640,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = !(rmValue > rnValue);
-            arm7.Overflow = ARM7.CheckOverflowSub(rnValue, rmValue, final);
+            arm7.Overflow = Arm7.CheckOverflowSub(rnValue, rmValue, final);
         }
 
-        public static void ImmAluADD2(ARM7 arm7, ushort ins)
+        public static void ImmAluADD2(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ADD (1)");
 
@@ -657,12 +657,12 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = (long)rnVal + (long)immed3 > 0xFFFFFFFF;
-            arm7.Overflow = ARM7.CheckOverflowAdd(rnVal, immed3, final);
+            arm7.Overflow = Arm7.CheckOverflowAdd(rnVal, immed3, final);
 
             if (rd == 15) arm7.FlushPipeline();
         }
 
-        public static void ImmAluSUB2(ARM7 arm7, ushort ins)
+        public static void ImmAluSUB2(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("SUB (1)");
 
@@ -679,10 +679,10 @@ namespace OptimeGBA
             arm7.Negative = BitTest(final, 31);
             arm7.Zero = final == 0;
             arm7.Carry = !(immed3 > rnVal);
-            arm7.Overflow = ARM7.CheckOverflowSub(rnVal, immed3, final);
+            arm7.Overflow = Arm7.CheckOverflowSub(rnVal, immed3, final);
         }
 
-        public static void ImmOffsLDR(ARM7 arm7, ushort ins)
+        public static void ImmOffsLDR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LDR (1) | Base + Immediate");
 
@@ -695,14 +695,14 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
             arm7.ICycle();
         }
 
-        public static void ImmOffsSTR(ARM7 arm7, ushort ins)
+        public static void ImmOffsSTR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("STR (1)");
 
@@ -716,7 +716,7 @@ namespace OptimeGBA
             arm7.Write32(addr & ~3U, arm7.R[rd]);
         }
 
-        public static void ImmOffsSTRB(ARM7 arm7, ushort ins)
+        public static void ImmOffsSTRB(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rdVal = arm7.R[rd];
@@ -730,7 +730,7 @@ namespace OptimeGBA
             arm7.Write8(addr, (byte)rdVal);
         }
 
-        public static void ImmOffsLDRB(ARM7 arm7, ushort ins)
+        public static void ImmOffsLDRB(Arm7 arm7, ushort ins)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rdVal = arm7.R[rd];
@@ -746,7 +746,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void RegOffsSTR(ARM7 arm7, ushort ins) // STR (2)
+        public static void RegOffsSTR(Arm7 arm7, ushort ins) // STR (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -760,7 +760,7 @@ namespace OptimeGBA
             arm7.Write32(addr & ~0b11U, arm7.R[rd]);
         }
 
-        public static void RegOffsSTRH(ARM7 arm7, ushort ins) // STRH (2)
+        public static void RegOffsSTRH(Arm7 arm7, ushort ins) // STRH (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -779,7 +779,7 @@ namespace OptimeGBA
             arm7.Write16(addr & ~1u, (ushort)rdVal);
         }
 
-        public static void RegOffsSTRB(ARM7 arm7, ushort ins) // STRB (2)
+        public static void RegOffsSTRB(Arm7 arm7, ushort ins) // STRB (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -797,7 +797,7 @@ namespace OptimeGBA
             arm7.Write8(addr, (byte)rdVal);
         }
 
-        public static void RegOffsLDRSB(ARM7 arm7, ushort ins) // LDRSB
+        public static void RegOffsLDRSB(Arm7 arm7, ushort ins) // LDRSB
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -818,7 +818,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void RegOffsLDR(ARM7 arm7, ushort ins) // LDR (2)
+        public static void RegOffsLDR(Arm7 arm7, ushort ins) // LDR (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -834,12 +834,12 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.ICycle();
         }
 
-        public static void RegOffsLDRH(ARM7 arm7, ushort ins) // LDRH (2)
+        public static void RegOffsLDRH(Arm7 arm7, ushort ins) // LDRH (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -854,12 +854,12 @@ namespace OptimeGBA
 
             arm7.LineDebug("Load");
             // Take care of alignment
-            arm7.R[rd] = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+            arm7.R[rd] = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
 
             arm7.ICycle();
         }
 
-        public static void RegOffsLDRB(ARM7 arm7, ushort ins) // LDRB (2)
+        public static void RegOffsLDRB(Arm7 arm7, ushort ins) // LDRB (2)
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -887,7 +887,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void RegOffsLDRSH(ARM7 arm7, ushort ins) // LDRSH
+        public static void RegOffsLDRSH(Arm7 arm7, ushort ins) // LDRSH
         {
             uint rd = (uint)((ins >> 0) & 0b111);
             uint rn = (uint)((ins >> 3) & 0b111);
@@ -916,7 +916,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void StackLDR(ARM7 arm7, ushort ins)
+        public static void StackLDR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LDR (4)");
 
@@ -928,12 +928,12 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = ARM7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.ICycle();
         }
 
-        public static void StackSTR(ARM7 arm7, ushort ins)
+        public static void StackSTR(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("STR (3)");
 
@@ -946,7 +946,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void ImmLDRH(ARM7 arm7, ushort ins)
+        public static void ImmLDRH(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LDRH (1)");
 
@@ -959,12 +959,12 @@ namespace OptimeGBA
             uint addr = rnVal + (immed5 * 2);
 
             arm7.LineDebug("Load");
-            arm7.R[rd] = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+            arm7.R[rd] = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
 
             arm7.ICycle();
         }
 
-        public static void ImmSTRH(ARM7 arm7, ushort ins)
+        public static void ImmSTRH(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("STRH (1)");
 
@@ -980,7 +980,7 @@ namespace OptimeGBA
             arm7.Write16(addr & ~1u, (ushort)arm7.R[rd]);
         }
 
-        public static void POP(ARM7 arm7, ushort ins)
+        public static void POP(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("POP");
 
@@ -1020,7 +1020,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void PUSH(ARM7 arm7, ushort ins)
+        public static void PUSH(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("PUSH");
 
@@ -1063,14 +1063,14 @@ namespace OptimeGBA
             // LineDebug(regs);
         }
 
-        public static void MiscImmADD(ARM7 arm7, ushort ins)
+        public static void MiscImmADD(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ADD (7)");
             uint immed7 = (uint)(ins & 0b1111111);
             arm7.R[13] = arm7.R[13] + (immed7 << 2);
         }
 
-        public static void MiscImmSUB(ARM7 arm7, ushort ins)
+        public static void MiscImmSUB(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("SUB (4)");
 
@@ -1078,7 +1078,7 @@ namespace OptimeGBA
             arm7.R[13] = arm7.R[13] - (immed7 << 2);
         }
 
-        public static void MiscREVSH(ARM7 arm7, ushort ins)
+        public static void MiscREVSH(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("REVSH");
 
@@ -1107,7 +1107,7 @@ namespace OptimeGBA
             arm7.R[rd] = rdVal;
         }
 
-        public static void MiscPcADD(ARM7 arm7, ushort ins)
+        public static void MiscPcADD(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ADD (5)");
 
@@ -1117,7 +1117,7 @@ namespace OptimeGBA
             arm7.R[rd] = (arm7.R[15] & 0xFFFFFFFC) + (immed8 * 4);
         }
 
-        public static void MiscSpADD(ARM7 arm7, ushort ins)
+        public static void MiscSpADD(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("ADD (6)");
 
@@ -1127,7 +1127,7 @@ namespace OptimeGBA
             arm7.R[rd] = arm7.R[13] + (immed8 << 2);
         }
 
-        public static void LDMIA(ARM7 arm7, ushort ins)
+        public static void LDMIA(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("LDMIA | Load Multiple Increment After");
 
@@ -1165,7 +1165,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void STMIA(ARM7 arm7, ushort ins)
+        public static void STMIA(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("STMIA | Store Multiple Increment After");
 
@@ -1202,21 +1202,21 @@ namespace OptimeGBA
         }
         // LineDebug(regs);
 
-        public static void SWI(ARM7 arm7, ushort ins)
+        public static void SWI(Arm7 arm7, ushort ins)
         {
             arm7.R14svc = arm7.R[15] - 2;
             arm7.SPSR_svc = arm7.GetCPSR();
 
-            arm7.SetMode((uint)ARM7.ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.SetMode((uint)Arm7.Arm7Mode.Supervisor); // Go into SVC / Supervisor mode
 
             arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;
 
-            arm7.R[15] = ARM7.VectorSoftwareInterrupt;
+            arm7.R[15] = Arm7.VectorSoftwareInterrupt;
             arm7.FlushPipeline();
         }
 
-        public static void ConditionalB(ARM7 arm7, ushort ins)
+        public static void ConditionalB(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("B | Conditional Branch");
             uint cond = (uint)((ins >> 8) & 0xF);
@@ -1238,7 +1238,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void UnconditionalB(ARM7 arm7, ushort ins)
+        public static void UnconditionalB(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("B | Unconditional Branch");
             int signedImmed11 = (int)(ins & 0b11111111111) << 1;
@@ -1248,7 +1248,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        public static void BLUpperFill(ARM7 arm7, ushort ins)
+        public static void BLUpperFill(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
 
@@ -1265,7 +1265,7 @@ namespace OptimeGBA
             arm7.LineDebug("Upper fill");
         }
 
-        public static void BLToThumb(ARM7 arm7, ushort ins)
+        public static void BLToThumb(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
 
@@ -1280,7 +1280,7 @@ namespace OptimeGBA
             arm7.LineDebug("Stay in THUMB state");
         }
 
-        public static void BLToArm(ARM7 arm7, ushort ins)
+        public static void BLToArm(Arm7 arm7, ushort ins)
         {
             arm7.LineDebug("BL, BLX | Branch With Link (And Exchange)");
 
@@ -1297,7 +1297,7 @@ namespace OptimeGBA
         }
 
 
-        public static void Invalid(ARM7 arm7, ushort ins)
+        public static void Invalid(Arm7 arm7, ushort ins)
         {
             arm7.Error($"Invalid THUMB Instruction: {Hex(ins, 4)}");
         }

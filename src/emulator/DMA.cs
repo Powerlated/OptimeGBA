@@ -3,7 +3,7 @@ using System;
 
 namespace OptimeGBA
 {
-    public enum DMAStartTiming
+    public enum DmaStartTiming
     {
         Immediately = 0,
         VBlank = 1,
@@ -11,7 +11,7 @@ namespace OptimeGBA
         Special = 3,
     }
 
-    public enum DMADestAddrCtrl
+    public enum DmaDestAddrCtrl
     {
         Increment = 0,
         Decrement = 1,
@@ -19,7 +19,7 @@ namespace OptimeGBA
         IncrementReload = 3,
     }
 
-    public enum DMASrcAddrCtrl
+    public enum DmaSrcAddrCtrl
     {
         Increment = 0,
         Decrement = 1,
@@ -27,7 +27,7 @@ namespace OptimeGBA
         PROHIBITED = 3,
     }
 
-    public sealed class DMAChannel
+    public sealed class DmaChannel
     {
         public uint DMASAD;
         public uint DMADAD;
@@ -38,12 +38,12 @@ namespace OptimeGBA
         public uint DmaLength;
 
         // DMACNT_H
-        public DMADestAddrCtrl DestAddrCtrl;
-        public DMASrcAddrCtrl SrcAddrCtrl;
+        public DmaDestAddrCtrl DestAddrCtrl;
+        public DmaSrcAddrCtrl SrcAddrCtrl;
         public bool Repeat;
         public bool TransferType;
         public bool GamePakDRQ;
-        public DMAStartTiming StartTiming;
+        public DmaStartTiming StartTiming;
         public bool FinishedIRQ;
         public bool Enabled; // Don't directly set to false, use Disable()
 
@@ -157,12 +157,12 @@ namespace OptimeGBA
 
         public void UpdateControl()
         {
-            DestAddrCtrl = (DMADestAddrCtrl)BitRange(DMACNT_H, 5, 6);
-            SrcAddrCtrl = (DMASrcAddrCtrl)BitRange(DMACNT_H, 7, 8);
+            DestAddrCtrl = (DmaDestAddrCtrl)BitRange(DMACNT_H, 5, 6);
+            SrcAddrCtrl = (DmaSrcAddrCtrl)BitRange(DMACNT_H, 7, 8);
             Repeat = BitTest(DMACNT_H, 9);
             TransferType = BitTest(DMACNT_H, 10);
             GamePakDRQ = BitTest(DMACNT_H, 11);
-            StartTiming = (DMAStartTiming)BitRange(DMACNT_H, 12, 13);
+            StartTiming = (DmaStartTiming)BitRange(DMACNT_H, 12, 13);
             FinishedIRQ = BitTest(DMACNT_H, 14);
             if (BitTest(DMACNT_H, 15))
             {
@@ -211,15 +211,15 @@ namespace OptimeGBA
         }
     }
 
-    public sealed class DMA
+    public sealed class Dma
     {
-        GBA Gba;
+        Gba Gba;
 
-        public DMAChannel[] Ch = new DMAChannel[4] {
-            new DMAChannel(),
-            new DMAChannel(),
-            new DMAChannel(),
-            new DMAChannel(),
+        public DmaChannel[] Ch = new DmaChannel[4] {
+            new DmaChannel(),
+            new DmaChannel(),
+            new DmaChannel(),
+            new DmaChannel(),
         };
 
         static readonly uint[] DmaSourceMask = { 0x07FFFFFF, 0x0FFFFFFF, 0x0FFFFFFF, 0x0FFFFFFF };
@@ -227,7 +227,7 @@ namespace OptimeGBA
 
         public bool DmaLock;
 
-        public DMA(GBA gba)
+        public Dma(Gba gba)
         {
             Gba = gba;
         }
@@ -282,7 +282,7 @@ namespace OptimeGBA
             throw new Exception("This shouldn't happen.");
         }
 
-        public void ExecuteDma(DMAChannel c, uint ci)
+        public void ExecuteDma(DmaChannel c, uint ci)
         {
             DmaLock = true;
 
@@ -316,15 +316,15 @@ namespace OptimeGBA
             {
                 switch (c.DestAddrCtrl)
                 {
-                    case DMADestAddrCtrl.Increment: destOffsPerUnit = +4; break;
-                    case DMADestAddrCtrl.Decrement: destOffsPerUnit = -4; break;
-                    case DMADestAddrCtrl.IncrementReload: destOffsPerUnit = +4; break;
+                    case DmaDestAddrCtrl.Increment: destOffsPerUnit = +4; break;
+                    case DmaDestAddrCtrl.Decrement: destOffsPerUnit = -4; break;
+                    case DmaDestAddrCtrl.IncrementReload: destOffsPerUnit = +4; break;
                     default: destOffsPerUnit = 0; break;
                 }
                 switch (c.SrcAddrCtrl)
                 {
-                    case DMASrcAddrCtrl.Increment: sourceOffsPerUnit = +4; break;
-                    case DMASrcAddrCtrl.Decrement: sourceOffsPerUnit = -4; break;
+                    case DmaSrcAddrCtrl.Increment: sourceOffsPerUnit = +4; break;
+                    case DmaSrcAddrCtrl.Decrement: sourceOffsPerUnit = -4; break;
                     default: sourceOffsPerUnit = 0; break;
                 }
             }
@@ -332,15 +332,15 @@ namespace OptimeGBA
             {
                 switch (c.DestAddrCtrl)
                 {
-                    case DMADestAddrCtrl.Increment: destOffsPerUnit = +2; break;
-                    case DMADestAddrCtrl.Decrement: destOffsPerUnit = -2; break;
-                    case DMADestAddrCtrl.IncrementReload: destOffsPerUnit = +2; break;
+                    case DmaDestAddrCtrl.Increment: destOffsPerUnit = +2; break;
+                    case DmaDestAddrCtrl.Decrement: destOffsPerUnit = -2; break;
+                    case DmaDestAddrCtrl.IncrementReload: destOffsPerUnit = +2; break;
                     default: destOffsPerUnit = 0; break;
                 }
                 switch (c.SrcAddrCtrl)
                 {
-                    case DMASrcAddrCtrl.Increment: sourceOffsPerUnit = +2; break;
-                    case DMASrcAddrCtrl.Decrement: sourceOffsPerUnit = -2; break;
+                    case DmaSrcAddrCtrl.Increment: sourceOffsPerUnit = +2; break;
+                    case DmaSrcAddrCtrl.Decrement: sourceOffsPerUnit = -2; break;
                     default: sourceOffsPerUnit = 0; break;
                 }
             }
@@ -352,8 +352,8 @@ namespace OptimeGBA
                 if (c.TransferType)
                 {
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
-                    Gba.Tick(ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Tick(Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -361,15 +361,15 @@ namespace OptimeGBA
                 else
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
-                    Gba.Tick(ARM7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(ARM7.Timing8And16[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Tick(Arm7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(Arm7.Timing8And16[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
                 }
             }
 
-            if (c.DestAddrCtrl == DMADestAddrCtrl.IncrementReload)
+            if (c.DestAddrCtrl == DmaDestAddrCtrl.IncrementReload)
             {
                 c.DmaLength = origLength;
 
@@ -387,7 +387,7 @@ namespace OptimeGBA
             DmaLock = false;
         }
 
-        public void ExecuteSoundDma(DMAChannel c, uint ci)
+        public void ExecuteSoundDma(DmaChannel c, uint ci)
         {
             DmaLock = true;
 
@@ -426,15 +426,15 @@ namespace OptimeGBA
 
                 switch (c.SrcAddrCtrl)
                 {
-                    case DMASrcAddrCtrl.Increment: srcAddr += 4; break;
-                    case DMASrcAddrCtrl.Decrement: srcAddr -= 4; break;
-                    case DMASrcAddrCtrl.Fixed: break;
+                    case DmaSrcAddrCtrl.Increment: srcAddr += 4; break;
+                    case DmaSrcAddrCtrl.Decrement: srcAddr -= 4; break;
+                    case DmaSrcAddrCtrl.Fixed: break;
                 }
 
                 // TODO: Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
-                // Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                // Gba.Arm7.InstructionCycles += (ARM7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                // Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                // Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;
@@ -450,9 +450,9 @@ namespace OptimeGBA
 
         public void ExecuteImmediate(uint ci)
         {
-            DMAChannel c = Ch[ci];
+            DmaChannel c = Ch[ci];
 
-            if (c.Enabled && c.StartTiming == DMAStartTiming.Immediately)
+            if (c.Enabled && c.StartTiming == DmaStartTiming.Immediately)
             {
                 c.Disable();
 
@@ -464,7 +464,7 @@ namespace OptimeGBA
         {
             if (!DmaLock)
             {
-                if (Ch[1].StartTiming == DMAStartTiming.Special)
+                if (Ch[1].StartTiming == DmaStartTiming.Special)
                 {
                     ExecuteSoundDma(Ch[1], 1);
                 }
@@ -474,7 +474,7 @@ namespace OptimeGBA
         {
             if (!DmaLock)
             {
-                if (Ch[2].StartTiming == DMAStartTiming.Special)
+                if (Ch[2].StartTiming == DmaStartTiming.Special)
                 {
                     ExecuteSoundDma(Ch[2], 2);
                 }
@@ -487,8 +487,8 @@ namespace OptimeGBA
             {
                 for (uint ci = 0; ci < 4; ci++)
                 {
-                    DMAChannel c = Ch[ci];
-                    if (c.StartTiming == DMAStartTiming.HBlank)
+                    DmaChannel c = Ch[ci];
+                    if (c.StartTiming == DmaStartTiming.HBlank)
                     {
                         c.DmaLength = c.DMACNT_L;
                         ExecuteDma(c, ci);
@@ -503,8 +503,8 @@ namespace OptimeGBA
             {
                 for (uint ci = 0; ci < 4; ci++)
                 {
-                    DMAChannel c = Ch[ci];
-                    if (c.StartTiming == DMAStartTiming.VBlank)
+                    DmaChannel c = Ch[ci];
+                    if (c.StartTiming == DmaStartTiming.VBlank)
                     {
                         c.DmaLength = c.DMACNT_L;
                         ExecuteDma(c, ci);

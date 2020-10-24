@@ -4,24 +4,24 @@ using System;
 
 namespace OptimeGBA
 {
-    public delegate void ArmExecutor(ARM7 arm7, uint ins);
+    public delegate void ArmExecutor(Arm7 arm7, uint ins);
 
     public unsafe static class Arm
     {
-        public static void SWI(ARM7 arm7, uint ins)
+        public static void SWI(Arm7 arm7, uint ins)
         {
             arm7.R14svc = arm7.R[15] - 4;
             arm7.SPSR_svc = arm7.GetCPSR();
 
-            arm7.SetMode((uint)ARM7.ARM7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.SetMode((uint)Arm7.Arm7Mode.Supervisor); // Go into SVC / Supervisor mode
             // arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;
 
-            arm7.R[15] = ARM7.VectorSoftwareInterrupt;
+            arm7.R[15] = Arm7.VectorSoftwareInterrupt;
             arm7.FlushPipeline();
         }
 
-        public static void LDM(ARM7 arm7, uint ins)
+        public static void LDM(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("LDM");
 
@@ -33,7 +33,7 @@ namespace OptimeGBA
             bool W = BitTest(ins, 21);
 
             bool loadsPc = BitTest(ins, 15);
-            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != ARM7.ARM7Mode.User && arm7.Mode != ARM7.ARM7Mode.OldUser);
+            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != Arm7.Arm7Mode.User && arm7.Mode != Arm7.Arm7Mode.OldUser);
 
             if (S)
             {
@@ -149,7 +149,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void STM(ARM7 arm7, uint ins)
+        public static void STM(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("STM");
 
@@ -161,7 +161,7 @@ namespace OptimeGBA
             bool W = BitTest(ins, 21);
 
             bool loadsPc = BitTest(ins, 15);
-            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != ARM7.ARM7Mode.User && arm7.Mode != ARM7.ARM7Mode.OldUser);
+            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != Arm7.Arm7Mode.User && arm7.Mode != Arm7.Arm7Mode.OldUser);
 
             if (S)
             {
@@ -277,7 +277,7 @@ namespace OptimeGBA
             // arm7.LineDebug(regs);
         }
 
-        public static void B(ARM7 arm7, uint ins)
+        public static void B(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("B | Branch");
             // B
@@ -296,7 +296,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        public static void BX(ARM7 arm7, uint ins)
+        public static void BX(Arm7 arm7, uint ins)
         {
             // BX - branch and optional switch to Thumb state
             arm7.LineDebug("BX");
@@ -318,7 +318,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        public static void SWP(ARM7 arm7, uint ins)
+        public static void SWP(Arm7 arm7, uint ins)
         {
             uint rm = (ins >> 0) & 0xF;
             uint rd = (ins >> 12) & 0xF;
@@ -328,14 +328,14 @@ namespace OptimeGBA
             uint storeValue = arm7.R[rm];
 
             arm7.LineDebug("SWP");
-            uint readVal = ARM7.RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
+            uint readVal = Arm7.RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
             arm7.Write32(addr & ~3u, storeValue);
             arm7.R[rd] = readVal;
 
             arm7.ICycle();
         }
 
-        public static void SWPB(ARM7 arm7, uint ins)
+        public static void SWPB(Arm7 arm7, uint ins)
         {
             uint rm = (ins >> 0) & 0xF;
             uint rd = (ins >> 12) & 0xF;
@@ -352,7 +352,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void MSR(ARM7 arm7, uint ins)
+        public static void MSR(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("MSR");
             // MSR
@@ -378,7 +378,7 @@ namespace OptimeGBA
                 uint rotateBits = ((ins >> 8) & 0xF) * 2;
                 uint constant = ins & 0xFF;
 
-                operand = ARM7.RotateRight32(constant, (byte)rotateBits);
+                operand = Arm7.RotateRight32(constant, (byte)rotateBits);
             }
             else
             {
@@ -401,7 +401,7 @@ namespace OptimeGBA
             if (!useSPSR)
             {
                 // TODO: Fix privileged mode functionality in CPSR MSR
-                if (arm7.Mode != ARM7.ARM7Mode.User)
+                if (arm7.Mode != Arm7.Arm7Mode.User)
                 {
                     // Privileged
                     arm7.LineDebug("Privileged");
@@ -424,7 +424,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void MRS(ARM7 arm7, uint ins)
+        public static void MRS(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("MRS");
 
@@ -444,7 +444,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void MUL(ARM7 arm7, uint ins)
+        public static void MUL(Arm7 arm7, uint ins)
         {
             uint rd = (ins >> 16) & 0xF;
             uint rs = (ins >> 8) & 0xF;
@@ -478,7 +478,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void MULL(ARM7 arm7, uint ins)
+        public static void MULL(Arm7 arm7, uint ins)
         {
             bool signed = BitTest(ins, 22);
             bool accumulate = BitTest(ins, 21);
@@ -551,7 +551,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void RegularLDR(ARM7 arm7, uint ins)
+        public static void RegularLDR(Arm7 arm7, uint ins)
         {
             // LDR (Load Register)
             arm7.LineDebug("LDR (Load Register)");
@@ -596,7 +596,7 @@ namespace OptimeGBA
 
                     // If the address isn't word-aligned
                     uint data = arm7.Read32(addr & 0xFFFFFFFC);
-                    loadVal = ARM7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
+                    loadVal = Arm7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
 
                     // Error("Misaligned LDR");
                 }
@@ -635,7 +635,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void RegularSTR(ARM7 arm7, uint ins)
+        public static void RegularSTR(Arm7 arm7, uint ins)
         {
             // STR (Store Register)
             arm7.LineDebug("STR (Store Register)");
@@ -703,7 +703,7 @@ namespace OptimeGBA
         }
 
 
-        public static uint RegularLDRSTRDecode(ARM7 arm7, uint ins)
+        public static uint RegularLDRSTRDecode(Arm7 arm7, uint ins)
         {
             bool registerOffset = BitTest(ins, 25);
 
@@ -727,7 +727,7 @@ namespace OptimeGBA
                     switch (shiftType)
                     {
                         case 0b00:
-                            return ARM7.LogicalShiftLeft32(rmVal, shiftBits);
+                            return Arm7.LogicalShiftLeft32(rmVal, shiftBits);
                         case 0b01:
                             if (shiftBits == 0)
                             {
@@ -735,7 +735,7 @@ namespace OptimeGBA
                             }
                             else
                             {
-                                return ARM7.LogicalShiftRight32(rmVal, shiftBits);
+                                return Arm7.LogicalShiftRight32(rmVal, shiftBits);
                             }
                         case 0b10:
                             if (shiftBits == 0)
@@ -752,17 +752,17 @@ namespace OptimeGBA
                             }
                             else
                             {
-                                return ARM7.ArithmeticShiftRight32(rmVal, shiftBits);
+                                return Arm7.ArithmeticShiftRight32(rmVal, shiftBits);
                             }
                         default:
                         case 0b11:
                             if (shiftBits == 0)
                             {
-                                return ARM7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (ARM7.LogicalShiftRight32(rmVal, 1));
+                                return Arm7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (Arm7.LogicalShiftRight32(rmVal, 1));
                             }
                             else
                             {
-                                return ARM7.RotateRight32(rmVal, shiftBits);
+                                return Arm7.RotateRight32(rmVal, shiftBits);
                             }
                     }
                 }
@@ -782,7 +782,7 @@ namespace OptimeGBA
 
         }
 
-        public static void SpecialLDRSTR(ARM7 arm7, uint ins)
+        public static void SpecialLDRSTR(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("Halfword, Signed Byte, Doubleword Loads & Stores");
             arm7.LineDebug("LDR|STR H|SH|SB|D");
@@ -867,7 +867,7 @@ namespace OptimeGBA
                     {
                         arm7.LineDebug("Load unsigned halfword");
                         // Force halfword aligned, and rotate if unaligned
-                        loadVal = ARM7.RotateRight32(arm7.Read16(addr & ~1u), (byte)((addr & 1) * 8));
+                        loadVal = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)((addr & 1) * 8));
                     }
                 }
             }
@@ -923,9 +923,9 @@ namespace OptimeGBA
             arm7.LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
         }
 
-        public static void DataAND(ARM7 arm7, uint ins)
+        public static void DataAND(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("AND");
@@ -950,9 +950,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataEOR(ARM7 arm7, uint ins)
+        public static void DataEOR(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("EOR");
@@ -977,9 +977,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataSUB(ARM7 arm7, uint ins)
+        public static void DataSUB(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("SUB");
@@ -992,7 +992,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !(shifterOperand > rnValue); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+                arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
 
                 if (rd == 15)
                 {
@@ -1006,9 +1006,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataRSB(ARM7 arm7, uint ins)
+        public static void DataRSB(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("RSB");
@@ -1021,7 +1021,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !(rnValue > shifterOperand); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
+                arm7.Overflow = Arm7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
 
                 if (rd == 15)
                 {
@@ -1035,9 +1035,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataADD(ARM7 arm7, uint ins)
+        public static void DataADD(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ADD");
@@ -1049,7 +1049,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFFL; // C
-                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // C
+                arm7.Overflow = Arm7.CheckOverflowAdd(rnValue, shifterOperand, final); // C
 
                 if (rd == 15)
                 {
@@ -1063,9 +1063,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataADC(ARM7 arm7, uint ins)
+        public static void DataADC(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ADC");
@@ -1077,7 +1077,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(final, 31); // N
                 arm7.Zero = final == 0; // Z
                 arm7.Carry = (long)rnValue + (long)shifterOperand + (arm7.Carry ? 1U : 0) > 0xFFFFFFFFL; // C
-                arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, final); // V
+                arm7.Overflow = Arm7.CheckOverflowAdd(rnValue, shifterOperand, final); // V
 
                 if (rd == 15)
                 {
@@ -1091,9 +1091,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataSBC(ARM7 arm7, uint ins)
+        public static void DataSBC(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("SBC");
@@ -1106,7 +1106,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !((long)shifterOperand + (long)(!arm7.Carry ? 1U : 0) > rnValue); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+                arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
 
                 if (rd == 15)
                 {
@@ -1120,9 +1120,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataRSC(ARM7 arm7, uint ins)
+        public static void DataRSC(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("RSC");
@@ -1135,7 +1135,7 @@ namespace OptimeGBA
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
                 arm7.Carry = !((long)rnValue + (long)(!arm7.Carry ? 1U : 0) > shifterOperand); // C
-                arm7.Overflow = ARM7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
+                arm7.Overflow = Arm7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
 
                 if (rd == 15)
                 {
@@ -1149,9 +1149,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataTST(ARM7 arm7, uint ins)
+        public static void DataTST(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("TST");
@@ -1163,9 +1163,9 @@ namespace OptimeGBA
             arm7.Carry = shifterCarryOut;
         }
 
-        public static void DataTEQ(ARM7 arm7, uint ins)
+        public static void DataTEQ(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("TEQ");
@@ -1177,9 +1177,9 @@ namespace OptimeGBA
             arm7.Carry = shifterCarryOut; // C
         }
 
-        public static void DataCMP(ARM7 arm7, uint ins)
+        public static void DataCMP(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             // SBZ means should be zero, not relevant to the current code, just so you know
@@ -1190,12 +1190,12 @@ namespace OptimeGBA
             arm7.Negative = BitTest(aluOut, 31); // N
             arm7.Zero = aluOut == 0; // Z
             arm7.Carry = rnValue >= shifterOperand; // C
-            arm7.Overflow = ARM7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
+            arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
         }
 
-        public static void DataCMN(ARM7 arm7, uint ins)
+        public static void DataCMN(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("CMN");
@@ -1205,12 +1205,12 @@ namespace OptimeGBA
             arm7.Negative = BitTest(aluOut, 31); // N
             arm7.Zero = aluOut == 0; // Z
             arm7.Carry = (long)rnValue + (long)shifterOperand > 0xFFFFFFFF; // C
-            arm7.Overflow = ARM7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
+            arm7.Overflow = Arm7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
         }
 
-        public static void DataORR(ARM7 arm7, uint ins)
+        public static void DataORR(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("ORR");
@@ -1235,9 +1235,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataMOV(ARM7 arm7, uint ins)
+        public static void DataMOV(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("MOV");
@@ -1261,9 +1261,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataBIC(ARM7 arm7, uint ins)
+        public static void DataBIC(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("BIC");
@@ -1288,9 +1288,9 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataMVN(ARM7 arm7, uint ins)
+        public static void DataMVN(Arm7 arm7, uint ins)
         {
-            (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
+            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
             (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
 
             arm7.LineDebug("MVN");
@@ -1313,7 +1313,7 @@ namespace OptimeGBA
             }
         }
 
-        public static void Invalid(ARM7 arm7, uint ins)
+        public static void Invalid(Arm7 arm7, uint ins)
         {
             arm7.Error($"Invalid ARM Instruction: {Hex(ins, 8)}");
         }

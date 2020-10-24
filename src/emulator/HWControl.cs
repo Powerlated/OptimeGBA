@@ -21,11 +21,11 @@ namespace OptimeGBA
         GamePak = 13,
     }
 
-    public sealed class HWControl
+    public sealed class HwControl
     {
-        GBA Gba;
+        Gba Gba;
 
-        public HWControl(GBA gba)
+        public HwControl(Gba gba)
         {
             Gba = gba;
         }

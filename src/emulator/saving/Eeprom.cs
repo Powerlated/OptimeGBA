@@ -31,9 +31,9 @@ namespace OptimeGBA
         public uint BitsRemaining = 0;
         public uint ReadBitsRemaining = 0;
 
-        public GBA Gba;
+        public Gba Gba;
 
-        public Eeprom(GBA gba, EepromSize size)
+        public Eeprom(Gba gba, EepromSize size)
         {
             Gba = gba;
             Size = size;

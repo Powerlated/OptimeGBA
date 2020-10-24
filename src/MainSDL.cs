@@ -25,7 +25,7 @@ namespace OptimeGBAEmulator
         static IntPtr Window;
         static IntPtr Renderer;
 
-        static GBA Gba;
+        static Gba Gba;
 
         static bool Sync = true;
 
@@ -49,11 +49,11 @@ namespace OptimeGBAEmulator
 
             bool GuiMode = args.Length == 0;
 
-            Window = SDL_CreateWindow("Optime GBA", 0, 0, LCD.WIDTH * 4, LCD.HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
+            Window = SDL_CreateWindow("Optime GBA", 0, 0, Lcd.WIDTH * 4, Lcd.HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
 
-            SDL_SetWindowMinimumSize(Window, LCD.WIDTH, LCD.HEIGHT);
+            SDL_SetWindowMinimumSize(Window, Lcd.WIDTH, Lcd.HEIGHT);
 
             // SDL_GL_SetSwapInterval()
 
@@ -65,7 +65,7 @@ namespace OptimeGBAEmulator
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
-            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, LCD.WIDTH, LCD.HEIGHT);
+            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, Lcd.WIDTH, Lcd.HEIGHT);
 
             string romPath;
             byte[] rom;
@@ -195,7 +195,7 @@ namespace OptimeGBAEmulator
 
             var provider = new GbaProvider(bios, rom, savPath, AudioReady);
             provider.BootBios = true;
-            Gba = new GBA(provider);
+            Gba = new Gba(provider);
 
             Gba.Mem.SaveProvider.LoadSave(sav);
 
@@ -251,7 +251,7 @@ namespace OptimeGBAEmulator
                     ResetDue = false;
                     byte[] save = Gba.Mem.SaveProvider.GetSave();
                     GbaProvider p = Gba.Provider;
-                    Gba = new GBA(p);
+                    Gba = new Gba(p);
                     Gba.Mem.SaveProvider.LoadSave(save);
 
                     nextFrameAt = getTime();
@@ -292,30 +292,30 @@ namespace OptimeGBAEmulator
                 }
 
 #if UNSAFE
-                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
+                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Lcd.ScreenFront, Lcd.WIDTH * Lcd.BYTES_PER_PIXEL);
 #else
                 fixed (uint* pixels = &Gba.Lcd.ScreenFront[0])
                 {
-                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, LCD.WIDTH * LCD.BYTES_PER_PIXEL);
+                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, Lcd.WIDTH * Lcd.BYTES_PER_PIXEL);
                 }
 #endif
 
                 SDL_Rect dest = new SDL_Rect();
                 SDL_GetWindowSize(Window, out int w, out int h);
-                double ratio = Math.Min((double)h / (double)LCD.HEIGHT, (double)w / (double)LCD.WIDTH);
+                double ratio = Math.Min((double)h / (double)Lcd.HEIGHT, (double)w / (double)Lcd.WIDTH);
                 int fillWidth;
                 int fillHeight;
                 if (!Stretched)
                 {
                     if (IntegerScaling)
                     {
-                        fillWidth = ((int)(ratio * LCD.WIDTH) / LCD.WIDTH) * LCD.WIDTH;
-                        fillHeight = ((int)(ratio * LCD.HEIGHT) / LCD.HEIGHT) * LCD.HEIGHT;
+                        fillWidth = ((int)(ratio * Lcd.WIDTH) / Lcd.WIDTH) * Lcd.WIDTH;
+                        fillHeight = ((int)(ratio * Lcd.HEIGHT) / Lcd.HEIGHT) * Lcd.HEIGHT;
                     }
                     else
                     {
-                        fillWidth = (int)(ratio * LCD.WIDTH);
-                        fillHeight = (int)(ratio * LCD.HEIGHT);
+                        fillWidth = (int)(ratio * Lcd.WIDTH);
+                        fillHeight = (int)(ratio * Lcd.HEIGHT);
                     }
                     dest.w = fillWidth;
                     dest.h = fillHeight;

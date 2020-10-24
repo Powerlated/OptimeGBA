@@ -169,11 +169,11 @@ namespace OptimeGBA
         Vertical = 2,
     }
 
-    public sealed unsafe class LCD
+    public sealed unsafe class Lcd
     {
-        GBA Gba;
+        Gba Gba;
         Scheduler Scheduler;
-        public LCD(GBA gba, Scheduler scheduler)
+        public Lcd(Gba gba, Scheduler scheduler)
         {
             Gba = gba;
             Scheduler = scheduler;

@@ -9,10 +9,10 @@ namespace OptimeGBA
 {
     public sealed unsafe class Memory
     {
-        GBA Gba;
+        Gba Gba;
 
 
-        public Memory(GBA gba, GbaProvider provider)
+        public Memory(Gba gba, GbaProvider provider)
         {
             Gba = gba;
 

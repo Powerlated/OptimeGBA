@@ -65,11 +65,11 @@ namespace OptimeGBA
         }
     }
 
-    public sealed class GBAAudio
+    public sealed class GbaAudio
     {
-        GBA Gba;
+        Gba Gba;
         Scheduler Scheduler;
-        public GBAAudio(GBA gba, Scheduler scheduler)
+        public GbaAudio(Gba gba, Scheduler scheduler)
         {
             Gba = gba;
             Scheduler = scheduler;

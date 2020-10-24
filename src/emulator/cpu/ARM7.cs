@@ -5,9 +5,9 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public unsafe sealed class ARM7
+    public unsafe sealed class Arm7
     {
-        public enum ARM7Mode
+        public enum Arm7Mode
         {
             OldUser = 0x00,
             OldFIQ = 0x01,
@@ -66,7 +66,7 @@ namespace OptimeGBA
         public const uint VectorIRQ = 0x18;
         public const uint VectorFIQ = 0x1C;
 
-        public GBA Gba;
+        public Gba Gba;
 
 #if UNSAFE
         public uint* R = Memory.AllocateUnmanagedArray32(16);
@@ -116,7 +116,7 @@ namespace OptimeGBA
         public bool IRQDisable = false;
         public bool FIQDisable = false;
         public bool ThumbState = false;
-        public ARM7Mode Mode = ARM7Mode.System;
+        public Arm7Mode Mode = Arm7Mode.System;
 
         public uint ARMFetch;
         public uint ARMDecode;
@@ -133,7 +133,7 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
 
-        public ARM7(GBA gba)
+        public Arm7(Gba gba)
         {
             Gba = gba;
 
@@ -149,7 +149,7 @@ namespace OptimeGBA
             }
 
             // Default Mode
-            Mode = ARM7Mode.System;
+            Mode = Arm7Mode.System;
 
             R13svc = 0x03007FE0;
             R13irq = 0x03007FA0;
@@ -295,7 +295,7 @@ namespace OptimeGBA
                     FillPipelineArm();
                     R14irq = R[15] - 4;
                 }
-                SetMode((uint)ARM7Mode.IRQ); // Go into SVC / Supervisor mode
+                SetMode((uint)Arm7Mode.IRQ); // Go into SVC / Supervisor mode
                 ThumbState = false; // Back to ARM state
                 IRQDisable = true;
                 // FIQDisable = true;
@@ -426,7 +426,6 @@ namespace OptimeGBA
                 // LineDebug("Data Processing / FSR Transfer");
                 // ALU Operations
                 uint opcode = (ins >> 21) & 0xF;
-                (uint rd, bool setFlags) = ARM7.ArmDataOperandDecode(ins);
 
                 // LineDebug($"Rn: R{rn}");
                 // LineDebug($"Rd: R{rd}");
@@ -810,7 +809,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetUserReg(uint reg)
         {
-            if (Mode == ARM7Mode.User && Mode == ARM7Mode.OldUser && Mode == ARM7Mode.System)
+            if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)
             {
                 throw new Exception("GetUserReg() called in User or System mode");
             }
@@ -844,7 +843,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void SetUserReg(uint reg, uint val)
         {
-            if (Mode == ARM7Mode.User && Mode == ARM7Mode.OldUser && Mode == ARM7Mode.System)
+            if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)
             {
                 throw new Exception("SetUserReg() called in User or System mode");
             }
@@ -950,18 +949,18 @@ namespace OptimeGBA
         {
             switch (Mode)
             {
-                case ARM7Mode.FIQ:
-                case ARM7Mode.OldFIQ:
+                case Arm7Mode.FIQ:
+                case Arm7Mode.OldFIQ:
                     return SPSR_fiq;
-                case ARM7Mode.Supervisor:
-                case ARM7Mode.OldSupervisor:
+                case Arm7Mode.Supervisor:
+                case Arm7Mode.OldSupervisor:
                     return SPSR_svc;
-                case ARM7Mode.Abort:
+                case Arm7Mode.Abort:
                     return SPSR_abt;
-                case ARM7Mode.IRQ:
-                case ARM7Mode.OldIRQ:
+                case Arm7Mode.IRQ:
+                case Arm7Mode.OldIRQ:
                     return SPSR_irq;
-                case ARM7Mode.Undefined:
+                case Arm7Mode.Undefined:
                     return SPSR_und;
 
             }
@@ -974,22 +973,22 @@ namespace OptimeGBA
         {
             switch (Mode)
             {
-                case ARM7Mode.FIQ:
-                case ARM7Mode.OldFIQ:
+                case Arm7Mode.FIQ:
+                case Arm7Mode.OldFIQ:
                     SPSR_fiq = set;
                     return;
-                case ARM7Mode.Supervisor:
-                case ARM7Mode.OldSupervisor:
+                case Arm7Mode.Supervisor:
+                case Arm7Mode.OldSupervisor:
                     SPSR_svc = set;
                     return;
-                case ARM7Mode.Abort:
+                case Arm7Mode.Abort:
                     SPSR_abt = set;
                     return;
-                case ARM7Mode.IRQ:
-                case ARM7Mode.OldIRQ:
+                case Arm7Mode.IRQ:
+                case Arm7Mode.OldIRQ:
                     SPSR_irq = set;
                     return;
-                case ARM7Mode.Undefined:
+                case Arm7Mode.Undefined:
                     SPSR_und = set;
                     return;
 
@@ -1007,9 +1006,9 @@ namespace OptimeGBA
             // Store registers based on current mode
             switch (Mode)
             {
-                case ARM7Mode.User:
-                case ARM7Mode.OldUser:
-                case ARM7Mode.System:
+                case Arm7Mode.User:
+                case Arm7Mode.OldUser:
+                case Arm7Mode.System:
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1020,8 +1019,8 @@ namespace OptimeGBA
                     LineDebug("Saved Registers: User / System");
                     break;
 
-                case ARM7Mode.FIQ:
-                case ARM7Mode.OldFIQ:
+                case Arm7Mode.FIQ:
+                case Arm7Mode.OldFIQ:
                     R8fiq = R[8];
                     R9fiq = R[9];
                     R10fiq = R[10];
@@ -1032,8 +1031,8 @@ namespace OptimeGBA
                     LineDebug("Saved Registers: FIQ");
                     break;
 
-                case ARM7Mode.Supervisor:
-                case ARM7Mode.OldSupervisor:
+                case Arm7Mode.Supervisor:
+                case Arm7Mode.OldSupervisor:
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1044,7 +1043,7 @@ namespace OptimeGBA
                     LineDebug("Saved Registers: Supervisor");
                     break;
 
-                case ARM7Mode.Abort:
+                case Arm7Mode.Abort:
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1055,8 +1054,8 @@ namespace OptimeGBA
                     LineDebug("Saved Registers: Abort");
                     break;
 
-                case ARM7Mode.IRQ:
-                case ARM7Mode.OldIRQ:
+                case Arm7Mode.IRQ:
+                case Arm7Mode.OldIRQ:
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1067,7 +1066,7 @@ namespace OptimeGBA
                     LineDebug("Saved Registers: IRQ");
                     break;
 
-                case ARM7Mode.Undefined:
+                case Arm7Mode.Undefined:
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1082,7 +1081,7 @@ namespace OptimeGBA
             switch (mode)
             {
                 case 0x00:
-                    Mode = ARM7Mode.OldUser;
+                    Mode = Arm7Mode.OldUser;
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1093,7 +1092,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: OldUser");
                     break;
                 case 0x01:
-                    Mode = ARM7Mode.OldFIQ;
+                    Mode = Arm7Mode.OldFIQ;
                     R[8] = R8fiq;
                     R[9] = R9fiq;
                     R[10] = R10fiq;
@@ -1104,7 +1103,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: OldFIQ");
                     break;
                 case 0x02:
-                    Mode = ARM7Mode.OldIRQ;
+                    Mode = Arm7Mode.OldIRQ;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1115,7 +1114,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: OldIRQ");
                     break;
                 case 0x03:
-                    Mode = ARM7Mode.OldSupervisor;
+                    Mode = Arm7Mode.OldSupervisor;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1127,7 +1126,7 @@ namespace OptimeGBA
                     break;
 
                 case 0x10:
-                    Mode = ARM7Mode.User;
+                    Mode = Arm7Mode.User;
                     R8usr = R[8];
                     R9usr = R[9];
                     R10usr = R[10];
@@ -1138,7 +1137,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: User");
                     break;
                 case 0x11:
-                    Mode = ARM7Mode.FIQ;
+                    Mode = Arm7Mode.FIQ;
                     R[8] = R8fiq;
                     R[9] = R9fiq;
                     R[10] = R10fiq;
@@ -1149,7 +1148,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: FIQ");
                     break;
                 case 0x12:
-                    Mode = ARM7Mode.IRQ;
+                    Mode = Arm7Mode.IRQ;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1160,7 +1159,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: IRQ");
                     break;
                 case 0x13:
-                    Mode = ARM7Mode.Supervisor;
+                    Mode = Arm7Mode.Supervisor;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1171,7 +1170,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: Supervisor");
                     break;
                 case 0x17:
-                    Mode = ARM7Mode.Abort;
+                    Mode = Arm7Mode.Abort;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1182,7 +1181,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: Abort");
                     break;
                 case 0x1B:
-                    Mode = ARM7Mode.Undefined;
+                    Mode = Arm7Mode.Undefined;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
@@ -1193,7 +1192,7 @@ namespace OptimeGBA
                     LineDebug($"Mode Switch: Undefined");
                     break;
                 case 0x1F:
-                    Mode = ARM7Mode.System;
+                    Mode = Arm7Mode.System;
                     R[8] = R8usr;
                     R[9] = R9usr;
                     R[10] = R10usr;
