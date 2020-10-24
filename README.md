@@ -71,8 +71,3 @@ dotnet run -c Release -p OptimeGBA-OpenTK.csproj
 # Simple SDL Frontend 
 dotnet run -c Release -p OptimeGBA-SDL.csproj
 ```
-
----
-
-Copyright © 2020 Powerlated  
-All Rights Reserved.
