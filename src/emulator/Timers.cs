@@ -127,7 +127,7 @@ namespace OptimeGBA
 
         public long CalculateOverflowCycles()
         {
-            uint max = 0x10000;
+            uint max = 0xFFFF;
             uint diff = max - CounterVal;
 
             // Align to the master clock
@@ -163,7 +163,7 @@ namespace OptimeGBA
         {
             CounterVal = ReloadVal;
         }
-
+        
         public void TimerOverflow(long cyclesLate)
         {
             // On overflow, refill with reload value
@@ -191,6 +191,7 @@ namespace OptimeGBA
             {
                 Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles() - cyclesLate, TimerOverflow);
             }
+
             EnableCycles = CalculateAlignedCurrentTicks() - cyclesLate;
             // Console.WriteLine($"[Timer] {Id} Overflow");
         }

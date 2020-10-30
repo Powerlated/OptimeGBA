@@ -347,9 +347,10 @@ namespace OptimeGBA
 
             uint origLength = c.DmaLength;
 
-            for (; c.DmaLength > 0; c.DmaLength--)
+
+            if (c.TransferType)
             {
-                if (c.TransferType)
+                for (; c.DmaLength > 0; c.DmaLength--)
                 {
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
                     Gba.Tick(Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
@@ -358,7 +359,10 @@ namespace OptimeGBA
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
                 }
-                else
+            }
+            else
+            {
+                for (; c.DmaLength > 0; c.DmaLength--)
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
                     Gba.Tick(Arm7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
@@ -398,30 +402,27 @@ namespace OptimeGBA
             // 4 units of 32bits (16 bytes) are transferred to FIFO_A or FIFO_B
             for (uint i = 0; i < 4; i++)
             {
-                byte b0 = Gba.Mem.Read8(srcAddr + 0);
-                byte b1 = Gba.Mem.Read8(srcAddr + 1);
-                byte b2 = Gba.Mem.Read8(srcAddr + 2);
-                byte b3 = Gba.Mem.Read8(srcAddr + 3);
+                uint val = Gba.Mem.Read32(srcAddr + 0);
                 if (destAddr == 0x40000A0)
                 {
-                    Gba.GbaAudio.A.Insert(b0);
-                    Gba.GbaAudio.A.Insert(b1);
-                    Gba.GbaAudio.A.Insert(b2);
-                    Gba.GbaAudio.A.Insert(b3);
+                    Gba.GbaAudio.A.Insert((byte)val);
+                    Gba.GbaAudio.A.Insert((byte)(val >>= 8));
+                    Gba.GbaAudio.A.Insert((byte)(val >>= 8));
+                    Gba.GbaAudio.A.Insert((byte)(val >>= 8));
                 }
                 else if (destAddr == 0x40000A4)
                 {
-                    Gba.GbaAudio.B.Insert(b0);
-                    Gba.GbaAudio.B.Insert(b1);
-                    Gba.GbaAudio.B.Insert(b2);
-                    Gba.GbaAudio.B.Insert(b3);
+                    Gba.GbaAudio.B.Insert((byte)val);
+                    Gba.GbaAudio.B.Insert((byte)(val >>= 8));
+                    Gba.GbaAudio.B.Insert((byte)(val >>= 8));
+                    Gba.GbaAudio.B.Insert((byte)(val >>= 8));
                 }
                 else
                 {
-                    Gba.Mem.Write8(destAddr + 0, b0);
-                    Gba.Mem.Write8(destAddr + 1, b1);
-                    Gba.Mem.Write8(destAddr + 2, b2);
-                    Gba.Mem.Write8(destAddr + 3, b3);
+                    Gba.Mem.Write8(destAddr + 0, (byte)val); 
+                    Gba.Mem.Write8(destAddr + 1, (byte)(val >>= 8)); 
+                    Gba.Mem.Write8(destAddr + 2, (byte)(val >>= 8)); 
+                    Gba.Mem.Write8(destAddr + 3, (byte)(val >>= 8));
                 }
 
                 switch (c.SrcAddrCtrl)
@@ -431,10 +432,11 @@ namespace OptimeGBA
                     case DmaSrcAddrCtrl.Fixed: break;
                 }
 
-                // TODO: Applying proper timing to sound DMAs causes crackling in certain games including PMD.
+                // Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
-                // Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                // Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                // PROBLEM SOLVED.... my timers were 1 cycle too slow to reload
+                Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;
