@@ -182,6 +182,14 @@ namespace OptimeGBA
         Vertical = 2,
     }
 
+    public enum BlendEffect
+    {
+        None = 0,
+        Blend = 1,
+        Lighten = 2,
+        Darken = 3,
+    }
+
     public sealed unsafe class Lcd
     {
         Gba Gba;
@@ -222,6 +230,8 @@ namespace OptimeGBA
         };
 
         // DISPCNT
+        public ushort DISPCNTValue;
+
         public uint BgMode;
         public bool CgbMode;
         public bool DisplayFrameSelect;
@@ -236,6 +246,17 @@ namespace OptimeGBA
 
         public bool[] DebugEnableBg = new bool[4];
         public bool DebugEnableObj = true;
+
+        // BLDCNT
+        public ushort BLDCNTValue;
+
+        public uint BlendEffect = 0;
+        public bool[] BgTarget1 = new bool[4];
+        public bool ObjTarget1;
+        public bool BackdropTarget1;
+        public bool[] BgTarget0 = new bool[4];
+        public bool ObjTarget0;
+        public bool BackdropTarget0;
 
         // DISPSTAT
         public bool VCounterMatch;
@@ -266,10 +287,10 @@ namespace OptimeGBA
 #endif
 
         public byte[][] BackgroundBuffers = {
-            Memory.AllocateManagedArray(WIDTH),
-            Memory.AllocateManagedArray(WIDTH),
-            Memory.AllocateManagedArray(WIDTH),
-            Memory.AllocateManagedArray(WIDTH),
+            Memory.AllocateManagedArray(WIDTH + 8),
+            Memory.AllocateManagedArray(WIDTH + 8),
+            Memory.AllocateManagedArray(WIDTH + 8),
+            Memory.AllocateManagedArray(WIDTH + 8),
         };
 
         public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
@@ -360,23 +381,9 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000000: // DISPCNT B0
-                    val |= (byte)(BgMode & 0b111);
-                    if (CgbMode) val = BitSet(val, 3);
-                    if (DisplayFrameSelect) val = BitSet(val, 4);
-                    if (HBlankIntervalFree) val = BitSet(val, 5);
-                    if (ObjCharacterVramMapping) val = BitSet(val, 6);
-                    if (ForcedBlank) val = BitSet(val, 7);
-                    break;
+                    return (byte)(DISPCNTValue >> 0);
                 case 0x4000001: // DISPCNT B1
-                    if (ScreenDisplayBg[0]) val = BitSet(val, 8 - 8);
-                    if (ScreenDisplayBg[1]) val = BitSet(val, 9 - 8);
-                    if (ScreenDisplayBg[2]) val = BitSet(val, 10 - 8);
-                    if (ScreenDisplayBg[3]) val = BitSet(val, 11 - 8);
-                    if (ScreenDisplayObj) val = BitSet(val, 12 - 8);
-                    if (Window0DisplayFlag) val = BitSet(val, 13 - 8);
-                    if (Window1DisplayFlag) val = BitSet(val, 14 - 8);
-                    if (ObjWindowDisplayFlag) val = BitSet(val, 15 - 8);
-                    break;
+                    return (byte)(DISPCNTValue >> 8);
 
                 case 0x4000004: // DISPSTAT B0
                     // Vblank flag is set in scanlines 160-226, not including 227 for some reason
@@ -453,8 +460,9 @@ namespace OptimeGBA
                     return Backgrounds[3].ReadBGXY(addr - 0x04000038);
 
                 case 0x4000050: // BLDCNT B0
+                    return (byte)(DISPCNTValue >> 0);
                 case 0x4000051: // BLDCNT B1
-                    return 0;
+                    return (byte)(DISPCNTValue >> 8);
             }
 
             return val;
@@ -471,6 +479,9 @@ namespace OptimeGBA
                     HBlankIntervalFree = BitTest(val, 5);
                     ObjCharacterVramMapping = BitTest(val, 6);
                     ForcedBlank = BitTest(val, 7);
+
+                    DISPCNTValue &= 0xFF00;
+                    DISPCNTValue |= (ushort)(val << 0);
                     break;
                 case 0x4000001: // DISPCNT B1
                     ScreenDisplayBg[0] = BitTest(val, 8 - 8);
@@ -481,6 +492,9 @@ namespace OptimeGBA
                     Window0DisplayFlag = BitTest(val, 13 - 8);
                     Window1DisplayFlag = BitTest(val, 14 - 8);
                     ObjWindowDisplayFlag = BitTest(val, 15 - 8);
+
+                    DISPCNTValue &= 0x00FF;
+                    DISPCNTValue |= (ushort)(val << 8);
                     break;
 
                 case 0x4000004: // DISPSTAT B0
@@ -555,10 +569,32 @@ namespace OptimeGBA
                 case 0x400003F: // BG3Y B3
                     Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
                     break;
+
+                case 0x4000050: // BLDCNT B0
+                    BgTarget0[0] = BitTest(val, 0);
+                    BgTarget0[1] = BitTest(val, 1);
+                    BgTarget0[2] = BitTest(val, 2);
+                    BgTarget0[3] = BitTest(val, 3);
+                    ObjTarget0 = BitTest(val, 4);
+                    BackdropTarget0 = BitTest(val, 5);
+                    BlendEffect = (uint)(val >> 6) & 0b11U;
+
+                    BLDCNTValue &= 0x7F00;
+                    BLDCNTValue |= (ushort)(val << 0);
+                    break;
+                case 0x4000051: // BLDCNT B1
+                    BgTarget1[0] = BitTest(val, 0);
+                    BgTarget1[1] = BitTest(val, 1);
+                    BgTarget1[2] = BitTest(val, 2);
+                    BgTarget1[3] = BitTest(val, 3);
+                    ObjTarget1 = BitTest(val, 4);
+                    BackdropTarget1 = BitTest(val, 5);
+
+                    BLDCNTValue &= 0x00FF;
+                    BLDCNTValue |= (ushort)(val << 8);
+                    break;
             }
         }
-
-
 
         public void EndDrawingToHblank(long cyclesLate)
         {
@@ -715,7 +751,7 @@ namespace OptimeGBA
 
             byte[] bgBuffer = BackgroundBuffers[bg.Id];
 
-            while (true)
+            for (uint tile = 0; tile < WIDTH / 8 + 1; tile++)
             {
                 uint pixelXWrapped = pixelX & 255;
 
@@ -752,7 +788,6 @@ namespace OptimeGBA
 
                         pixelX++;
                         lineIndex++;
-                        if (lineIndex >= WIDTH) return;
                     }
                 }
                 else
@@ -776,7 +811,6 @@ namespace OptimeGBA
 
                         pixelX++;
                         lineIndex++;
-                        if (lineIndex >= WIDTH) return;
                     }
                 }
 
@@ -1102,9 +1136,9 @@ namespace OptimeGBA
                 // Lower 4 bits is left pixel, upper 4 bits is right pixel
                 uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
 
-                byte finalColor = (byte)(palette * 16 + color);
                 if (color != 0)
                 {
+                    byte finalColor = (byte)(palette * 16 + color);
                     ObjBuffer[x] = new ObjPixel(finalColor, priority);
                 }
             }
@@ -1155,10 +1189,10 @@ namespace OptimeGBA
                 uint paletteIndex = 0;
                 for (int bg = 0; bg < bgCount; bg++)
                 {
-                    if (ObjBuffer[i].Priority <= bgPrioList[bg])
+                    byte objColor = ObjBuffer[i].Color;
+                    if (objColor != 0)
                     {
-                        byte objColor = ObjBuffer[i].Color;
-                        if (objColor != 0)
+                        if (ObjBuffer[i].Priority <= bgPrioList[bg])
                         {
                             paletteIndex = objColor + 256U;
                             break;

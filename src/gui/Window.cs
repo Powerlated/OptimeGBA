@@ -1130,18 +1130,50 @@ namespace OptimeGBAEmulator
                     new RegisterField("V-Count Setting", 8, 15)
             ));
 
+            uint[] bgCntAddrs = { 0x4000008, 0x400000A, 0x400000C, 0x400000E };
+            for (uint r = 0; r < 4; r++)
+            {
+                Registers.Add(
+                    new Register($"BG{r}CNT - BG{r} Control", bgCntAddrs[r],
+                        new RegisterField("BG Priority", 0, 1),
+                        new RegisterField("Character Base Block", 2, 3),
+                        new RegisterField("Mosaic", 6),
+                        new RegisterField("8-bit Color", 7),
+                        new RegisterField("Map Base Block", 8, 12),
+                        new RegisterField("Overflow Wraparound", 13),
+                        new RegisterField("Screen Size", 14, 15)
+
+                ));
+            }
+
             Registers.Add(
-                new Register("KEYINPUT - Key Status", 0x4000130,
-                    new RegisterField("Button A", 0),
-                    new RegisterField("Button B", 1),
-                    new RegisterField("Select", 2),
-                    new RegisterField("Start", 3),
-                    new RegisterField("Right", 4),
-                    new RegisterField("Left", 5),
-                    new RegisterField("Up", 6),
-                    new RegisterField("Down", 7),
-                    new RegisterField("Button R", 8),
-                    new RegisterField("Button L", 9)
+                new Register($"BLDCNT - Blending Control", 0x4000050,
+                    new RegisterField("BG0 1st Target Pixel", 0),
+                    new RegisterField("BG1 1st Target Pixel", 1),
+                    new RegisterField("BG2 1st Target Pixel", 2),
+                    new RegisterField("BG3 1st Target Pixel", 3),
+                    new RegisterField("OBJ 1st Target Pixel", 4),
+                    new RegisterField("BD  1st Target Pixel", 5),
+                    new RegisterField("Blending Effect", 6, 7),
+                    new RegisterField("BG0 2nd Target Pixel", 8),
+                    new RegisterField("BG1 2nd Target Pixel", 9),
+                    new RegisterField("BG2 2nd Target Pixel", 10),
+                    new RegisterField("BG3 2nd Target Pixel", 11),
+                    new RegisterField("OBJ 2nd Target Pixel", 12),
+                    new RegisterField("BD  2nd Target Pixel", 13)
+                ));
+
+            Registers.Add(
+                new Register($"SOUNDCNT_H - DMA Sound Control", 0x4000082,
+                    new RegisterField("Sound # 1-4 Volume", 0, 1),
+                    new RegisterField("DMA Sound A Volume", 2, 2),
+                    new RegisterField("DMA Sound B Volume", 3, 3),
+                    new RegisterField("DMA Sound A Enable RIGHT", 8),
+                    new RegisterField("DMA Sound A Enable LEFT", 9),
+                    new RegisterField("DMA Sound A Timer Select", 10, 10),
+                    new RegisterField("DMA Sound B Enable RIGHT", 12),
+                    new RegisterField("DMA Sound B Enable LEFT", 13),
+                    new RegisterField("DMA Sound B Timer Select", 14, 14)
             ));
 
             uint[] dmaAddrs = { 0x40000BA, 0x40000C6, 0x40000D2, 0x40000DE };
@@ -1159,6 +1191,32 @@ namespace OptimeGBAEmulator
                         new RegisterField("DMA Enable", 15)
                 ));
             }
+
+            uint[] timerAddrs = { 0x4000102, 0x4000106, 0x400010A, 0x400010E };
+            for (uint r = 0; r < 4; r++)
+            {
+                Registers.Add(
+                    new Register($"TM{r}CNT_L - Timer {r} Control", timerAddrs[r],
+                        new RegisterField("Prescaler Selection", 0, 1),
+                        new RegisterField("Timer Cascade", 2),
+                        new RegisterField("Timer IRQ Enable", 6),
+                        new RegisterField("Timer Start / Stop", 7)
+                ));
+            }
+
+            Registers.Add(
+                new Register("KEYINPUT - Key Status", 0x4000130,
+                    new RegisterField("Button A", 0),
+                    new RegisterField("Button B", 1),
+                    new RegisterField("Select", 2),
+                    new RegisterField("Start", 3),
+                    new RegisterField("Right", 4),
+                    new RegisterField("Left", 5),
+                    new RegisterField("Up", 6),
+                    new RegisterField("Down", 7),
+                    new RegisterField("Button R", 8),
+                    new RegisterField("Button L", 9)
+            ));
 
             uint[] ieIfAddrs = { 0x4000200, 0x4000202 };
             String[] ieIfStrings = { "IE - Interrupt Enable", "IF - Interrupt Request" };
@@ -1182,48 +1240,6 @@ namespace OptimeGBAEmulator
                         new RegisterField("Game Pak", 014
                 )));
             }
-
-            uint[] timerAddrs = { 0x4000102, 0x4000106, 0x400010A, 0x400010E };
-            for (uint r = 0; r < 4; r++)
-            {
-                Registers.Add(
-                    new Register($"TM{r}CNT_L - Timer {r} Control", timerAddrs[r],
-                        new RegisterField("Prescaler Selection", 0, 1),
-                        new RegisterField("Timer Cascade", 2),
-                        new RegisterField("Timer IRQ Enable", 6),
-                        new RegisterField("Timer Start / Stop", 7)
-                ));
-            }
-
-            Registers.Add(
-                new Register($"SOUNDCNT_H - DMA Sound Control", 0x4000082,
-                    new RegisterField("Sound # 1-4 Volume", 0, 1),
-                    new RegisterField("DMA Sound A Volume", 2, 2),
-                    new RegisterField("DMA Sound B Volume", 3, 3),
-                    new RegisterField("DMA Sound A Enable RIGHT", 8),
-                    new RegisterField("DMA Sound A Enable LEFT", 9),
-                    new RegisterField("DMA Sound A Timer Select", 10, 10),
-                    new RegisterField("DMA Sound B Enable RIGHT", 12),
-                    new RegisterField("DMA Sound B Enable LEFT", 13),
-                    new RegisterField("DMA Sound B Timer Select", 14, 14)
-            ));
-
-            uint[] bgCntAddrs = { 0x4000008, 0x400000A, 0x400000C, 0x400000E };
-            for (uint r = 0; r < 4; r++)
-            {
-                Registers.Add(
-                    new Register($"BG{r}CNT - BG{r} Control", bgCntAddrs[r],
-                        new RegisterField("BG Priority", 0, 1),
-                        new RegisterField("Character Base Block", 2, 3),
-                        new RegisterField("Mosaic", 6),
-                        new RegisterField("8-bit Color", 7),
-                        new RegisterField("Map Base Block", 8, 12),
-                        new RegisterField("Overflow Wraparound", 13),
-                        new RegisterField("Screen Size", 14, 15)
-
-                ));
-            }
-
 
             RegViewerSelected = Registers[0];
         }
