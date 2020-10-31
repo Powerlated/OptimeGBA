@@ -102,4 +102,15 @@ namespace OptimeGBA
         //     }
         // }
     }
+
+    public class CoreUtil
+    {
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void Swap<T>(ref T one, ref T two)
+        {
+            T temp = one;
+            one = two;
+            two = temp;
+        }
+    }
 }

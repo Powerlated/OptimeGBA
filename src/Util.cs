@@ -39,7 +39,8 @@ static class Util
         return i.ToString("X").ToLower().PadLeft(digits, '0');
     }
 
-    public static string Binary(long i, int digits) {
+    public static string Binary(long i, int digits)
+    {
         return Convert.ToString(i, 2).ToLower().PadLeft(digits, '0');
     }
 }

@@ -1,4 +1,5 @@
 using static OptimeGBA.Bits;
+using static OptimeGBA.CoreUtil;
 using System.Threading;
 using System;
 
@@ -155,6 +156,18 @@ namespace OptimeGBA
         }
     }
 
+    public struct ObjPixel
+    {
+        public byte Color;
+        public byte Priority;
+
+        public ObjPixel(byte color, byte priority)
+        {
+            Color = color;
+            Priority = priority;
+        }
+    }
+
     public enum ObjShape
     {
         Square = 0,
@@ -185,6 +198,8 @@ namespace OptimeGBA
                 ScreenFront[i] = 0xFFFFFFFF;
                 ScreenBack[i] = 0xFFFFFFFF;
             }
+
+            Array.Fill(DebugEnableBg, true);
         }
 
 #if DS_RESOLUTION
@@ -213,19 +228,13 @@ namespace OptimeGBA
         public bool HBlankIntervalFree;
         public bool ObjCharacterVramMapping;
         public bool ForcedBlank;
-        public bool ScreenDisplayBg0;
-        public bool ScreenDisplayBg1;
-        public bool ScreenDisplayBg2;
-        public bool ScreenDisplayBg3;
+        public bool[] ScreenDisplayBg = new bool[4];
         public bool ScreenDisplayObj;
         public bool Window0DisplayFlag;
         public bool Window1DisplayFlag;
         public bool ObjWindowDisplayFlag;
 
-        public bool DebugEnableBg0 = true;
-        public bool DebugEnableBg1 = true;
-        public bool DebugEnableBg2 = true;
-        public bool DebugEnableBg3 = true;
+        public bool[] DebugEnableBg = new bool[4];
         public bool DebugEnableObj = true;
 
         // DISPSTAT
@@ -255,6 +264,15 @@ namespace OptimeGBA
         public byte[] Vram = Memory.AllocateManagedArray(98304);
         public byte[] Oam = Memory.AllocateManagedArray(1024);
 #endif
+
+        public byte[][] BackgroundBuffers = {
+            Memory.AllocateManagedArray(WIDTH),
+            Memory.AllocateManagedArray(WIDTH),
+            Memory.AllocateManagedArray(WIDTH),
+            Memory.AllocateManagedArray(WIDTH),
+        };
+
+        public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
 
         public uint TotalFrames;
 
@@ -350,10 +368,10 @@ namespace OptimeGBA
                     if (ForcedBlank) val = BitSet(val, 7);
                     break;
                 case 0x4000001: // DISPCNT B1
-                    if (ScreenDisplayBg0) val = BitSet(val, 8 - 8);
-                    if (ScreenDisplayBg1) val = BitSet(val, 9 - 8);
-                    if (ScreenDisplayBg2) val = BitSet(val, 10 - 8);
-                    if (ScreenDisplayBg3) val = BitSet(val, 11 - 8);
+                    if (ScreenDisplayBg[0]) val = BitSet(val, 8 - 8);
+                    if (ScreenDisplayBg[1]) val = BitSet(val, 9 - 8);
+                    if (ScreenDisplayBg[2]) val = BitSet(val, 10 - 8);
+                    if (ScreenDisplayBg[3]) val = BitSet(val, 11 - 8);
                     if (ScreenDisplayObj) val = BitSet(val, 12 - 8);
                     if (Window0DisplayFlag) val = BitSet(val, 13 - 8);
                     if (Window1DisplayFlag) val = BitSet(val, 14 - 8);
@@ -455,10 +473,10 @@ namespace OptimeGBA
                     ForcedBlank = BitTest(val, 7);
                     break;
                 case 0x4000001: // DISPCNT B1
-                    ScreenDisplayBg0 = BitTest(val, 8 - 8);
-                    ScreenDisplayBg1 = BitTest(val, 9 - 8);
-                    ScreenDisplayBg2 = BitTest(val, 10 - 8);
-                    ScreenDisplayBg3 = BitTest(val, 11 - 8);
+                    ScreenDisplayBg[0] = BitTest(val, 8 - 8);
+                    ScreenDisplayBg[1] = BitTest(val, 9 - 8);
+                    ScreenDisplayBg[2] = BitTest(val, 10 - 8);
+                    ScreenDisplayBg[3] = BitTest(val, 11 - 8);
                     ScreenDisplayObj = BitTest(val, 12 - 8);
                     Window0DisplayFlag = BitTest(val, 13 - 8);
                     Window1DisplayFlag = BitTest(val, 14 - 8);
@@ -651,7 +669,7 @@ namespace OptimeGBA
                 // Render white
                 uint screenBase = VCount * WIDTH;
 
-                for (uint p = 0; p < 240; p++)
+                for (uint p = 0; p < WIDTH; p++)
                 {
                     ScreenBack[screenBase] = 0xFFFFFFFF;
                     screenBase++;
@@ -675,23 +693,11 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
-        public void DrawBackdropColor()
-        {
-            uint screenBase = VCount * WIDTH;
-
-            for (uint p = 0; p < WIDTH; p++)
-            {
-                ScreenBack[screenBase] = ProcessedPalettes[0];
-                screenBase++;
-            }
-        }
 
         public void RenderCharBackground(Background bg)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
-
-            uint screenBase = VCount * WIDTH;
 
             uint pixelY = bg.VerticalOffset + VCount;
             uint pixelYWrapped = pixelY & 255;
@@ -704,8 +710,10 @@ namespace OptimeGBA
             uint intraTileY = pixelYWrapped & 7;
 
             uint pixelX = bg.HorizontalOffset;
-            uint screenPixelX = 0;
+            uint lineIndex = 0;
             uint tp = pixelX & 7;
+
+            byte[] bgBuffer = BackgroundBuffers[bg.Id];
 
             while (true)
             {
@@ -737,20 +745,14 @@ namespace OptimeGBA
 
                         // 256 color, 64 bytes per tile, 8 bytes per row
                         uint vramAddr = vramAddrTile + (intraTileX / 1);
-                        uint vramValue = Vram[vramAddr];
+                        byte vramValue = Vram[vramAddr];
 
-                        uint finalColor = vramValue;
-
-                        if (finalColor != 0)
-                        {
-                            ScreenBack[screenBase] = ProcessedPalettes[finalColor];
-                        }
-
-                        screenBase++;
+                        byte finalColor = vramValue;
+                        bgBuffer[lineIndex] = finalColor;
 
                         pixelX++;
-                        screenPixelX++;
-                        if (screenPixelX >= WIDTH) return;
+                        lineIndex++;
+                        if (lineIndex >= WIDTH) return;
                     }
                 }
                 else
@@ -768,17 +770,13 @@ namespace OptimeGBA
                         // Lower 4 bits is left pixel, upper 4 bits is right pixel
                         uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
 
-                        uint finalColor = palettebase + color;
-                        if (color != 0)
-                        {
-                            ScreenBack[screenBase] = ProcessedPalettes[finalColor];
-                        }
-
-                        screenBase++;
+                        byte finalColor = (byte)(palettebase + color);
+                        if (color == 0) finalColor = 0;
+                        bgBuffer[lineIndex] = finalColor;
 
                         pixelX++;
-                        screenPixelX++;
-                        if (screenPixelX >= WIDTH) return;
+                        lineIndex++;
+                        if (lineIndex >= WIDTH) return;
                     }
                 }
 
@@ -799,7 +797,7 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
-            uint screenBase = VCount * WIDTH;
+            uint lineIndex = 0;
 
             uint pixelY = (yInteger + VCount) & AffineSizeMask[bg.ScreenSize];
             uint pixelYWrapped = pixelY & 255;
@@ -807,7 +805,9 @@ namespace OptimeGBA
             uint tileY = pixelYWrapped >> 3;
             uint intraTileY = pixelYWrapped & 7;
 
-            for (uint p = 0; p < 240; p++)
+            byte[] bgBuffer = BackgroundBuffers[bg.Id];
+
+            for (uint p = 0; p < WIDTH; p++)
             {
                 uint pixelX = (xInteger + p) & AffineSizeMask[bg.ScreenSize];
                 uint pixelXWrapped = pixelX & 255;
@@ -824,16 +824,12 @@ namespace OptimeGBA
                 // Always 256color
                 // 256 color, 64 bytes per tile, 8 bytes per row
                 uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
-                uint vramValue = Vram[vramAddr];
+                byte vramValue = Vram[vramAddr];
 
-                uint finalColor = vramValue;
+                byte finalColor = vramValue;
+                bgBuffer[lineIndex] = finalColor;
 
-                if (finalColor != 0)
-                {
-                    ScreenBack[screenBase] = ProcessedPalettes[finalColor];
-                }
-
-                screenBase++;
+                lineIndex++;
             }
         }
 
@@ -912,7 +908,7 @@ namespace OptimeGBA
             0,  0,  0,  0,
         };
 
-        public void RenderObjs(uint renderPriority)
+        public void RenderObjs(byte renderPriority)
         {
             uint count = OamPriorityListCounts[renderPriority];
             for (uint i = 0; i < count; i++)
@@ -944,7 +940,6 @@ namespace OptimeGBA
                 uint ySize = ObjSizeTable[((int)shape * 8) + 4 + objSize];
 
                 int yEnd = ((int)yPos + (int)ySize) & 255;
-                uint screenBase = (VCount * WIDTH);
                 uint screenLineBase = xPos;
 
                 // y relative to the object itself
@@ -971,7 +966,7 @@ namespace OptimeGBA
                                 objPixelX = (int)(xSize - objPixelX - 1);
                             }
 
-                            PlaceObjPixel(objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
+                            PlaceObjPixel(objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, renderPriority);
                         }
                         screenLineBase = (screenLineBase + 1) % 512;
                     }
@@ -1047,7 +1042,7 @@ namespace OptimeGBA
 
                             if (lerpedObjPixelX < xSize && lerpedObjPixelY < ySize)
                             {
-                                PlaceObjPixel((int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenBase + screenLineBase, palette);
+                                PlaceObjPixel((int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, renderPriority);
                             }
                         }
                         objPixelXEdge0 += xPerPixel;
@@ -1059,7 +1054,7 @@ namespace OptimeGBA
             }
         }
 
-        public void PlaceObjPixel(int objX, int objY, uint tile, uint width, bool use8BitColor, uint screenIndex, uint palette)
+        public void PlaceObjPixel(int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority)
         {
             uint intraTileX = (uint)(objX & 7);
             uint intraTileY = (uint)(objY & 7);
@@ -1092,11 +1087,11 @@ namespace OptimeGBA
                 uint vramAddr = charBase + (effectiveTileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
                 uint vramValue = Vram[vramAddr];
 
-                uint finalColor = vramValue;
+                byte finalColor = (byte)vramValue;
 
                 if (finalColor != 0)
                 {
-                    ScreenBack[screenIndex] = ProcessedPalettes[finalColor + 256];
+                    ObjBuffer[x] = new ObjPixel(finalColor, priority);
                 }
             }
             else
@@ -1107,51 +1102,136 @@ namespace OptimeGBA
                 // Lower 4 bits is left pixel, upper 4 bits is right pixel
                 uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
 
-                uint finalColor = (palette * 16) + color;
+                byte finalColor = (byte)(palette * 16 + color);
                 if (color != 0)
                 {
-                    ScreenBack[screenIndex] = ProcessedPalettes[finalColor + 256];
+                    ObjBuffer[x] = new ObjPixel(finalColor, priority);
                 }
+            }
+        }
+
+        public void Composite()
+        {
+            uint screenBase = VCount * WIDTH;
+
+            Span<int> bgList = stackalloc int[4];
+
+            int bgCount = 0;
+            for (int bg = 0; bg < 4; bg++)
+            {
+                // -1 means disabled
+                bgList[bg] = -1;
+                bgList[bgCount] = bg;
+                if (ScreenDisplayBg[bg] && DebugEnableBg[bg])
+                {
+                    bgCount++;
+                }
+            }
+
+            // Insertion sort backgrounds according to priority
+            int key;
+            int j;
+            for (int i = 1; i < bgCount; i++)
+            {
+                key = (int)Backgrounds[bgList[i]].Priority;
+                j = i - 1;
+
+                while (j >= 0 && Backgrounds[bgList[j]].Priority > key)
+                {
+                    Swap(ref bgList[j + 1], ref bgList[j]);
+                    j--;
+                }
+            }
+
+            // Look up priorities for each background
+            Span<uint> bgPrioList = stackalloc uint[4];
+            for (int i = 0; i < bgCount; i++)
+            {
+                bgPrioList[i] = Backgrounds[bgList[i]].Priority;
+            }
+
+            for (uint i = 0; i < WIDTH; i++)
+            {
+                uint paletteIndex = 0;
+                for (int bg = 0; bg < bgCount; bg++)
+                {
+                    if (ObjBuffer[i].Priority <= bgPrioList[bg])
+                    {
+                        byte objColor = ObjBuffer[i].Color;
+                        if (objColor != 0)
+                        {
+                            paletteIndex = objColor + 256U;
+                            break;
+                        }
+                    }
+
+                    uint color = BackgroundBuffers[bgList[bg]][i];
+                    if (color != 0)
+                    {
+                        paletteIndex = color;
+                        break;
+                    }
+                }
+
+                ScreenBack[screenBase++] = ProcessedPalettes[paletteIndex];
             }
         }
 
         public void RenderMode0()
         {
+            Array.Fill(ObjBuffer, new ObjPixel(0, 0));
+
             ScanOam();
-            DrawBackdropColor();
+
+            RenderCharBackground(Backgrounds[3]);
+            RenderCharBackground(Backgrounds[2]);
+            RenderCharBackground(Backgrounds[1]);
+            RenderCharBackground(Backgrounds[0]);
+
             for (int pri = 3; pri >= 0; pri--)
             {
-                if (DebugEnableBg3 && ScreenDisplayBg3 && Backgrounds[3].Priority == pri) RenderCharBackground(Backgrounds[3]);
-                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderCharBackground(Backgrounds[2]);
-                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (DebugEnableObj && ScreenDisplayObj) RenderObjs((uint)pri);
+                if (DebugEnableObj && ScreenDisplayObj) RenderObjs((byte)pri);
             }
 
+            Composite();
         }
 
         public void RenderMode1()
         {
+            Array.Fill(ObjBuffer, new ObjPixel(0, 0));
+
             ScanOam();
-            DrawBackdropColor();
+
+            RenderAffineBackground(Backgrounds[2]);
+            RenderCharBackground(Backgrounds[1]);
+            RenderCharBackground(Backgrounds[0]);
+
             for (int pri = 3; pri >= 0; pri--)
             {
                 // BG2 is affine BG
-                if (DebugEnableBg2 && ScreenDisplayBg2 && Backgrounds[2].Priority == pri) RenderAffineBackground(Backgrounds[2]);
-                if (DebugEnableBg1 && ScreenDisplayBg1 && Backgrounds[1].Priority == pri) RenderCharBackground(Backgrounds[1]);
-                if (DebugEnableBg0 && ScreenDisplayBg0 && Backgrounds[0].Priority == pri) RenderCharBackground(Backgrounds[0]);
-                if (DebugEnableObj && ScreenDisplayObj) RenderObjs((uint)pri);
+                if (DebugEnableObj && ScreenDisplayObj) RenderObjs((byte)pri);
             }
+
+            Composite();
         }
 
         public void RenderMode2()
         {
+            Array.Fill(ObjBuffer, new ObjPixel(0, 0));
+
             ScanOam();
-            DrawBackdropColor();
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs(3);
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs(2);
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs(1);
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs(0);
+            RenderAffineBackground(Backgrounds[2]);
+            RenderAffineBackground(Backgrounds[3]);
+
+            if (DebugEnableObj && ScreenDisplayObj)
+            {
+                RenderObjs(3);
+                RenderObjs(2);
+                RenderObjs(1);
+                RenderObjs(0);
+            }
+
+            Composite();
         }
 
         public void RenderMode4()

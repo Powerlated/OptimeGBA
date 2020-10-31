@@ -899,10 +899,10 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG3 Affine Size: {Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
-                ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg0);
-                ImGui.Checkbox("Debug BG1", ref Gba.Lcd.DebugEnableBg1);
-                ImGui.Checkbox("Debug BG2", ref Gba.Lcd.DebugEnableBg2);
-                ImGui.Checkbox("Debug BG3", ref Gba.Lcd.DebugEnableBg3);
+                ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg[0]);
+                ImGui.Checkbox("Debug BG1", ref Gba.Lcd.DebugEnableBg[1]);
+                ImGui.Checkbox("Debug BG2", ref Gba.Lcd.DebugEnableBg[2]);
+                ImGui.Checkbox("Debug BG3", ref Gba.Lcd.DebugEnableBg[3]);
                 ImGui.Checkbox("Debug OBJ", ref Gba.Lcd.DebugEnableObj);
 
                 ImGui.Columns(1);
@@ -1289,7 +1289,8 @@ namespace OptimeGBAEmulator
                 for (int ti = 0; ti < 1024; ti++)
                 {
                     ThumbExecutor k = Arm7.ThumbDispatch[ti];
-                    if (!CpuProfilerDictThumb.TryGetValue(k, out uint val)) {
+                    if (!CpuProfilerDictThumb.TryGetValue(k, out uint val))
+                    {
                         CpuProfilerDictThumb[k] = 0;
                     }
                     CpuProfilerDictThumb[k] += Gba.Arm7.ThumbExecutorProfile[ti];
@@ -1298,7 +1299,8 @@ namespace OptimeGBAEmulator
                 for (int ai = 0; ai < 4096; ai++)
                 {
                     ArmExecutor k = Arm7.ArmDispatch[ai];
-                    if (!CpuProfilerDictArm.TryGetValue(k, out uint val)) {
+                    if (!CpuProfilerDictArm.TryGetValue(k, out uint val))
+                    {
                         CpuProfilerDictArm[k] = 0;
                     }
                     CpuProfilerDictArm[k] += Gba.Arm7.ArmExecutorProfile[ai];
@@ -1307,7 +1309,7 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(1);
                 ImGui.Text("THUMB Mode");
                 ImGui.Columns(2);
-                
+
                 foreach (var (k, v) in CpuProfilerDictThumb.OrderByDescending(p => p.Value))
                 {
                     ImGui.Text(k.Method.Name);
@@ -1320,7 +1322,7 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(1);
                 ImGui.Text("ARM Mode");
                 ImGui.Columns(2);
-                
+
                 foreach (var (k, v) in CpuProfilerDictArm.OrderByDescending(p => p.Value))
                 {
                     ImGui.Text(k.Method.Name);

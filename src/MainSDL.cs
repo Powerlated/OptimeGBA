@@ -194,7 +194,7 @@ namespace OptimeGBAEmulator
             }
 
             var provider = new GbaProvider(bios, rom, savPath, AudioReady);
-            provider.BootBios = true;
+            provider.BootBios = false;
             Gba = new Gba(provider);
 
             Gba.Mem.SaveProvider.LoadSave(sav);
@@ -350,6 +350,7 @@ namespace OptimeGBAEmulator
                 if (Excepted)
                 {
                     SdlMessage("Exception Caught", ExceptionMessage);
+                    quit = true;
                 }
             }
 
