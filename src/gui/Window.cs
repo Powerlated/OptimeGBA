@@ -1147,6 +1147,40 @@ namespace OptimeGBAEmulator
             }
 
             Registers.Add(
+                new Register("WININ - Window Interior Control", 0x4000048,
+                    new RegisterField("Window 0 BG0", 0),
+                    new RegisterField("Window 0 BG1", 1),
+                    new RegisterField("Window 0 BG2", 2),
+                    new RegisterField("Window 0 BG3", 3),
+                    new RegisterField("Window 0 OBJ", 4),
+                    new RegisterField("Window 0 Color Math", 5),
+
+                    new RegisterField("Window 1 BG0", 8),
+                    new RegisterField("Window 1 BG1", 9),
+                    new RegisterField("Window 1 BG2", 10),
+                    new RegisterField("Window 1 BG3", 11),
+                    new RegisterField("Window 1 OBJ", 12),
+                    new RegisterField("Window 1 Color Math", 13)
+            ));
+
+            Registers.Add(
+                new Register("WINOUT - Window Exterior Control", 0x400004A,
+                    new RegisterField("Window 0 BG0", 0),
+                    new RegisterField("Window 0 BG1", 1),
+                    new RegisterField("Window 0 BG2", 2),
+                    new RegisterField("Window 0 BG3", 3),
+                    new RegisterField("Window 0 OBJ", 4),
+                    new RegisterField("Window 0 Color Math", 5),
+
+                    new RegisterField("OBJ Window BG0", 8),
+                    new RegisterField("OBJ Window BG1", 9),
+                    new RegisterField("OBJ Window BG2", 10),
+                    new RegisterField("OBJ Window BG3", 11),
+                    new RegisterField("OBJ Window OBJ", 12),
+                    new RegisterField("OBJ Window Color Math", 13)
+            ));
+
+            Registers.Add(
                 new Register($"BLDCNT - Blending Control", 0x4000050,
                     new RegisterField("BG0 1st Target Pixel", 0),
                     new RegisterField("BG1 1st Target Pixel", 1),
@@ -1161,6 +1195,17 @@ namespace OptimeGBAEmulator
                     new RegisterField("BG3 2nd Target Pixel", 11),
                     new RegisterField("OBJ 2nd Target Pixel", 12),
                     new RegisterField("BD  2nd Target Pixel", 13)
+                ));
+
+            Registers.Add(
+                new Register($"BLDALPHA - Blending Coefficients", 0x4000052,
+                    new RegisterField("EVA Coefficient", 0, 4),
+                    new RegisterField("EVB Coefficient", 8, 12)
+                ));
+
+            Registers.Add(
+                new Register($"BLDY - Blending Brightness", 0x4000054,
+                    new RegisterField("EVY Coefficient", 0, 4)
                 ));
 
             Registers.Add(
