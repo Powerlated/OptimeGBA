@@ -1184,30 +1184,52 @@ namespace OptimeGBA
                 bgPrioList[i] = Backgrounds[bgList[i]].Priority;
             }
 
-            for (uint i = 0; i < WIDTH; i++)
+            if (bgCount != 0)
             {
-                uint paletteIndex = 0;
-                for (int bg = 0; bg < bgCount; bg++)
+                // Make sure sprites always draw over the last background layer
+                bgPrioList[bgCount - 1] = 4;
+
+                for (uint i = 0; i < WIDTH; i++)
                 {
-                    byte objColor = ObjBuffer[i].Color;
-                    if (objColor != 0)
+                    uint paletteIndex = 0;
+                    for (int bg = 0; bg < bgCount; bg++)
                     {
-                        if (ObjBuffer[i].Priority <= bgPrioList[bg])
+                        byte objColor = ObjBuffer[i].Color;
+                        if (objColor != 0)
                         {
-                            paletteIndex = objColor + 256U;
+                            if (ObjBuffer[i].Priority <= bgPrioList[bg])
+                            {
+                                paletteIndex = objColor + 256U;
+                                break;
+                            }
+                        }
+
+                        uint color = BackgroundBuffers[bgList[bg]][i];
+                        if (color != 0)
+                        {
+                            paletteIndex = color;
                             break;
                         }
                     }
 
-                    uint color = BackgroundBuffers[bgList[bg]][i];
-                    if (color != 0)
-                    {
-                        paletteIndex = color;
-                        break;
-                    }
+                    ScreenBack[screenBase++] = ProcessedPalettes[paletteIndex];
                 }
+            }
+            else
+            {
+                // No backgrounds, only sprites
+                for (uint i = 0; i < WIDTH; i++)
+                {
+                    uint paletteIndex = 0;
 
-                ScreenBack[screenBase++] = ProcessedPalettes[paletteIndex];
+                    byte objColor = ObjBuffer[i].Color;
+                    if (objColor != 0)
+                    {
+                        paletteIndex = objColor + 256U;
+                    }
+
+                    ScreenBack[screenBase++] = ProcessedPalettes[paletteIndex];
+                }
             }
         }
 
@@ -1254,8 +1276,6 @@ namespace OptimeGBA
             Array.Fill(ObjBuffer, new ObjPixel(0, 0));
 
             ScanOam();
-            RenderAffineBackground(Backgrounds[2]);
-            RenderAffineBackground(Backgrounds[3]);
 
             if (DebugEnableObj && ScreenDisplayObj)
             {
