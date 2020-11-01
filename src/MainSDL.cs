@@ -194,7 +194,7 @@ namespace OptimeGBAEmulator
             }
 
             var provider = new GbaProvider(bios, rom, savPath, AudioReady);
-            provider.BootBios = false;
+            provider.BootBios = true;
             Gba = new Gba(provider);
 
             Gba.Mem.SaveProvider.LoadSave(sav);
@@ -493,13 +493,19 @@ namespace OptimeGBAEmulator
                 switch (kb.keysym.sym)
                 {
                     case SDL_Keycode.SDLK_F1:
-                        if (Gba.Lcd.ColorCorrection) {
+                        if (Gba.Lcd.ColorCorrection)
+                        {
                             Gba.Lcd.DisableColorCorrection();
-                        } else {
+                        }
+                        else
+                        {
                             Gba.Lcd.EnableColorCorrection();
                         }
                         break;
 
+                    case SDL_Keycode.SDLK_F2:
+                        Gba.Lcd.DebugEnableRendering = !Gba.Lcd.DebugEnableRendering;
+                        break;
                     case SDL_Keycode.SDLK_F3:
                         Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;
                         UpdateTitle();
