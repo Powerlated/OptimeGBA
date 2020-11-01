@@ -1,6 +1,6 @@
 using static OptimeGBA.Bits;
 using static OptimeGBA.CoreUtil;
-using System.Threading;
+using System.Runtime.CompilerServices;
 using System;
 
 namespace OptimeGBA
@@ -192,7 +192,7 @@ namespace OptimeGBA
         Darken = 3,
     }
 
-    public enum BlendPixelFlag
+    public enum BlendFlag
     {
         Bg0 = 1 << 0,
         Bg1 = 1 << 1,
@@ -200,6 +200,16 @@ namespace OptimeGBA
         Bg3 = 1 << 3,
         Obj = 1 << 4,
         Backdrop = 1 << 5,
+    }
+
+    public enum WindowFlag
+    {
+        Bg0 = 1 << 0,
+        Bg1 = 1 << 1,
+        Bg2 = 1 << 2,
+        Bg3 = 1 << 3,
+        Obj = 1 << 4,
+        ColorMath = 1 << 5,
     }
 
     public sealed unsafe class Lcd
@@ -260,10 +270,33 @@ namespace OptimeGBA
         public bool DebugEnableObj = true;
         public bool DebugEnableRendering = true;
 
+        // WIN0H
+        public byte Win0HRight;
+        public byte Win0HLeft;
+        // WIN1H
+        public byte Win1HRight;
+        public byte Win1HLeft;
+
+        // WIN0V
+        public byte Win0VBottom;
+        public byte Win0VTop;
+
+        // WIN1V
+        public byte Win1VBottom;
+        public byte Win1VTop;
+
+
         // WININ
         public ushort WININValue;
+
+        public uint Win0InEnable;
+        public uint Win1InEnable;
+
         // WINOUT
         public ushort WINOUTValue;
+
+        public uint WinOutEnable;
+        public uint WinObjEnable;
 
         // BLDCNT
         public ushort BLDCNTValue;
@@ -317,6 +350,7 @@ namespace OptimeGBA
         };
 
         public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
+        public byte[] ObjWindowBuffer = new byte[WIDTH];
 
         public uint TotalFrames;
 
@@ -498,6 +532,24 @@ namespace OptimeGBA
                 case 0x400003F: // BG3Y B3
                     return Backgrounds[3].ReadBGXY(addr - 0x04000038);
 
+                case 0x4000040: // WIN0H B0
+                    return Win0HRight;
+                case 0x4000041: // WIN0H B1
+                    return Win0HLeft;
+                case 0x4000042: // WIN1H B0
+                    return Win1HRight;
+                case 0x4000043: // WIN1H B1
+                    return Win1HLeft;
+
+                case 0x4000044: // WIN0V B0
+                    return Win0VBottom;
+                case 0x4000045: // WIN0V B1
+                    return Win0VTop;
+                case 0x4000046: // WIN1V B0
+                    return Win1VBottom;
+                case 0x4000047: // WIN1V B1
+                    return Win1VTop;
+
                 case 0x4000048: // WININ B0
                     return (byte)((WININValue >> 0) & 0x3F);
                 case 0x4000049: // WININ B1
@@ -509,9 +561,9 @@ namespace OptimeGBA
                     return (byte)((WINOUTValue >> 8) & 0x3F);
 
                 case 0x4000050: // BLDCNT B0
-                    return (byte)(BLDCNTValue >> 0);
+                    return (byte)((BLDCNTValue >> 0) & 0xFF);
                 case 0x4000051: // BLDCNT B1
-                    return (byte)(BLDCNTValue >> 8);
+                    return (byte)((BLDCNTValue >> 8) & 0x3F);
 
                 case 0x4000052: // BLDALPHA B0
                     return (byte)(BLDALPHAValue >> 0);
@@ -628,20 +680,54 @@ namespace OptimeGBA
                     Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
                     break;
 
+                case 0x4000040: // WIN0H B0
+                    Win0HRight = val;
+                    break;
+                case 0x4000041: // WIN0H B1
+                    Win0HLeft = val;
+                    break;
+                case 0x4000042: // WIN1H B0
+                    Win1HRight = val;
+                    break;
+                case 0x4000043: // WIN1H B1
+                    Win1HLeft = val;
+                    break;
+
+                case 0x4000044: // WIN0V B0
+                    Win0VBottom = val;
+                    break;
+                case 0x4000045: // WIN0V B1
+                    Win0VTop = val;
+                    break;
+                case 0x4000046: // WIN1V B0
+                    Win1VBottom = val;
+                    break;
+                case 0x4000047: // WIN1V B1
+                    Win1VTop = val;
+                    break;
+
                 case 0x4000048: // WININ B0
+                    Win0InEnable = val & 0b111111U;
+
                     WININValue &= 0x7F00;
                     WININValue |= (ushort)(val << 0);
                     break;
                 case 0x4000049: // WININ B1
+                    Win1InEnable = val & 0b111111U;
+
                     WININValue &= 0x007F;
                     WININValue |= (ushort)(val << 8);
                     break;
 
                 case 0x400004A: // WINOUT B0
+                    WinOutEnable = val & 0b111111U;
+
                     WINOUTValue &= 0x7F00;
                     WINOUTValue |= (ushort)(val << 0);
                     break;
                 case 0x400004B: // WINOUT B1
+                    WinObjEnable = val & 0b111111U;
+
                     WINOUTValue &= 0x007F;
                     WINOUTValue |= (ushort)(val << 8);
                     break;
@@ -1140,6 +1226,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void PlaceObjPixel(int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority, ObjMode mode)
         {
             uint intraTileX = (uint)(objX & 7);
@@ -1177,7 +1264,14 @@ namespace OptimeGBA
 
                 if (finalColor != 0)
                 {
-                    ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                    if (mode != ObjMode.ObjWindow)
+                    {
+                        ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                    }
+                    else
+                    {
+                        ObjWindowBuffer[x] = 1;
+                    }
                 }
             }
             else
@@ -1190,8 +1284,15 @@ namespace OptimeGBA
 
                 if (color != 0)
                 {
-                    byte finalColor = (byte)(palette * 16 + color);
-                    ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                    if (mode != ObjMode.ObjWindow)
+                    {
+                        byte finalColor = (byte)(palette * 16 + color);
+                        ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                    }
+                    else
+                    {
+                        ObjWindowBuffer[x] = 1;
+                    }
                 }
             }
         }
@@ -1236,142 +1337,150 @@ namespace OptimeGBA
                 bgPrioList[i] = Backgrounds[bgList[i]].Priority;
             }
 
+            bool win0InsideY = VCount - Win0VTop < Win0VBottom - Win0VTop;
+            bool win1InsideY = VCount - Win1VTop < Win1VBottom - Win1VTop;
+
             uint pixel = 0;
-            if (bgCount != 0)
+            for (uint i = 0; i < WIDTH; i++)
             {
-                for (uint i = 0; i < WIDTH; i++)
+                uint winMask = 0b111111;
+
+                if (ObjWindowDisplayFlag && ObjWindowBuffer[i] != 0)
                 {
-                    uint hiPaletteIndex = 0;
-                    uint loPaletteIndex = 0;
-                    // Make sure sprites always draw over backdrop
-                    uint hiPrio = 4;
-                    uint loPrio = 4;
-                    BlendPixelFlag hiPixelFlag = BlendPixelFlag.Backdrop;
-                    BlendPixelFlag loPixelFlag = BlendPixelFlag.Backdrop;
-                    uint objPaletteIndex = ObjBuffer[i].Color + 256U;
+                    winMask = WinObjEnable;
+                }
+                else if (Window0DisplayFlag && win0InsideY && i - Win0HLeft < Win0HRight - Win0HLeft)
+                {
+                    winMask = Win0InEnable;
+                }
+                else if (Window1DisplayFlag && win1InsideY && i - Win1HLeft < Win1HRight - Win1HLeft)
+                {
+                    winMask = Win1InEnable;
+                }
+                else if ((DISPCNTValue & 0b1110000000000000) != 0)
+                {
+                    winMask = WinOutEnable;
+                }
 
-                    for (int bg = 0; bg < bgCount; bg++)
+                uint hiPaletteIndex = 0;
+                uint loPaletteIndex = 0;
+                // Make sure sprites always draw over backdrop
+                uint hiPrio = 4;
+                uint loPrio = 4;
+                BlendFlag hiPixelFlag = BlendFlag.Backdrop;
+                BlendFlag loPixelFlag = BlendFlag.Backdrop;
+                uint objPaletteIndex = ObjBuffer[i].Color + 256U;
+
+                for (int bg = 0; bg < bgCount; bg++)
+                {
+                    uint color = BackgroundBuffers[bgList[bg]][i];
+
+                    if (color != 0 && (winMask & (uint)WindowFlag.Bg0 << bgList[bg]) != 0)
                     {
-                        uint color = BackgroundBuffers[bgList[bg]][i];
+                        hiPrio = loPrio;
+                        loPrio = bgPrioList[bg];
 
-                        if (color != 0)
+                        hiPaletteIndex = loPaletteIndex;
+                        loPaletteIndex = color;
+
+                        hiPixelFlag = loPixelFlag;
+                        loPixelFlag = (BlendFlag)(1 << bgList[bg]);
+
+                        if (hiPaletteIndex != 0)
                         {
-                            hiPrio = loPrio;
-                            loPrio = bgPrioList[bg];
-
-                            hiPaletteIndex = loPaletteIndex;
-                            loPaletteIndex = color;
-
-                            hiPixelFlag = loPixelFlag;
-                            loPixelFlag = (BlendPixelFlag)(1 << bgList[bg]);
-
-                            if (hiPaletteIndex != 0)
-                            {
-                                break;
-                            }
-                        }
-
-                        if (bg == bgCount - 1)
-                        {
-                            hiPaletteIndex = loPaletteIndex;
-                            hiPrio = loPrio;
-                            hiPixelFlag = loPixelFlag;
+                            break;
                         }
                     }
 
-                    uint effectiveTarget1Flags = Target1Flags;
-                    BlendEffect effectiveBlendEffect = BlendEffect;
-
-                    if (objPaletteIndex != 256)
+                    if (bg == bgCount - 1)
                     {
-                        if (ObjBuffer[i].Priority <= hiPrio)
-                        {
-                            loPaletteIndex = hiPaletteIndex;
-                            hiPaletteIndex = objPaletteIndex;
-
-                            loPixelFlag = hiPixelFlag;
-                            hiPixelFlag = BlendPixelFlag.Obj;
-                        }
-                        else
-                        {
-                            loPaletteIndex = objPaletteIndex;
-                            loPixelFlag = BlendPixelFlag.Obj;
-                        }
-
-                        if (ObjBuffer[i].Mode == ObjMode.Translucent)
-                        {
-                            effectiveTarget1Flags |= (uint)BlendPixelFlag.Obj;
-                            effectiveBlendEffect = BlendEffect.Blend;
-                        }
+                        hiPaletteIndex = loPaletteIndex;
+                        hiPrio = loPrio;
+                        hiPixelFlag = loPixelFlag;
                     }
+                }
 
-                    uint colorOut;
-                    if (effectiveBlendEffect != BlendEffect.None && (effectiveTarget1Flags & (uint)hiPixelFlag) != 0)
+                uint effectiveTarget1Flags = Target1Flags;
+                BlendEffect effectiveBlendEffect = BlendEffect;
+
+                if (objPaletteIndex != 256 && (winMask & (uint)WindowFlag.Obj) != 0)
+                {
+                    if (ObjBuffer[i].Priority <= hiPrio)
                     {
-                        uint color1 = ProcessedPalettes[hiPaletteIndex];
-                        byte r1 = (byte)(color1 >> 0);
-                        byte g1 = (byte)(color1 >> 8);
-                        byte b1 = (byte)(color1 >> 16);
+                        loPaletteIndex = hiPaletteIndex;
+                        hiPaletteIndex = objPaletteIndex;
 
-                        byte fr = r1;
-                        byte fg = g1;
-                        byte fb = b1;
-                        switch (BlendEffect)
-                        {
-                            case BlendEffect.Blend:
-                                if ((Target2Flags & (uint)loPixelFlag) != 0)
-                                {
-                                    uint color2 = ProcessedPalettes[loPaletteIndex];
-                                    byte r2 = (byte)(color2 >> 0);
-                                    byte g2 = (byte)(color2 >> 8);
-                                    byte b2 = (byte)(color2 >> 16);
-
-                                    fr = (byte)(Math.Min(4095U, r1 * BlendACoeff + r2 * BlendBCoeff) >> 4);
-                                    fg = (byte)(Math.Min(4095U, g1 * BlendACoeff + g2 * BlendBCoeff) >> 4);
-                                    fb = (byte)(Math.Min(4095U, b1 * BlendACoeff + b2 * BlendBCoeff) >> 4);
-                                }
-                                break;
-                            case BlendEffect.Lighten:
-                                fr = (byte)(Math.Min(4095U, (r1 * 16) + WhiteR * BlendBrightness) >> 4);
-                                fg = (byte)(Math.Min(4095U, (g1 * 16) + WhiteG * BlendBrightness) >> 4);
-                                fb = (byte)(Math.Min(4095U, (b1 * 16) + WhiteB * BlendBrightness) >> 4);
-                                break;
-                            case BlendEffect.Darken:
-                                fr = (byte)(Math.Max(0U, (r1 * 16) - WhiteR * BlendBrightness) >> 4);
-                                fg = (byte)(Math.Max(0U, (g1 * 16) - WhiteG * BlendBrightness) >> 4);
-                                fb = (byte)(Math.Max(0U, (b1 * 16) - WhiteB * BlendBrightness) >> 4);
-                                break;
-                        }
-
-                        colorOut = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+                        loPixelFlag = hiPixelFlag;
+                        hiPixelFlag = BlendFlag.Obj;
                     }
                     else
                     {
-                        colorOut = ProcessedPalettes[hiPaletteIndex];
+                        loPaletteIndex = objPaletteIndex;
+                        loPixelFlag = BlendFlag.Obj;
                     }
 
-                    ScreenBack[screenBase++] = colorOut;
-
-                    // Use this loop as an opportunity to clear the sprite buffer
-                    ObjBuffer[pixel++].Color = 0;
-                }
-            }
-            else
-            {
-                // No backgrounds, only sprites
-                for (uint i = 0; i < WIDTH; i++)
-                {
-                    uint paletteIndex = 0;
-
-                    byte objColor = ObjBuffer[i].Color;
-                    if (objColor != 0)
+                    if (ObjBuffer[i].Mode == ObjMode.Translucent)
                     {
-                        paletteIndex = objColor + 256U;
+                        effectiveTarget1Flags |= (uint)BlendFlag.Obj;
+                        effectiveBlendEffect = BlendEffect.Blend;
+                        winMask |= (uint)WindowFlag.ColorMath;
+                    }
+                }
+
+                uint colorOut;
+                if (
+                    effectiveBlendEffect != BlendEffect.None &&
+                    (effectiveTarget1Flags & (uint)hiPixelFlag) != 0 &&
+                    (winMask & (uint)WindowFlag.ColorMath) != 0
+                )
+                {
+                    uint color1 = ProcessedPalettes[hiPaletteIndex];
+                    byte r1 = (byte)(color1 >> 0);
+                    byte g1 = (byte)(color1 >> 8);
+                    byte b1 = (byte)(color1 >> 16);
+
+                    byte fr = r1;
+                    byte fg = g1;
+                    byte fb = b1;
+                    switch (BlendEffect)
+                    {
+                        case BlendEffect.Blend:
+                            if ((Target2Flags & (uint)loPixelFlag) != 0)
+                            {
+                                uint color2 = ProcessedPalettes[loPaletteIndex];
+                                byte r2 = (byte)(color2 >> 0);
+                                byte g2 = (byte)(color2 >> 8);
+                                byte b2 = (byte)(color2 >> 16);
+
+                                fr = (byte)(Math.Min(4095U, r1 * BlendACoeff + r2 * BlendBCoeff) >> 4);
+                                fg = (byte)(Math.Min(4095U, g1 * BlendACoeff + g2 * BlendBCoeff) >> 4);
+                                fb = (byte)(Math.Min(4095U, b1 * BlendACoeff + b2 * BlendBCoeff) >> 4);
+                            }
+                            break;
+                        case BlendEffect.Lighten:
+                            fr = (byte)(Math.Min(4095U, (r1 * 16) + WhiteR * BlendBrightness) >> 4);
+                            fg = (byte)(Math.Min(4095U, (g1 * 16) + WhiteG * BlendBrightness) >> 4);
+                            fb = (byte)(Math.Min(4095U, (b1 * 16) + WhiteB * BlendBrightness) >> 4);
+                            break;
+                        case BlendEffect.Darken:
+                            fr = (byte)(Math.Max(0U, (r1 * 16) - WhiteR * BlendBrightness) >> 4);
+                            fg = (byte)(Math.Max(0U, (g1 * 16) - WhiteG * BlendBrightness) >> 4);
+                            fb = (byte)(Math.Max(0U, (b1 * 16) - WhiteB * BlendBrightness) >> 4);
+                            break;
                     }
 
-                    ScreenBack[screenBase++] = ProcessedPalettes[paletteIndex];
-                    ObjBuffer[pixel++].Color = 0;
+                    colorOut = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
                 }
+                else
+                {
+                    colorOut = ProcessedPalettes[hiPaletteIndex];
+                }
+
+                ScreenBack[screenBase++] = colorOut;
+
+                // Use this loop as an opportunity to clear the sprite buffer
+                ObjBuffer[pixel].Color = 0;
+                ObjWindowBuffer[pixel++] = 0;
             }
         }
 
