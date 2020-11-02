@@ -124,6 +124,14 @@ namespace OptimeGBA
         public byte* Rom = Memory.AllocateUnmanagedArray(MaxRomSize);
         public byte* Ewram = Memory.AllocateUnmanagedArray(EwramSize);
         public byte* Iwram = Memory.AllocateUnmanagedArray(IwramSize);
+
+        ~Memory()
+        {
+            Memory.FreeUnmanagedArray(Bios);
+            Memory.FreeUnmanagedArray(Rom);
+            Memory.FreeUnmanagedArray(Ewram);
+            Memory.FreeUnmanagedArray(Iwram);
+        }
 #else
         public byte[] Bios = Memory.AllocateManagedArray(BiosSize);
         public byte[] Rom = Memory.AllocateManagedArray(MaxRomSize);
@@ -892,7 +900,7 @@ namespace OptimeGBA
             return arr;
         }
 
-        public static void FreeUnmanagedArray(byte* arr)
+        public static void FreeUnmanagedArray(void* arr)
         {
             Marshal.FreeHGlobal(new IntPtr(arr));
         }

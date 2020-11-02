@@ -70,6 +70,10 @@ namespace OptimeGBA
 
 #if UNSAFE
         public uint* R = Memory.AllocateUnmanagedArray32(16);
+
+        ~Arm7() {
+            Memory.FreeUnmanagedArray(R);
+        }
 #else
         public uint[] R = new uint[16];
 #endif
