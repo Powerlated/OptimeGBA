@@ -19,14 +19,14 @@ per second in Pokémon Emerald on a high-end machine.
  - Limited emulation of the Pixel Processing Unit (PPU)
     - Non-affine background rendering
     - Affine and non-affine sprite support
+    - Alpha blending
+    - Windowing
  - Save files work for most games using flash memory
 
 ## Future Plans
  - Optimization, optimization, optimization
- - Implement the remaining PPU features
+ - Implement and fix the remaining PPU features
     - Affine backgrounds
-    - Windowing, including OBJ window
-    - Alpha blending
  - Seek out any unimplemented ARM7TDMI quirks that may remain
 
 ## Controls
