@@ -35,6 +35,6 @@
     <Compile Remove="src/MainOpenTK.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="icon.raw" />
+    <EmbeddedResource Include="resources/animation/*.raw" />
   </ItemGroup>
 </Project>

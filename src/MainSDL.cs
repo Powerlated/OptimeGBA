@@ -14,13 +14,19 @@ namespace OptimeGBAEmulator
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 1024;
         const int SAMPLES_PER_CALLBACK = 32;
 
+        const double SecondsPerFrameGba = 1D / (16777216D / 280896D);
+        const double SecondsPerFrameAnimation = 0.1D;
+
+        const int LogoWidth = 34;
+        const int LogoHeight = 21;
+        const int LogoBpp = 4;
+        const int LogoFrames = 8;
+
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
         static double Fps;
         static double Mips;
-
-        const double SecondsPerFrame = 1D / (16777216D / 280896D);
 
         static IntPtr Window;
         static IntPtr Renderer;
@@ -78,25 +84,26 @@ namespace OptimeGBAEmulator
             }
             else
             {
-                Stream img = typeof(MainSDL).Assembly.GetManifestResourceStream("OptimeGBA-SDL.icon.raw");
-                byte[] streamBytes = ReadFully(img);
+                byte[][] streamData = ReadAnimationFrames();
 
-                const int logoWidth = 34;
-                const int logoHeight = 21;
-                const int logoBpp = 4;
+                IntPtr iconTexture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STATIC, LogoWidth, LogoHeight);
+                IntPtr data = Marshal.AllocHGlobal(streamData[0].Length);
+                double timeNextFrame = 0;
 
-                IntPtr iconTexture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STATIC, logoWidth, logoHeight);
-                IntPtr data = Marshal.AllocHGlobal(streamBytes.Length);
-                Marshal.Copy(streamBytes, 0, data, streamBytes.Length);
-                SDL_UpdateTexture(iconTexture, IntPtr.Zero, data, logoWidth * logoBpp);
-                Marshal.FreeHGlobal(data);
+                int frame = 0;
 
                 SDL_EventState(SDL_EventType.SDL_DROPFILE, SDL_ENABLE);
                 bool done = false;
+                bool fileLoaded = false;
+
+                SDL_Rect dest = new SDL_Rect();
 
                 String filename = "";
                 while (!done)
                 {
+                    Marshal.Copy(streamData[frame], 0, data, streamData[0].Length);
+                    SDL_UpdateTexture(iconTexture, IntPtr.Zero, data, LogoWidth * LogoBpp);
+
                     SDL_Event evt;
                     while (SDL_PollEvent(out evt) != 0)
                     {
@@ -108,31 +115,55 @@ namespace OptimeGBAEmulator
 
                             case SDL_EventType.SDL_DROPFILE:
                                 filename = Marshal.PtrToStringUTF8(evt.drop.file);
-                                done = true;
+                                fileLoaded = true;
                                 break;
                         }
 
-                        SDL_Rect dest = new SDL_Rect();
                         SDL_GetWindowSize(Window, out int w, out int h);
 
-                        double ratio = Math.Min((double)h / (double)logoHeight, (double)w / (double)logoWidth);
+                        double ratio = Math.Min((double)h / (double)LogoHeight, (double)w / (double)LogoWidth);
                         int fillWidth;
                         int fillHeight;
 
-                        fillWidth = (int)(ratio * logoWidth);
-                        fillHeight = (int)(ratio * logoHeight);
+                        fillWidth = (int)(ratio * LogoWidth);
+                        fillHeight = (int)(ratio * LogoHeight);
 
                         dest.w = fillWidth;
                         dest.h = fillHeight;
                         dest.x = (int)((w - fillWidth) / 2);
                         dest.y = (int)((h - fillHeight) / 2);
-
-                        SDL_RenderClear(Renderer);
-                        SDL_RenderCopy(Renderer, iconTexture, IntPtr.Zero, ref dest);
-                        SDL_RenderPresent(Renderer);
                     }
+
+
+                    if (fileLoaded)
+                    {
+                        double timeCurrent = GetTime();
+
+                        // Reset time if behind schedule
+                        if (timeCurrent - timeNextFrame >= SecondsPerFrameAnimation)
+                        {
+                            double diff = timeCurrent - timeNextFrame;
+                            timeNextFrame = timeCurrent;
+                        }
+
+                        if (timeCurrent >= timeNextFrame)
+                        {
+                            timeNextFrame += SecondsPerFrameAnimation;
+
+                            frame++;
+                            if (frame == LogoFrames) {
+                                done = true;
+                            }
+                        }
+                    }
+
+                    SDL_RenderClear(Renderer);
+                    SDL_RenderCopy(Renderer, iconTexture, IntPtr.Zero, ref dest);
+                    SDL_RenderPresent(Renderer);
                 }
                 romPath = filename;
+
+                Marshal.FreeHGlobal(data);
             }
 
         reload:
@@ -203,14 +234,9 @@ namespace OptimeGBAEmulator
             double nextFrameAt = 0;
             double fpsEvalTimer = 0;
 
-            double getTime()
-            {
-                return (double)SDL_GetPerformanceCounter() / (double)SDL_GetPerformanceFrequency();
-            }
-
             void resetTimers()
             {
-                var time = getTime();
+                var time = GetTime();
                 nextFrameAt = time;
                 fpsEvalTimer = time;
             }
@@ -254,13 +280,13 @@ namespace OptimeGBAEmulator
                     Gba = new Gba(p);
                     Gba.Mem.SaveProvider.LoadSave(save);
 
-                    nextFrameAt = getTime();
+                    nextFrameAt = GetTime();
                 }
 
-                double currentSec = getTime();
+                double currentSec = GetTime();
 
                 // Reset time if behind schedule
-                if (currentSec - nextFrameAt >= SecondsPerFrame)
+                if (currentSec - nextFrameAt >= SecondsPerFrameGba)
                 {
                     double diff = currentSec - nextFrameAt;
                     Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
@@ -269,7 +295,7 @@ namespace OptimeGBAEmulator
 
                 if (currentSec >= nextFrameAt)
                 {
-                    nextFrameAt += SecondsPerFrame;
+                    nextFrameAt += SecondsPerFrameGba;
 
                     ThreadSync.Set();
                 }
@@ -362,9 +388,32 @@ namespace OptimeGBAEmulator
             Environment.Exit(0);
         }
 
+        public static double GetTime()
+        {
+            return (double)SDL_GetPerformanceCounter() / (double)SDL_GetPerformanceFrequency();
+        }
+
         public static void SdlMessage(string title, string msg)
         {
             SDL_ShowSimpleMessageBox(SDL_MessageBoxFlags.SDL_MESSAGEBOX_INFORMATION, title, msg, Window);
+        }
+
+        public static byte[][] ReadAnimationFrames()
+        {
+            byte[][] buf = new byte[8][];
+
+            for (int i = 0; i < LogoFrames; i++)
+            {
+                buf[i] = ReadResource($"OptimeGBA-SDL.resources.animation.{i}.raw");
+            }
+
+            return buf;
+        }
+
+        public static byte[] ReadResource(String res)
+        {
+            Stream img = typeof(MainSDL).Assembly.GetManifestResourceStream(res);
+            return ReadFully(img);
         }
 
         public static byte[] ReadFully(Stream input)
