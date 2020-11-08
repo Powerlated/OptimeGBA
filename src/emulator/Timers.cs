@@ -12,6 +12,7 @@ namespace OptimeGBA
         public uint ReloadVal = 0;
 
         public long EnableCycles = 0;
+        public long Interval;
 
         public static readonly uint[] PrescalerDivs = {
             1, 64, 256, 1024
@@ -61,10 +62,12 @@ namespace OptimeGBA
                 case 0x00: // TMCNT_L B0
                     ReloadVal &= 0xFF00;
                     ReloadVal |= ((uint)val << 0);
+                    RecalculateInterval();
                     break;
                 case 0x01: // TMCNT_L B1
                     ReloadVal &= 0x00FF;
                     ReloadVal |= ((uint)val << 8);
+                    RecalculateInterval();
                     break;
                 case 0x02: // TMCNT_H B0
                     PrescalerSel = (uint)(val & 0b11);
@@ -79,6 +82,7 @@ namespace OptimeGBA
                     {
                         Disable();
                     }
+                    RecalculateInterval();
                     break;
                 case 0x03: // TMCNT_H B1
                     break;
@@ -123,6 +127,13 @@ namespace OptimeGBA
                 Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
                 Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
             }
+        }
+
+        public void RecalculateInterval() {
+            uint max = 0x10000;
+            uint diff = max - ReloadVal;
+
+            Interval = diff * PrescalerDivs[PrescalerSel];
         }
 
         public long CalculateOverflowCycles()
@@ -171,7 +182,7 @@ namespace OptimeGBA
 
             if (Id < 2)
             {
-                Timers.Gba.GbaAudio.TimerOverflow(Id);
+                Timers.Gba.GbaAudio.TimerOverflow(cyclesLate, Id);
             }
 
             if (Id < 3)

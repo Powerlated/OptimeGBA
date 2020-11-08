@@ -151,7 +151,8 @@ namespace OptimeGBAEmulator
                             timeNextFrame += SecondsPerFrameAnimation;
 
                             frame++;
-                            if (frame == LogoFrames) {
+                            if (frame == LogoFrames)
+                            {
                                 done = true;
                             }
                         }
@@ -579,6 +580,11 @@ namespace OptimeGBAEmulator
                         Gba.GbaAudio.GbAudio.enable4Out = !Gba.GbaAudio.GbAudio.enable4Out;
                         UpdateTitle();
                         break;
+
+                    case SDL_Keycode.SDLK_F9:
+                        Gba.GbaAudio.Resample = !Gba.GbaAudio.Resample;
+                        UpdateTitle();
+                        break;
                 }
             }
         }
@@ -591,6 +597,7 @@ namespace OptimeGBAEmulator
             bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
             bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
             bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
+            bool re = Gba.GbaAudio.Resample;
             SDL_SetWindowTitle(
                 Window,
                 "Optime GBA - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
@@ -599,7 +606,8 @@ namespace OptimeGBAEmulator
                 (p1 ? "1 " : "- ") +
                 (p2 ? "2 " : "- ") +
                 (p3 ? "3 " : "- ") +
-                (p4 ? "4 " : "- ")
+                (p4 ? "4 " : "- ") + 
+                (re ? "RE" : "")
             );
         }
 

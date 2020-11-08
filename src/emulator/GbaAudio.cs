@@ -15,7 +15,6 @@ namespace OptimeGBA
         public uint EmptyPops = 0;
         public uint FullInserts = 0;
         public uint Collisions = 0;
-        public byte CurrentByte = 0;
 
         public CircularBuffer(uint size, T emptyValue)
         {
@@ -84,6 +83,18 @@ namespace OptimeGBA
 
         public CircularBuffer<byte> A = new CircularBuffer<byte>(32, 0);
         public CircularBuffer<byte> B = new CircularBuffer<byte>(32, 0);
+
+        public short CurrentValueA;
+        public short CurrentValueB;
+
+        public short PreviousValueA;
+        public short PreviousValueB;
+
+        public long LastSampleTimeA;
+        public long LastSampleTimeB;
+
+        public long IntervalA = 1;
+        public long IntervalB = 1;
 
         uint BiasLevel = 0x100;
         uint AmplitudeRes;
@@ -219,6 +230,7 @@ namespace OptimeGBA
         }
 
         public bool CollectSamples = true;
+        public bool Resample = true;
 
         public bool EnablePsg = true;
         public bool EnableFifo = true;
@@ -246,23 +258,47 @@ namespace OptimeGBA
                 }
                 if (EnableFifo)
                 {
-                    short a = (short)(DmaSoundAVolume ? (sbyte)A.CurrentByte * 2 : (sbyte)A.CurrentByte * 1);
-                    short b = (short)(DmaSoundBVolume ? (sbyte)B.CurrentByte * 2 : (sbyte)B.CurrentByte * 1);
-                    if (DebugEnableA)
+                    long current = Scheduler.CurrentTicks - cyclesLate;
+
+                    if (Resample)
                     {
-                        if (DmaSoundAEnableLeft) left += a;
-                        if (DmaSoundAEnableRight) right += a;
+                        if (DebugEnableA)
+                        {
+                            double ratio = (current - LastSampleTimeA) / (double)IntervalA;
+                            double valDouble = (PreviousValueA + ratio * (double)(CurrentValueA - PreviousValueA));
+                            short val = (short)valDouble;
+
+                            if (DmaSoundAEnableLeft) left += val;
+                            if (DmaSoundAEnableRight) right += val;
+                        }
+                        if (DebugEnableB)
+                        {
+                            double ratio = (current - LastSampleTimeB) / (double)IntervalB;
+                            double valDouble = (PreviousValueB + ratio * (double)(CurrentValueB - PreviousValueB));
+                            short val = (short)valDouble;
+
+                            if (DmaSoundBEnableLeft) left += val;
+                            if (DmaSoundBEnableRight) right += val;
+                        }
                     }
-                    if (DebugEnableB)
+                    else
                     {
-                        if (DmaSoundBEnableLeft) left += b;
-                        if (DmaSoundBEnableRight) right += b;
+                        if (DebugEnableA)
+                        {
+                            if (DmaSoundAEnableLeft) left += CurrentValueA;
+                            if (DmaSoundAEnableRight) right += CurrentValueA;
+                        }
+                        if (DebugEnableB)
+                        {
+                            if (DmaSoundBEnableLeft) left += CurrentValueB;
+                            if (DmaSoundBEnableRight) right += CurrentValueB;
+                        }
                     }
                 }
             }
 
-            SampleBuffer[SampleBufferPos++] = ((short)(left * 64));
-            SampleBuffer[SampleBufferPos++] = ((short)(right * 64));
+            SampleBuffer[SampleBufferPos++] = (short)(left * 64);
+            SampleBuffer[SampleBufferPos++] = (short)(right * 64);
 
             if (SampleBufferPos >= SampleBufferMax)
             {
@@ -274,17 +310,25 @@ namespace OptimeGBA
             Scheduler.AddEventRelative(SchedulerId.ApuSample, SampleTimerMax - cyclesLate, Sample);
         }
 
-        public void TimerOverflowFifoA()
+        public void TimerOverflowFifoA(long cyclesLate, uint timerId)
         {
-            A.CurrentByte = A.Pop();
+            LastSampleTimeA = Scheduler.CurrentTicks - cyclesLate;
+            PreviousValueA = CurrentValueA;
+            IntervalA = Gba.Timers.T[timerId].Interval;
+
+            CurrentValueA = (short)((sbyte)A.Pop() * (DmaSoundAVolume ? 2 : 1));
             if (A.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoA();
             }
         }
-        public void TimerOverflowFifoB()
+        public void TimerOverflowFifoB(long cyclesLate, uint timerId)
         {
-            B.CurrentByte = B.Pop();
+            LastSampleTimeB = Scheduler.CurrentTicks - cyclesLate;
+            PreviousValueB = CurrentValueB;
+            IntervalB = Gba.Timers.T[timerId].Interval;
+
+            CurrentValueB = (short)((sbyte)B.Pop() * (DmaSoundBVolume ? 2 : 1));
             if (B.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoB();
@@ -292,28 +336,28 @@ namespace OptimeGBA
         }
 
         // Called when Timer 0 or 1 overflows.
-        public void TimerOverflow(uint timerId)
+        public void TimerOverflow(long cyclesLate, uint timerId)
         {
             if (timerId == 0)
             {
                 if (!DmaSoundATimerSelect)
                 {
-                    TimerOverflowFifoA();
+                    TimerOverflowFifoA(cyclesLate, timerId);
                 }
                 if (!DmaSoundBTimerSelect)
                 {
-                    TimerOverflowFifoB();
+                    TimerOverflowFifoB(cyclesLate, timerId);
                 }
             }
             else if (timerId == 1)
             {
                 if (DmaSoundATimerSelect)
                 {
-                    TimerOverflowFifoA();
+                    TimerOverflowFifoA(cyclesLate, timerId);
                 }
                 if (DmaSoundBTimerSelect)
                 {
-                    TimerOverflowFifoB();
+                    TimerOverflowFifoB(cyclesLate, timerId);
                 }
             }
         }
