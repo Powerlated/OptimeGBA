@@ -905,6 +905,15 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("Debug BG3", ref Gba.Lcd.DebugEnableBg[3]);
                 ImGui.Checkbox("Debug OBJ", ref Gba.Lcd.DebugEnableObj);
 
+                ImGui.Text($"Window 0 Left..: {Gba.Lcd.Win0HLeft}");
+                ImGui.Text($"Window 0 Right.: {Gba.Lcd.Win0HRight}");
+                ImGui.Text($"Window 0 Top...: {Gba.Lcd.Win0VTop}");
+                ImGui.Text($"Window 0 Bottom: {Gba.Lcd.Win0VBottom}");
+                ImGui.Text($"Window 1 Left..: {Gba.Lcd.Win1HLeft}");
+                ImGui.Text($"Window 1 Right.: {Gba.Lcd.Win1HRight}");
+                ImGui.Text($"Window 1 Top...: {Gba.Lcd.Win1VTop}");
+                ImGui.Text($"Window 1 Bottom: {Gba.Lcd.Win1VBottom}");
+
                 ImGui.Columns(1);
                 ImGui.Separator();
 

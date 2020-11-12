@@ -874,6 +874,9 @@ namespace OptimeGBA
                     // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndDrawingToHblank);
+
+                // Pre-render sprites for line zero
+                if (DebugEnableObj && ScreenDisplayObj) RenderObjs(0);
             }
         }
 
@@ -885,19 +888,24 @@ namespace OptimeGBA
                 {
                     case 0:
                         RenderMode0();
-                        return;
+                        break;
                     case 1:
                         RenderMode1();
-                        return;
+                        break;
                     case 2:
                         RenderMode2();
-                        return;
+                        break;
                     case 3:
                         RenderMode3();
-                        return;
+                        break;
                     case 4:
                         RenderMode4();
-                        return;
+                        break;
+                }
+
+                if (BgMode <= 2) {
+                    Composite();
+                    if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(VCount + 1);
                 }
             }
             else
@@ -1137,7 +1145,7 @@ namespace OptimeGBA
             0,  0,  0,  0,
         };
 
-        public void RenderObjs()
+        public void RenderObjs(uint vcount)
         {
             // OAM address for the last sprite
             uint oamBase = 1016;
@@ -1176,7 +1184,7 @@ namespace OptimeGBA
                 bool render = false;
                 if (!disabled && !affine)
                 {
-                    if ((VCount >= yPos && VCount < yEnd) || (yEnd < yPos && VCount < yEnd))
+                    if ((vcount >= yPos && vcount < yEnd) || (yEnd < yPos && vcount < yEnd))
                     {
                         render = true;
                     }
@@ -1188,7 +1196,7 @@ namespace OptimeGBA
                         yEnd += (int)ySize;
                     }
 
-                    if ((VCount >= yPos && VCount < yEnd) || (yEnd < yPos && VCount < yEnd))
+                    if ((vcount >= yPos && vcount < yEnd) || (yEnd < yPos && vcount < yEnd))
                     {
                         render = true;
                     }
@@ -1197,7 +1205,7 @@ namespace OptimeGBA
                 if (!render) continue;
 
                 // y relative to the object itself
-                int objPixelY = (int)(VCount - yPos) & 255;
+                int objPixelY = (int)(vcount - yPos) & 255;
 
                 if (yFlip)
                 {
@@ -1546,10 +1554,6 @@ namespace OptimeGBA
             RenderCharBackground(Backgrounds[2]);
             RenderCharBackground(Backgrounds[1]);
             RenderCharBackground(Backgrounds[0]);
-
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs();
-
-            Composite();
         }
 
         public void RenderMode1()
@@ -1557,20 +1561,12 @@ namespace OptimeGBA
             RenderAffineBackground(Backgrounds[2]);
             RenderCharBackground(Backgrounds[1]);
             RenderCharBackground(Backgrounds[0]);
-
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs();
-
-            Composite();
         }
 
         public void RenderMode2()
         {
             RenderAffineBackground(Backgrounds[2]);
             RenderAffineBackground(Backgrounds[3]);
-
-            if (DebugEnableObj && ScreenDisplayObj) RenderObjs();
-
-            Composite();
         }
 
         public void RenderMode4()
