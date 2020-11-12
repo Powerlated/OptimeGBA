@@ -141,7 +141,7 @@ namespace OptimeGBA
 
         public byte Read8(uint addr)
         {
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
 #if OPENTK_DEBUGGER
@@ -230,7 +230,7 @@ namespace OptimeGBA
             }
 #endif
 
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
 #if OPENTK_DEBUGGER
@@ -321,7 +321,7 @@ namespace OptimeGBA
             }
 #endif
 
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
 #if OPENTK_DEBUGGER
@@ -405,7 +405,7 @@ namespace OptimeGBA
 
         public byte ReadDebug8(uint addr)
         {
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
                     addr &= 0x3FFF;
@@ -483,7 +483,7 @@ namespace OptimeGBA
 
         public void Write8(uint addr, byte val)
         {
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
                 case 0x1: // Unused
@@ -553,7 +553,7 @@ namespace OptimeGBA
             }
 #endif
 
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
                 case 0x1: // Unused
@@ -580,8 +580,11 @@ namespace OptimeGBA
                     PaletteWrites += 2;
 #endif
                     addr &= 0x3FF;
-                    SetUshort(Gba.Lcd.Palettes, addr, val);
-                    Gba.Lcd.UpdatePalette((addr & ~1u) / 2);
+                    if (GetUshort(Gba.Lcd.Palettes, addr) != val)
+                    {
+                        SetUshort(Gba.Lcd.Palettes, addr, val);
+                        Gba.Lcd.UpdatePalette((addr & ~1u) / 2);
+                    }
                     return;
                 case 0x6: // PPU VRAM
 #if OPENTK_DEBUGGER
@@ -636,7 +639,7 @@ namespace OptimeGBA
             }
 #endif
 
-            switch ((addr >> 24) & 0xF)
+            switch (addr >> 24)
             {
                 case 0x0: // BIOS
                 case 0x1: // Unused
@@ -663,9 +666,12 @@ namespace OptimeGBA
                     PaletteWrites += 4;
 #endif
                     addr &= 0x3FF;
-                    SetUint(Gba.Lcd.Palettes, addr, val);
-                    Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 0);
-                    Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 1);
+                    if (GetUint(Gba.Lcd.Palettes, addr) != val)
+                    {
+                        SetUint(Gba.Lcd.Palettes, addr, val);
+                        Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 0);
+                        Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 1);
+                    }
                     return;
                 case 0x6: // PPU VRAM
 #if OPENTK_DEBUGGER
