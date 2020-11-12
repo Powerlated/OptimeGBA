@@ -515,7 +515,10 @@ namespace OptimeGBA
             arm7.R[15] = val & 0xFFFFFFFE;
             arm7.FlushPipeline();
 
-            arm7.Gba.StateChange();
+            if (!arm7.ThumbState)
+            {
+                arm7.Gba.StateChange();
+            }
         }
 
         public static void LDRLiteralPool(Arm7 arm7, ushort ins)

@@ -416,7 +416,7 @@ namespace OptimeGBA
                     mask = byteMask & UserMask;
                 }
                 uint set = (arm7.GetCPSR() & ~mask) | (operand & mask);
-                arm7.SetCPSRfromMSR(set);
+                arm7.SetCPSR(set);
             }
             else
             {

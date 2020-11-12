@@ -62,7 +62,7 @@ namespace OptimeGBA
             return ticks + ExtraTicks;
         }
 
-        public void DoNothing(long cyclesLate) {}
+        public void DoNothing(long cyclesLate) { }
 
         public void StateChange()
         {
@@ -72,6 +72,8 @@ namespace OptimeGBA
         public uint StateStep()
         {
             ExtraTicks = 0;
+
+            Arm7.CheckInterrupts();
 
             uint executed = 0;
             if (!Arm7.ThumbState)
@@ -92,7 +94,7 @@ namespace OptimeGBA
                     executed += cycles;
                 }
             }
-            Arm7.CheckInterrupts();
+
 
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {

@@ -122,10 +122,8 @@ namespace OptimeGBA
         public bool ThumbState = false;
         public Arm7Mode Mode = Arm7Mode.System;
 
-        public uint ARMFetch;
-        public uint ARMDecode;
-        public ushort THUMBFetch;
-        public ushort THUMBDecode;
+        public uint Fetch;
+        public uint Decode;
         public uint Pipeline; // 0 for empty, 1 for Fetch filled, 2 for Decode filled, 3 for Execute filled (full)
 
         public bool PipelineDirty = false;
@@ -191,8 +189,8 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineArm()
         {
-            ARMDecode = ARMFetch;
-            ARMFetch = Read32InstrFetch(R[15]);
+            Decode = Fetch;
+            Fetch = Read32InstrFetch(R[15]);
             R[15] += 4;
 
             Pipeline++;
@@ -219,9 +217,8 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineThumb()
         {
-
-            THUMBDecode = THUMBFetch;
-            THUMBFetch = Read16InstrFetch(R[15]);
+            Decode = Fetch;
+            Fetch = Read16InstrFetch(R[15]);
             R[15] += 2;
 
             Pipeline++;
@@ -258,9 +255,6 @@ namespace OptimeGBA
 
         public uint Execute()
         {
-            InstructionsRan++;
-            InstructionCycles = 0;
-
             if (!ThumbState) // ARM mode
             {
                 ExecuteArm();
@@ -282,7 +276,7 @@ namespace OptimeGBA
 
             LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
-            uint ins = ARMDecode;
+            uint ins = Decode;
             Pipeline--;
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
@@ -318,13 +312,11 @@ namespace OptimeGBA
 
             LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
-            ushort ins = THUMBDecode;
+            ushort ins = (ushort)Decode;
             int decodeBits = ins >> 6;
 
             Pipeline--;
 #if OPENTK_DEBUGGER
-            InstructionsRan++;
-            InstructionCycles = 0;
             LastLastIns = LastIns;
             LastIns = ins;
             ThumbExecutorProfile[decodeBits]++;
@@ -936,23 +928,12 @@ namespace OptimeGBA
 
             IRQDisable = BitTest(val, 7);
             FIQDisable = BitTest(val, 6);
-            ThumbState = BitTest(val, 5);
-
-            SetMode(val & 0b01111);
-
-            Gba.StateChange();
-        }
-
-        public void SetCPSRfromMSR(uint val)
-        {
-            Negative = BitTest(val, 31);
-            Zero = BitTest(val, 30);
-            Carry = BitTest(val, 29);
-            Overflow = BitTest(val, 28);
-            Sticky = BitTest(val, 27);
-
-            IRQDisable = BitTest(val, 7);
-            FIQDisable = BitTest(val, 6);
+            bool newThumbState = BitTest(val, 5);
+            if (newThumbState != ThumbState)
+            {
+                Gba.StateChange();
+            }
+            ThumbState = newThumbState;
 
             SetMode(val & 0b01111);
         }
@@ -1420,7 +1401,6 @@ namespace OptimeGBA
             return (rd, setFlags);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins)
         {
             // ----- When using register as 2nd operand -----
