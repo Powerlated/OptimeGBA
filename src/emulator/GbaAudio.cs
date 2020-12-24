@@ -230,7 +230,7 @@ namespace OptimeGBA
         }
 
         public bool CollectSamples = true;
-        public bool Resample = true;
+        public bool Resample = false;
 
         public bool EnablePsg = true;
         public bool EnableFifo = true;
