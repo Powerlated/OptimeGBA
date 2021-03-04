@@ -11,7 +11,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <StartupObject>OptimeGBAEmulator.MainOpenTK</StartupObject>
 
-    <DefineConstants>OPENTK_DEBUGGER</DefineConstants>
+    <DefineConstants>OPENTK_DEBUGGER UNSAFE</DefineConstants>
 
     <ApplicationIcon>icon.ico</ApplicationIcon>
   </PropertyGroup>
@@ -29,5 +29,7 @@
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="SDL2-CS" Version="2.0.0.0" />
     <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
+
+    <Compile Remove="src/MainSDL.cs" />
   </ItemGroup>
-</Project>
+</Project> 

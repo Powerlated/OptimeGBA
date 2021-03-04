@@ -871,7 +871,7 @@ namespace OptimeGBA
                 VCounterMatch = VCount == VCountSetting;
                 if (VCounterMatch && VCounterIrqEnable)
                 {
-                    // Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Lcd, 960 - cyclesLate, EndDrawingToHblank);
 
@@ -903,7 +903,8 @@ namespace OptimeGBA
                         break;
                 }
 
-                if (BgMode <= 2) {
+                if (BgMode <= 2)
+                {
                     Composite();
                     if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(VCount + 1);
                 }
@@ -978,7 +979,7 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
-
+        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void RenderCharBackground(Background bg)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize;
@@ -1014,8 +1015,6 @@ namespace OptimeGBA
                 uint tileNumber = mapEntry & 1023; // 10 bits
                 bool xFlip = BitTest(mapEntry, 10);
                 bool yFlip = BitTest(mapEntry, 11);
-                // Irrelevant in 4-bit color mode
-                uint palette = (mapEntry >> 12) & 15; // 4 bits
 
                 uint effectiveIntraTileY = intraTileY;
                 if (yFlip) effectiveIntraTileY ^= 7;
@@ -1055,6 +1054,8 @@ namespace OptimeGBA
                 else
                 {
                     uint vramTileAddr = charBase + (tileNumber * 32) + (effectiveIntraTileY * 4);
+                    // Irrelevant in 4-bit color mode
+                    uint palette = (mapEntry >> 12) & 15; // 4 bits
                     uint palettebase = (palette * 16);
 
                     for (; tp != exit; tp += add)
@@ -1461,6 +1462,9 @@ namespace OptimeGBA
                         hiPaletteIndex = loPaletteIndex;
                         hiPrio = loPrio;
                         hiPixelFlag = loPixelFlag;
+
+                        loPaletteIndex = 0;
+                        loPixelFlag = BlendFlag.Backdrop;
                     }
                 }
 

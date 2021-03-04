@@ -2,9 +2,12 @@ using static SDL2.SDL;
 using System;
 using System.Threading;
 using System.IO;
+using System.Collections.Generic;
+using System.Xml;
 using System.Text;
 using System.Runtime.InteropServices;
 using OptimeGBA;
+using DiscordRPC;
 
 namespace OptimeGBAEmulator
 {
@@ -33,7 +36,16 @@ namespace OptimeGBAEmulator
 
         static Gba Gba;
 
+        static Dictionary<string, string> GameNameDictionary = new Dictionary<string, string>();
+
+        static string RomName;
+        static DiscordRpcClient Client;
+        static Timestamps Timestamp;
+        static Assets RpcAssets;
+
         static bool Sync = true;
+
+        static long Seconds;
 
         static bool IntegerScaling = false;
         static bool IsFullscreen = false;
@@ -47,6 +59,36 @@ namespace OptimeGBAEmulator
 
         public static void Main(string[] args)
         {
+            // Parse No-Intro database
+            var stream = typeof(MainSDL).Assembly.GetManifestResourceStream("OptimeGBA-SDL.resources.no-intro.dat");
+            var doc = new XmlDocument();
+            doc.Load(stream);
+            foreach (XmlNode node in doc.GetElementsByTagName("game"))
+            {
+                var romNode = node.SelectNodes("rom")[0];
+                if (romNode != null) {
+                    var name = node.Attributes["name"].Value;
+                    var serialNode = romNode.Attributes["serial"];
+                    if (serialNode != null)
+                    {
+                        GameNameDictionary[serialNode.Value] = name;
+                    }
+                }
+            }
+
+            Client = new DiscordRpcClient("794391124000243742");
+            Client.Initialize();
+            RpcAssets = new Assets()
+            {
+                LargeImageKey = "icon-square",
+                LargeImageText = "Hi!",
+            };
+            Client.SetPresence(new RichPresence()
+            {
+                State = "Standby",
+                Assets = RpcAssets,
+            });
+
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
             EmulationThread.Start();
@@ -110,7 +152,7 @@ namespace OptimeGBAEmulator
                         switch (evt.type)
                         {
                             case SDL_EventType.SDL_QUIT:
-                                Environment.Exit(0);
+                                Cleanup();
                                 break;
 
                             case SDL_EventType.SDL_DROPFILE:
@@ -229,6 +271,8 @@ namespace OptimeGBAEmulator
             provider.BootBios = true;
             Gba = new Gba(provider);
 
+            UpdateRomName(romPath);
+
             Gba.Mem.SaveProvider.LoadSave(sav);
 
             bool quit = false;
@@ -242,6 +286,11 @@ namespace OptimeGBAEmulator
                 fpsEvalTimer = time;
             }
             resetTimers();
+
+            // Actually start the game
+            UpdatePlayingRpc();
+
+            Timestamp = Timestamps.Now;
 
             while (!quit)
             {
@@ -314,6 +363,8 @@ namespace OptimeGBAEmulator
                     Fps = Math.Floor((frames / diff) * 100) / 100;
                     Mips = Math.Floor((mips / diff) * 100) / 100;
                     UpdateTitle();
+                    Seconds++;
+                    UpdatePlayingRpc();
 
                     fpsEvalTimer += 1;
                 }
@@ -386,6 +437,35 @@ namespace OptimeGBAEmulator
             SDL_AudioQuit();
             SDL_VideoQuit();
             SDL_Quit();
+            Cleanup();
+        }
+
+        public static void UpdatePlayingRpc()
+        {
+            var mm = ((Seconds / 60) % 60).ToString().PadLeft(2, '0');
+            var ss = (Seconds % 60).ToString().PadLeft(2, '0');
+            string stateString;
+            if (Seconds > 3600)
+            {
+                var hh = ((Seconds / 3600) % 60).ToString().PadLeft(2, '0');
+                stateString = $"Playing for {hh}:{mm}:{ss}";
+            }
+            else
+            {
+                stateString = $"Playing for {mm}:{ss}";
+            }
+
+            Client.SetPresence(new RichPresence()
+            {
+                Details = RomName,
+                Timestamps = Timestamp,
+                Assets = RpcAssets
+            });
+        }
+
+        public static void Cleanup()
+        {
+            Client.Dispose();
             Environment.Exit(0);
         }
 
@@ -581,11 +661,32 @@ namespace OptimeGBAEmulator
                         UpdateTitle();
                         break;
 
+                    case SDL_Keycode.SDLK_LEFTBRACKET:
+                        if (Gba.GbaAudio.GbAudio.PsgFactor > 0)
+                        {
+                            Gba.GbaAudio.GbAudio.PsgFactor--;
+                            UpdateTitle();
+                        }
+                        break;
+
+                    case SDL_Keycode.SDLK_RIGHTBRACKET:
+                        Gba.GbaAudio.GbAudio.PsgFactor++;
+                        UpdateTitle();
+                        break;
+
                     case SDL_Keycode.SDLK_F9:
                         Gba.GbaAudio.Resample = !Gba.GbaAudio.Resample;
                         UpdateTitle();
                         break;
                 }
+            }
+        }
+
+        public static void UpdateRomName(string path) {
+            if (GameNameDictionary.ContainsKey(Gba.Provider.RomId)) {
+                RomName = GameNameDictionary[Gba.Provider.RomId];
+            } else {
+                RomName = Path.GetFileName(path);
             }
         }
 
@@ -606,8 +707,9 @@ namespace OptimeGBAEmulator
                 (p1 ? "1 " : "- ") +
                 (p2 ? "2 " : "- ") +
                 (p3 ? "3 " : "- ") +
-                (p4 ? "4 " : "- ") + 
-                (re ? "RE" : "")
+                (p4 ? "4 " : "- ") +
+                (re ? "RE " : "-- ") +
+                "PSG " + Gba.GbaAudio.GbAudio.PsgFactor + "X"
             );
         }
 

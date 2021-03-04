@@ -7,6 +7,7 @@ namespace OptimeGBA
     public enum SchedulerId : byte
     {
         None = 255,
+        RootNode = 254,
         Lcd = 0,
         ApuSample = 1,
         Timer0 = 2,
@@ -16,12 +17,14 @@ namespace OptimeGBA
         HaltSkip = 6,
     }
 
-    public struct SchedulerEvent
+    public class SchedulerEvent
     {
         public SchedulerId Id;
         public long Ticks;
         public SchedulerCallback Callback;
-        
+        public SchedulerEvent NextEvent;
+        public SchedulerEvent PrevEvent;
+
         public SchedulerEvent(SchedulerId id, long ticks, SchedulerCallback callback)
         {
             this.Id = id;
@@ -32,25 +35,39 @@ namespace OptimeGBA
 
     public sealed class Scheduler
     {
-        static uint Parent(uint n) { return (n - 1) >> 1; }
-        static uint LeftChild(uint n) { return n * 2 + 1; }
-        static uint RightChild(uint n) { return n * 2 + 2; }
-
         public Scheduler()
         {
             for (uint i = 0; i < 64; i++)
             {
-                Heap[i] = new SchedulerEvent(SchedulerId.None, 0, (long ticks) => { });
+                FreeEventStack[i] = new SchedulerEvent(SchedulerId.None, 0, (long ticks) => { });
             }
+
+            var evt = PopStack();
+            evt.NextEvent = null;
+            evt.PrevEvent = null;
+            evt.Id = SchedulerId.RootNode;
+            evt.Ticks = 0;
+            RootEvent = evt;
         }
 
         public long CurrentTicks = 0;
         public long NextEventTicks = 0;
 
-        public SchedulerEvent[] Heap = new SchedulerEvent[64];
-        public uint HeapSize = 0;
+        public uint FreeEventStackIndex = 0;
+        public SchedulerEvent[] FreeEventStack = new SchedulerEvent[64];
 
-        SchedulerEvent ReturnEvent = Scheduler.createEmptyEvent();
+        public SchedulerEvent PopStack()
+        {
+            return FreeEventStack[FreeEventStackIndex++];
+        }
+
+        public void PushStack(SchedulerEvent schedulerEvent)
+        {
+            FreeEventStack[--FreeEventStackIndex] = schedulerEvent;
+        }
+
+        public SchedulerEvent RootEvent;
+        public uint EventsQueued = 0;
 
         static SchedulerEvent createEmptyEvent()
         {
@@ -68,6 +85,7 @@ namespace OptimeGBA
                 case SchedulerId.Timer1: return "Timer 1 Overflow";
                 case SchedulerId.Timer2: return "Timer 2 Overflow";
                 case SchedulerId.Timer3: return "Timer 3 Overflow";
+                case SchedulerId.RootNode: return "<root node>";
                 default:
                     return "<SchedulerId not found>";
             }
@@ -77,151 +95,84 @@ namespace OptimeGBA
         {
             var origTicks = ticks;
             ticks += CurrentTicks;
-            if (HeapSize >= Heap.Length)
-            {
-                throw new Exception("Heap overflow!");
-            }
 
-            var index = HeapSize;
-            HeapSize++;
-            Heap[index].Id = id;
-            Heap[index].Ticks = ticks;
-            Heap[index].Callback = callback;
+            var newEvt = PopStack();
+            newEvt.Id = id;
+            newEvt.Ticks = ticks;
+            newEvt.Callback = callback;
 
-            while (index != 0)
+            var prevEvt = RootEvent;
+            // Traverse linked list and splice at correct location
+            while (prevEvt.NextEvent != null)
             {
-                var parentIndex = Parent(index);
-                if (Heap[parentIndex].Ticks > Heap[index].Ticks)
-                {
-                    Swap(index, parentIndex);
-                    index = parentIndex;
-                }
-                else
-                {
+                if (ticks >= prevEvt.Ticks && ticks <= prevEvt.NextEvent?.Ticks) {
                     break;
                 }
+                prevEvt = prevEvt.NextEvent;
             }
+
+            var nextEvt = prevEvt.NextEvent;
+            if (nextEvt != null) {
+                nextEvt.PrevEvent = newEvt;
+            }
+            prevEvt.NextEvent = newEvt;
+            newEvt.NextEvent = nextEvt;
+            newEvt.PrevEvent = prevEvt;
+
+            EventsQueued++;
             UpdateNextEvent();
         }
 
         public void CancelEventsById(SchedulerId id)
         {
-            var go = true;
-            while (go)
+            SchedulerEvent evt = RootEvent.NextEvent;
+            while (evt != null)
             {
-                go = false;
-                for (uint i = 0; i < HeapSize; i++)
+                if (evt.Id == id)
                 {
-                    if (Heap[i].Id == id)
-                    {
-                        DeleteEvent(i);
-                        go = true;
-                        break;
-                    }
+                    RemoveEvent(evt);
                 }
+                evt = evt.NextEvent;
             }
         }
 
         public void UpdateNextEvent()
         {
-            if (HeapSize > 0)
+            if (EventsQueued > 0)
             {
-                NextEventTicks = Heap[0].Ticks;
+                NextEventTicks = RootEvent.NextEvent.Ticks;
             }
         }
 
         public SchedulerEvent GetFirstEvent()
         {
-            if (HeapSize <= 0)
-            {
-                Console.Error.WriteLine("Tried to get from empty heap!");
-                return Heap[0]; // This isn't supposed to happen.
-            }
-
-            return Heap[0];
+            return RootEvent.NextEvent;
         }
 
         public SchedulerEvent PopFirstEvent()
         {
-            var firstEvent = GetFirstEvent();
+            var evt = RootEvent.NextEvent;
+            RemoveEvent(evt);
+            return evt;
+        }
 
-            ReturnEvent.Ticks = firstEvent.Ticks;
-            ReturnEvent.Id = firstEvent.Id;
-            ReturnEvent.Callback = firstEvent.Callback;
-
-            if (HeapSize == 1)
-            {
-                HeapSize--;
-                return ReturnEvent;
+        public void RemoveEvent(SchedulerEvent schedulerEvent)
+        {
+            if (schedulerEvent == RootEvent) {
+                throw new Exception("Cannot remove root event!");
             }
-
-            Swap(0, HeapSize - 1);
-
-            HeapSize--;
-
-            // Satisfy the heap property again
-            uint index = 0;
-            while (true)
+            var prev = schedulerEvent.PrevEvent;
+            var next = schedulerEvent.NextEvent;
+            if (schedulerEvent.NextEvent != null)
             {
-                var left = LeftChild(index);
-                var right = RightChild(index);
-                var smallest = index;
-
-                if (left < HeapSize && Heap[left].Ticks < Heap[index].Ticks)
-                {
-                    smallest = left;
-                }
-                if (right < HeapSize && Heap[right].Ticks < Heap[smallest].Ticks)
-                {
-                    smallest = right;
-                }
-
-                if (smallest != index)
-                {
-                    Swap(index, smallest);
-                    index = smallest;
-                }
-                else
-                {
-                    break;
-                }
+                next.PrevEvent = prev;
             }
-
+            prev.NextEvent = next;
+            schedulerEvent.NextEvent = null;
+            schedulerEvent.PrevEvent = null;
+            EventsQueued--;
             UpdateNextEvent();
-            return ReturnEvent;
-        }
-
-        public void SetTicksLower(uint index, long newVal)
-        {
-            Heap[index].Ticks = newVal;
-
-            while (index != 0)
-            {
-                var parentIndex = Parent(index);
-                if (Heap[parentIndex].Ticks > Heap[index].Ticks)
-                {
-                    Swap(index, parentIndex);
-                    index = parentIndex;
-                }
-                else
-                {
-                    break;
-                }
-            }
-        }
-
-        public void DeleteEvent(uint index)
-        {
-            SetTicksLower(index, -9999);
-            PopFirstEvent();
-        }
-
-        public void Swap(uint ix, uint iy)
-        {
-            // console.log(`Swapped ${ix} with ${iy}`);
-            var temp = Heap[ix];
-            Heap[ix] = Heap[iy];
-            Heap[iy] = temp;
+            PushStack(schedulerEvent);
         }
     }
 }

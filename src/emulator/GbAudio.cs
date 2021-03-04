@@ -472,12 +472,14 @@ namespace OptimeGBA
                 in1 *= this.leftMasterVolMul;
                 in2 *= this.rightMasterVolMul;
 
-                Out1 = (short)(in1 * 8);
-                Out2 = (short)(in2 * 8);
+                Out1 = (short)(in1 * PsgFactor);
+                Out2 = (short)(in2 * PsgFactor);
             }
 
             // The wave sample is visible to the CPU, so it's gotta be updated immediately
         }
+
+        public uint PsgFactor = 8;
 
         void update()
         {

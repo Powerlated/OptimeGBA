@@ -269,6 +269,7 @@ namespace OptimeGBA
             return InstructionCycles;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ExecuteArm()
         {
             InstructionsRan++;
@@ -305,6 +306,7 @@ namespace OptimeGBA
             return InstructionCycles;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint ExecuteThumb()
         {
             InstructionsRan++;
@@ -331,6 +333,7 @@ namespace OptimeGBA
             return InstructionCycles;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CheckInterrupts()
         {
             if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
@@ -339,6 +342,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DispatchInterrupt()
         {
             // Error("sdfkjadfdjsjklfads interupt lol");

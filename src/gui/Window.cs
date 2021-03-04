@@ -64,11 +64,15 @@ namespace OptimeGBAEmulator
             {
                 ThreadSync.WaitOne();
 
-                RunFrame();
+                int cyclesLeft = 70224 * 4;
+                while (cyclesLeft > 0 && !Gba.Arm7.Errored)
+                {
+                    cyclesLeft -= (int)Gba.StateStep();
+                }
 
                 while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
                 {
-                    Gba.Step();
+                    Gba.StateStep();
                     ThreadCyclesQueued = 0;
                 }
             }
@@ -121,6 +125,15 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             CyclesLeft += FrameCycles;
+            while (CyclesLeft > 0 && !Gba.Arm7.Errored)
+            {
+                CyclesLeft -= (int)Gba.Step();
+            }
+        }
+
+        public void RunScanline()
+        {
+            CyclesLeft += ScanlineCycles;
             while (CyclesLeft > 0 && !Gba.Arm7.Errored)
             {
                 CyclesLeft -= (int)Gba.Step();
@@ -274,6 +287,7 @@ namespace OptimeGBAEmulator
         }
 
         const int FrameCycles = 70224 * 4;
+        const int ScanlineCycles = 1232;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
@@ -375,7 +389,7 @@ namespace OptimeGBAEmulator
         public void DrawMemoryViewer()
         {
 
-            int rows = 16384;
+            int rows = 2048;
             int cols = 16;
 
             if (ImGui.Begin("Memory Viewer"))
@@ -646,6 +660,12 @@ namespace OptimeGBAEmulator
                     RunFrame();
                 }
 
+                if (ImGui.Button("Scanline Advance"))
+                {
+                    RunScanline();
+                }
+
+
                 if (ImGui.Button("Start Time"))
                 {
                     RecordTime = true;
@@ -884,6 +904,20 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Buffer Samples: {Gba.GbaAudio.SampleBuffer.Entries / 2}");
                 ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
                 ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
+
+                ImGui.Text($"PSG Factor: {Gba.GbaAudio.GbAudio.PsgFactor}");
+                if (ImGui.Button("-##psg"))
+                {
+                    if (Gba.GbaAudio.GbAudio.PsgFactor > 0)
+                    {
+                        Gba.GbaAudio.GbAudio.PsgFactor--;
+                    }
+                }
+                ImGui.SameLine();
+                if (ImGui.Button("+##psg"))
+                {
+                    Gba.GbaAudio.GbAudio.PsgFactor++;
+                }
 
                 ImGui.Text($"BG0 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[0].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[0].ScreenSize]}");
                 ImGui.Text($"BG0 Scroll X: {Gba.Lcd.Backgrounds[0].HorizontalOffset}");
@@ -1642,6 +1676,7 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Sound Visualizer"))
             {
+                // ImGui.Columns(2);
                 GbAudio gbAudio = Gba.GbaAudio.GbAudio;
 
                 ImGui.Text("Pulse 1");
@@ -1656,7 +1691,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Pitch: {pulse1Hz} hz");
                 ImGui.Text($"Note: {NoteNameFromFrequency(pulse1Hz)} {OctaveFromFrequency(pulse1Hz)} {(pulse1CentsOff < 0 ? "" : "+") + pulse1CentsOff}");
 
-                ImGui.Separator();
+                ImGuiColumnSeparator();
 
                 ImGui.Text("Pulse 2");
 
@@ -1670,7 +1705,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Pitch: {pulse2Hz} hz");
                 ImGui.Text($"Note: {NoteNameFromFrequency(pulse2Hz)} {OctaveFromFrequency(pulse2Hz)} {(pulse2CentsOff < 0 ? "" : "+") + pulse2CentsOff}");
 
-                ImGui.Separator();
+                ImGuiColumnSeparator();
 
                 ImGui.Text("Wave");
                 float waveHz = Gba.GbaAudio.GbAudio.wave_getFrequencyHz();
@@ -1681,14 +1716,42 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Pitch: {waveHz} hz");
                 ImGui.Text($"Note: {NoteNameFromFrequency(waveHz)} {OctaveFromFrequency(waveHz)} {(waveCentsOff < 0 ? "" : "+") + waveCentsOff}");
 
-                ImGui.Separator();
+                ImGuiColumnSeparator();
 
                 ImGui.Text("Noise");
 
                 long noiseHz = 524288 / NoiseDivisors[gbAudio.noise_divisorCode] / 2 ^ (gbAudio.noise_shiftClockFrequency + 1);
                 bool noiseActive = gbAudio.noise_enabled && gbAudio.noise_dacEnabled && (gbAudio.noise_outputLeft || gbAudio.noise_outputRight);
                 DrawNoiseBox(gbAudio.noise_counterStep ? GbAudio.SEVEN_BIT_NOISE : GbAudio.FIFTEEN_BIT_NOISE, 0.025f, noiseActive ? gbAudio.noise_volume / 15f : 0);
+
+                // ImGui.NextColumn();
+
+                // uint basePtr = 0x03006380;
+                // ImGui.Text("Base Pointer: " + Hex(basePtr, 8));
+
+                // ImGui.Text("ID: " + Gba.Mem.Read32(basePtr)); basePtr += 4;
+                // ImGui.Text("PCM DMA Counter: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Reverb: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Max Channels: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Master Volume: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Frequency: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+
+                // ImGui.Text("Mode: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Transpose: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+                // ImGui.Text("Transpose: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
+
+                // const uint maxChans = 12;
+                // uint soundChannelPtr = basePtr + 0x90;
+                // for (int i = 0; i < maxChans; i++)
+                // {
+                //     ImGui.Text($"Ch{i} Left Vol: " + Gba.Mem.Read8(soundChannelPtr + 2));
+                //     ImGui.Text($"Ch{i} Right Vol: " + Gba.Mem.Read8(soundChannelPtr + 3));
+                //     soundChannelPtr += 0x10;
+                // }
+
+
                 ImGui.End();
+
             }
         }
 
@@ -1715,7 +1778,7 @@ namespace OptimeGBAEmulator
 
         double FrequencyFromNote(int note)
         {
-            return Math.Pow(2, (note - 69) / 12) * 440;
+            return Math.Pow(2, (double)(note - 69) / 12) * 440;
         }
 
         string NoteNameFromFrequency(float frequency)
@@ -1738,9 +1801,15 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Scheduler"))
             {
+                // if (ImGui.Button("Pop First Event")) Gba.Scheduler.PopFirstEvent();
+                // if (ImGui.Button("Add 0")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 0, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 100")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 100, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 500")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 500, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 42069")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 42069, (long cyclesLate) => { });
+
                 ImGui.Text($"Current Ticks: {Gba.Scheduler.CurrentTicks}");
                 ImGui.Text($"Next event at: {Gba.Scheduler.NextEventTicks}");
-                ImGui.Text($"Events queued: {Gba.Scheduler.HeapSize}");
+                ImGui.Text($"Events queued: {Gba.Scheduler.EventsQueued}");
 
                 ImGui.Separator();
 
@@ -1756,16 +1825,21 @@ namespace OptimeGBAEmulator
 
                 ImGui.Separator();
 
-                for (int i = 0; i < Gba.Scheduler.HeapSize; i++)
+                SchedulerEvent evt = Gba.Scheduler.RootEvent.NextEvent;
+                int index = 0;
+                while (evt != null)
                 {
-                    var evt = Gba.Scheduler.Heap[i];
-                    ImGui.Text(i.ToString());
+                    ImGui.Text(index.ToString());
                     ImGui.NextColumn();
                     ImGui.Text((evt.Ticks - Gba.Scheduler.CurrentTicks).ToString());
                     ImGui.NextColumn();
                     ImGui.Text(Scheduler.ResolveId(evt.Id));
                     ImGui.NextColumn();
+
+                    evt = evt.NextEvent;
+                    index++;
                 }
+
                 ImGui.Columns(1);
 
                 ImGui.End();

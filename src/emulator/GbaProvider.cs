@@ -1,3 +1,5 @@
+using System.Text;
+
 public delegate void AudioCallback(short[] stereo16BitInterleavedData);
 
 namespace OptimeGBA
@@ -12,6 +14,7 @@ namespace OptimeGBA
         public AudioCallback AudioCallback;
 
         public string SavPath;
+        public string RomId;
 
         public GbaProvider(byte[] bios, byte[] rom, string savPath, AudioCallback audioCallback)
         {
@@ -19,6 +22,11 @@ namespace OptimeGBA
             Rom = rom;
             AudioCallback = audioCallback;
             SavPath = savPath;
+
+            if (rom.Length >= 0xAC + 4)
+            {
+                RomId = Encoding.ASCII.GetString(Rom, 0xAC, 4);
+            }
         }
     }
 }

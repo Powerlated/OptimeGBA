@@ -101,8 +101,8 @@ namespace OptimeGBA
 
         // SOUNDCNT_H
         uint SoundVolume = 0; // 0-1
-        bool DmaSoundAVolume = false; // 2
-        bool DmaSoundBVolume = false; // 3
+        byte DmaSoundAVolume = 0; // 2
+        byte DmaSoundBVolume = 0; // 3
 
         bool DmaSoundAEnableRight = false; // 8
         bool DmaSoundAEnableLeft = false; // 9
@@ -116,15 +116,13 @@ namespace OptimeGBA
 
         public byte ReadHwio8(uint addr)
         {
-
-
             byte val = 0;
             switch (addr)
             {
                 case 0x4000082: // SOUNDCNT_H B0
                     val |= (byte)((SoundVolume >> 0) & 0b11); // 0-1
-                    if (DmaSoundAVolume) val = BitSet(val, 2); // 2
-                    if (DmaSoundBVolume) val = BitSet(val, 3); // 3
+                    val |= (byte)(DmaSoundAVolume << 2); // 2
+                    val |= (byte)(DmaSoundBVolume << 3); // 3
                     break;
                 case 0x4000083: // SOUNDCNT_H B1
                     if (DmaSoundAEnableRight) val = BitSet(val, 8 - 8); // 8
@@ -183,8 +181,8 @@ namespace OptimeGBA
             {
                 case 0x4000082: // SOUNDCNT_H B0
                     SoundVolume = (uint)(val & 0b11); // 0-1
-                    DmaSoundAVolume = BitTest(val, 2); // 2
-                    DmaSoundBVolume = BitTest(val, 3); // 3
+                    DmaSoundAVolume = (byte)((val >> 2) & 1); // 2
+                    DmaSoundBVolume = (byte)((val >> 3) & 1); // 3
                     break;
                 case 0x4000083: // SOUNDCNT_H B1
                     DmaSoundAEnableRight = BitTest(val, 8 - 8); // 8
@@ -316,7 +314,7 @@ namespace OptimeGBA
             PreviousValueA = CurrentValueA;
             IntervalA = Gba.Timers.T[timerId].Interval;
 
-            CurrentValueA = (short)((sbyte)A.Pop() * (DmaSoundAVolume ? 2 : 1));
+            CurrentValueA = (short)((sbyte)A.Pop() << DmaSoundAVolume);
             if (A.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoA();
@@ -328,7 +326,7 @@ namespace OptimeGBA
             PreviousValueB = CurrentValueB;
             IntervalB = Gba.Timers.T[timerId].Interval;
 
-            CurrentValueB = (short)((sbyte)B.Pop() * (DmaSoundBVolume ? 2 : 1));
+            CurrentValueB = (short)((sbyte)B.Pop() << DmaSoundBVolume);
             if (B.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoB();
