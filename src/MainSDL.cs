@@ -417,9 +417,9 @@ namespace OptimeGBAEmulator
                     {
                         System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
                     }
-                    catch
+                    catch (Exception e)
                     {
-                        Console.WriteLine("Failed to write .sav file!");
+                        Console.WriteLine($"Failed to write .sav file! ({e.Message})");
                     }
                 }
 
