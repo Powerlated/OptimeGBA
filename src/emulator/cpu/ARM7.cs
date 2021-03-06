@@ -436,41 +436,25 @@ namespace OptimeGBA
                 // LineDebug($"Rn: R{rn}");
                 // LineDebug($"Rd: R{rd}");
 
-                switch (opcode)
+                return opcode switch
                 {
-                    case 0x0: // AND
-                        return Arm.DataAND;
-                    case 0x1: // EOR
-                        return Arm.DataEOR;
-                    case 0x2: // SUB
-                        return Arm.DataSUB;
-                    case 0x3: // RSB
-                        return Arm.DataRSB;
-                    case 0x4: // ADD
-                        return Arm.DataADD;
-                    case 0x5: // ADC
-                        return Arm.DataADC;
-                    case 0x6: // SBC
-                        return Arm.DataSBC;
-                    case 0x7: // RSC
-                        return Arm.DataRSC;
-                    case 0x8: // TST
-                        return Arm.DataTST;
-                    case 0x9: // TEQ
-                        return Arm.DataTEQ;
-                    case 0xA: // CMP
-                        return Arm.DataCMP;
-                    case 0xB: // CMN
-                        return Arm.DataCMN;
-                    case 0xC: // ORR
-                        return Arm.DataORR;
-                    case 0xD: // MOV
-                        return Arm.DataMOV;
-                    case 0xE: // BIC
-                        return Arm.DataBIC;
-                    case 0xF: // MVN
-                        return Arm.DataMVN;
-                }
+                    0x0 => Arm.DataAND, // AND
+                    0x1 => Arm.DataEOR, // EOR
+                    0x2 => Arm.DataSUB, // SUB
+                    0x3 => Arm.DataRSB, // RSB
+                    0x4 => Arm.DataADD, // ADD
+                    0x5 => Arm.DataADC, // ADC
+                    0x6 => Arm.DataSBC, // SBC
+                    0x7 => Arm.DataRSC, // RSC
+                    0x8 => Arm.DataTST, // TST
+                    0x9 => Arm.DataTEQ, // TEQ
+                    0xA => Arm.DataCMP, // CMP
+                    0xB => Arm.DataCMN, // CMN
+                    0xC => Arm.DataORR, // ORR
+                    0xD => Arm.DataMOV, // MOV
+                    0xE => Arm.DataBIC, // BIC
+                    0xF => Arm.DataMVN // MVN
+                };
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
@@ -522,94 +506,57 @@ namespace OptimeGBA
                             case 0b10: // ASR (1)
                                 return Thumb.ImmShiftASR;
                             case 0b11: // Add/subtract/compare/move immediate
+                                return ((ins >> 9) & 0b11) switch
                                 {
-                                    switch ((ins >> 9) & 0b11)
-                                    {
-                                        case 0b00: // ADD (3)
-                                            return Thumb.ImmAluADD1;
-                                        case 0b01: // SUB (3)
-                                            return Thumb.ImmAluSUB1;
-                                        case 0b10: // ADD (1) // MOV (2)
-                                            return Thumb.ImmAluADD2;
-                                        case 0b11: // SUB (1)
-                                            return Thumb.ImmAluSUB2;
-                                    }
-                                }
-                                break;
+                                    0b00 => Thumb.ImmAluADD1, // ADD (3)
+                                    0b01 => Thumb.ImmAluSUB1, // SUB (3)
+                                    0b10 => Thumb.ImmAluADD2, // ADD (1) // MOV (2)
+                                    0b11 => Thumb.ImmAluSUB2 // SUB (1)
+                                };
                         }
                     }
                     break;
                 case 0b001: // Add/subtract/compare/move immediate
+                    return ((ins >> 11) & 0b11) switch
                     {
-
-                        switch ((ins >> 11) & 0b11)
-                        {
-                            case 0b00: // MOV (1)
-                                return Thumb.MovImmediate;
-                            case 0b01: // CMP (1)
-                                return Thumb.CmpImmediate;
-                            case 0b10: // ADD (2)
-                                return Thumb.AddImmediate;
-                            case 0b11: // SUB (2)
-                                return Thumb.SubImmediate;
-                        }
-                    }
-                    break;
+                        0b00 => Thumb.MovImmediate, // MOV (1)
+                        0b01 => Thumb.CmpImmediate, // CMP (1)
+                        0b10 => Thumb.AddImmediate, // ADD (2)
+                        0b11 => Thumb.SubImmediate // SUB (2)
+                    };
                 case 0b010:
                     {
                         if ((ins & 0b1111110000000000) == 0b0100000000000000) // Data Processing
                         {
-
-                            uint opcode = (uint)((ins >> 6) & 0xFU);
-                            switch (opcode)
+                            return ((uint)((ins >> 6) & 0xFU)) switch // opcode
                             {
-                                case 0x0: // AND
-                                    return Thumb.DataAND;
-                                case 0x1: // EOR
-                                    return Thumb.DataEOR;
-                                case 0x2: // LSL (2)
-                                    return Thumb.DataLSL;
-                                case 0x3: // LSR (2)
-                                    return Thumb.DataLSR;
-                                case 0x4: // ASR (2)
-                                    return Thumb.DataASR;
-                                case 0x5: // ADC
-                                    return Thumb.DataADC;
-                                case 0x6: // SBC
-                                    return Thumb.DataSBC;
-                                case 0x7: // ROR
-                                    return Thumb.DataROR;
-                                case 0x8: // TST
-                                    return Thumb.DataTST;
-                                case 0x9: // NEG / RSB
-                                    return Thumb.DataNEG;
-                                case 0xA: // CMP (2)
-                                    return Thumb.DataCMP;
-                                case 0xB:  // CMN
-                                    return Thumb.DataCMN;
-                                case 0xC: // ORR
-                                    return Thumb.DataORR;
-                                case 0xD: // MUL
-                                    return Thumb.DataMUL;
-                                case 0xE: // BIC
-                                    return Thumb.DataBIC;
-                                case 0xF: // MVN
-                                    return Thumb.DataMVN;
-                            }
+                                0x0 => Thumb.DataAND, // AND
+                                0x1 => Thumb.DataEOR, // EOR
+                                0x2 => Thumb.DataLSL, // LSL (2)
+                                0x3 => Thumb.DataLSR, // LSR (2)
+                                0x4 => Thumb.DataASR, // ASR (2)
+                                0x5 => Thumb.DataADC, // ADC
+                                0x6 => Thumb.DataSBC, // SBC
+                                0x7 => Thumb.DataROR, // ROR
+                                0x8 => Thumb.DataTST, // TST
+                                0x9 => Thumb.DataTST, // NEG / RSB (wrong value returned?)
+                                0xA => Thumb.DataCMP, // CMP (2)
+                                0xB => Thumb.DataCMN, // CMN
+                                0xC => Thumb.DataORR, // ORR
+                                0xD => Thumb.DataMUL, // MUL
+                                0xE => Thumb.DataBIC, // BIC
+                                0xF => Thumb.DataMVN // MVN
+                            };
                         }
                         else if ((ins & 0b1111110000000000) == 0b0100010000000000) // Special Data Processing / Branch-exchange instruction set
                         {
-                            switch ((ins >> 8) & 0b11)
+                            return ((ins >> 8) & 0b11) switch
                             {
-                                case 0b00: // ADD (4)
-                                    return Thumb.SpecialDataADD;
-                                case 0b01: // CMP (3)
-                                    return Thumb.SpecialDataCMP;
-                                case 0b10:// MOV (3)
-                                    return Thumb.SpecialDataMOV;
-                                case 0b11: // BX
-                                    return Thumb.SpecialDataBX;
-                            }
+                                0b00 => Thumb.SpecialDataADD, // ADD (4)
+                                0b01 => Thumb.SpecialDataCMP, // CMP (3)
+                                0b10 => Thumb.SpecialDataMOV, // MOV (3)
+                                0b11 => Thumb.SpecialDataBX // BX
+                            };
                         }
                         else if ((ins & 0b1111100000000000) == 0b0100100000000000) // LDR (3) - Load from literal pool
                         {
@@ -617,50 +564,35 @@ namespace OptimeGBA
                         }
                         else if ((ins & 0b1111000000000000) == 0b0101000000000000) // Load/store register offset
                         {
+                            // Remove unused variables?
                             uint rd = (uint)((ins >> 0) & 0b111);
                             uint rn = (uint)((ins >> 3) & 0b111);
                             uint rm = (uint)((ins >> 6) & 0b111);
 
-                            switch ((ins >> 9) & 0b111)
+                            return ((ins >> 9) & 0b111) switch
                             {
-                                case 0b000: // STR (2)
-                                    return Thumb.RegOffsSTR;
-                                case 0b001: // STRH (2)
-                                    return Thumb.RegOffsSTRH;
-                                case 0b010: // STRB (2)
-                                    return Thumb.RegOffsSTRB;
-                                case 0b011: // LDRSB
-                                    return Thumb.RegOffsLDRSB;
-                                case 0b100: // LDR (2)
-                                    return Thumb.RegOffsLDR;
-                                case 0b101: // LDRH (2)
-                                    return Thumb.RegOffsLDRH;
-                                case 0b110: // LDRB (2)
-                                    return Thumb.RegOffsLDRB;
-                                case 0b111: // LDRSH
-                                    return Thumb.RegOffsLDRSH;
+                                0b000 => Thumb.RegOffsSTR, // STR (2)
+                                0b001 => Thumb.RegOffsSTRH, // STRH (2)
+                                0b010 => Thumb.RegOffsSTRB, // STRB (2)
+                                0b011 => Thumb.RegOffsLDRSB, // LDRSB
+                                0b100 => Thumb.RegOffsLDR, // LDR (2)
+                                0b101 => Thumb.RegOffsLDRH, // LDRH (2)
+                                0b110 => Thumb.RegOffsLDRB, // LDRB (2)
+                                0b111 => Thumb.RegOffsLDRSH, // LDRSH
                                     // default:
                                     //     Error("Load/store register offset invalid opcode");
-                            }
+                            };
                         }
                     }
                     break;
                 case 0b011: // Load/store word/byte immediate offset
+                    return ((ins >> 11) & 0b11) switch
                     {
-
-                        switch ((ins >> 11) & 0b11)
-                        {
-                            case 0b01: // LDR (1)
-                                return Thumb.ImmOffsLDR;
-                            case 0b00: // STR (1)
-                                return Thumb.ImmOffsSTR;
-                            case 0b10: // STRB (1)
-                                return Thumb.ImmOffsSTRB;
-                            case 0b11: // LDRB (1)
-                                return Thumb.ImmOffsLDRB;
-                        }
-                    }
-                    break;
+                        0b01 => Thumb.ImmOffsLDR, // LDR (1)
+                        0b00 => Thumb.ImmOffsSTR, // STR (1)
+                        0b10 => Thumb.ImmOffsSTRB, // STRB (1)
+                        0b11 => Thumb.ImmOffsLDRB // LDRB (1)
+                    };
                 case 0b100:
                     {
                         if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
@@ -774,42 +706,32 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CheckCondition(uint code)
         {
-            switch (code)
+            bool? result = code switch
             {
-                case 0x0: // Zero, Equal, Z=1
-                    return Zero;
-                case 0x1: // Nonzero, Not Equal, Z=0
-                    return !Zero;
-                case 0x2: // Unsigned higher or same, C=1
-                    return Carry;
-                case 0x3: // Unsigned lower, C=0
-                    return !Carry;
-                case 0x4: // Signed Negative, Minus, N=1
-                    return Negative;
-                case 0x5: // Signed Positive or Zero, Plus, N=0
-                    return !Negative;
-                case 0x6: // Signed Overflow, V=1
-                    return Overflow;
-                case 0x7: // Signed No Overflow, V=0
-                    return !Overflow;
-                case 0x8: // Unsigned Higher, C=1 && Z=0
-                    return Carry && !Zero;
-                case 0x9: // Unsigned Lower or Same
-                    return !Carry || Zero;
-                case 0xA: // Signed Greater or Equal
-                    return Negative == Overflow;
-                case 0xB: // Signed Less Than
-                    return Negative != Overflow;
-                case 0xC: // Signed Greater Than
-                    return !Zero && Negative == Overflow;
-                case 0xD: // Signed less or Equal, Z=1 or N!=V
-                    return Zero || (Negative != Overflow);
-                case 0xE: // Always
-                    return true;
-                default:
-                    Error($"Invalid condition? {Util.Hex(code, 1)}");
-                    return false;
+                0x0 => Zero, // Zero, Equal, Z=1
+                0x1 => !Zero, // Nonzero, Not Equal, Z=0
+                0x2 => Carry, // Unsigned higher or same, C=1
+                0x3 => !Carry, // Unsigned lower, C=0
+                0x4 => Negative, // Signed Negative, Minus, N=1
+                0x5 => !Negative, // Signed Positive or Zero, Plus, N=0
+                0x6 =>  Overflow, // Signed Overflow, V=1
+                0x7 => !Overflow, // Signed No Overflow, V=0
+                0x8 => Carry && !Zero, // Unsigned Higher, C=1 && Z=0
+                0x9 => !Carry || Zero, // Unsigned Lower or Same
+                0xA => Negative == Overflow, // Signed Greater or Equal
+                0xB => Negative != Overflow, // Signed Less Than
+                0xC => !Zero && Negative == Overflow, // Signed Greater Than
+                0xD => Zero || (Negative != Overflow), // Signed less or Equal, Z=1 or N!=V
+                0xE => true, // Always
+                _ => null // Default case
+            };
+
+            if (result is null)
+            {
+                Error($"Invalid condition? {Util.Hex(code, 1)}");
             }
+
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
