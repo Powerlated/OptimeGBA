@@ -385,8 +385,7 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB
             {
-                bool useByte = BitTest(ins, 22);
-                if (useByte)
+                if (BitTest(ins, 22)) // use byte
                 {
                     return Arm.SWPB;
                 }
@@ -436,7 +435,7 @@ namespace OptimeGBA
                 // LineDebug($"Rn: R{rn}");
                 // LineDebug($"Rd: R{rd}");
 
-                return opcode switch
+                return ((ins >> 21) & 0xF) switch // opcode
                 {
                     0x0 => Arm.DataAND, // AND
                     0x1 => Arm.DataEOR, // EOR
@@ -459,8 +458,7 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
             {
-                bool L = BitTest(ins, 20);
-                if (L)
+                if (BitTest(ins, 20))
                 {
                     return Arm.RegularLDR;
                 }
@@ -472,9 +470,7 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1110000000000000000000000000) == 0b1000000000000000000000000000) // LDM / STM
             {
-                bool L = BitTest(ins, 20); // Load vs Store
-
-                if (L)
+                if (BitTest(ins, 20)) // Load vs Store
                 {
                     return Arm.LDM;
                 }
@@ -597,8 +593,7 @@ namespace OptimeGBA
                     {
                         if ((ins & 0b1111000000000000) == 0b1000000000000000) // STRH (1) / LDRH (1) - Load/Store Halfword Immediate Offset
                         {
-                            bool load = BitTest(ins, 11);
-                            if (load)
+                            if (BitTest(ins, 11)) // load
                             {
                                 return Thumb.ImmLDRH;
                             }
