@@ -49,14 +49,10 @@ namespace OptimeGBA
         {
             byte bitIndex = (byte)(Addr & 7);
             uint index = Addr >> 3;
-            if (bit)
-            {
-                EEPROM[index] = BitSet(EEPROM[index], bitIndex);
-            }
-            else
-            {
-                EEPROM[index] = BitClear(EEPROM[index], bitIndex);
-            }
+
+            EEPROM[index] = bit ?
+                BitSet(EEPROM[index], bitIndex) :
+                BitClear(EEPROM[index], bitIndex);
         }
 
         public override byte Read8(uint addr)

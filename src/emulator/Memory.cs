@@ -168,8 +168,7 @@ namespace OptimeGBA
 
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
-                        uint count;
-                        HwioReadLog.TryGetValue(addr, out count);
+                        HwioReadLog.TryGetValue(addr, out uint count);
                         HwioReadLog[addr] = count + 1;
                     }
 
@@ -507,8 +506,7 @@ namespace OptimeGBA
 
                     if (LogHwioAccesses && (addr & ~1) != 0)
                     {
-                        uint count;
-                        HwioWriteLog.TryGetValue(addr, out count);
+                        HwioWriteLog.TryGetValue(addr, out uint count);
                         HwioWriteLog[addr] = count + 1;
                     }
 

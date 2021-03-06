@@ -49,52 +49,22 @@ namespace OptimeGBA
 
         public uint DMACNT_H;
 
-        public byte ReadHwio8(uint addr)
+        public byte ReadHwio8(uint addr) => addr switch
         {
-            byte val = 0;
-            switch (addr)
-            {
-                case 0x00: // DMASAD B0
-                    val = 0; // Write only
-                    break;
-                case 0x01: // DMASAD B1
-                    val = 0; // Write only
-                    break;
-                case 0x02: // DMASAD B2
-                    val = 0; // Write only
-                    break;
-                case 0x03: // DMASAD B3
-                    val = 0; // Write only
-                    break;
-
-                case 0x04: // DMADAD B0
-                    val = 0; // Write only
-                    break;
-                case 0x05: // DMADAD B1
-                    val = 0; // Write only
-                    break;
-                case 0x06: // DMADAD B2
-                    val = 0; // Write only
-                    break;
-                case 0x07: // DMADAD B3
-                    val = 0; // Write only
-                    break;
-
-                case 0x08: // DMACNT_L B0
-                    val = 0; // Write only
-                    break;
-                case 0x09: // DMACNT_L B1
-                    val = 0; // Write only
-                    break;
-                case 0x0A: // DMACNT_H B0
-                    val |= (byte)(GetControl() >> 0);
-                    break;
-                case 0x0B: // DMACNT_H B1
-                    val |= (byte)(GetControl() >> 8);
-                    break;
-            }
-            return val;
-        }
+            0x00 or // DMASAD B0
+            0x01 or // DMASAD B1
+            0x02 or // DMASAD B2
+            0x03 or // DMASAD B3
+            0x04 or // DMADAD B0
+            0x05 or // DMADAD B1
+            0x06 or // DMADAD B2
+            0x07 or // DMADAD B3
+            0x08 or // DMACNT_L B0
+            0x09 // DMACNT_L B1
+            => 0, // Write only
+            0x0A => (byte)(GetControl() >> 0), // DMACNT_H B0
+            0x0B => (byte)(GetControl() >> 8)
+        };
 
         public void WriteHwio8(uint addr, byte val)
         {
@@ -234,19 +204,19 @@ namespace OptimeGBA
 
         public byte ReadHwio8(uint addr)
         {
-            if (addr >= 0x40000B0 && addr <= 0x40000BB)
+            if (addr is >= 0x40000B0 and <= 0x40000BB)
             {
                 return Ch[0].ReadHwio8(addr - 0x40000B0);
             }
-            else if (addr >= 0x40000BC && addr <= 0x40000C7)
+            else if (addr is 0x40000BC and <= 0x40000C7)
             {
                 return Ch[1].ReadHwio8(addr - 0x40000BC);
             }
-            else if (addr >= 0x40000C8 && addr <= 0x40000D3)
+            else if (addr is >= 0x40000C8 and <= 0x40000D3)
             {
                 return Ch[2].ReadHwio8(addr - 0x40000C8);
             }
-            else if (addr >= 0x40000D4 && addr <= 0x40000DF)
+            else if (addr is >= 0x40000D4 and <= 0x40000DF)
             {
                 return Ch[3].ReadHwio8(addr - 0x40000D4);
             }
@@ -255,25 +225,25 @@ namespace OptimeGBA
 
         public void WriteHwio8(uint addr, byte val)
         {
-            if (addr >= 0x40000B0 && addr <= 0x40000BB)
+            if (addr is >= 0x40000B0 and <= 0x40000BB)
             {
                 Ch[0].WriteHwio8(addr - 0x40000B0, val);
                 ExecuteImmediate(0);
                 return;
             }
-            else if (addr >= 0x40000BC && addr <= 0x40000C7)
+            else if (addr is >= 0x40000BC and <= 0x40000C7)
             {
                 Ch[1].WriteHwio8(addr - 0x40000BC, val);
                 ExecuteImmediate(1);
                 return;
             }
-            else if (addr >= 0x40000C8 && addr <= 0x40000D3)
+            else if (addr is >= 0x40000C8 and <= 0x40000D3)
             {
                 Ch[2].WriteHwio8(addr - 0x40000C8, val);
                 ExecuteImmediate(2);
                 return;
             }
-            else if (addr >= 0x40000D4 && addr <= 0x40000DF)
+            else if (addr is >= 0x40000D4 and <= 0x40000DF)
             {
                 Ch[3].WriteHwio8(addr - 0x40000D4, val);
                 ExecuteImmediate(3);

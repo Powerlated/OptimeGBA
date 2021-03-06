@@ -146,8 +146,7 @@ namespace OptimeGBAEmulator
                     Marshal.Copy(streamData[frame], 0, data, streamData[0].Length);
                     SDL_UpdateTexture(iconTexture, IntPtr.Zero, data, LogoWidth * LogoBpp);
 
-                    SDL_Event evt;
-                    while (SDL_PollEvent(out evt) != 0)
+                    while (SDL_PollEvent(out SDL_Event evt) != 0)
                     {
                         switch (evt.type)
                         {
@@ -294,8 +293,7 @@ namespace OptimeGBAEmulator
 
             while (!quit)
             {
-                SDL_Event evt;
-                while (SDL_PollEvent(out evt) != 0)
+                while (SDL_PollEvent(out SDL_Event evt) != 0)
                 {
                     switch (evt.type)
                     {
@@ -419,9 +417,9 @@ namespace OptimeGBAEmulator
                     {
                         System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
                     }
-                    catch
+                    catch (Exception e)
                     {
-                        Console.WriteLine("Failed to write .sav file!");
+                        Console.WriteLine($"Failed to write .sav file! ({e.Message})");
                     }
                 }
 
@@ -499,7 +497,7 @@ namespace OptimeGBAEmulator
 
         public static byte[] ReadFully(Stream input)
         {
-            byte[] buffer = new byte[16 * 1024];
+            byte[] buffer = new byte[16384]; // 16 * 1024
             using (MemoryStream ms = new MemoryStream())
             {
                 int read;
