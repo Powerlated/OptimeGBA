@@ -182,7 +182,7 @@ namespace OptimeGBA
                     PaletteReads++;
 #endif
                     addr &= 0x3FF;
-                    return GetByte(Gba.Lcd.Palettes, addr);
+                    return GetByte(Gba.Ppu.Palettes, addr);
                 case 0x6: // PPU VRAM
 #if OPENTK_DEBUGGER
                     VramReads++;
@@ -190,7 +190,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        return GetByte(Gba.Lcd.Vram, addr);
+                        return GetByte(Gba.Ppu.Vram, addr);
                     }
                     else
                     {
@@ -201,7 +201,7 @@ namespace OptimeGBA
                     OamReads++;
 #endif
                     addr &= 0x3FF;
-                    return GetByte(Gba.Lcd.Oam, addr);
+                    return GetByte(Gba.Ppu.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -259,7 +259,7 @@ namespace OptimeGBA
                     PaletteReads += 2;
 #endif
                     addr &= 0x3FF;
-                    return GetUshort(Gba.Lcd.Palettes, addr);
+                    return GetUshort(Gba.Ppu.Palettes, addr);
                 case 0x6: // PPU VRAM
 #if OPENTK_DEBUGGER
                     VramReads += 2;
@@ -267,7 +267,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        return GetUshort(Gba.Lcd.Vram, addr);
+                        return GetUshort(Gba.Ppu.Vram, addr);
                     }
                     else
                     {
@@ -279,7 +279,7 @@ namespace OptimeGBA
                     OamReads += 2;
 #endif
                     addr &= 0x3FF;
-                    return GetUshort(Gba.Lcd.Oam, addr);
+                    return GetUshort(Gba.Ppu.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -350,7 +350,7 @@ namespace OptimeGBA
                     PaletteReads += 4;
 #endif
                     addr &= 0x3FF;
-                    return GetUint(Gba.Lcd.Palettes, addr);
+                    return GetUint(Gba.Ppu.Palettes, addr);
                 case 0x6: // PPU VRAM
 #if OPENTK_DEBUGGER
                     VramReads += 4;
@@ -358,7 +358,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        return GetUint(Gba.Lcd.Vram, addr);
+                        return GetUint(Gba.Ppu.Vram, addr);
                     }
                     else
                     {
@@ -369,7 +369,7 @@ namespace OptimeGBA
                     OamReads += 4;
 #endif
                     addr &= 0x3FF;
-                    return GetUint(Gba.Lcd.Oam, addr);
+                    return GetUint(Gba.Ppu.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -428,7 +428,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        return GetByte(Gba.Lcd.Vram, addr);
+                        return GetByte(Gba.Ppu.Vram, addr);
                     }
                     else
                     {
@@ -436,7 +436,7 @@ namespace OptimeGBA
                     }
                 case 0x7: // PPU OAM
                     addr &= 0x3FF;
-                    return GetByte(Gba.Lcd.Oam, addr);
+                    return GetByte(Gba.Ppu.Oam, addr);
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
                 case 0xA: // Game Pak ROM/FlashROM 
@@ -580,10 +580,10 @@ namespace OptimeGBA
                     PaletteWrites += 2;
 #endif
                     addr &= 0x3FF;
-                    if (GetUshort(Gba.Lcd.Palettes, addr) != val)
+                    if (GetUshort(Gba.Ppu.Palettes, addr) != val)
                     {
-                        SetUshort(Gba.Lcd.Palettes, addr, val);
-                        Gba.Lcd.UpdatePalette((addr & ~1u) / 2);
+                        SetUshort(Gba.Ppu.Palettes, addr, val);
+                        Gba.Ppu.UpdatePalette((addr & ~1u) / 2);
                     }
                     return;
                 case 0x6: // PPU VRAM
@@ -593,7 +593,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        SetUshort(Gba.Lcd.Vram, addr, val);
+                        SetUshort(Gba.Ppu.Vram, addr, val);
                     }
                     return;
                 case 0x7: // PPU OAM
@@ -601,7 +601,7 @@ namespace OptimeGBA
                     OamWrites += 2;
 #endif
                     addr &= 0x3FF;
-                    SetUshort(Gba.Lcd.Oam, addr, val);
+                    SetUshort(Gba.Ppu.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -666,11 +666,11 @@ namespace OptimeGBA
                     PaletteWrites += 4;
 #endif
                     addr &= 0x3FF;
-                    if (GetUint(Gba.Lcd.Palettes, addr) != val)
+                    if (GetUint(Gba.Ppu.Palettes, addr) != val)
                     {
-                        SetUint(Gba.Lcd.Palettes, addr, val);
-                        Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 0);
-                        Gba.Lcd.UpdatePalette((addr & ~3u) / 2 + 1);
+                        SetUint(Gba.Ppu.Palettes, addr, val);
+                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 0);
+                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 1);
                     }
                     return;
                 case 0x6: // PPU VRAM
@@ -680,7 +680,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        SetUint(Gba.Lcd.Vram, addr, val);
+                        SetUint(Gba.Ppu.Vram, addr, val);
                     }
                     return;
                 case 0x7: // PPU OAM
@@ -688,7 +688,7 @@ namespace OptimeGBA
                     OamWrites += 4;
 #endif
                     addr &= 0x3FF;
-                    SetUint(Gba.Lcd.Oam, addr, val);
+                    SetUint(Gba.Ppu.Oam, addr, val);
                     return;
                 case 0x8: // Game Pak ROM/FlashROM 
                 case 0x9: // Game Pak ROM/FlashROM 
@@ -716,9 +716,9 @@ namespace OptimeGBA
 
         public byte ReadHwio8(uint addr)
         {
-            if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
+            if (addr >= 0x4000000 && addr <= 0x4000056) // PPU
             {
-                return Gba.Lcd.ReadHwio8(addr);
+                return Gba.Ppu.ReadHwio8(addr);
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A8) // Sound
             {
@@ -754,9 +754,9 @@ namespace OptimeGBA
         public void WriteHwio8(uint addr, byte val)
         {
 
-            if (addr >= 0x4000000 && addr <= 0x4000056) // LCD
+            if (addr >= 0x4000000 && addr <= 0x4000056) // PPU
             {
-                Gba.Lcd.WriteHwio8(addr, val);
+                Gba.Ppu.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000060 && addr <= 0x40000A7) // Sound
             {

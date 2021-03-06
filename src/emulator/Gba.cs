@@ -10,7 +10,7 @@ namespace OptimeGBA
         public Arm7 Arm7;
         public Memory Mem;
         public GbaAudio GbaAudio;
-        public Lcd Lcd;
+        public Ppu Ppu;
         public Dma Dma;
         public Keypad Keypad;
         public Timers Timers;
@@ -29,7 +29,7 @@ namespace OptimeGBA
 
             Mem = new Memory(this, provider);
             GbaAudio = new GbaAudio(this, Scheduler);
-            Lcd = new Lcd(this, Scheduler);
+            Ppu = new Ppu(this, Scheduler);
             Keypad = new Keypad();
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);

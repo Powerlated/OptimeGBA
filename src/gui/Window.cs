@@ -670,7 +670,7 @@ namespace OptimeGBAEmulator
                 {
                     RecordTime = true;
                     Time = 0;
-                    RecordStartFrames = Gba.Lcd.TotalFrames;
+                    RecordStartFrames = Gba.Ppu.TotalFrames;
                 }
 
                 if (ImGui.Button("Stop Time"))
@@ -800,16 +800,16 @@ namespace OptimeGBAEmulator
 
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
-                ImGui.Text($"Total Frames: {Gba.Lcd.TotalFrames}");
+                ImGui.Text($"Total Frames: {Gba.Ppu.TotalFrames}");
                 if (RecordTime)
                 {
-                    ImGui.Text($"Timed Frames: {Gba.Lcd.TotalFrames - RecordStartFrames}");
+                    ImGui.Text($"Timed Frames: {Gba.Ppu.TotalFrames - RecordStartFrames}");
                     ImGui.Text($"Timed Seconds: {Time}");
-                    ImGui.Text($"Timed FPS: {(uint)(Gba.Lcd.TotalFrames - RecordStartFrames) / Time}");
+                    ImGui.Text($"Timed FPS: {(uint)(Gba.Ppu.TotalFrames - RecordStartFrames) / Time}");
                 }
 
-                ImGui.Text($"VCOUNT: {Gba.Lcd.VCount}");
-                ImGui.Text($"Scanline Cycles: {Gba.Lcd.GetScanlineCycles()}");
+                ImGui.Text($"VCOUNT: {Gba.Ppu.VCount}");
+                ImGui.Text($"Scanline Cycles: {Gba.Ppu.GetScanlineCycles()}");
 
                 ImGuiColumnSeparator();
 
@@ -919,34 +919,34 @@ namespace OptimeGBAEmulator
                     Gba.GbaAudio.GbAudio.PsgFactor++;
                 }
 
-                ImGui.Text($"BG0 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[0].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[0].ScreenSize]}");
-                ImGui.Text($"BG0 Scroll X: {Gba.Lcd.Backgrounds[0].HorizontalOffset}");
-                ImGui.Text($"BG0 Scroll Y: {Gba.Lcd.Backgrounds[0].VerticalOffset}");
-                ImGui.Text($"BG1 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[1].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[1].ScreenSize]}");
-                ImGui.Text($"BG1 Scroll X: {Gba.Lcd.Backgrounds[1].HorizontalOffset}");
-                ImGui.Text($"BG1 Scroll Y: {Gba.Lcd.Backgrounds[1].VerticalOffset}");
-                ImGui.Text($"BG2 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Affine Size: {Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}/{Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Scroll X: {Gba.Lcd.Backgrounds[2].HorizontalOffset}");
-                ImGui.Text($"BG2 Scroll Y: {Gba.Lcd.Backgrounds[2].VerticalOffset}");
-                ImGui.Text($"BG3 Size X/Y: {Lcd.CharWidthTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{Lcd.CharHeightTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Affine Size: {Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}/{Lcd.AffineSizeTable[Gba.Lcd.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Scroll X: {Gba.Lcd.Backgrounds[3].HorizontalOffset}");
-                ImGui.Text($"BG3 Scroll Y: {Gba.Lcd.Backgrounds[3].VerticalOffset}");
-                ImGui.Checkbox("Debug BG0", ref Gba.Lcd.DebugEnableBg[0]);
-                ImGui.Checkbox("Debug BG1", ref Gba.Lcd.DebugEnableBg[1]);
-                ImGui.Checkbox("Debug BG2", ref Gba.Lcd.DebugEnableBg[2]);
-                ImGui.Checkbox("Debug BG3", ref Gba.Lcd.DebugEnableBg[3]);
-                ImGui.Checkbox("Debug OBJ", ref Gba.Lcd.DebugEnableObj);
+                ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[0].ScreenSize]}");
+                ImGui.Text($"BG0 Scroll X: {Gba.Ppu.Backgrounds[0].HorizontalOffset}");
+                ImGui.Text($"BG0 Scroll Y: {Gba.Ppu.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"BG1 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[1].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[1].ScreenSize]}");
+                ImGui.Text($"BG1 Scroll X: {Gba.Ppu.Backgrounds[1].HorizontalOffset}");
+                ImGui.Text($"BG1 Scroll Y: {Gba.Ppu.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"BG2 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Scroll X: {Gba.Ppu.Backgrounds[2].HorizontalOffset}");
+                ImGui.Text($"BG2 Scroll Y: {Gba.Ppu.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"BG3 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Scroll X: {Gba.Ppu.Backgrounds[3].HorizontalOffset}");
+                ImGui.Text($"BG3 Scroll Y: {Gba.Ppu.Backgrounds[3].VerticalOffset}");
+                ImGui.Checkbox("Debug BG0", ref Gba.Ppu.DebugEnableBg[0]);
+                ImGui.Checkbox("Debug BG1", ref Gba.Ppu.DebugEnableBg[1]);
+                ImGui.Checkbox("Debug BG2", ref Gba.Ppu.DebugEnableBg[2]);
+                ImGui.Checkbox("Debug BG3", ref Gba.Ppu.DebugEnableBg[3]);
+                ImGui.Checkbox("Debug OBJ", ref Gba.Ppu.DebugEnableObj);
 
-                ImGui.Text($"Window 0 Left..: {Gba.Lcd.Win0HLeft}");
-                ImGui.Text($"Window 0 Right.: {Gba.Lcd.Win0HRight}");
-                ImGui.Text($"Window 0 Top...: {Gba.Lcd.Win0VTop}");
-                ImGui.Text($"Window 0 Bottom: {Gba.Lcd.Win0VBottom}");
-                ImGui.Text($"Window 1 Left..: {Gba.Lcd.Win1HLeft}");
-                ImGui.Text($"Window 1 Right.: {Gba.Lcd.Win1HRight}");
-                ImGui.Text($"Window 1 Top...: {Gba.Lcd.Win1VTop}");
-                ImGui.Text($"Window 1 Bottom: {Gba.Lcd.Win1VBottom}");
+                ImGui.Text($"Window 0 Left..: {Gba.Ppu.Win0HLeft}");
+                ImGui.Text($"Window 0 Right.: {Gba.Ppu.Win0HRight}");
+                ImGui.Text($"Window 0 Top...: {Gba.Ppu.Win0VTop}");
+                ImGui.Text($"Window 0 Bottom: {Gba.Ppu.Win0VBottom}");
+                ImGui.Text($"Window 1 Left..: {Gba.Ppu.Win1HLeft}");
+                ImGui.Text($"Window 1 Right.: {Gba.Ppu.Win1HRight}");
+                ImGui.Text($"Window 1 Top...: {Gba.Ppu.Win1VTop}");
+                ImGui.Text($"Window 1 Bottom: {Gba.Ppu.Win1VBottom}");
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -955,7 +955,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Lcd.ProcessedPalettes[p];
+                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
@@ -982,7 +982,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Lcd.ProcessedPalettes[p + 256];
+                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p + 256];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
@@ -1089,9 +1089,9 @@ namespace OptimeGBAEmulator
                     PixelFormat.Rgba,
                     PixelType.UnsignedByte,
 #if UNSAFE
-                    (IntPtr)Gba.Lcd.ScreenFront
+                    (IntPtr)Gba.Ppu.ScreenFront
 #else
-                    Gba.Lcd.ScreenFront
+                    Gba.Ppu.ScreenFront
 #endif
                 );
 
@@ -1145,7 +1145,7 @@ namespace OptimeGBAEmulator
         public void SetupRegViewer()
         {
             Registers.Add(
-                new Register("DISPCNT - LCD Control", 0x4000000,
+                new Register("DISPCNT - PPU Control", 0x4000000,
                     new RegisterField("BG Mode", 0, 2),
                     new RegisterField("Reserved / CGB Mode", 3),
                     new RegisterField("Display Frame Select", 4),
@@ -1163,7 +1163,7 @@ namespace OptimeGBAEmulator
                 ));
 
             Registers.Add(
-                new Register("DISPSTAT - General LCD Status", 0x4000004,
+                new Register("DISPSTAT - General PPU Status", 0x4000004,
                     new RegisterField("V-Blank flag", 0),
                     new RegisterField("H-Blank flag", 1),
                     new RegisterField("V-Counter flag", 2),
@@ -1312,13 +1312,13 @@ namespace OptimeGBAEmulator
             {
                 Registers.Add(
                     new Register(ieIfStrings[r], ieIfAddrs[r],
-                        new RegisterField("LCD V-Blank", 0),
-                        new RegisterField("LCD H-Blank", 1),
-                        new RegisterField("LCD V-Counter Match", 2),
-                        new RegisterField("LCD Timer 0 Overflow", 3),
-                        new RegisterField("LCD Timer 1 Overflow", 4),
-                        new RegisterField("LCD Timer 2 Overflow", 5),
-                        new RegisterField("LCD Timer 3 Overflow", 6),
+                        new RegisterField("PPU V-Blank", 0),
+                        new RegisterField("PPU H-Blank", 1),
+                        new RegisterField("PPU V-Counter Match", 2),
+                        new RegisterField("PPU Timer 0 Overflow", 3),
+                        new RegisterField("PPU Timer 1 Overflow", 4),
+                        new RegisterField("PPU Timer 2 Overflow", 5),
+                        new RegisterField("PPU Timer 3 Overflow", 6),
                         new RegisterField("Serial", 7),
                         new RegisterField("DMA 0", 8),
                         new RegisterField("DMA 1", 9),

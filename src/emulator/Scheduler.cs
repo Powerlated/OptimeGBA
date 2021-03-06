@@ -8,7 +8,7 @@ namespace OptimeGBA
     {
         None = 255,
         RootNode = 254,
-        Lcd = 0,
+        Ppu = 0,
         ApuSample = 1,
         Timer0 = 2,
         Timer1 = 3,
@@ -79,7 +79,7 @@ namespace OptimeGBA
             switch (id)
             {
                 case SchedulerId.None: return "None";
-                case SchedulerId.Lcd: return "LCD Event";
+                case SchedulerId.Ppu: return "PPU Event";
                 case SchedulerId.ApuSample: return "APU Sample";
                 case SchedulerId.Timer0: return "Timer 0 Overflow";
                 case SchedulerId.Timer1: return "Timer 1 Overflow";
