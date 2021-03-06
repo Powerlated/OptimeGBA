@@ -146,8 +146,7 @@ namespace OptimeGBAEmulator
                     Marshal.Copy(streamData[frame], 0, data, streamData[0].Length);
                     SDL_UpdateTexture(iconTexture, IntPtr.Zero, data, LogoWidth * LogoBpp);
 
-                    SDL_Event evt;
-                    while (SDL_PollEvent(out evt) != 0)
+                    while (SDL_PollEvent(out SDL_Event evt) != 0)
                     {
                         switch (evt.type)
                         {
@@ -294,8 +293,7 @@ namespace OptimeGBAEmulator
 
             while (!quit)
             {
-                SDL_Event evt;
-                while (SDL_PollEvent(out evt) != 0)
+                while (SDL_PollEvent(out SDL_Event evt) != 0)
                 {
                     switch (evt.type)
                     {
