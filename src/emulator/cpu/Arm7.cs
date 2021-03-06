@@ -737,7 +737,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetUserReg(uint reg)
         {
-            if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)
+            if (Mode is Arm7Mode.User or Arm7Mode.OldUser or Arm7Mode.System)
             {
                 throw new Exception("GetUserReg() called in User or System mode");
             }
