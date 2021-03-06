@@ -237,13 +237,13 @@ namespace OptimeGBA
                 ExecuteImmediate(1);
                 return;
             }
-            else if (addr >= 0x40000C8 && addr <= 0x40000D3)
+            else if (addr is >= 0x40000C8 and <= 0x40000D3)
             {
                 Ch[2].WriteHwio8(addr - 0x40000C8, val);
                 ExecuteImmediate(2);
                 return;
             }
-            else if (addr >= 0x40000D4 && addr <= 0x40000DF)
+            else if (addr is >= 0x40000D4 and <= 0x40000DF)
             {
                 Ch[3].WriteHwio8(addr - 0x40000D4, val);
                 ExecuteImmediate(3);
