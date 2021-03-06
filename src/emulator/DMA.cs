@@ -55,34 +55,14 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x00: // DMASAD B0
-                    val = 0; // Write only
-                    break;
                 case 0x01: // DMASAD B1
-                    val = 0; // Write only
-                    break;
                 case 0x02: // DMASAD B2
-                    val = 0; // Write only
-                    break;
                 case 0x03: // DMASAD B3
-                    val = 0; // Write only
-                    break;
-
                 case 0x04: // DMADAD B0
-                    val = 0; // Write only
-                    break;
                 case 0x05: // DMADAD B1
-                    val = 0; // Write only
-                    break;
                 case 0x06: // DMADAD B2
-                    val = 0; // Write only
-                    break;
                 case 0x07: // DMADAD B3
-                    val = 0; // Write only
-                    break;
-
                 case 0x08: // DMACNT_L B0
-                    val = 0; // Write only
-                    break;
                 case 0x09: // DMACNT_L B1
                     val = 0; // Write only
                     break;
