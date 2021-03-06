@@ -840,8 +840,7 @@ namespace OptimeGBA
             if (FIQDisable) val = BitSet(val, 6);
             if (ThumbState) val = BitSet(val, 5);
 
-            val |= GetMode();
-            return val;
+            return val | GetMode();
         }
 
         public void SetCPSR(uint val)
