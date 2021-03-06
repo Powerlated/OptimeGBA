@@ -204,19 +204,19 @@ namespace OptimeGBA
 
         public byte ReadHwio8(uint addr)
         {
-            if (addr >= 0x40000B0 && addr <= 0x40000BB)
+            if (addr is >= 0x40000B0 and <= 0x40000BB)
             {
                 return Ch[0].ReadHwio8(addr - 0x40000B0);
             }
-            else if (addr >= 0x40000BC && addr <= 0x40000C7)
+            else if (addr is 0x40000BC and <= 0x40000C7)
             {
                 return Ch[1].ReadHwio8(addr - 0x40000BC);
             }
-            else if (addr >= 0x40000C8 && addr <= 0x40000D3)
+            else if (addr is >= 0x40000C8 and <= 0x40000D3)
             {
                 return Ch[2].ReadHwio8(addr - 0x40000C8);
             }
-            else if (addr >= 0x40000D4 && addr <= 0x40000DF)
+            else if (addr is >= 0x40000D4 and <= 0x40000DF)
             {
                 return Ch[3].ReadHwio8(addr - 0x40000D4);
             }
@@ -225,13 +225,13 @@ namespace OptimeGBA
 
         public void WriteHwio8(uint addr, byte val)
         {
-            if (addr >= 0x40000B0 && addr <= 0x40000BB)
+            if (addr is >= 0x40000B0 and <= 0x40000BB)
             {
                 Ch[0].WriteHwio8(addr - 0x40000B0, val);
                 ExecuteImmediate(0);
                 return;
             }
-            else if (addr >= 0x40000BC && addr <= 0x40000C7)
+            else if (addr is >= 0x40000BC and <= 0x40000C7)
             {
                 Ch[1].WriteHwio8(addr - 0x40000BC, val);
                 ExecuteImmediate(1);
