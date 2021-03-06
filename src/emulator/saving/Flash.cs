@@ -81,7 +81,7 @@ namespace OptimeGBA
         {
             if (PrepareSetBank && addr == 0xE000000)
             {
-                Bank1 = (val & 1) != 0 ? true : false;
+                Bank1 = (val & 1) != 0;
                 PrepareSetBank = false;
                 return;
             }
