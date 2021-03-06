@@ -2,7 +2,7 @@
 # Welcome to Optime GBA!
 
 <div align="center">
-<img width="360px" src="img/icon-condensed.png">
+<img width="360px" src="img/optime-gba-full.gif">
 </div>
 
 Optime GBA is a work-in-progress Game Boy Advance emulator.  
