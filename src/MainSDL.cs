@@ -497,7 +497,7 @@ namespace OptimeGBAEmulator
 
         public static byte[] ReadFully(Stream input)
         {
-            byte[] buffer = new byte[16 * 1024];
+            byte[] buffer = new byte[16384]; // 16 * 1024
             using (MemoryStream ms = new MemoryStream())
             {
                 int read;
