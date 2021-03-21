@@ -164,8 +164,6 @@ namespace OptimeGBA
             {
                 BiosInit();
             }
-
-            FillPipelineArm();
         }
 
         public void BiosInit()
