@@ -8,7 +8,7 @@
 Optime GBA is a work-in-progress Game Boy Advance emulator.  
 
 I aim to develop Optime GBA to the point where it can run most popular games with decent performance.
-So far, optimization is somewhat lackluster, only managing around 250 frames
+So far, optimization is somewhat lackluster, only managing around 400 frames
 per second in Pokémon Emerald on a high-end machine.
 
 ## Current Progress
@@ -61,7 +61,7 @@ As graphics are under construction, screenshots below likely contain errors.
 
 ## Running
 
-For building and using Optime GBA, .NET Core 3.1 is recommended. 
+For building and using Optime GBA, .NET 5 is recommended. 
 
 A compatible Game Boy Advance BIOS image is required to run the emulator. Place the BIOS in the emulator working directory (the root of the repository when using `dotnet run`) named as `gba_bios.bin`. 
 
