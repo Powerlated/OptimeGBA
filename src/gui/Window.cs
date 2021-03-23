@@ -161,10 +161,10 @@ namespace OptimeGBAEmulator
         public Game(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
         {
             // Init SDL
-            byte[] bios = System.IO.File.ReadAllBytes("roms/GBA.BIOS");
+            byte[] bios = System.IO.File.ReadAllBytes("gba_bios.bin");
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
-            Gba = new Gba(new GbaProvider(bios, new byte[0], "", AudioReady));
-            LoadRomFromPath("roms/Pokemon - FireRed Version (USA).gba");
+            Gba = new Gba(new GbaProvider(bios, new byte[0], "", AudioReady) { BootBios = true });
+            LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.gba");
 
             SearchForRoms();
 
@@ -448,7 +448,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text($"{Util.HexN(tempBase, 8)}:");
                     for (int j = 0; j < cols; j++)
                     {
-                        uint val = Gba.Mem.ReadDebug8(tempBase);
+                        uint val = Gba.Mem.Read8(tempBase);
 
                         ImGui.SameLine();
                         ImGui.Selectable($"{HexN(val, 2)}");
@@ -773,21 +773,21 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("FIQ Disable", ref FIQDisable);
                 ImGui.Checkbox("Thumb State", ref ThumbState);
 
-                ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
-                ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
-                ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
-                ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
-                ImGui.Text($"HWIO Reads: {Gba.Mem.HwioReads}");
-                ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
-                ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
-                ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
+                // ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
+                // ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
+                // ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
+                // ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
+                // ImGui.Text($"HWIO Reads: {Gba.Mem.HwioReads}");
+                // ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
+                // ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
+                // ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
                 ImGui.Text("");
-                ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
-                ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
-                ImGui.Text($"HWIO Writes: {Gba.Mem.HwioWrites}");
-                ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
-                ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
-                ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
+                // ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
+                // ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
+                // ImGui.Text($"HWIO Writes: {Gba.Mem.HwioWrites}");
+                // ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
+                // ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
+                // ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
                 ImGui.Text("");
                 bool ticked = Gba.HwControl.IME;
                 ImGui.Checkbox("IME", ref ticked);
@@ -795,6 +795,7 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("Log HWIO", ref Gba.Mem.LogHwioAccesses);
                 ImGui.Checkbox("Boot BIOS", ref Gba.Provider.BootBios);
                 ImGui.Checkbox("Big Screen", ref BigScreen);
+                ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
 
                 ImGui.NextColumn();
 
@@ -1036,7 +1037,7 @@ namespace OptimeGBAEmulator
                 {
                     if (Gba.Arm7.ThumbState)
                     {
-                        ushort val = Gba.Mem.ReadDebug16(tempBase);
+                        ushort val = Gba.Mem.Read16(tempBase);
                         String disasm = DisasmThumb(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
@@ -1052,7 +1053,7 @@ namespace OptimeGBAEmulator
                     }
                     else
                     {
-                        uint val = Gba.Mem.ReadDebug32(tempBase);
+                        uint val = Gba.Mem.Read32(tempBase);
                         String disasm = DisasmArm(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
@@ -1071,6 +1072,7 @@ namespace OptimeGBAEmulator
         }
 
         public bool BigScreen = false;
+        public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
         {
             if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
@@ -1079,7 +1081,9 @@ namespace OptimeGBAEmulator
 
                 // GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-                GL.TexImage2D(
+                if (!ShowBackBuf)
+                {
+                    GL.TexImage2D(
                     TextureTarget.Texture2D,
                     0,
                     PixelInternalFormat.Rgba,
@@ -1095,6 +1099,25 @@ namespace OptimeGBAEmulator
 #endif
                 );
 
+                }
+                else
+                {
+                    GL.TexImage2D(
+                    TextureTarget.Texture2D,
+                    0,
+                    PixelInternalFormat.Rgba,
+                    240,
+                    160,
+                    0,
+                    PixelFormat.Rgba,
+                    PixelType.UnsignedByte,
+#if UNSAFE
+                    (IntPtr)Gba.Ppu.ScreenBack
+#else
+                    Gba.Ppu.ScreenBack
+#endif
+                    );
+                }
 
                 float height = BigScreen ? 240 * 5 : 240 * 2;
                 float width = BigScreen ? 160 * 5 : 160 * 2;
@@ -1355,7 +1378,7 @@ namespace OptimeGBAEmulator
                     ImGui.EndCombo();
                 }
 
-                uint value = Gba.Mem.ReadDebug32(RegViewerSelected.Address);
+                uint value = Gba.Mem.Read32(RegViewerSelected.Address);
                 foreach (RegisterField f in RegViewerSelected.Fields)
                 {
                     if (f.Checkbox)
@@ -1505,7 +1528,7 @@ namespace OptimeGBAEmulator
                 Console.WriteLine(".sav not available");
             }
 
-            Gba = new Gba(new GbaProvider(bios, rom, savPath, audioCallback));
+            Gba = new Gba(new GbaProvider(bios, rom, savPath, audioCallback) { BootBios = true });
             Gba.Mem.SaveProvider.LoadSave(sav);
         }
 

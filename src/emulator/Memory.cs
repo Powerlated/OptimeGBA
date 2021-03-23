@@ -111,7 +111,8 @@ namespace OptimeGBA
         public byte* Iwram = Memory.AllocateUnmanagedArray(IwramSize);
 
         public byte* EmptyPage = Memory.AllocateUnmanagedArray(PageSize);
-        public byte*[] PageTable = new byte*[4194304];
+        public byte*[] PageTableRead = new byte*[4194304];
+        public byte*[] PageTableWrite = new byte*[4194304];
 
         ~Memory()
         {
@@ -127,10 +128,21 @@ namespace OptimeGBA
         public byte[] Iwram = Memory.AllocateManagedArray(IwramSize);
 
         public byte[] EmptyPage = Memory.AllocateManagedArray(PageSize);
-        public byte[][] PageTable = new byte[4194304][];
+        public byte[][] PageTableRead = new byte[4194304][];
+        public byte[][] PageTableWrite = new byte[4194304][];
 #endif
 
-        public void InitPageTable()
+        public void InitPageTables()
+        {
+            InitPageTable(PageTableRead, false);
+            InitPageTable(PageTableWrite, true);
+        }
+
+#if UNSAFE
+        public void InitPageTable(byte*[] table, bool write)
+#else
+        public void InitPageTable(byte[][] table, bool write)
+#endif
         {
             // 10 bits shaved off already, shave off another 14 to get 24
             for (uint i = 0; i < 4194304; i++)
@@ -139,28 +151,37 @@ namespace OptimeGBA
                 switch (i >> 14)
                 {
                     case 0x0: // BIOS
-                        PageTable[i] = Bios;
+                        if (!write)
+                        {
+                            table[i] = Bios;
+                        }
                         break;
                     case 0x2: // EWRAM
-                        PageTable[i] = Ewram;
+                        table[i] = Ewram;
                         break;
                     case 0x3: // IWRAM
-                        PageTable[i] = Iwram;
+                        table[i] = Iwram;
+                        break;
+                    case 0x5: // Palettes
+                        if (!write)
+                        {
+                            table[i] = Gba.Ppu.Palettes;
+                        }
                         break;
                     case 0x6: // PPU VRAM
                         addr &= 0x1FFFF;
                         if (addr < 0x18000)
                         {
-                            PageTable[i] = Gba.Ppu.Vram;
+                            table[i] = Gba.Ppu.Vram;
                         }
                         else
                         {
-                            PageTable[i] = EmptyPage;
+                            table[i] = EmptyPage;
                         }
                         break;
                     case 0x7: // PPU OAM
                         addr &= 0x3FF;
-                        PageTable[i] = Gba.Ppu.Oam;
+                        table[i] = Gba.Ppu.Oam;
                         break;
                     case 0x8: // Game Pak ROM/FlashROM 
                     case 0x9: // Game Pak ROM/FlashROM 
@@ -168,11 +189,10 @@ namespace OptimeGBA
                     case 0xB: // Game Pak ROM/FlashROM 
                     case 0xC: // Game Pak ROM/FlashROM 
                     case 0xD: // Game Pak ROM/FlashROM 
-                        PageTable[i] = Rom;
-                        break;
-
-                    default:
-                        PageTable[i] = EmptyPage;
+                        if (!write)
+                        {
+                            table[i] = Rom;
+                        }
                         break;
                 }
             }
@@ -184,7 +204,7 @@ namespace OptimeGBA
             0x0003FFFF, // 0x2 - EWRAM
             0x00007FFF, // 0x3 - IWRAM
             0x00000000, // 0x4 - I/O
-            0x00000000, // 0x5 - Palettes
+            0x000003FF, // 0x5 - Palettes
             0x0001FFFF, // 0x6 - VRAM
             0x000003FF, // 0x7 - OAM
             0x01FFFFFF, // 0x8 - ROM
@@ -197,31 +217,6 @@ namespace OptimeGBA
             0x00000000, // 0xF - SRAM / FLASH
         };
 
-        public byte[] SpecialMemoryRegions = {
-            0, // 0x0 - BIOS
-            0, // 0x1 - Unused
-            0, // 0x2 - EWRAM
-            0, // 0x3 - IWRAM
-            1, // 0x4 - I/O
-            1, // 0x5 - Palettes
-            0, // 0x6 - VRAM
-            0, // 0x7 - OAM
-            0, // 0x8 - ROM
-            0, // 0x9 - ROM
-            0, // 0xA - ROM
-            0, // 0xB - ROM
-            0, // 0xC - ROM
-            0, // 0xD - ROM
-            1, // 0xE - SRAM / FLASH
-            1, // 0xF - SRAM / FLASH
-        };
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsSpecialMemory(uint addr)
-        {
-            return SpecialMemoryRegions[addr >> 24] != 0;
-        }
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint MaskAddress(uint addr)
         {
@@ -230,20 +225,30 @@ namespace OptimeGBA
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
 #if UNSAFE
-        public byte* ResolvePage(uint addr)
+        public byte* ResolvePageRead(uint addr)
 #else
-        public byte[] ResolvePage(uint addr)
+        public byte[] ResolvePageRead(uint addr)
 #endif
-
         {
-            return PageTable[addr >> 10];
+            return PageTableRead[addr >> 10];
         }
 
+#if UNSAFE
+        public byte* ResolvePageWrite(uint addr)
+#else
+        public byte[] ResolvePageWrite(uint addr)
+#endif
+        {
+            return PageTableWrite[addr >> 10];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte Read8(uint addr)
         {
-            if (!IsSpecialMemory(addr))
+            var page = ResolvePageRead(addr);
+            if (page != null)
             {
-                return GetByte(ResolvePage(addr), MaskAddress(addr));
+                return GetByte(page, MaskAddress(addr));
             }
 
             switch (addr >> 24)
@@ -259,9 +264,6 @@ namespace OptimeGBA
                     }
 
                     return ReadHwio8(addr);
-                case 0x5: // PPU Palettes
-                    addr &= 0x3FF;
-                    return GetByte(Gba.Ppu.Palettes, addr);
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     return SaveProvider.Read8(addr);
@@ -270,6 +272,7 @@ namespace OptimeGBA
             return 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
 #if DEBUG
@@ -279,33 +282,21 @@ namespace OptimeGBA
             }
 #endif
 
-            if (!IsSpecialMemory(addr))
+            var page = ResolvePageRead(addr);
+            if (page != null)
             {
-                return GetUshort(ResolvePage(addr), MaskAddress(addr));
+                return GetUshort(page, MaskAddress(addr));
             }
 
-            switch (addr >> 24)
-            {
-                case 0x4: // I/O Registers
-                    goto default;
-                case 0x5: // PPU Palettes
-                    addr &= 0x3FF;
-                    return GetUshort(Gba.Ppu.Palettes, addr);
-                case 0xE: // Game Pak SRAM/Flash
-                case 0xF: // Game Pak SRAM/Flash
-                    goto default;
+            byte f0 = Read8(addr++);
+            byte f1 = Read8(addr++);
 
-                default:
-                    byte f0 = Read8(addr++);
-                    byte f1 = Read8(addr++);
+            ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
-                    ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
-
-                    return u16;
-            }
+            return u16;
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
 #if DEBUG
@@ -315,56 +306,35 @@ namespace OptimeGBA
             }
 #endif
 
-            if (!IsSpecialMemory(addr))
+            var page = ResolvePageRead(addr);
+            if (page != null)
             {
-                return GetUint(ResolvePage(addr), MaskAddress(addr));
+                return GetUint(page, MaskAddress(addr));
             }
 
-            switch (addr >> 24)
-            {
-                case 0x4: // I/O Registers
-                    goto default;
-                case 0x5: // PPU Palettes
-                    addr &= 0x3FF;
-                    return GetUint(Gba.Ppu.Palettes, addr);
-                case 0xE: // Game Pak SRAM/Flash
-                case 0xF: // Game Pak SRAM/Flash
-                    goto default;
+            byte f0 = Read8(addr++);
+            byte f1 = Read8(addr++);
+            byte f2 = Read8(addr++);
+            byte f3 = Read8(addr++);
 
-                default:
-                    byte f0 = Read8(addr++);
-                    byte f1 = Read8(addr++);
-                    byte f2 = Read8(addr++);
-                    byte f3 = Read8(addr++);
+            uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
-                    uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
-
-                    return u32;
-            }
+            return u32;
         }
 
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
+            var page = ResolvePageWrite(addr);
+            if (page != null)
+            {
+                SetByte(page, MaskAddress(addr), val);
+                return;
+            }
+
             switch (addr >> 24)
             {
-                case 0x0: // BIOS
-                case 0x1: // Unused
-                    return;
-                case 0x2: // EWRAM
-#if OPENTK_DEBUGGER
-                    EwramWrites++;
-#endif
-                    addr &= 0x3FFFF;
-                    SetByte(Ewram, addr, val);
-                    break;
-                case 0x3: // IWRAM
-#if OPENTK_DEBUGGER
-                    IwramWrites++;
-#endif
-                    addr &= 0x7FFF;
-                    SetByte(Iwram, addr, val);
-                    break;
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
 
@@ -375,30 +345,7 @@ namespace OptimeGBA
                         HwioWriteLog[addr] = count + 1;
                     }
 
-#if OPENTK_DEBUGGER
-                    HwioWrites++;
-#endif
                     WriteHwio8(addr, val);
-                    break;
-                case 0x5: // PPU Palettes
-                    // Gba.Arm7.Error("Write: Palette8");
-                    return;
-                case 0x6: // PPU VRAM
-                    return;
-                case 0x7: // PPU OAM
-                    return;
-                case 0x8: // Game Pak ROM/FlashROM 
-                case 0x9: // Game Pak ROM/FlashROM 
-                case 0xA: // Game Pak ROM/FlashROM 
-                case 0xB: // Game Pak ROM/FlashROM 
-                case 0xC: // Game Pak ROM/FlashROM 
-                case 0xD: // Game Pak ROM/FlashROM
-                    uint adjAddr = addr & 0x1FFFFFF;
-
-                    if (adjAddr >= EepromThreshold)
-                    {
-                        SaveProvider.Write8(adjAddr, val);
-                    }
                     break;
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
@@ -407,6 +354,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
 #if DEBUG
@@ -416,83 +364,34 @@ namespace OptimeGBA
             }
 #endif
 
+            var page = ResolvePageWrite(addr);
+            if (page != null)
+            {
+                SetUshort(page, MaskAddress(addr), val);
+                return;
+            }
+
             switch (addr >> 24)
             {
-                case 0x0: // BIOS
-                case 0x1: // Unused
-                    return;
-                case 0x2: // EWRAM
-#if OPENTK_DEBUGGER
-                    EwramWrites += 2;
-#endif
-                    addr &= 0x3FFFF;
-                    SetUshort(Ewram, addr, val);
-                    return;
-                case 0x3: // IWRAM
-#if OPENTK_DEBUGGER
-                    IwramWrites += 2;
-#endif
-                    addr &= 0x7FFF;
-                    SetUshort(Iwram, addr, val);
-                    return;
-                case 0x4: // I/O Registers
-                    goto default;
                 case 0x5: // PPU Palettes
                           // Gba.Arm7.Error("Write: Palette16");
-#if OPENTK_DEBUGGER
-                    PaletteWrites += 2;
-#endif
                     addr &= 0x3FF;
                     if (GetUshort(Gba.Ppu.Palettes, addr) != val)
                     {
                         SetUshort(Gba.Ppu.Palettes, addr, val);
                         Gba.Ppu.UpdatePalette((addr & ~1u) / 2);
                     }
-                    return;
-                case 0x6: // PPU VRAM
-#if OPENTK_DEBUGGER
-                    VramWrites += 2;
-#endif
-                    addr &= 0x1FFFF;
-                    if (addr < 0x18000)
-                    {
-                        SetUshort(Gba.Ppu.Vram, addr, val);
-                    }
-                    return;
-                case 0x7: // PPU OAM
-#if OPENTK_DEBUGGER
-                    OamWrites += 2;
-#endif
-                    addr &= 0x3FF;
-                    SetUshort(Gba.Ppu.Oam, addr, val);
-                    return;
-                case 0x8: // Game Pak ROM/FlashROM 
-                case 0x9: // Game Pak ROM/FlashROM 
-                case 0xA: // Game Pak ROM/FlashROM 
-                case 0xB: // Game Pak ROM/FlashROM 
-                case 0xC: // Game Pak ROM/FlashROM 
-                case 0xD: // Game Pak ROM/FlashROM
-                    uint adjAddr = addr & 0x1FFFFFF;
-
-                    if (adjAddr >= EepromThreshold)
-                    {
-                        SaveProvider.Write8(adjAddr, (byte)val);
-                    }
                     break;
-                case 0xE: // Game Pak SRAM/Flash
-                case 0xF: // Game Pak SRAM/Flash
-                    goto default;
-
-                default:
-                    byte f0 = (byte)(val >> 0);
-                    byte f1 = (byte)(val >> 8);
-
-                    Write8(addr++, f0);
-                    Write8(addr++, f1);
-                    return;
             }
+
+            byte f0 = (byte)(val >> 0);
+            byte f1 = (byte)(val >> 8);
+
+            Write8(addr++, f0);
+            Write8(addr++, f1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
 #if DEBUG
@@ -502,32 +401,17 @@ namespace OptimeGBA
             }
 #endif
 
+            var page = ResolvePageWrite(addr);
+            if (page != null)
+            {
+                SetUint(page, MaskAddress(addr), val);
+                return;
+            }
+
             switch (addr >> 24)
             {
-                case 0x0: // BIOS
-                case 0x1: // Unused
-                    return;
-                case 0x2: // EWRAM
-#if OPENTK_DEBUGGER
-                    EwramWrites += 4;
-#endif
-                    addr &= 0x3FFFF;
-                    SetUint(Ewram, addr, val);
-                    return;
-                case 0x3: // IWRAM
-#if OPENTK_DEBUGGER
-                    IwramWrites += 4;
-#endif
-                    addr &= 0x7FFF;
-                    SetUint(Iwram, addr, val);
-                    return;
-                case 0x4: // I/O Registers
-                    goto default;
                 case 0x5: // PPU Palettes
                           // Gba.Arm7.Error("Write: Palette32");
-#if OPENTK_DEBUGGER
-                    PaletteWrites += 4;
-#endif
                     addr &= 0x3FF;
                     if (GetUint(Gba.Ppu.Palettes, addr) != val)
                     {
@@ -537,47 +421,26 @@ namespace OptimeGBA
                     }
                     return;
                 case 0x6: // PPU VRAM
-#if OPENTK_DEBUGGER
-                    VramWrites += 4;
-#endif
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
                         SetUint(Gba.Ppu.Vram, addr, val);
                     }
                     return;
-                case 0x7: // PPU OAM
-#if OPENTK_DEBUGGER
-                    OamWrites += 4;
-#endif
-                    addr &= 0x3FF;
-                    SetUint(Gba.Ppu.Oam, addr, val);
-                    return;
-                case 0x8: // Game Pak ROM/FlashROM 
-                case 0x9: // Game Pak ROM/FlashROM 
-                case 0xA: // Game Pak ROM/FlashROM 
-                case 0xB: // Game Pak ROM/FlashROM 
-                case 0xC: // Game Pak ROM/FlashROM 
-                case 0xD: // Game Pak SRAM/Flash
-                case 0xE: // Game Pak SRAM/Flash
-                case 0xF: // Game Pak SRAM/Flash
-                    goto default;
-
-                default:
-                    byte f0 = (byte)(val >> 0);
-                    byte f1 = (byte)(val >> 8);
-                    byte f2 = (byte)(val >> 16);
-                    byte f3 = (byte)(val >> 24);
-
-                    Write8(addr++, f0);
-                    Write8(addr++, f1);
-                    Write8(addr++, f2);
-                    Write8(addr++, f3);
-                    return;
             }
+
+            byte f0 = (byte)(val >> 0);
+            byte f1 = (byte)(val >> 8);
+            byte f2 = (byte)(val >> 16);
+            byte f3 = (byte)(val >> 24);
+
+            Write8(addr++, f0);
+            Write8(addr++, f1);
+            Write8(addr++, f2);
+            Write8(addr++, f3);
         }
 
-  public byte ReadHwio8(uint addr)
+        public byte ReadHwio8(uint addr)
         {
             if (addr >= 0x4000000 && addr <= 0x4000056) // PPU
             {

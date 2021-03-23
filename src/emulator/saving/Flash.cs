@@ -59,11 +59,22 @@ namespace OptimeGBA
         {
             if (IdentificationMode)
             {
-                // Return Sanyo IDs in identification mode
-                switch (addr)
+                // Return correct IDs in identification mode
+                if (Size == FlashSize.Flash1m)
                 {
-                    case 0xE000000: return 0x62;
-                    case 0xE000001: return 0x13;
+                    switch (addr)
+                    {
+                        case 0xE000000: return 0x62;
+                        case 0xE000001: return 0x13;
+                    }
+                }
+                else
+                {
+                    switch (addr)
+                    {
+                        case 0xE000000: return 0x1B;
+                        case 0xE000001: return 0x32;
+                    }
                 }
             }
 
@@ -81,7 +92,10 @@ namespace OptimeGBA
         {
             if (PrepareSetBank && addr == 0xE000000)
             {
-                Bank1 = (val & 1) != 0 ? true : false;
+                if (Size == FlashSize.Flash1m)
+                {
+                    Bank1 = (val & 1) != 0 ? true : false;
+                }
                 PrepareSetBank = false;
                 return;
             }

@@ -38,7 +38,7 @@ namespace OptimeGBA
 
             AudioCallback = provider.AudioCallback;
 
-            Mem.InitPageTable();
+            Mem.InitPageTables();
             Arm7.FillPipelineArm();
 
 #if UNSAFE

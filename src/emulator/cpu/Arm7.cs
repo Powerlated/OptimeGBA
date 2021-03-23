@@ -1403,6 +1403,7 @@ namespace OptimeGBA
             return (rd, setFlags);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins)
         {
             // ----- When using register as 2nd operand -----
