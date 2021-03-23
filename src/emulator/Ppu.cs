@@ -228,7 +228,33 @@ namespace OptimeGBA
             }
 
             Array.Fill(DebugEnableBg, true);
+
+            if (Gba.Provider.BootBios)
+            {
+                BiosMod = true;
+                // 250 frames
+                Scheduler.AddEventRelative(SchedulerId.None, 70224000, DisableBiosMod);
+                // 120 frames
+                Scheduler.AddEventRelative(SchedulerId.None, 33707520, EnableBiosModLayer2);
+            }
         }
+
+        public void DisableBiosMod(long cyclesLate)
+        {
+            BiosMod = false;
+        }
+
+        public void EnableBiosModLayer2(long cyclesLate)
+        {
+            BiosModLayer2 = true;
+
+            OamColorOffsets[4] = -28;
+            OamColorOffsets[20] = -28;
+        }
+
+        public bool BiosMod = false;
+        public bool BiosModLayer2 = false;
+        public sbyte[] OamColorOffsets = new sbyte[128];
 
 #if DS_RESOLUTION
         public const int WIDTH = 256;
@@ -371,6 +397,7 @@ namespace OptimeGBA
 
         public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
         public byte[] ObjWindowBuffer = new byte[WIDTH];
+        public byte[] ObjTransparentBuffer = new byte[WIDTH];
 
         public uint TotalFrames;
 
@@ -382,15 +409,7 @@ namespace OptimeGBA
 
         public bool ColorCorrection = true;
 
-        // Black and white used for blending
-        public uint Black = Rgb555to888(0, true);
-        public byte BlackR = (byte)(Rgb555to888(0, true) >> 0);
-        public byte BlackG = (byte)(Rgb555to888(0, true) >> 8);
-        public byte BlackB = (byte)(Rgb555to888(0, true) >> 16);
         public uint White = Rgb555to888(0xFFFF, true);
-        public byte WhiteR = (byte)(Rgb555to888(0xFFFF, true) >> 0);
-        public byte WhiteG = (byte)(Rgb555to888(0xFFFF, true) >> 8);
-        public byte WhiteB = (byte)(Rgb555to888(0xFFFF, true) >> 16);
 
         public long GetScanlineCycles()
         {
@@ -452,7 +471,6 @@ namespace OptimeGBA
                 UpdatePalette(i);
             }
 
-            Black = Rgb555to888(0, ColorCorrection);
             White = Rgb555to888(0xFFFF, ColorCorrection);
         }
 
@@ -777,12 +795,14 @@ namespace OptimeGBA
 
                 case 0x4000052: // BLDALPHA B0
                     BlendACoeff = val & 0b11111U;
+                    if (BlendACoeff == 31) BlendACoeff = 0;
 
                     BLDALPHAValue &= 0x7F00;
                     BLDALPHAValue |= (ushort)(val << 0);
                     break;
                 case 0x4000053: // BLDALPHA B1
                     BlendBCoeff = val & 0b11111U;
+                    if (BlendBCoeff == 31) BlendBCoeff = 0;
 
                     BLDALPHAValue &= 0x00FF;
                     BLDALPHAValue |= (ushort)(val << 8);
@@ -798,14 +818,13 @@ namespace OptimeGBA
         {
             Scheduler.AddEventRelative(SchedulerId.Ppu, 272 - cyclesLate, EndHblank);
 
-            if (DebugEnableRendering) RenderScanline();
+            Gba.Dma.RepeatHblank();
 
             if (HBlankIrqEnable)
             {
                 Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
             }
 
-            Gba.Dma.RepeatHblank();
         }
 
         public void EndVblankToHblank(long cyclesLate)
@@ -825,12 +844,7 @@ namespace OptimeGBA
             if (VCount != 227)
             {
                 VCount++;
-                VCounterMatch = VCount == VCountSetting;
 
-                if (VCounterMatch && VCounterIrqEnable)
-                {
-                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
-                }
                 if (VCount > 159)
                 {
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndVblankToHblank);
@@ -853,28 +867,63 @@ namespace OptimeGBA
                         }
 
                         TotalFrames++;
-                        SwapBuffers();
+                        if (DebugEnableRendering) SwapBuffers();
 
                         RenderingDone = true;
                     }
                 }
                 else
                 {
+                    if (DebugEnableRendering) RenderScanline();
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
                 }
             }
             else
             {
+                if (BiosMod)
+                {
+                    uint objE0 = 8 * 3;
+                    uint objE1 = 8 * 19;
+                    uint objM0 = 8 * 4;
+                    uint objM1 = 8 * 20;
+
+                    for (uint i = 0; i < 6; i++) {
+                        Oam[objE0++] = 0;
+                        Oam[objE1++] = 0;
+                    }
+
+                    Oam[objM0 + 4] = 68;
+                    Oam[objM0 + 5] |= 2;
+                        
+                    if (BiosModLayer2) {
+                        Oam[objM1 + 4] = 68;
+                        Oam[objM1 + 5] |= 2;
+                    }
+
+                    uint objG0 = 8 * 6;
+                    uint objG1 = 8 * 5;
+                    uint objA0 = 8 * 22;
+                    uint objA1 = 8 * 21;
+                }
+
                 VCount = 0;
                 VCounterMatch = VCount == VCountSetting;
                 if (VCounterMatch && VCounterIrqEnable)
                 {
                     Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
+                if (DebugEnableRendering) RenderScanline();
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
                 if (DebugEnableObj && ScreenDisplayObj) RenderObjs(0);
+            }
+
+            VCounterMatch = VCount == VCountSetting;
+
+            if (VCounterMatch && VCounterIrqEnable)
+            {
+                Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
             }
         }
     }

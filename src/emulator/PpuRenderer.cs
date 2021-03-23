@@ -483,13 +483,23 @@ namespace OptimeGBA
 
                 if (finalColor != 0)
                 {
-                    if (mode != ObjMode.ObjWindow)
+                    switch (mode)
                     {
-                        ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                    }
-                    else if (ObjWindowDisplayFlag)
-                    {
-                        ObjWindowBuffer[x] = 1;
+                        case ObjMode.Normal:
+                        normal:
+                            if (priority <= ObjBuffer[x].Priority) {
+                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                            }
+                            break;
+                        case ObjMode.Translucent:
+                            ObjTransparentBuffer[x] = 1;
+                            goto normal;
+                        default:
+                            if (ObjWindowDisplayFlag)
+                            {
+                                ObjWindowBuffer[x] = 1;
+                            }
+                            break;
                     }
                 }
             }
@@ -555,6 +565,8 @@ namespace OptimeGBA
                     }
                 }
 
+                // winMask = 0b111111;
+
                 uint hiPaletteIndex = 0;
                 uint loPaletteIndex = 0;
                 // Make sure sprites always draw over backdrop
@@ -615,7 +627,7 @@ namespace OptimeGBA
                         loPixelFlag = BlendFlag.Obj;
                     }
 
-                    if (ObjBuffer[i].Mode == ObjMode.Translucent)
+                    if (ObjTransparentBuffer[i] != 0)
                     {
                         effectiveTarget1Flags |= (uint)BlendFlag.Obj;
                         effectiveBlendEffect = BlendEffect.Blend;
@@ -654,15 +666,16 @@ namespace OptimeGBA
                             }
                             break;
                         case BlendEffect.Lighten:
-                            fr = (byte)(Math.Min(4095U, (r1 * 16) + WhiteR * BlendBrightness) >> 4);
-                            fg = (byte)(Math.Min(4095U, (g1 * 16) + WhiteG * BlendBrightness) >> 4);
-                            fb = (byte)(Math.Min(4095U, (b1 * 16) + WhiteB * BlendBrightness) >> 4);
+                            fr = (byte)(r1 + (((255 - r1) * BlendBrightness) >> 4));
+                            fg = (byte)(g1 + (((255 - g1) * BlendBrightness) >> 4));
+                            fb = (byte)(b1 + (((255 - b1) * BlendBrightness) >> 4));
                             break;
                         case BlendEffect.Darken:
-                            fr = (byte)(Math.Max(0U, (r1 * 16) - WhiteR * BlendBrightness) >> 4);
-                            fg = (byte)(Math.Max(0U, (g1 * 16) - WhiteG * BlendBrightness) >> 4);
-                            fb = (byte)(Math.Max(0U, (b1 * 16) - WhiteB * BlendBrightness) >> 4);
+                            fr = (byte)(r1 - ((r1 * BlendBrightness) >> 4));
+                            fg = (byte)(g1 - ((g1 * BlendBrightness) >> 4));
+                            fb = (byte)(b1 - ((b1 * BlendBrightness) >> 4));
                             break;
+
                     }
 
                     colorOut = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
@@ -676,7 +689,9 @@ namespace OptimeGBA
 
                 // Use this loop as an opportunity to clear the sprite buffer
                 ObjBuffer[pixel].Color = 0;
-                ObjWindowBuffer[pixel++] = 0;
+                ObjBuffer[pixel].Priority = 4;
+                ObjWindowBuffer[pixel] = 0;
+                ObjTransparentBuffer[pixel++] = 0;
             }
         }
 
