@@ -67,12 +67,12 @@ namespace OptimeGBAEmulator
                 int cyclesLeft = 70224 * 4;
                 while (cyclesLeft > 0 && !Gba.Arm7.Errored)
                 {
-                    cyclesLeft -= (int)Gba.StateStep();
+                    cyclesLeft -= (int)Gba.Step();
                 }
 
                 while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
                 {
-                    Gba.StateStep();
+                    Gba.Step();
                     ThreadCyclesQueued = 0;
                 }
             }
@@ -1705,7 +1705,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("Pulse 1");
 
                 float pulse1Hz = gbAudio.pulse1_getFrequencyHz();
-                bool pulse1Active = gbAudio.pulse1_enabled && gbAudio.pulse1_dacEnabled && (gbAudio.pulse1_outputLeft || gbAudio.pulse2_outputRight);
+                bool pulse1Active = gbAudio.pulse1_enabled && gbAudio.pulse1_dacEnabled;
                 DrawPulseBox(gbAudio.pulse1_width, 64 / pulse1Hz, pulse1Active ? gbAudio.pulse1_volume / 15f : 0);
                 int pulse1Note = NoteFromFrequency(pulse1Hz);
                 float pulse1CentsOff = (float)CentsOffFromPitch(pulse1Hz, pulse1Note);
@@ -1719,7 +1719,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("Pulse 2");
 
                 float pulse2Hz = gbAudio.pulse2_getFrequencyHz();
-                bool pulse2Active = gbAudio.pulse2_enabled && gbAudio.pulse2_dacEnabled && (gbAudio.pulse2_outputLeft || gbAudio.pulse2_outputRight);
+                bool pulse2Active = gbAudio.pulse2_enabled && gbAudio.pulse2_dacEnabled;
                 DrawPulseBox(gbAudio.pulse2_width, 64 / pulse2Hz, pulse2Active ? gbAudio.pulse2_volume / 15f : 0);
                 int pulse2Note = NoteFromFrequency(pulse2Hz);
                 double pulse2CentsOff = CentsOffFromPitch(pulse2Hz, pulse2Note);

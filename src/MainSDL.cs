@@ -66,7 +66,8 @@ namespace OptimeGBAEmulator
             foreach (XmlNode node in doc.GetElementsByTagName("game"))
             {
                 var romNode = node.SelectNodes("rom")[0];
-                if (romNode != null) {
+                if (romNode != null)
+                {
                     var name = node.Attributes["name"].Value;
                     var serialNode = romNode.Attributes["serial"];
                     if (serialNode != null)
@@ -76,6 +77,7 @@ namespace OptimeGBAEmulator
                 }
             }
 
+#if DISCORD_RPC
             Client = new DiscordRpcClient("794391124000243742");
             Client.Initialize();
             RpcAssets = new Assets()
@@ -88,6 +90,7 @@ namespace OptimeGBAEmulator
                 State = "Standby",
                 Assets = RpcAssets,
             });
+#endif
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -455,17 +458,21 @@ namespace OptimeGBAEmulator
                 stateString = $"Playing for {mm}:{ss}";
             }
 
+#if DISCORD_RPC
             Client.SetPresence(new RichPresence()
             {
                 Details = RomName,
                 Timestamps = Timestamp,
                 Assets = RpcAssets
             });
+#endif
         }
 
         public static void Cleanup()
         {
+#if DISCORD_RPC
             Client.Dispose();
+#endif
             Environment.Exit(0);
         }
 

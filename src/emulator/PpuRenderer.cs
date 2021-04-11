@@ -486,14 +486,11 @@ namespace OptimeGBA
                     switch (mode)
                     {
                         case ObjMode.Normal:
-                        normal:
+                        case ObjMode.Translucent:
                             if (priority <= ObjBuffer[x].Priority) {
                                 ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
                             }
                             break;
-                        case ObjMode.Translucent:
-                            ObjTransparentBuffer[x] = 1;
-                            goto normal;
                         default:
                             if (ObjWindowDisplayFlag)
                             {
@@ -621,13 +618,13 @@ namespace OptimeGBA
                         loPixelFlag = hiPixelFlag;
                         hiPixelFlag = BlendFlag.Obj;
                     }
-                    else
+                    else if (ObjBuffer[i].Priority <= loPrio)
                     {
                         loPaletteIndex = objPaletteIndex;
                         loPixelFlag = BlendFlag.Obj;
                     }
 
-                    if (ObjTransparentBuffer[i] != 0)
+                    if (ObjBuffer[i].Mode == ObjMode.Translucent)
                     {
                         effectiveTarget1Flags |= (uint)BlendFlag.Obj;
                         effectiveBlendEffect = BlendEffect.Blend;
@@ -690,8 +687,7 @@ namespace OptimeGBA
                 // Use this loop as an opportunity to clear the sprite buffer
                 ObjBuffer[pixel].Color = 0;
                 ObjBuffer[pixel].Priority = 4;
-                ObjWindowBuffer[pixel] = 0;
-                ObjTransparentBuffer[pixel++] = 0;
+                ObjWindowBuffer[pixel++] = 0;
             }
         }
 

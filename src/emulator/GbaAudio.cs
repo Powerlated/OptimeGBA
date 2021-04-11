@@ -1,5 +1,6 @@
 using System;
 using static OptimeGBA.Bits;
+using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
@@ -23,6 +24,7 @@ namespace OptimeGBA
             EmptyValue = emptyValue;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(T data)
         {
             if (Entries < Size)
@@ -38,6 +40,7 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public T Pop()
         {
             T data;

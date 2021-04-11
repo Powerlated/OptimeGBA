@@ -74,30 +74,23 @@ namespace OptimeGBA
 
         public uint StateStep()
         {
-            ExtraTicks = 0;
-
             Arm7.CheckInterrupts();
 
-            uint executed = 0;
+            long beforeTicks = Scheduler.CurrentTicks;
             if (!Arm7.ThumbState)
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    uint cycles = Arm7.ExecuteArm();
-                    Scheduler.CurrentTicks += cycles;
-                    executed += cycles;
+                    Scheduler.CurrentTicks += Arm7.ExecuteArm();
                 }
             }
             else
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    uint cycles = Arm7.ExecuteThumb();
-                    Scheduler.CurrentTicks += cycles;
-                    executed += cycles;
+                    Scheduler.CurrentTicks += Arm7.ExecuteThumb();
                 }
             }
-
 
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {
@@ -106,7 +99,8 @@ namespace OptimeGBA
                 Scheduler.PopFirstEvent().Callback(current - next);
             }
 
-            return executed + ExtraTicks;
+            // Return cycles executed
+            return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }
 
         public void Tick(uint cycles)

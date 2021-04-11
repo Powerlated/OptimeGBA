@@ -83,10 +83,12 @@ namespace OptimeGBA
                     Console.WriteLine("EEPROM Threshold: " + Util.Hex(EepromThreshold, 8));
                     break;
                 case 2: SaveProvider = new Sram(); break;
-                case 3: SaveProvider = new Flash(FlashSize.Flash512k); break;
-                case 4: SaveProvider = new Flash(FlashSize.Flash512k); break;
-                case 5: SaveProvider = new Flash(FlashSize.Flash1m); break;
+                case 3: SaveProvider = new Flash(Gba, FlashSize.Flash512k); break;
+                case 4: SaveProvider = new Flash(Gba, FlashSize.Flash512k); break;
+                case 5: SaveProvider = new Flash(Gba, FlashSize.Flash1m); break;
             }
+
+            
         }
 
         public uint EepromThreshold = 0x2000000;
@@ -288,8 +290,8 @@ namespace OptimeGBA
                 return GetUshort(page, MaskAddress(addr));
             }
 
-            byte f0 = Read8(addr++);
-            byte f1 = Read8(addr++);
+            byte f0 = ReadHwio8(addr++);
+            byte f1 = ReadHwio8(addr++);
 
             ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
@@ -312,10 +314,10 @@ namespace OptimeGBA
                 return GetUint(page, MaskAddress(addr));
             }
 
-            byte f0 = Read8(addr++);
-            byte f1 = Read8(addr++);
-            byte f2 = Read8(addr++);
-            byte f3 = Read8(addr++);
+            byte f0 = ReadHwio8(addr++);
+            byte f1 = ReadHwio8(addr++);
+            byte f2 = ReadHwio8(addr++);
+            byte f3 = ReadHwio8(addr++);
 
             uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
@@ -387,8 +389,8 @@ namespace OptimeGBA
             byte f0 = (byte)(val >> 0);
             byte f1 = (byte)(val >> 8);
 
-            Write8(addr++, f0);
-            Write8(addr++, f1);
+            WriteHwio8(addr++, f0);
+            WriteHwio8(addr++, f1);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -434,10 +436,10 @@ namespace OptimeGBA
             byte f2 = (byte)(val >> 16);
             byte f3 = (byte)(val >> 24);
 
-            Write8(addr++, f0);
-            Write8(addr++, f1);
-            Write8(addr++, f2);
-            Write8(addr++, f3);
+            WriteHwio8(addr++, f0);
+            WriteHwio8(addr++, f1);
+            WriteHwio8(addr++, f2);
+            WriteHwio8(addr++, f3);
         }
 
         public byte ReadHwio8(uint addr)

@@ -397,7 +397,6 @@ namespace OptimeGBA
 
         public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
         public byte[] ObjWindowBuffer = new byte[WIDTH];
-        public byte[] ObjTransparentBuffer = new byte[WIDTH];
 
         public uint TotalFrames;
 
@@ -912,11 +911,11 @@ namespace OptimeGBA
                 {
                     Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
-                if (DebugEnableRendering) RenderScanline();
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
                 if (DebugEnableObj && ScreenDisplayObj) RenderObjs(0);
+                if (DebugEnableRendering) RenderScanline();
             }
 
             VCounterMatch = VCount == VCountSetting;
