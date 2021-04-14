@@ -8,6 +8,27 @@ namespace OptimeGBA
 {
     public sealed class GbAudio
     {
+        public const int OUTPUT_SAMPLE_RATE = 32768;
+
+        public static float[] SIN_LUT = GenerateSineLut();
+        public static readonly float[] PULSE_DUTY_VALUE_ARRAY = new float[] { 0.125F, 0.25F, 0.5F, 0.75F };
+
+        static float[] GenerateSineLut()
+        {
+            int entries = 65536;
+            float xPerEntry = ((float)Math.PI * 2) / entries;
+            float[] array = new float[entries];
+
+            float x = 0;
+            for (int i = 0; i < entries; i++)
+            {
+                array[i] = (float)Math.Sin(x);
+                x += xPerEntry;
+            }
+
+            return array;
+        }
+
         public static byte[] SEVEN_BIT_NOISE = GenerateNoiseBuffer(true);
         public static byte[] FIFTEEN_BIT_NOISE = GenerateNoiseBuffer(false);
         public static float[] DAC_TABLE = GenerateDACTable();
@@ -142,6 +163,7 @@ namespace OptimeGBA
             this.freqSweepEnabled = this.pulse1_freqSweepShift != 0 || this.pulse1_freqSweepPeriod != 0;
             this.reloadPulse1Period();
             this.updatePulse1Val();
+            this.pulse1SynthTime = 0;
         }
         public float pulse1_getFrequencyHz()
         {
@@ -176,6 +198,7 @@ namespace OptimeGBA
             }
             this.reloadPulse2Period();
             this.updatePulse2Val();
+            this.pulse2SynthTime = 0;
         }
         public float pulse2_getFrequencyHz()
         {
@@ -239,6 +262,9 @@ namespace OptimeGBA
         int pulse2Pos = 0;
         int wavePos = 0;
         int noisePos = 0;
+
+        float pulse1SynthTime = 0;
+        float pulse2SynthTime = 0;
 
         int pulse1FreqTimer = 0;
         int pulse2FreqTimer = 0;
@@ -356,6 +382,28 @@ namespace OptimeGBA
         const uint FrameSequencerMax = 8192;
         uint FrameSequencerTimer = 0;
 
+        float SamplePulse(float duty, float time, float frequencyHz)
+        {
+            float sin1 = 0;
+            float sin2 = 0;
+
+            float nyquist = OUTPUT_SAMPLE_RATE / 2;
+            float harmonics = (float)Math.Ceiling(nyquist / frequencyHz);
+
+            for (int n = 1; n < harmonics; n++)
+            {
+                int component = n * 65535;
+                sin1 += SIN_LUT[(int)((time - 0) * component) & 65535] / n;
+                sin2 += SIN_LUT[(int)((time - duty) * component) & 65535] / n;
+            }
+
+            // sin1 += sinLut[(time * 65535) & 65535];
+            // sin2 += sinLut[(time * 65535) & 65535];
+
+            return (float)((sin1 - sin2) + (duty * (Math.PI) - ((Math.PI / 2)) * 1.275));
+        }       
+
+
         public void Tick(uint cycles)
         {
             this.pendingCycles += cycles;
@@ -380,44 +428,27 @@ namespace OptimeGBA
 
                 // Note: -1 value when disabled is the DAC DC offset
 
-                if (this.pulse1_dacEnabled)
+                this.pulse1SynthTime += this.pulse1_getFrequencyHz() / OUTPUT_SAMPLE_RATE;
+                this.pulse2SynthTime += this.pulse2_getFrequencyHz() / OUTPUT_SAMPLE_RATE;
+
+                if (this.pulse1_dacEnabled && this.pulse1_enabled && this.pulse1Period > 0)
                 {
-                    if (this.pulse1Period > 0)
-                    {
-                        while (this.pulse1FreqTimer < 0)
-                        {
-                            this.pulse1FreqTimer += this.pulse1Period;
-
-                            this.pulse1Pos++;
-                            this.pulse1Pos &= 7;
-
-                            this.updatePulse1Val();
-                        }
-                    }
+                    float rawWave = SamplePulse(PULSE_DUTY_VALUE_ARRAY[this.pulse1_width], this.pulse1SynthTime, this.pulse1_getFrequencyHz());
+                    float val = (float)(rawWave * (float)this.pulse1_volume) / 2;
                     if (this.enable1Out)
                     {
-                        if (this.pulse1_outputLeft) in1 += this.pulse1Val;
-                        if (this.pulse1_outputRight) in2 += this.pulse1Val;
+                        if (this.pulse1_outputLeft) in1 += val;
+                        if (this.pulse1_outputRight) in2 += val;
                     }
                 }
-                if (this.pulse2_dacEnabled)
+                if (this.pulse2_dacEnabled && this.pulse2_enabled && this.pulse2Period > 0)
                 {
-                    if (this.pulse2Period > 0)
-                    {
-                        while (this.pulse2FreqTimer < 0)
-                        {
-                            this.pulse2FreqTimer += this.pulse2Period;
-
-                            this.pulse2Pos++;
-                            this.pulse2Pos &= 7;
-
-                            this.updatePulse2Val();
-                        }
-                    }
+                    float rawWave = SamplePulse(PULSE_DUTY_VALUE_ARRAY[this.pulse2_width], this.pulse2SynthTime, this.pulse2_getFrequencyHz());
+                    float val = (float)(rawWave * (float)this.pulse2_volume) / 2;
                     if (this.enable2Out)
                     {
-                        if (this.pulse2_outputLeft) in1 += this.pulse2Val;
-                        if (this.pulse2_outputRight) in2 += this.pulse2Val;
+                        if (this.pulse2_outputLeft) in1 += val;
+                        if (this.pulse2_outputRight) in2 += val;
                     }
                 }
                 if (this.wave_dacEnabled)
