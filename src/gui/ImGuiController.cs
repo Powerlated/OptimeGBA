@@ -2,7 +2,7 @@ using System.Diagnostics.Contracts;
 using ImGuiNET;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Windowing.Desktop;
-using OpenTK.Windowing.Common.Input;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -218,26 +218,11 @@ void main()
             var screenPoint = new Vector2i((int)MouseState.X, (int)MouseState.Y);
             var point = screenPoint;//wnd.PointToClient(screenPoint);
             io.MousePos = new System.Numerics.Vector2(point.X, point.Y);
-            
-            foreach (Key key in Enum.GetValues(typeof(Key)))
-            {
-                if (key == Key.Unknown)
-                {
-                    continue;
-                }
-                io.KeysDown[(int)key] = KeyboardState.IsKeyDown(key);
-            }
 
-            foreach (var c in PressedChars)
-            {
-                io.AddInputCharacter(c);
-            }
-            PressedChars.Clear();
-
-            io.KeyCtrl = KeyboardState.IsKeyDown(Key.ControlLeft) || KeyboardState.IsKeyDown(Key.ControlRight);
-            io.KeyAlt = KeyboardState.IsKeyDown(Key.AltLeft) || KeyboardState.IsKeyDown(Key.AltRight);
-            io.KeyShift = KeyboardState.IsKeyDown(Key.ShiftLeft) || KeyboardState.IsKeyDown(Key.ShiftRight);
-            io.KeySuper = KeyboardState.IsKeyDown(Key.WinLeft) || KeyboardState.IsKeyDown(Key.WinRight);
+            io.KeyCtrl = KeyboardState.IsKeyDown(Keys.LeftControl) || KeyboardState.IsKeyDown(Keys.RightControl);
+            io.KeyAlt = KeyboardState.IsKeyDown(Keys.LeftAlt) || KeyboardState.IsKeyDown(Keys.RightAlt);
+            io.KeyShift = KeyboardState.IsKeyDown(Keys.LeftShift) || KeyboardState.IsKeyDown(Keys.RightShift);
+            io.KeySuper = KeyboardState.IsKeyDown(Keys.LeftSuper) || KeyboardState.IsKeyDown(Keys.RightSuper);
 
             PrevMouseState = MouseState;
             PrevKeyboardState = KeyboardState;
@@ -259,25 +244,25 @@ void main()
         private static void SetKeyMappings()
         {
             ImGuiIOPtr io = ImGui.GetIO();
-            io.KeyMap[(int)ImGuiKey.Tab] = (int)Key.Tab;
-            io.KeyMap[(int)ImGuiKey.LeftArrow] = (int)Key.Left;
-            io.KeyMap[(int)ImGuiKey.RightArrow] = (int)Key.Right;
-            io.KeyMap[(int)ImGuiKey.UpArrow] = (int)Key.Up;
-            io.KeyMap[(int)ImGuiKey.DownArrow] = (int)Key.Down;
-            io.KeyMap[(int)ImGuiKey.PageUp] = (int)Key.PageUp;
-            io.KeyMap[(int)ImGuiKey.PageDown] = (int)Key.PageDown;
-            io.KeyMap[(int)ImGuiKey.Home] = (int)Key.Home;
-            io.KeyMap[(int)ImGuiKey.End] = (int)Key.End;
-            io.KeyMap[(int)ImGuiKey.Delete] = (int)Key.Delete;
-            io.KeyMap[(int)ImGuiKey.Backspace] = (int)Key.BackSpace;
-            io.KeyMap[(int)ImGuiKey.Enter] = (int)Key.Enter;
-            io.KeyMap[(int)ImGuiKey.Escape] = (int)Key.Escape;
-            io.KeyMap[(int)ImGuiKey.A] = (int)Key.A;
-            io.KeyMap[(int)ImGuiKey.C] = (int)Key.C;
-            io.KeyMap[(int)ImGuiKey.V] = (int)Key.V;
-            io.KeyMap[(int)ImGuiKey.X] = (int)Key.X;
-            io.KeyMap[(int)ImGuiKey.Y] = (int)Key.Y;
-            io.KeyMap[(int)ImGuiKey.Z] = (int)Key.Z;
+            io.KeyMap[(int)ImGuiKey.Tab] = (int)Keys.Tab;
+            io.KeyMap[(int)ImGuiKey.LeftArrow] = (int)Keys.Left;
+            io.KeyMap[(int)ImGuiKey.RightArrow] = (int)Keys.Right;
+            io.KeyMap[(int)ImGuiKey.UpArrow] = (int)Keys.Up;
+            io.KeyMap[(int)ImGuiKey.DownArrow] = (int)Keys.Down;
+            io.KeyMap[(int)ImGuiKey.PageUp] = (int)Keys.PageUp;
+            io.KeyMap[(int)ImGuiKey.PageDown] = (int)Keys.PageDown;
+            io.KeyMap[(int)ImGuiKey.Home] = (int)Keys.Home;
+            io.KeyMap[(int)ImGuiKey.End] = (int)Keys.End;
+            io.KeyMap[(int)ImGuiKey.Delete] = (int)Keys.Delete;
+            io.KeyMap[(int)ImGuiKey.Backspace] = (int)Keys.Backspace;
+            io.KeyMap[(int)ImGuiKey.Enter] = (int)Keys.Enter;
+            io.KeyMap[(int)ImGuiKey.Escape] = (int)Keys.Escape;
+            io.KeyMap[(int)ImGuiKey.A] = (int)Keys.A;
+            io.KeyMap[(int)ImGuiKey.C] = (int)Keys.C;
+            io.KeyMap[(int)ImGuiKey.V] = (int)Keys.V;
+            io.KeyMap[(int)ImGuiKey.X] = (int)Keys.X;
+            io.KeyMap[(int)ImGuiKey.Y] = (int)Keys.Y;
+            io.KeyMap[(int)ImGuiKey.Z] = (int)Keys.Z;
         }
 
         private void RenderImDrawData(ImDrawDataPtr draw_data)
@@ -411,7 +396,7 @@ void main()
         public static void CheckGLError(string title)
         {
             var error = GL.GetError();
-            if (error != ErrorCode.NoError)
+            if (error != OpenTK.Graphics.OpenGL.ErrorCode.NoError)
             {
                 Debug.Print($"{title}: {error}");
             }

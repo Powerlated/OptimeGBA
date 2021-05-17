@@ -32,7 +32,7 @@
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="1.0.0-alpha-*" />
     <PackageReference Include="Microsoft.Win32.SystemEvents" Version="4.7.0" />
     <PackageReference Include="OpenGL.Net" Version="0.8.4" />
-    <PackageReference Include="OpenTK" Version="4.0.0-pre9.7" />
+    <PackageReference Include="OpenTK" Version="4.6.3" />
     <PackageReference Include="System.Drawing.Common" Version="4.7.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="ppy.SDL2-CS" Version="1.0.53" />

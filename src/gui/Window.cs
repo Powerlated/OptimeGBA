@@ -1,5 +1,5 @@
 using OpenTK.Windowing.Common;
-using OpenTK.Windowing.Common.Input;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Mathematics;
@@ -247,6 +247,22 @@ namespace OptimeGBAEmulator
             };
         }
 
+        protected override void OnTextInput(TextInputEventArgs args)
+        {
+            ImGui.GetIO().AddInputCharacter((byte)args.Unicode);
+            ImGui.GetIO().KeysDown[(byte)args.Unicode] = true;
+        }
+
+        protected override void OnKeyDown(KeyboardKeyEventArgs args)
+        {
+            ImGui.GetIO().KeysDown[(int)args.Key] = true;
+        }
+
+        protected override void OnKeyUp(KeyboardKeyEventArgs args)
+        {
+            ImGui.GetIO().KeysDown[(int)args.Key] = false;
+        }
+
         public double Time;
         public bool RecordTime;
         public uint RecordStartFrames;
@@ -255,18 +271,18 @@ namespace OptimeGBAEmulator
         {
             base.OnUpdateFrame(e);
 
-            Gba.Keypad.B = KeyboardState.IsKeyDown(Key.Z);
-            Gba.Keypad.A = KeyboardState.IsKeyDown(Key.X);
-            Gba.Keypad.Left = KeyboardState.IsKeyDown(Key.Left);
-            Gba.Keypad.Up = KeyboardState.IsKeyDown(Key.Up);
-            Gba.Keypad.Right = KeyboardState.IsKeyDown(Key.Right);
-            Gba.Keypad.Down = KeyboardState.IsKeyDown(Key.Down);
-            Gba.Keypad.Start = KeyboardState.IsKeyDown(Key.Enter) || KeyboardState.IsKeyDown(Key.KeypadEnter);
-            Gba.Keypad.Select = KeyboardState.IsKeyDown(Key.BackSpace);
-            Gba.Keypad.L = KeyboardState.IsKeyDown(Key.Q);
-            Gba.Keypad.R = KeyboardState.IsKeyDown(Key.E);
+            Gba.Keypad.B = KeyboardState.IsKeyDown(Keys.Z);
+            Gba.Keypad.A = KeyboardState.IsKeyDown(Keys.X);
+            Gba.Keypad.Left = KeyboardState.IsKeyDown(Keys.Left);
+            Gba.Keypad.Up = KeyboardState.IsKeyDown(Keys.Up);
+            Gba.Keypad.Right = KeyboardState.IsKeyDown(Keys.Right);
+            Gba.Keypad.Down = KeyboardState.IsKeyDown(Keys.Down);
+            Gba.Keypad.Start = KeyboardState.IsKeyDown(Keys.Enter) || KeyboardState.IsKeyDown(Keys.KeyPadEnter);
+            Gba.Keypad.Select = KeyboardState.IsKeyDown(Keys.Backspace);
+            Gba.Keypad.L = KeyboardState.IsKeyDown(Keys.Q);
+            Gba.Keypad.R = KeyboardState.IsKeyDown(Keys.E);
 
-            SyncToAudio = !(KeyboardState.IsKeyDown(Key.Tab) || KeyboardState.IsKeyDown(Key.Space));
+            SyncToAudio = !(KeyboardState.IsKeyDown(Keys.Tab) || KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
 
             if (RunEmulator)
@@ -703,8 +719,7 @@ namespace OptimeGBAEmulator
                 //     }
                 // }
 
-                ImGui.InputText("", text, 4);
-                ImGui.InputInt("", ref DebugStepFor);
+                ImGui.InputInt("Instrs", ref DebugStepFor);
                 if (ImGui.Button("Step For"))
                 {
                     using (StreamWriter file = new StreamWriter("log.txt"))
