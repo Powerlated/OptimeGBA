@@ -359,8 +359,8 @@ namespace OptimeGBAEmulator
                     double frames = CyclesRan / 280896;
                     CyclesRan = 0;
 
-                    double mips = (double)Gba.Arm7.InstructionsRan / 1000000D;
-                    Gba.Arm7.InstructionsRan = 0;
+                    double mips = (double)Gba.Cpu.InstructionsRan / 1000000D;
+                    Gba.Cpu.InstructionsRan = 0;
 
                     // Use Math.Floor to truncate to 2 decimal places
                     Fps = Math.Floor((frames / diff) * 100) / 100;

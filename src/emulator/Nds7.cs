@@ -3,33 +3,32 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class Gba : DeviceUnit
+    public sealed class Nds7 : DeviceUnit
     {
         public GbaProvider Provider;
 
-        public GbaAudio GbaAudio;
+        public Arm7 Arm7;
+        public new MemoryNds7 Mem;
         public Keypad Keypad;
 
-        public uint[] registers = new uint[16];
-        public Gba(GbaProvider provider)
+        public Nds7(GbaProvider provider)
         {
             Provider = provider;
 
             Scheduler = new Scheduler();
 
-            Mem = new MemoryGba(this, provider);
-            GbaAudio = new GbaAudio(this, Scheduler);
+            Mem = new MemoryNds7(this);
             Ppu = new Ppu(this, Scheduler);
             Keypad = new Keypad();
-            Dma = new Dma(this);
-            Timers = new Timers(this, Scheduler);
-            HwControl = new HwControl(this);
-            Cpu = new Arm7(this);
+            // Dma = new Dma(this);
+            // Timers = new Timers(this, Scheduler);
+            // HwControl = new HwControl(this);
+            Arm7 = new Arm7(this);
 
             AudioCallback = provider.AudioCallback;
 
             Mem.InitPageTables();
-            Cpu.FillPipelineArm();
+            Arm7.FillPipelineArm();
 
 #if UNSAFE
             Console.WriteLine("Starting in memory UNSAFE mode");
@@ -40,15 +39,15 @@ namespace OptimeGBA
 
         public uint Step()
         {
-            Cpu.CheckInterrupts();
+            Arm7.CheckInterrupts();
             long beforeTicks = Scheduler.CurrentTicks;
-            if (!Cpu.ThumbState)
+            if (!Arm7.ThumbState)
             {
-                Scheduler.CurrentTicks += Cpu.ExecuteArm();
+                Scheduler.CurrentTicks += Arm7.ExecuteArm();
             }
             else
             {
-                Scheduler.CurrentTicks += Cpu.ExecuteThumb();
+                Scheduler.CurrentTicks += Arm7.ExecuteThumb();
             }
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {
@@ -69,21 +68,21 @@ namespace OptimeGBA
 
         public uint StateStep()
         {
-            Cpu.CheckInterrupts();
+            Arm7.CheckInterrupts();
 
             long beforeTicks = Scheduler.CurrentTicks;
-            if (!Cpu.ThumbState)
+            if (!Arm7.ThumbState)
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    Scheduler.CurrentTicks += Cpu.ExecuteArm();
+                    Scheduler.CurrentTicks += Arm7.ExecuteArm();
                 }
             }
             else
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    Scheduler.CurrentTicks += Cpu.ExecuteThumb();
+                    Scheduler.CurrentTicks += Arm7.ExecuteThumb();
                 }
             }
 

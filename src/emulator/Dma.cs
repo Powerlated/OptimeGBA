@@ -435,8 +435,8 @@ namespace OptimeGBA
                 // Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
                 // PROBLEM SOLVED.... my timers were 1 cycle too slow to reload
-                Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                Gba.Arm7.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                Gba.Cpu.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
+                Gba.Cpu.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;

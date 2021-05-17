@@ -65,12 +65,12 @@ namespace OptimeGBAEmulator
                 ThreadSync.WaitOne();
 
                 int cyclesLeft = 70224 * 4;
-                while (cyclesLeft > 0 && !Gba.Arm7.Errored)
+                while (cyclesLeft > 0 && !Gba.Cpu.Errored)
                 {
                     cyclesLeft -= (int)Gba.Step();
                 }
 
-                while (!SyncToAudio && !Gba.Arm7.Errored && RunEmulator)
+                while (!SyncToAudio && !Gba.Cpu.Errored && RunEmulator)
                 {
                     Gba.Step();
                     ThreadCyclesQueued = 0;
@@ -115,7 +115,7 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Gba.Arm7.Errored && RunEmulator)
+            while (cycles > 0 && !Gba.Cpu.Errored && RunEmulator)
             {
                 cycles -= (int)Gba.Step();
             }
@@ -125,7 +125,7 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             CyclesLeft += FrameCycles;
-            while (CyclesLeft > 0 && !Gba.Arm7.Errored)
+            while (CyclesLeft > 0 && !Gba.Cpu.Errored)
             {
                 CyclesLeft -= (int)Gba.Step();
             }
@@ -134,7 +134,7 @@ namespace OptimeGBAEmulator
         public void RunScanline()
         {
             CyclesLeft += ScanlineCycles;
-            while (CyclesLeft > 0 && !Gba.Arm7.Errored)
+            while (CyclesLeft > 0 && !Gba.Cpu.Errored)
             {
                 CyclesLeft -= (int)Gba.Step();
             }
@@ -355,32 +355,32 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(5);
 
                 ImGui.Text("User");
-                ImGui.Text("R13: " + Hex(Gba.Arm7.R13usr, 8));
-                ImGui.Text("R14: " + Hex(Gba.Arm7.R14usr, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.R13usr, 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.R14usr, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Supervisor");
-                ImGui.Text("R13: " + Hex(Gba.Arm7.R13svc, 8));
-                ImGui.Text("R14: " + Hex(Gba.Arm7.R14svc, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.R13svc, 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.R14svc, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Abort");
-                ImGui.Text("R13: " + Hex(Gba.Arm7.R13abt, 8));
-                ImGui.Text("R14: " + Hex(Gba.Arm7.R14abt, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.R13abt, 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.R14abt, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("IRQ");
-                ImGui.Text("R13: " + Hex(Gba.Arm7.R13irq, 8));
-                ImGui.Text("R14: " + Hex(Gba.Arm7.R14irq, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.R13irq, 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.R14irq, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Undefined");
-                ImGui.Text("R13: " + Hex(Gba.Arm7.R13und, 8));
-                ImGui.Text("R14: " + Hex(Gba.Arm7.R14und, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.R13und, 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.R14und, 8));
 
                 ImGui.End();
             }
@@ -510,23 +510,23 @@ namespace OptimeGBAEmulator
         public String BuildEmuText()
         {
             String text = "";
-            text += $"{HexN(Gba.Arm7.R[0], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[1], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[2], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[3], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[4], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[5], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[6], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[7], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[8], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[9], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[10], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[11], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[12], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[13], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[14], 8)} ";
-            text += $"{HexN(Gba.Arm7.R[15], 8)} ";
-            text += $"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} ";
+            text += $"{HexN(Gba.Cpu.R[0], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[1], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[2], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[3], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[4], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[5], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[6], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[7], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[8], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[9], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[10], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[11], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[12], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[13], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[14], 8)} ";
+            text += $"{HexN(Gba.Cpu.R[15], 8)} ";
+            text += $"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} ";
             String emuText = text.Substring(0, 135) + text.Substring(144, 14) + $" {LogIndex + 1}";
             return emuText;
         }
@@ -573,27 +573,27 @@ namespace OptimeGBAEmulator
 
         public String BuildEmuFullText()
         {
-            String disasm = Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns);
+            String disasm = Gba.Cpu.ThumbState ? DisasmThumb((ushort)Gba.Cpu.LastIns) : DisasmArm(Gba.Cpu.LastIns);
 
             StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(Gba.Arm7.R[0], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[1], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[2], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[3], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[4], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[5], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[6], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[7], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[8], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[9], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[10], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[11], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[12], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[13], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[14], 8)} ");
-            builder.Append($"{HexN(Gba.Arm7.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(Gba.Arm7.GetCPSR(), 8)} | ");
-            builder.Append($"{(Gba.Arm7.ThumbState ? "    " + HexN(Gba.Arm7.LastIns, 4) : HexN(Gba.Arm7.LastIns, 8))}: {disasm}");
+            builder.Append($"{HexN(Gba.Cpu.R[0], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[1], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[2], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[3], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[4], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[5], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[6], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[7], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[8], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[9], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[10], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[11], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[12], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[13], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[14], 8)} ");
+            builder.Append($"{HexN(Gba.Cpu.R[15], 8)} ");
+            builder.Append($"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} | ");
+            builder.Append($"{(Gba.Cpu.ThumbState ? "    " + HexN(Gba.Cpu.LastIns, 4) : HexN(Gba.Cpu.LastIns, 8))}: {disasm}");
             // text += $"> {LogIndex + 1}";
             return builder.ToString();
         }
@@ -622,7 +622,7 @@ namespace OptimeGBAEmulator
                 }
 
                 ImGui.Separator();
-                ImGui.Text(Gba.Arm7.Debug);
+                ImGui.Text(Gba.Cpu.Debug);
                 ImGui.End();
             }
         }
@@ -636,33 +636,33 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(4);
 
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-                ImGui.Text($"R0:  {Hex(Gba.Arm7.R[0], 8)}");
-                ImGui.Text($"R1:  {Hex(Gba.Arm7.R[1], 8)}");
-                ImGui.Text($"R2:  {Hex(Gba.Arm7.R[2], 8)}");
-                ImGui.Text($"R3:  {Hex(Gba.Arm7.R[3], 8)}");
-                ImGui.Text($"R4:  {Hex(Gba.Arm7.R[4], 8)}");
-                ImGui.Text($"R5:  {Hex(Gba.Arm7.R[5], 8)}");
-                ImGui.Text($"R6:  {Hex(Gba.Arm7.R[6], 8)}");
-                ImGui.Text($"R7:  {Hex(Gba.Arm7.R[7], 8)}");
-                ImGui.Text($"R8:  {Hex(Gba.Arm7.R[8], 8)}");
-                ImGui.Text($"R9:  {Hex(Gba.Arm7.R[9], 8)}");
-                ImGui.Text($"R10: {Hex(Gba.Arm7.R[10], 8)}");
-                ImGui.Text($"R11: {Hex(Gba.Arm7.R[11], 8)}");
-                ImGui.Text($"R12: {Hex(Gba.Arm7.R[12], 8)}");
-                ImGui.Text($"R13: {Hex(Gba.Arm7.R[13], 8)}");
-                ImGui.Text($"R14: {Hex(Gba.Arm7.R[14], 8)}");
-                ImGui.Text($"R15: {Hex(Gba.Arm7.R[15], 8)}");
-                ImGui.Text($"CPSR: {Hex(Gba.Arm7.GetCPSR(), 8)}");
-                ImGui.Text($"Instruction: {Hex(Gba.Arm7.LastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Prev. Ins.: {Hex(Gba.Arm7.LastLastIns, Gba.Arm7.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Disasm: {(Gba.Arm7.ThumbState ? DisasmThumb((ushort)Gba.Arm7.LastIns) : DisasmArm(Gba.Arm7.LastIns))}");
+                ImGui.Text($"R0:  {Hex(Gba.Cpu.R[0], 8)}");
+                ImGui.Text($"R1:  {Hex(Gba.Cpu.R[1], 8)}");
+                ImGui.Text($"R2:  {Hex(Gba.Cpu.R[2], 8)}");
+                ImGui.Text($"R3:  {Hex(Gba.Cpu.R[3], 8)}");
+                ImGui.Text($"R4:  {Hex(Gba.Cpu.R[4], 8)}");
+                ImGui.Text($"R5:  {Hex(Gba.Cpu.R[5], 8)}");
+                ImGui.Text($"R6:  {Hex(Gba.Cpu.R[6], 8)}");
+                ImGui.Text($"R7:  {Hex(Gba.Cpu.R[7], 8)}");
+                ImGui.Text($"R8:  {Hex(Gba.Cpu.R[8], 8)}");
+                ImGui.Text($"R9:  {Hex(Gba.Cpu.R[9], 8)}");
+                ImGui.Text($"R10: {Hex(Gba.Cpu.R[10], 8)}");
+                ImGui.Text($"R11: {Hex(Gba.Cpu.R[11], 8)}");
+                ImGui.Text($"R12: {Hex(Gba.Cpu.R[12], 8)}");
+                ImGui.Text($"R13: {Hex(Gba.Cpu.R[13], 8)}");
+                ImGui.Text($"R14: {Hex(Gba.Cpu.R[14], 8)}");
+                ImGui.Text($"R15: {Hex(Gba.Cpu.R[15], 8)}");
+                ImGui.Text($"CPSR: {Hex(Gba.Cpu.GetCPSR(), 8)}");
+                ImGui.Text($"Instruction: {Hex(Gba.Cpu.LastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Prev. Ins.: {Hex(Gba.Cpu.LastLastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Disasm: {(Gba.Cpu.ThumbState ? DisasmThumb((ushort)Gba.Cpu.LastIns) : DisasmArm(Gba.Cpu.LastIns))}");
 
-                ImGui.Text($"Mode: {Gba.Arm7.Mode}");
-                ImGui.Text($"Last Cycles: {Gba.Arm7.InstructionCycles}");
-                ImGui.Text($"Total Instrs.: {Gba.Arm7.InstructionsRan}");
-                ImGui.Text($"Pipeline: {Gba.Arm7.Pipeline}");
+                ImGui.Text($"Mode: {Gba.Cpu.Mode}");
+                ImGui.Text($"Last Cycles: {Gba.Cpu.InstructionCycles}");
+                ImGui.Text($"Total Instrs.: {Gba.Cpu.InstructionsRan}");
+                ImGui.Text($"Pipeline: {Gba.Cpu.Pipeline}");
 
-                // ImGui.Text($"Ins Next Up: {(Gba.Arm7.ThumbState ? Hex(Gba.Arm7.THUMBDecode, 4) : Hex(Gba.Arm7.ARMDecode, 8))}");
+                // ImGui.Text($"Ins Next Up: {(Gba.Cpu.ThumbState ? Hex(Gba.Cpu.THUMBDecode, 4) : Hex(Gba.Cpu.ARMDecode, 8))}");
 
                 ImGui.Text($"");
 
@@ -696,7 +696,7 @@ namespace OptimeGBAEmulator
 
                 if (ImGui.Button("Un-error"))
                 {
-                    Gba.Arm7.Errored = false;
+                    Gba.Cpu.Errored = false;
                 }
                 if (ImGui.Button("Step"))
                 {
@@ -706,7 +706,7 @@ namespace OptimeGBAEmulator
                 // if (ImGui.Button("Step Until Error"))
                 // {
                 //     bool exit = false;
-                //     while (!Gba.Arm7.Errored && !exit)
+                //     while (!Gba.Cpu.Errored && !exit)
                 //     {
 
                 //         Gba.Step();
@@ -725,13 +725,13 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
                         int num = DebugStepFor;
-                        while (num > 0 && !Gba.Arm7.Errored)
+                        while (num > 0 && !Gba.Cpu.Errored)
                         {
 
                             // file.WriteLine(BuildEmuFullText());
                             Gba.Step();
 
-                            if (Gba.Arm7.InstructionsRanInterrupt == Gba.Arm7.InstructionsRan)
+                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
                             {
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
@@ -747,12 +747,12 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
                         int num = 250000;
-                        while (num > 0 && !Gba.Arm7.Errored)
+                        while (num > 0 && !Gba.Cpu.Errored)
                         {
                             Gba.Step();
                             file.WriteLine(BuildEmuFullText());
 
-                            if (Gba.Arm7.InstructionsRanInterrupt == Gba.Arm7.InstructionsRan)
+                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
                             {
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
@@ -770,14 +770,14 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
-                bool Negative = Gba.Arm7.Negative;
-                bool Zero = Gba.Arm7.Zero;
-                bool Carry = Gba.Arm7.Carry;
-                bool Overflow = Gba.Arm7.Overflow;
-                bool Sticky = Gba.Arm7.Sticky;
-                bool IRQDisable = Gba.Arm7.IRQDisable;
-                bool FIQDisable = Gba.Arm7.FIQDisable;
-                bool ThumbState = Gba.Arm7.ThumbState;
+                bool Negative = Gba.Cpu.Negative;
+                bool Zero = Gba.Cpu.Zero;
+                bool Carry = Gba.Cpu.Carry;
+                bool Overflow = Gba.Cpu.Overflow;
+                bool Sticky = Gba.Cpu.Sticky;
+                bool IRQDisable = Gba.Cpu.IRQDisable;
+                bool FIQDisable = Gba.Cpu.FIQDisable;
+                bool ThumbState = Gba.Cpu.ThumbState;
 
                 ImGui.Checkbox("Negative", ref Negative);
                 ImGui.Checkbox("Zero", ref Zero);
@@ -1042,21 +1042,21 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Instruction Viewer"))
             {
-                uint back = Gba.Arm7.ThumbState ? 16U : 32U;
+                uint back = Gba.Cpu.ThumbState ? 16U : 32U;
 
                 int rows = 32;
-                uint tempBase = Gba.Arm7.R[15] - back;
+                uint tempBase = Gba.Cpu.R[15] - back;
 
 
                 for (int i = 0; i < rows; i++)
                 {
-                    if (Gba.Arm7.ThumbState)
+                    if (Gba.Cpu.ThumbState)
                     {
                         ushort val = Gba.Mem.Read16(tempBase);
                         String disasm = DisasmThumb(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                        if (tempBase == Gba.Arm7.R[15] - (Gba.Arm7.Pipeline * 2))
+                        if (tempBase == Gba.Cpu.R[15] - (Gba.Cpu.Pipeline * 2))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -1072,7 +1072,7 @@ namespace OptimeGBAEmulator
                         String disasm = DisasmArm(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                        if (tempBase == Gba.Arm7.R[15] - (Gba.Arm7.Pipeline * 4))
+                        if (tempBase == Gba.Cpu.R[15] - (Gba.Cpu.Pipeline * 4))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -1435,7 +1435,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictThumb[k] = 0;
                     }
-                    CpuProfilerDictThumb[k] += Gba.Arm7.ThumbExecutorProfile[ti];
+                    CpuProfilerDictThumb[k] += Gba.Cpu.ThumbExecutorProfile[ti];
                 }
 
                 for (int ai = 0; ai < 4096; ai++)
@@ -1445,7 +1445,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictArm[k] = 0;
                     }
-                    CpuProfilerDictArm[k] += Gba.Arm7.ArmExecutorProfile[ai];
+                    CpuProfilerDictArm[k] += Gba.Cpu.ArmExecutorProfile[ai];
                 }
 
                 ImGui.Columns(1);

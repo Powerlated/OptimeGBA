@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using static OptimeGBA.Bits;
+using static OptimeGBA.Memory;
 
 namespace OptimeGBA
 {
@@ -66,7 +67,7 @@ namespace OptimeGBA
         public const uint VectorIRQ = 0x18;
         public const uint VectorFIQ = 0x1C;
 
-        public Gba Gba;
+        public DeviceUnit DeviceUnit;
 
 #if UNSAFE
         public uint* R = Memory.AllocateUnmanagedArray32(16);
@@ -135,20 +136,9 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
 
-        public Arm7(Gba gba)
+        public Arm7(DeviceUnit deviceUnit)
         {
-            Gba = gba;
-
-            if (Gba.Provider.BootBios)
-            {
-                // Boot BIOS
-                R[15] = 0x00000000;
-            }
-            else
-            {
-                // Boot game
-                R[15] = 0x08000000;
-            }
+            DeviceUnit = deviceUnit;
 
             // Default Mode
             Mode = Arm7Mode.System;
@@ -159,11 +149,6 @@ namespace OptimeGBA
 
             // Default Stack Pointer
             R[13] = R13usr;
-
-            if (!Gba.Provider.BootBios)
-            {
-                BiosInit();
-            }
         }
 
         public void BiosInit()
@@ -334,7 +319,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CheckInterrupts()
         {
-            if (Gba.HwControl.AvailableAndEnabled && !IRQDisable)
+            if (DeviceUnit.HwControl.AvailableAndEnabled && !IRQDisable)
             {
                 DispatchInterrupt();
             }
@@ -933,7 +918,7 @@ namespace OptimeGBA
             bool newThumbState = BitTest(val, 5);
             if (newThumbState != ThumbState)
             {
-                Gba.StateChange();
+                DeviceUnit.StateChange();
             }
             ThumbState = newThumbState;
 
@@ -1250,56 +1235,56 @@ namespace OptimeGBA
         public byte Read8(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return Gba.Mem.Read8(addr);
+            return DeviceUnit.Mem.Read8(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return Gba.Mem.Read16(addr);
+            return DeviceUnit.Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            return Gba.Mem.Read32(addr);
+            return DeviceUnit.Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16InstrFetch(uint addr)
         {
             InstructionCycles += Timing8And16InstrFetch[(addr >> 24) & 0xF];
-            return Gba.Mem.Read16(addr);
+            return DeviceUnit.Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32InstrFetch(uint addr)
         {
             InstructionCycles += Timing32InstrFetch[(addr >> 24) & 0xF];
-            return Gba.Mem.Read32(addr);
+            return DeviceUnit.Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            Gba.Mem.Write8(addr, val);
+            DeviceUnit.Mem.Write8(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            Gba.Mem.Write16(addr, val);
+            DeviceUnit.Mem.Write16(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            Gba.Mem.Write32(addr, val);
+            DeviceUnit.Mem.Write32(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -212,11 +212,11 @@ namespace OptimeGBA
 
     public sealed unsafe partial class Ppu
     {
-        Gba Gba;
+        DeviceUnit DeviceUnit;
         Scheduler Scheduler;
-        public Ppu(Gba gba, Scheduler scheduler)
+        public Ppu(DeviceUnit deviceUnit, Scheduler scheduler)
         {
-            Gba = gba;
+            DeviceUnit = deviceUnit;
             Scheduler = scheduler;
 
             Scheduler.AddEventRelative(SchedulerId.Ppu, 960, EndDrawingToHblank);
@@ -228,15 +228,6 @@ namespace OptimeGBA
             }
 
             Array.Fill(DebugEnableBg, true);
-
-            if (Gba.Provider.BootBios)
-            {
-                BiosMod = true;
-                // 250 frames
-                Scheduler.AddEventRelative(SchedulerId.None, 70224000, DisableBiosMod);
-                // 120 frames
-                Scheduler.AddEventRelative(SchedulerId.None, 33707520, EnableBiosModLayer2);
-            }
         }
 
         public void DisableBiosMod(long cyclesLate)
@@ -817,11 +808,11 @@ namespace OptimeGBA
         {
             Scheduler.AddEventRelative(SchedulerId.Ppu, 272 - cyclesLate, EndHblank);
 
-            Gba.Dma.RepeatHblank();
+            DeviceUnit.Dma.RepeatHblank();
 
             if (HBlankIrqEnable)
             {
-                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+                DeviceUnit.HwControl.FlagInterrupt(Interrupt.HBlank);
             }
 
         }
@@ -832,7 +823,7 @@ namespace OptimeGBA
 
             if (HBlankIrqEnable)
             {
-                Gba.HwControl.FlagInterrupt(Interrupt.HBlank);
+                DeviceUnit.HwControl.FlagInterrupt(Interrupt.HBlank);
             }
         }
 
@@ -858,11 +849,11 @@ namespace OptimeGBA
                         VCount = 160;
 #endif
 
-                        Gba.Dma.RepeatVblank();
+                        DeviceUnit.Dma.RepeatVblank();
 
                         if (VBlankIrqEnable)
                         {
-                            Gba.HwControl.FlagInterrupt(Interrupt.VBlank);
+                            DeviceUnit.HwControl.FlagInterrupt(Interrupt.VBlank);
                         }
 
                         TotalFrames++;
@@ -909,7 +900,7 @@ namespace OptimeGBA
                 VCounterMatch = VCount == VCountSetting;
                 if (VCounterMatch && VCounterIrqEnable)
                 {
-                    Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                    DeviceUnit.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
@@ -922,7 +913,7 @@ namespace OptimeGBA
 
             if (VCounterMatch && VCounterIrqEnable)
             {
-                Gba.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                DeviceUnit.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
             }
         }
     }
