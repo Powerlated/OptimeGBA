@@ -253,6 +253,7 @@ namespace OptimeGBA
 
         public uint Execute()
         {
+            CheckInterrupts();
             if (!ThumbState) // ARM mode
             {
                 ExecuteArm();
@@ -262,7 +263,6 @@ namespace OptimeGBA
                 ExecuteThumb();
             }
 
-            CheckInterrupts();
 
             return InstructionCycles;
         }
