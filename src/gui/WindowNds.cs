@@ -163,7 +163,7 @@ namespace OptimeGBAEmulator
             // Init SDL
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
             byte[] bios9 = new byte[0];
-            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady) { BootBios = true });
+            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady) { DirectBoot = true });
             // LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.Nds");
 
             SearchForRoms();
@@ -1094,44 +1094,44 @@ namespace OptimeGBAEmulator
                 gbTexId = 0;
 
                 // GL.ActiveTexture(TextureUnit.Texture0);
-//                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-//                 if (!ShowBackBuf)
-//                 {
-//                     GL.TexImage2D(
-//                     TextureTarget.Texture2D,
-//                     0,
-//                     PixelInternalFormat.Rgba,
-//                     240,
-//                     160,
-//                     0,
-//                     PixelFormat.Rgba,
-//                     PixelType.UnsignedByte,
-// #if UNSAFE
-//                     (IntPtr)Nds.Ppu.ScreenFront
-// #else
-//                     Nds.Ppu.ScreenFront
-// #endif
-//                 );
+                //                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
+                //                 if (!ShowBackBuf)
+                //                 {
+                //                     GL.TexImage2D(
+                //                     TextureTarget.Texture2D,
+                //                     0,
+                //                     PixelInternalFormat.Rgba,
+                //                     240,
+                //                     160,
+                //                     0,
+                //                     PixelFormat.Rgba,
+                //                     PixelType.UnsignedByte,
+                // #if UNSAFE
+                //                     (IntPtr)Nds.Ppu.ScreenFront
+                // #else
+                //                     Nds.Ppu.ScreenFront
+                // #endif
+                //                 );
 
-//                 }
-//                 else
-//                 {
-//                     GL.TexImage2D(
-//                     TextureTarget.Texture2D,
-//                     0,
-//                     PixelInternalFormat.Rgba,
-//                     240,
-//                     160,
-//                     0,
-//                     PixelFormat.Rgba,
-//                     PixelType.UnsignedByte,
-// #if UNSAFE
-//                     (IntPtr)Nds.Ppu.ScreenBack
-// #else
-//                     Nds.Ppu.ScreenBack
-// #endif
-//                     );
-//                 }
+                //                 }
+                //                 else
+                //                 {
+                //                     GL.TexImage2D(
+                //                     TextureTarget.Texture2D,
+                //                     0,
+                //                     PixelInternalFormat.Rgba,
+                //                     240,
+                //                     160,
+                //                     0,
+                //                     PixelFormat.Rgba,
+                //                     PixelType.UnsignedByte,
+                // #if UNSAFE
+                //                     (IntPtr)Nds.Ppu.ScreenBack
+                // #else
+                //                     Nds.Ppu.ScreenBack
+                // #endif
+                //                     );
+                //                 }
 
                 float height = BigScreen ? 240 * 5 : 240 * 2;
                 float width = BigScreen ? 160 * 5 : 160 * 2;
@@ -1189,13 +1189,13 @@ namespace OptimeGBAEmulator
                     new RegisterField("H-Blank Interval Form", 5),
                     new RegisterField("OBJ Character VRAM Mapping", 6),
                     new RegisterField("Forced Blank", 7),
-
-                    /* Unmerged change from project 'OptimeGBA-OpenTK'
-                    Before:
-                                        new RegisterField("Screen Display BG1", 9),
-                    After:
-                                        new RegisterField("Screen Display BG0", 8),
-                    */                 new RegisterField("Window 1 Display Flag", 14),
+                    new RegisterField("Screen Display BG0", 8),
+                    new RegisterField("Screen Display BG1", 9),
+                    new RegisterField("Screen Display BG2", 10),
+                    new RegisterField("Screen Display BG3", 11),
+                    new RegisterField("Screen Display OBJ", 12),
+                    new RegisterField("Window 0 Display Flag", 13),
+                    new RegisterField("Window 1 Display Flag", 14),
                     new RegisterField("OBJ Window Display Flag", 15)
                 ));
 
@@ -1543,7 +1543,7 @@ namespace OptimeGBAEmulator
                 Console.WriteLine(".sav not available");
             }
 
-            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, audioCallback) { BootBios = true });
+            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, audioCallback) { DirectBoot = true });
             Nds.Nds7.Mem.SaveProvider.LoadSave(sav);
         }
 

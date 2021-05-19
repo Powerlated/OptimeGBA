@@ -686,7 +686,7 @@ namespace OptimeGBAEmulator
                 {
                     RecordTime = true;
                     Time = 0;
-                    RecordStartFrames = Gba.Ppu.TotalFrames;
+                    RecordStartFrames = Gba.Ppu.Renderer.TotalFrames;
                 }
 
                 if (ImGui.Button("Stop Time"))
@@ -816,15 +816,15 @@ namespace OptimeGBAEmulator
 
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
-                ImGui.Text($"Total Frames: {Gba.Ppu.TotalFrames}");
+                ImGui.Text($"Total Frames: {Gba.Ppu.Renderer.TotalFrames}");
                 if (RecordTime)
                 {
-                    ImGui.Text($"Timed Frames: {Gba.Ppu.TotalFrames - RecordStartFrames}");
+                    ImGui.Text($"Timed Frames: {Gba.Ppu.Renderer.TotalFrames - RecordStartFrames}");
                     ImGui.Text($"Timed Seconds: {Time}");
-                    ImGui.Text($"Timed FPS: {(uint)(Gba.Ppu.TotalFrames - RecordStartFrames) / Time}");
+                    ImGui.Text($"Timed FPS: {(uint)(Gba.Ppu.Renderer.TotalFrames - RecordStartFrames) / Time}");
                 }
 
-                ImGui.Text($"VCOUNT: {Gba.Ppu.VCount}");
+                ImGui.Text($"VCOUNT: {Gba.Ppu.Renderer.VCount}");
                 ImGui.Text($"Scanline Cycles: {Gba.Ppu.GetScanlineCycles()}");
 
                 ImGuiColumnSeparator();
@@ -935,34 +935,35 @@ namespace OptimeGBAEmulator
                     Gba.GbaAudio.GbAudio.PsgFactor++;
                 }
 
-                ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[0].ScreenSize]}");
-                ImGui.Text($"BG0 Scroll X: {Gba.Ppu.Backgrounds[0].HorizontalOffset}");
-                ImGui.Text($"BG0 Scroll Y: {Gba.Ppu.Backgrounds[0].VerticalOffset}");
-                ImGui.Text($"BG1 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[1].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[1].ScreenSize]}");
-                ImGui.Text($"BG1 Scroll X: {Gba.Ppu.Backgrounds[1].HorizontalOffset}");
-                ImGui.Text($"BG1 Scroll Y: {Gba.Ppu.Backgrounds[1].VerticalOffset}");
-                ImGui.Text($"BG2 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Scroll X: {Gba.Ppu.Backgrounds[2].HorizontalOffset}");
-                ImGui.Text($"BG2 Scroll Y: {Gba.Ppu.Backgrounds[2].VerticalOffset}");
-                ImGui.Text($"BG3 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Scroll X: {Gba.Ppu.Backgrounds[3].HorizontalOffset}");
-                ImGui.Text($"BG3 Scroll Y: {Gba.Ppu.Backgrounds[3].VerticalOffset}");
-                ImGui.Checkbox("Debug BG0", ref Gba.Ppu.DebugEnableBg[0]);
-                ImGui.Checkbox("Debug BG1", ref Gba.Ppu.DebugEnableBg[1]);
-                ImGui.Checkbox("Debug BG2", ref Gba.Ppu.DebugEnableBg[2]);
-                ImGui.Checkbox("Debug BG3", ref Gba.Ppu.DebugEnableBg[3]);
-                ImGui.Checkbox("Debug OBJ", ref Gba.Ppu.DebugEnableObj);
+                var rend = Gba.Ppu.Renderer;
+                ImGui.Text($"BG0 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[0].ScreenSize]}");
+                ImGui.Text($"BG0 Scroll X: {rend.Backgrounds[0].HorizontalOffset}");
+                ImGui.Text($"BG0 Scroll Y: {rend.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"BG1 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[1].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[1].ScreenSize]}");
+                ImGui.Text($"BG1 Scroll X: {rend.Backgrounds[1].HorizontalOffset}");
+                ImGui.Text($"BG1 Scroll Y: {rend.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"BG2 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[2].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Affine Size: {PpuRenderer.AffineSizeTable[rend.Backgrounds[2].ScreenSize]}/{PpuRenderer.AffineSizeTable[rend.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"BG2 Scroll X: {rend.Backgrounds[2].HorizontalOffset}");
+                ImGui.Text($"BG2 Scroll Y: {rend.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"BG3 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[3].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Affine Size: {PpuRenderer.AffineSizeTable[rend.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rend.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"BG3 Scroll X: {rend.Backgrounds[3].HorizontalOffset}");
+                ImGui.Text($"BG3 Scroll Y: {rend.Backgrounds[3].VerticalOffset}");
+                ImGui.Checkbox("Debug BG0", ref rend.DebugEnableBg[0]);
+                ImGui.Checkbox("Debug BG1", ref rend.DebugEnableBg[1]);
+                ImGui.Checkbox("Debug BG2", ref rend.DebugEnableBg[2]);
+                ImGui.Checkbox("Debug BG3", ref rend.DebugEnableBg[3]);
+                ImGui.Checkbox("Debug OBJ", ref rend.DebugEnableObj);
 
-                ImGui.Text($"Window 0 Left..: {Gba.Ppu.Win0HLeft}");
-                ImGui.Text($"Window 0 Right.: {Gba.Ppu.Win0HRight}");
-                ImGui.Text($"Window 0 Top...: {Gba.Ppu.Win0VTop}");
-                ImGui.Text($"Window 0 Bottom: {Gba.Ppu.Win0VBottom}");
-                ImGui.Text($"Window 1 Left..: {Gba.Ppu.Win1HLeft}");
-                ImGui.Text($"Window 1 Right.: {Gba.Ppu.Win1HRight}");
-                ImGui.Text($"Window 1 Top...: {Gba.Ppu.Win1VTop}");
-                ImGui.Text($"Window 1 Bottom: {Gba.Ppu.Win1VBottom}");
+                ImGui.Text($"Window 0 Left..: {rend.Win0HLeft}");
+                ImGui.Text($"Window 0 Right.: {rend.Win0HRight}");
+                ImGui.Text($"Window 0 Top...: {rend.Win0VTop}");
+                ImGui.Text($"Window 0 Bottom: {rend.Win0VBottom}");
+                ImGui.Text($"Window 1 Left..: {rend.Win1HLeft}");
+                ImGui.Text($"Window 1 Right.: {rend.Win1HRight}");
+                ImGui.Text($"Window 1 Top...: {rend.Win1VTop}");
+                ImGui.Text($"Window 1 Bottom: {rend.Win1VBottom}");
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -971,7 +972,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p];
+                    PaletteImageBuffer[p] = Gba.Ppu.Renderer.ProcessedPalettes[p];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
@@ -998,7 +999,7 @@ namespace OptimeGBAEmulator
 
                 for (int p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p + 256];
+                    PaletteImageBuffer[p] = Gba.Ppu.Renderer.ProcessedPalettes[p + 256];
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
@@ -1108,9 +1109,9 @@ namespace OptimeGBAEmulator
                     PixelFormat.Rgba,
                     PixelType.UnsignedByte,
 #if UNSAFE
-                    (IntPtr)Gba.Ppu.ScreenFront
+                    (IntPtr)Gba.Ppu.Renderer.ScreenFront
 #else
-                    Gba.Ppu.ScreenFront
+                    Gba.Ppu.Renderer.ScreenFront
 #endif
                 );
 
@@ -1127,9 +1128,9 @@ namespace OptimeGBAEmulator
                     PixelFormat.Rgba,
                     PixelType.UnsignedByte,
 #if UNSAFE
-                    (IntPtr)Gba.Ppu.ScreenBack
+                    (IntPtr)Gba.Ppu.Renderer.ScreenBack
 #else
-                    Gba.Ppu.ScreenBack
+                    Gba.Ppu.Renderer.ScreenBack
 #endif
                     );
                 }

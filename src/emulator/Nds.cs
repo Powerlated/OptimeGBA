@@ -1,9 +1,10 @@
 using System;
+using static OptimeGBA.MemoryUtil;
+using static Util;
 
 namespace OptimeGBA
 {
-
-    public sealed class Nds
+    public unsafe sealed class Nds
     {
         public ProviderNds Provider;
 
@@ -13,7 +14,10 @@ namespace OptimeGBA
         public Nds7 Nds7;
         public Scheduler Scheduler;
 
-        public uint[] registers = new uint[16];
+        public byte[] MainRam = new byte[4194304];
+        public byte[] SharedRam = new byte[32768];
+        public byte SharedRamControl = 0;
+
         public Nds(ProviderNds provider)
         {
             Provider = provider;
@@ -27,6 +31,36 @@ namespace OptimeGBA
 #else
             Console.WriteLine("Starting in memory SAFE mode");
 #endif
+
+            if (provider.DirectBoot)
+            {
+                var rom = provider.Rom;
+                if (rom.Length >= 0x200)
+                {
+                    uint arm9RomOffset = GetUint(rom, 0x20);
+                    uint arm9EntryAddr = GetUint(rom, 0x24);
+                    uint arm9RamAddr = GetUint(rom, 0x28);
+                    uint arm9Size = GetUint(rom, 0x2C);
+                    uint arm7RomOffset = GetUint(rom, 0x30) & ~0xFFFu;
+                    uint arm7EntryAddr = GetUint(rom, 0x34);
+                    uint arm7RamAddr = GetUint(rom, 0x38);
+                    uint arm7Size = GetUint(rom, 0x3C);
+
+                    // Firmware init
+                    SharedRamControl = 3;
+
+                    // ROM offset is aligned by 0x1000
+                    // Array.Copy(rom, arm9RomOffset & ~0xFFF, , arm9RamAddr, arm9Size);
+                    Console.WriteLine("ARM7 RAM Address: " + Hex(arm7RamAddr, 8));
+                    for (uint i = 0; i < arm7Size; i++)
+                    {
+                        Nds7.Mem.Write8(arm7RamAddr + i, rom[arm7RomOffset + i]);
+                    }
+                    Nds7.Cpu.R[15] = arm7RamAddr;
+                    Nds7.Cpu.FlushPipeline();
+
+                }
+            }
         }
 
         public uint Step()
@@ -94,6 +128,6 @@ namespace OptimeGBA
             Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
         }
 
-        public void HaltSkip(long cyclesOffset) {}
+        public void HaltSkip(long cyclesOffset) { }
     }
 }

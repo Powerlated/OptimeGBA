@@ -142,14 +142,14 @@ namespace OptimeGBA
                     case 0x5: // Palettes
                         if (!write)
                         {
-                            table[i] = Gba.Ppu.Palettes;
+                            table[i] = Gba.Ppu.Renderer.Palettes;
                         }
                         break;
                     case 0x6: // PPU VRAM
                         addr &= 0x1FFFF;
                         if (addr < 0x18000)
                         {
-                            table[i] = Gba.Ppu.Vram;
+                            table[i] = Gba.Ppu.Renderer.Vram;
                         }
                         else
                         {
@@ -158,7 +158,7 @@ namespace OptimeGBA
                         break;
                     case 0x7: // PPU OAM
                         addr &= 0x3FF;
-                        table[i] = Gba.Ppu.Oam;
+                        table[i] = Gba.Ppu.Renderer.Oam;
                         break;
                     case 0x8: // Game Pak ROM/FlashROM 
                     case 0x9: // Game Pak ROM/FlashROM 
@@ -254,10 +254,10 @@ namespace OptimeGBA
                     break;
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
-                    if (GetUshort(Gba.Ppu.Palettes, addr) != val)
+                    if (GetUshort(Gba.Ppu.Renderer.Palettes, addr) != val)
                     {
-                        SetUshort(Gba.Ppu.Palettes, addr, val);
-                        Gba.Ppu.UpdatePalette((addr & ~1u) / 2);
+                        SetUshort(Gba.Ppu.Renderer.Palettes, addr, val);
+                        Gba.Ppu.Renderer.UpdatePalette((addr & ~1u) / 2);
                     }
                     break;
             }
@@ -276,18 +276,18 @@ namespace OptimeGBA
                     break;
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
-                    if (GetUint(Gba.Ppu.Palettes, addr) != val)
+                    if (GetUint(Gba.Ppu.Renderer.Palettes, addr) != val)
                     {
-                        SetUint(Gba.Ppu.Palettes, addr, val);
-                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 0);
-                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 1);
+                        SetUint(Gba.Ppu.Renderer.Palettes, addr, val);
+                        Gba.Ppu.Renderer.UpdatePalette((addr & ~3u) / 2 + 0);
+                        Gba.Ppu.Renderer.UpdatePalette((addr & ~3u) / 2 + 1);
                     }
                     return;
                 case 0x6: // PPU VRAM
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        SetUint(Gba.Ppu.Vram, addr, val);
+                        SetUint(Gba.Ppu.Renderer.Vram, addr, val);
                     }
                     return;
             }

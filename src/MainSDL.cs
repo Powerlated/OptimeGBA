@@ -51,6 +51,9 @@ namespace OptimeGBAEmulator
         static bool IsFullscreen = false;
         static bool Stretched = false;
 
+        const int GBA_WIDTH = 240;
+        const int GBA_HEIGHT = 160;
+
         static bool Excepted = false;
         static string ExceptionMessage = "";
 
@@ -100,11 +103,11 @@ namespace OptimeGBAEmulator
 
             bool GuiMode = args.Length == 0;
 
-            Window = SDL_CreateWindow("Optime GBA", 0, 0, Ppu.WIDTH * 4, Ppu.HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
+            Window = SDL_CreateWindow("Optime GBA", 0, 0, GBA_WIDTH * 4, GBA_HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
             Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
 
-            SDL_SetWindowMinimumSize(Window, Ppu.WIDTH, Ppu.HEIGHT);
+            SDL_SetWindowMinimumSize(Window, GBA_WIDTH, GBA_HEIGHT);
 
             // SDL_GL_SetSwapInterval()
 
@@ -116,7 +119,7 @@ namespace OptimeGBAEmulator
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
-            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, Ppu.WIDTH, Ppu.HEIGHT);
+            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, GBA_WIDTH, GBA_HEIGHT);
 
             string romPath;
             byte[] rom;
@@ -373,30 +376,29 @@ namespace OptimeGBAEmulator
                 }
 
 #if UNSAFE
-                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Ppu.ScreenFront, Ppu.WIDTH * Ppu.BYTES_PER_PIXEL);
+                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Ppu.Renderer.ScreenFront, GBA_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
 #else
                 fixed (uint* pixels = &Gba.Ppu.ScreenFront[0])
                 {
-                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, Ppu.WIDTH * Ppu.BYTES_PER_PIXEL);
-                }
+                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, GBA_WIDTH * Ppu.BYTES_PER_PIXEL);GBA_HEIGHT
 #endif
 
                 SDL_Rect dest = new SDL_Rect();
                 SDL_GetWindowSize(Window, out int w, out int h);
-                double ratio = Math.Min((double)h / (double)Ppu.HEIGHT, (double)w / (double)Ppu.WIDTH);
+                double ratio = Math.Min((double)h / (double)GBA_HEIGHT, (double)w / (double)GBA_WIDTH);
                 int fillWidth;
                 int fillHeight;
                 if (!Stretched)
                 {
                     if (IntegerScaling)
                     {
-                        fillWidth = ((int)(ratio * Ppu.WIDTH) / Ppu.WIDTH) * Ppu.WIDTH;
-                        fillHeight = ((int)(ratio * Ppu.HEIGHT) / Ppu.HEIGHT) * Ppu.HEIGHT;
+                        fillWidth = ((int)(ratio * GBA_WIDTH) / GBA_WIDTH) * GBA_WIDTH;
+                        fillHeight = ((int)(ratio * GBA_HEIGHT) / GBA_HEIGHT) * GBA_HEIGHT;
                     }
                     else
                     {
-                        fillWidth = (int)(ratio * Ppu.WIDTH);
-                        fillHeight = (int)(ratio * Ppu.HEIGHT);
+                        fillWidth = (int)(ratio * GBA_WIDTH);
+                        fillHeight = (int)(ratio * GBA_HEIGHT);
                     }
                     dest.w = fillWidth;
                     dest.h = fillHeight;
@@ -630,18 +632,18 @@ namespace OptimeGBAEmulator
                 switch (kb.keysym.sym)
                 {
                     case SDL_Keycode.SDLK_F1:
-                        if (Gba.Ppu.ColorCorrection)
+                        if (Gba.Ppu.Renderer.ColorCorrection)
                         {
-                            Gba.Ppu.DisableColorCorrection();
+                            Gba.Ppu.Renderer.DisableColorCorrection();
                         }
                         else
                         {
-                            Gba.Ppu.EnableColorCorrection();
+                            Gba.Ppu.Renderer.EnableColorCorrection();
                         }
                         break;
 
                     case SDL_Keycode.SDLK_F2:
-                        Gba.Ppu.DebugEnableRendering = !Gba.Ppu.DebugEnableRendering;
+                        Gba.Ppu.Renderer.DebugEnableRendering = !Gba.Ppu.Renderer.DebugEnableRendering;
                         break;
                     case SDL_Keycode.SDLK_F3:
                         Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;

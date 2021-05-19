@@ -18,7 +18,7 @@ namespace OptimeGBA
 
             Mem = new MemoryGba(this, provider);
             GbaAudio = new GbaAudio(this, Scheduler);
-            Ppu = new Ppu(this, Scheduler);
+            Ppu = new PpuGba(this, Scheduler);
             Keypad = new Keypad();
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);

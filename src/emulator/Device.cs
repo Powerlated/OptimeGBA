@@ -8,7 +8,7 @@ namespace OptimeGBA
         public Arm7 Cpu;
         public Dma Dma;
         public Memory Mem;
-        public Ppu Ppu;
+        public PpuGba Ppu;
         public Timers Timers;
         public HwControl HwControl;
 

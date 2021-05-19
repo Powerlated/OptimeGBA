@@ -5,8 +5,172 @@ using System;
 
 namespace OptimeGBA
 {
-    public sealed unsafe partial class Ppu
+    public sealed unsafe class PpuRenderer
     {
+        public int Width;
+        public int Height;
+        public PpuRenderer(int width, int height)
+        {
+            Width = width;
+            Height = height;
+
+            Array.Fill(DebugEnableBg, true);
+
+            int ScreenBufferSize = Width * Height;
+#if UNSAFE
+            ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
+            ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
+
+            BackgroundBuffers = new byte*[]{
+            MemoryUtil.AllocateUnmanagedArray(Width + 8),
+            MemoryUtil.AllocateUnmanagedArray(Width + 8),
+            MemoryUtil.AllocateUnmanagedArray(Width + 8),
+            MemoryUtil.AllocateUnmanagedArray(Width + 8),
+        };
+
+#else 
+            ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
+            ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
+
+            BackgroundBuffers = new byte[][] {
+            MemoryUtil.AllocateManagedArray(Width + 8),
+            MemoryUtil.AllocateManagedArray(Width + 8),
+            MemoryUtil.AllocateManagedArray(Width + 8),
+            MemoryUtil.AllocateManagedArray(Width + 8),
+        };
+#endif
+            ObjBuffer = new ObjPixel[Width];
+            ObjWindowBuffer = new byte[Width];
+
+            for (uint i = 0; i < ScreenBufferSize; i++)
+            {
+                ScreenFront[i] = 0xFFFFFFFF;
+                ScreenBack[i] = 0xFFFFFFFF;
+            }
+
+        }
+
+        // Internal State
+        public uint VCount;
+        public const int BYTES_PER_PIXEL = 4;
+
+        public bool RenderingDone = false;
+
+        // RGB, 24-bit
+#if UNSAFE
+        public uint* ScreenFront;
+        public uint* ScreenBack;
+        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
+        
+        public byte*[] BackgroundBuffers;
+
+        // public byte* Palettes = MemoryUtil.AllocateUnmanagedArray(1024);
+        // public byte* Vram = MemoryUtil.AllocateUnmanagedArray(98304);
+        // public byte* Oam = MemoryUtil.AllocateUnmanagedArray(1024);
+
+        ~PpuRenderer()
+        {
+            MemoryUtil.FreeUnmanagedArray(ScreenFront);
+            MemoryUtil.FreeUnmanagedArray(ScreenBack);
+            MemoryUtil.FreeUnmanagedArray(ProcessedPalettes);
+
+            // MemoryUtil.FreeUnmanagedArray(Palettes);
+            // MemoryUtil.FreeUnmanagedArray(Vram);
+            // MemoryUtil.FreeUnmanagedArray(Oam);
+
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[0]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[1]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[2]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[3]);
+        }
+#else
+        public uint[] ScreenFront;
+        public uint[] ScreenBack;
+        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
+
+        public byte[][] BackgroundBuffers;
+#endif
+
+        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
+        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
+        public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
+
+        public ObjPixel[] ObjBuffer;
+        public byte[] ObjWindowBuffer;
+
+        public uint TotalFrames;
+
+        const uint CharBlockSize = 16384;
+        const uint MapBlockSize = 2048;
+
+        public bool ColorCorrection = true;
+
+        public uint White = Rgb555to888(0xFFFF, true);
+
+
+        // BGCNT
+        public Background[] Backgrounds = new Background[4] {
+            new Background(0),
+            new Background(1),
+            new Background(2),
+            new Background(3),
+        };
+
+        // DISPCNT
+        public uint BgMode;
+        public bool CgbMode;
+        public bool DisplayFrameSelect;
+        public bool HBlankIntervalFree;
+        public bool ObjCharacterVramMapping;
+        public bool ForcedBlank;
+        public bool[] ScreenDisplayBg = new bool[4];
+        public bool ScreenDisplayObj;
+        public bool Window0DisplayFlag;
+        public bool Window1DisplayFlag;
+        public bool ObjWindowDisplayFlag;
+
+        public bool AnyWindowEnabled = false;
+
+        public bool[] DebugEnableBg = new bool[4];
+        public bool DebugEnableObj = true;
+        public bool DebugEnableRendering = true;
+
+        // WIN0H
+        public byte Win0HRight;
+        public byte Win0HLeft;
+        // WIN1H
+        public byte Win1HRight;
+        public byte Win1HLeft;
+
+        // WIN0V
+        public byte Win0VBottom;
+        public byte Win0VTop;
+
+        // WIN1V
+        public byte Win1VBottom;
+        public byte Win1VTop;
+
+
+        // WININ
+        public uint Win0InEnable;
+        public uint Win1InEnable;
+
+        // WINOUT
+        public uint WinOutEnable;
+        public uint WinObjEnable;
+
+        // BLDCNT
+        public BlendEffect BlendEffect = 0;
+        public uint Target1Flags;
+        public uint Target2Flags;
+
+        // BLDALPHA
+        public uint BlendACoeff;
+        public uint BlendBCoeff;
+
+        // BLDY
+        public uint BlendBrightness;
+
 
         public void RenderScanline()
         {
@@ -40,14 +204,21 @@ namespace OptimeGBA
             else
             {
                 // Render white
-                uint screenBase = VCount * WIDTH;
+                uint screenBase = (uint)(VCount * Width);
 
-                for (uint p = 0; p < WIDTH; p++)
+                for (uint p = 0; p < Width; p++)
                 {
                     ScreenBack[screenBase] = White;
                     screenBase++;
                 }
             }
+        }
+
+        public void SwapBuffers()
+        {
+            var temp = ScreenBack;
+            ScreenBack = ScreenFront;
+            ScreenFront = temp;
         }
 
         public int[] BgList = new int[4];
@@ -129,7 +300,7 @@ namespace OptimeGBA
 
             var bgBuffer = BackgroundBuffers[bg.Id];
 
-            for (uint tile = 0; tile < WIDTH / 8 + 1; tile++)
+            for (uint tile = 0; tile < Width / 8 + 1; tile++)
             {
                 uint pixelXWrapped = pixelX & 255;
 
@@ -230,7 +401,7 @@ namespace OptimeGBA
 
             var bgBuffer = BackgroundBuffers[bg.Id];
 
-            for (uint p = 0; p < WIDTH; p++)
+            for (uint p = 0; p < Width; p++)
             {
                 uint pixelX = (xInteger + p) & AffineSizeMask[bg.ScreenSize];
                 uint pixelXWrapped = pixelX & 255;
@@ -348,7 +519,7 @@ namespace OptimeGBA
                 {
                     for (uint x = 0; x < xSize; x++)
                     {
-                        if (screenLineBase < WIDTH)
+                        if (screenLineBase < Width)
                         {
                             int objPixelX = (int)x;
 
@@ -426,7 +597,7 @@ namespace OptimeGBA
 
                     for (int x = 0; x < renderXSize; x++)
                     {
-                        if (screenLineBase < WIDTH)
+                        if (screenLineBase < Width)
                         {
                             uint lerpedObjPixelX = (uint)(objPixelXEdge0 >> 8);
                             uint lerpedObjPixelY = (uint)(objPixelYEdge0 >> 8);
@@ -487,7 +658,8 @@ namespace OptimeGBA
                     {
                         case ObjMode.Normal:
                         case ObjMode.Translucent:
-                            if (priority <= ObjBuffer[x].Priority) {
+                            if (priority <= ObjBuffer[x].Priority)
+                            {
                                 ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
                             }
                             break;
@@ -531,7 +703,7 @@ namespace OptimeGBA
                 PrepareBackgrounds();
             }
 
-            uint screenBase = VCount * WIDTH;
+            uint screenBase = (uint)(VCount * Width);
 
             bool win0InsideY = ((VCount - Win0VTop) & 0xFF) < ((Win0VBottom - Win0VTop) & 0xFF) && Window0DisplayFlag;
             bool win1InsideY = ((VCount - Win1VTop) & 0xFF) < ((Win1VBottom - Win1VTop) & 0xFF) && Window1DisplayFlag;
@@ -540,11 +712,11 @@ namespace OptimeGBA
             uint win1ThresholdX = (uint)(Win1HRight - Win1HLeft) & 0xFF;
 
             uint pixel = 0;
-            for (uint i = 0; i < WIDTH; i++)
+            for (uint i = 0; i < Width; i++)
             {
                 uint winMask = 0b111111;
 
-                if ((DISPCNTValue & 0b1110000000000000) != 0)
+                if (AnyWindowEnabled)
                 {
                     winMask = WinOutEnable;
 
@@ -714,10 +886,10 @@ namespace OptimeGBA
 
         public void RenderMode4()
         {
-            uint screenBase = VCount * WIDTH;
-            uint vramBase = 0x0 + (VCount * WIDTH);
+            uint screenBase = (uint)(VCount * Width);
+            uint vramBase = (uint)(0x0 + VCount * Width);
 
-            for (uint p = 0; p < WIDTH; p++)
+            for (uint p = 0; p < Width; p++)
             {
                 uint vramVal = Vram[vramBase];
 
@@ -730,10 +902,10 @@ namespace OptimeGBA
 
         public void RenderMode3()
         {
-            uint screenBase = VCount * WIDTH;
-            uint vramBase = 0x0 + (VCount * WIDTH * 2);
+            uint screenBase = (uint)(VCount * Width);
+            uint vramBase = (uint)(VCount * Width * 2);
 
-            for (uint p = 0; p < WIDTH; p++)
+            for (uint p = 0; p < Width; p++)
             {
                 byte b0 = Vram[vramBase + 0];
                 byte b1 = Vram[vramBase + 1];
@@ -746,5 +918,69 @@ namespace OptimeGBA
                 vramBase += 2;
             }
         }
+
+        public static uint Rgb555to888(uint data, bool colorCorrection)
+        {
+            byte r = (byte)((data >> 0) & 0b11111);
+            byte g = (byte)((data >> 5) & 0b11111);
+            byte b = (byte)((data >> 10) & 0b11111);
+
+            if (colorCorrection)
+            {
+                // byuu color correction, customized for my tastes
+                double ppuGamma = 4.0, outGamma = 3.0;
+
+                double lb = Math.Pow(b / 31.0, ppuGamma);
+                double lg = Math.Pow(g / 31.0, ppuGamma);
+                double lr = Math.Pow(r / 31.0, ppuGamma);
+
+                byte fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
+                byte fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
+                byte fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+
+                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+            }
+            else
+            {
+                byte fr = (byte)((255 / 31) * r);
+                byte fg = (byte)((255 / 31) * g);
+                byte fb = (byte)((255 / 31) * b);
+
+                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+            }
+        }
+
+        public void UpdatePalette(uint pal)
+        {
+            byte b0 = Palettes[(pal * 2) + 0];
+            byte b1 = Palettes[(pal * 2) + 1];
+
+            ushort data = (ushort)((b1 << 8) | b0);
+
+            ProcessedPalettes[pal] = Rgb555to888(data, ColorCorrection);
+        }
+
+        public void RefreshPalettes()
+        {
+            for (uint i = 0; i < 512; i++)
+            {
+                UpdatePalette(i);
+            }
+
+            White = Rgb555to888(0xFFFF, ColorCorrection);
+        }
+
+        public void EnableColorCorrection()
+        {
+            ColorCorrection = true;
+            RefreshPalettes();
+        }
+
+        public void DisableColorCorrection()
+        {
+            ColorCorrection = false;
+            RefreshPalettes();
+        }
+
     }
 }
