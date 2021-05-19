@@ -342,11 +342,7 @@ namespace OptimeGBA
         public uint* ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
         public uint* ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
         public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
-
-        public byte* Palettes = MemoryUtil.AllocateUnmanagedArray(1024);
-        public byte* Vram = MemoryUtil.AllocateUnmanagedArray(98304);
-        public byte* Oam = MemoryUtil.AllocateUnmanagedArray(1024);
-
+        
         public byte*[] BackgroundBuffers = {
             MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
             MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
@@ -354,15 +350,19 @@ namespace OptimeGBA
             MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
         };
 
+        // public byte* Palettes = MemoryUtil.AllocateUnmanagedArray(1024);
+        // public byte* Vram = MemoryUtil.AllocateUnmanagedArray(98304);
+        // public byte* Oam = MemoryUtil.AllocateUnmanagedArray(1024);
+
         ~Ppu()
         {
             MemoryUtil.FreeUnmanagedArray(ScreenFront);
             MemoryUtil.FreeUnmanagedArray(ScreenBack);
             MemoryUtil.FreeUnmanagedArray(ProcessedPalettes);
 
-            MemoryUtil.FreeUnmanagedArray(Palettes);
-            MemoryUtil.FreeUnmanagedArray(Vram);
-            MemoryUtil.FreeUnmanagedArray(Oam);
+            // MemoryUtil.FreeUnmanagedArray(Palettes);
+            // MemoryUtil.FreeUnmanagedArray(Vram);
+            // MemoryUtil.FreeUnmanagedArray(Oam);
 
             MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[0]);
             MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[1]);
@@ -370,10 +370,6 @@ namespace OptimeGBA
             MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[3]);
         }
 #else
-        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
-        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
-        public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
-
         public uint[] ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
         public uint[] ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
         public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
@@ -385,6 +381,10 @@ namespace OptimeGBA
             MemoryUtil.AllocateManagedArray(WIDTH + 8),
         };
 #endif
+        
+        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
+        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
+        public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
 
         public ObjPixel[] ObjBuffer = new ObjPixel[WIDTH];
         public byte[] ObjWindowBuffer = new byte[WIDTH];
