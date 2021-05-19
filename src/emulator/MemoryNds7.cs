@@ -70,20 +70,30 @@ namespace OptimeGBA
             return 0;
         }
 
+        public override ushort Read16Unregistered(uint addr)
+        {
+            return 0;
+        }
+
+        public override uint Read32Unregistered(uint addr)
+        {
+            return 0;
+        }
+
         public override void Write8Unregistered(uint addr, byte val)
         {
 
         }
 
-        // public override ushort Read16Unregistered(uint addr)
-        // {
-        //     return 0;
-        // }
+        public override void Write16Unregistered(uint addr, ushort val)
+        {
 
-        // public override void Write16Unregistered(uint addr, ushort val)
-        // {
+        }
 
-        // }
+        public override void Write32Unregistered(uint addr, uint val)
+        {
+
+        }
 
 
         public byte ReadHwio8(uint addr)

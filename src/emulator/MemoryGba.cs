@@ -87,8 +87,6 @@ namespace OptimeGBA
                 case 4: SaveProvider = new Flash(Gba, FlashSize.Flash512k); break;
                 case 5: SaveProvider = new Flash(Gba, FlashSize.Flash1m); break;
             }
-
-            
         }
 
         public uint EepromThreshold = 0x2000000;
@@ -184,14 +182,6 @@ namespace OptimeGBA
             {
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
-
-                    if (LogHwioAccesses && (addr & ~1) != 0)
-                    {
-                        uint count;
-                        HwioReadLog.TryGetValue(addr, out count);
-                        HwioReadLog[addr] = count + 1;
-                    }
-
                     return ReadHwio8(addr);
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
@@ -201,16 +191,42 @@ namespace OptimeGBA
             return 0;
         }
 
-        //         public override ushort Read16Unregistered(uint addr)
-        // {
-        //     return 0;
-        // }
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override ushort Read16Unregistered(uint addr)
+        {
+            switch (addr >> 24)
+            {
+                case 0x4: // I/O Registers
+                    byte f0 = Read8Unregistered(addr++);
+                    byte f1 = Read8Unregistered(addr++);
 
-        // public override void Write16Unregistered(uint addr, ushort val)
-        // {
+                    ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
-        // }
-        
+                    return u16;
+            }
+
+            return 0;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override uint Read32Unregistered(uint addr)
+        {
+            switch (addr >> 24)
+            {
+                case 0x4: // I/O Registers
+                    byte f0 = Read8Unregistered(addr++);
+                    byte f1 = Read8Unregistered(addr++);
+                    byte f2 = Read8Unregistered(addr++);
+                    byte f3 = Read8Unregistered(addr++);
+
+                    uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+
+                    return u32;
+            }
+
+            return 0;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Write8Unregistered(uint addr, byte val)
         {
@@ -218,14 +234,6 @@ namespace OptimeGBA
             {
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
-
-                    if (LogHwioAccesses && (addr & ~1) != 0)
-                    {
-                        uint count;
-                        HwioWriteLog.TryGetValue(addr, out count);
-                        HwioWriteLog[addr] = count + 1;
-                    }
-
                     WriteHwio8(addr, val);
                     break;
                 case 0xE: // Game Pak SRAM/Flash
@@ -235,8 +243,66 @@ namespace OptimeGBA
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void Write16Unregistered(uint addr, ushort val)
+        {
+            switch (addr >> 24)
+            {
+                case 0x4: // I/O Registers
+                    WriteHwio8(addr++, (byte)(val >> 0));
+                    WriteHwio8(addr++, (byte)(val >> 8));
+                    break;
+                case 0x5: // PPU Palettes
+                    addr &= 0x3FF;
+                    if (GetUshort(Gba.Ppu.Palettes, addr) != val)
+                    {
+                        SetUshort(Gba.Ppu.Palettes, addr, val);
+                        Gba.Ppu.UpdatePalette((addr & ~1u) / 2);
+                    }
+                    break;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override void Write32Unregistered(uint addr, uint val)
+        {
+            switch (addr >> 24)
+            {
+                case 0x4: // I/O Registers
+                    WriteHwio8(addr++, (byte)(val >> 0));
+                    WriteHwio8(addr++, (byte)(val >> 8));
+                    WriteHwio8(addr++, (byte)(val >> 16));
+                    WriteHwio8(addr++, (byte)(val >> 24));
+                    break;
+                case 0x5: // PPU Palettes
+                    addr &= 0x3FF;
+                    if (GetUint(Gba.Ppu.Palettes, addr) != val)
+                    {
+                        SetUint(Gba.Ppu.Palettes, addr, val);
+                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 0);
+                        Gba.Ppu.UpdatePalette((addr & ~3u) / 2 + 1);
+                    }
+                    return;
+                case 0x6: // PPU VRAM
+                    addr &= 0x1FFFF;
+                    if (addr < 0x18000)
+                    {
+                        SetUint(Gba.Ppu.Vram, addr, val);
+                    }
+                    return;
+            }
+
+        }
+
         public byte ReadHwio8(uint addr)
         {
+            if (LogHwioAccesses && (addr & ~1) != 0)
+            {
+                uint count;
+                HwioWriteLog.TryGetValue(addr, out count);
+                HwioWriteLog[addr] = count + 1;
+            }
+
             if (addr >= 0x4000000 && addr <= 0x4000056) // PPU
             {
                 return Gba.Ppu.ReadHwio8(addr);
@@ -274,6 +340,13 @@ namespace OptimeGBA
 
         public void WriteHwio8(uint addr, byte val)
         {
+
+            if (LogHwioAccesses && (addr & ~1) != 0)
+            {
+                uint count;
+                HwioReadLog.TryGetValue(addr, out count);
+                HwioReadLog[addr] = count + 1;
+            }
 
             if (addr >= 0x4000000 && addr <= 0x4000056) // PPU
             {

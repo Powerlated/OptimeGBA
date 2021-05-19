@@ -33,6 +33,10 @@ namespace OptimeGBA
 
         public abstract byte Read8Unregistered(uint addr);
         public abstract void Write8Unregistered(uint addr, byte val);
+        public abstract ushort Read16Unregistered(uint addr);
+        public abstract void Write16Unregistered(uint addr, ushort val);
+        public abstract uint Read32Unregistered(uint addr);
+        public abstract void Write32Unregistered(uint addr, uint val);
 
         public void InitPageTables()
         {
@@ -70,7 +74,7 @@ namespace OptimeGBA
             {
                 return GetByte(page, MaskAddress(addr));
             }
-            
+
             return Read8Unregistered(addr);
         }
 
@@ -90,12 +94,7 @@ namespace OptimeGBA
                 return GetUshort(page, MaskAddress(addr));
             }
 
-            byte f0 = Read8Unregistered(addr++);
-            byte f1 = Read8Unregistered(addr++);
-
-            ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
-
-            return u16;
+            return Read16Unregistered(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -114,14 +113,7 @@ namespace OptimeGBA
                 return GetUint(page, MaskAddress(addr));
             }
 
-            byte f0 = Read8Unregistered(addr++);
-            byte f1 = Read8Unregistered(addr++);
-            byte f2 = Read8Unregistered(addr++);
-            byte f3 = Read8Unregistered(addr++);
-
-            uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
-
-            return u32;
+            return Read32Unregistered(addr);
         }
 
 
@@ -155,16 +147,7 @@ namespace OptimeGBA
                 return;
             }
 
-            switch (addr >> 24)
-            {
-
-            }
-
-            byte f0 = (byte)(val >> 0);
-            byte f1 = (byte)(val >> 8);
-
-            Write8Unregistered(addr++, f0);
-            Write8Unregistered(addr++, f1);
+            Write16Unregistered(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -184,15 +167,7 @@ namespace OptimeGBA
                 return;
             }
 
-            byte f0 = (byte)(val >> 0);
-            byte f1 = (byte)(val >> 8);
-            byte f2 = (byte)(val >> 16);
-            byte f3 = (byte)(val >> 24);
-
-            Write8Unregistered(addr++, f0);
-            Write8Unregistered(addr++, f1);
-            Write8Unregistered(addr++, f2);
-            Write8Unregistered(addr++, f3);
+            Write32Unregistered(addr, val);
         }
     }
 }
