@@ -6,14 +6,16 @@ namespace OptimeGBA
     {
         public bool BootBios = false;
 
-        public byte[] Bios;
+        public byte[] Bios7;
+        public byte[] Bios9;
         public byte[] Rom;
 
         public string RomId;
 
-        public ProviderNds(byte[] bios, byte[] rom, string savPath, AudioCallback audioCallback)
+        public ProviderNds(byte[] bios7, byte[] bios9, byte[] rom, string savPath, AudioCallback audioCallback)
         {
-            Bios = bios;
+            Bios7 = bios7;
+            Bios9 = bios9;
             Rom = rom;
             AudioCallback = audioCallback;
             SavPath = savPath;

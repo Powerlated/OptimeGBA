@@ -67,7 +67,7 @@ namespace OptimeGBA
         public const uint VectorIRQ = 0x18;
         public const uint VectorFIQ = 0x1C;
 
-        public Device DeviceUnit;
+        public Device Device;
 
 #if UNSAFE
         public uint* R = MemoryUtil.AllocateUnmanagedArray32(16);
@@ -136,9 +136,9 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
 
-        public Arm7(Device deviceUnit)
+        public Arm7(Device device)
         {
-            DeviceUnit = deviceUnit;
+            Device = device;
 
             // Default Mode
             Mode = Arm7Mode.System;
@@ -319,7 +319,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CheckInterrupts()
         {
-            if (DeviceUnit.HwControl.AvailableAndEnabled && !IRQDisable)
+            if (Device.HwControl.AvailableAndEnabled && !IRQDisable)
             {
                 DispatchInterrupt();
             }
@@ -918,7 +918,7 @@ namespace OptimeGBA
             bool newThumbState = BitTest(val, 5);
             if (newThumbState != ThumbState)
             {
-                DeviceUnit.StateChange();
+                Device.StateChange();
             }
             ThumbState = newThumbState;
 
@@ -1235,56 +1235,56 @@ namespace OptimeGBA
         public byte Read8(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return DeviceUnit.Mem.Read8(addr);
+            return Device.Mem.Read8(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return DeviceUnit.Mem.Read16(addr);
+            return Device.Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            return DeviceUnit.Mem.Read32(addr);
+            return Device.Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16InstrFetch(uint addr)
         {
             InstructionCycles += Timing8And16InstrFetch[(addr >> 24) & 0xF];
-            return DeviceUnit.Mem.Read16(addr);
+            return Device.Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32InstrFetch(uint addr)
         {
             InstructionCycles += Timing32InstrFetch[(addr >> 24) & 0xF];
-            return DeviceUnit.Mem.Read32(addr);
+            return Device.Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            DeviceUnit.Mem.Write8(addr, val);
+            Device.Mem.Write8(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            DeviceUnit.Mem.Write16(addr, val);
+            Device.Mem.Write16(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            DeviceUnit.Mem.Write32(addr, val);
+            Device.Mem.Write32(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

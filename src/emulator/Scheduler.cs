@@ -51,7 +51,7 @@ namespace OptimeGBA
         }
 
         public long CurrentTicks = 0;
-        public long NextEventTicks = 0;
+        public long NextEventTicks = long.MaxValue;
 
         public uint FreeEventStackIndex = 0;
         public SchedulerEvent[] FreeEventStack = new SchedulerEvent[64];

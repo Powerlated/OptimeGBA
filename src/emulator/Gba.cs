@@ -22,7 +22,7 @@ namespace OptimeGBA
             Keypad = new Keypad();
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);
-            HwControl = new HwControl(this);
+            HwControl = new HwControlGba(this);
             Cpu = new Arm7(this);
 
             AudioCallback = provider.AudioCallback;
@@ -97,7 +97,7 @@ namespace OptimeGBA
             return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }
 
-        public override void Tick(uint cycles)
+        public void Tick(uint cycles)
         {
             Scheduler.CurrentTicks += cycles;
         }

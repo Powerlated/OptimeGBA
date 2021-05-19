@@ -385,7 +385,7 @@ namespace OptimeGBA
 
             if (c.FinishedIRQ)
             {
-                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+                Gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.DMA0 + ci));
             }
 
             DmaLock = false;
@@ -443,7 +443,7 @@ namespace OptimeGBA
 
             if (c.FinishedIRQ)
             {
-                Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.DMA0 + ci));
+                Gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.DMA0 + ci));
             }
 
             DmaLock = false;

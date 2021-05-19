@@ -12,19 +12,23 @@ namespace OptimeGBA
     {
         Nds7 Nds7;
 
-        public MemoryNds7(Nds7 nds7)
+        public MemoryNds7(Nds7 nds7, ProviderNds provider)
         {
+            Nds7 = nds7;
+            SaveProvider = new NullSaveProvider();
 
-
-            
+            for (uint i = 0; i < Arm7BiosSize && i < provider.Bios7.Length; i++)
+            {
+                Arm7Bios[i] = provider.Bios7[i];
+            }
         }
 
-        public uint RomSize;
-
-        public const int Arm7WramSize = 65536; 
+        public const int Arm7BiosSize = 16384;
+        public const int Arm7WramSize = 65536;
 
 #if UNSAFE
-        public byte* Bios = MemoryUtil.AllocateUnmanagedArray(Arm7WramSize);
+        public byte* Arm7Bios = MemoryUtil.AllocateUnmanagedArray(Arm7BiosSize);
+        public byte* Arm7Wram = MemoryUtil.AllocateUnmanagedArray(Arm7WramSize);
 
         public byte* EmptyPage = MemoryUtil.AllocateUnmanagedArray(PageSize);
         public byte*[] PageTableRead = new byte*[4194304];
@@ -32,10 +36,12 @@ namespace OptimeGBA
 
         ~MemoryNds7()
         {
-            MemoryUtil.FreeUnmanagedArray(Bios);
+            MemoryUtil.FreeUnmanagedArray(Arm7Bios);
+            MemoryUtil.FreeUnmanagedArray(Arm7Wram);
         }
 #else
-        public byte[] Bios = MemoryUtil.AllocateManagedArray(Arm7WramSize);
+        public byte[] Arm7Bios = MemoryUtil.AllocateManagedArray(Arm7BiosSize);
+        public byte[] Arm7Wram = MemoryUtil.AllocateManagedArray(Arm7WramSize);
 
         public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
         public byte[][] PageTableRead = new byte[4194304][];
@@ -54,8 +60,20 @@ namespace OptimeGBA
         public void InitPageTable(byte[][] table, bool write)
 #endif
         {
-           
-            
+            // 10 bits shaved off already, shave off another 14 to get 24
+            for (uint i = 0; i < 4194304; i++)
+            {
+                uint addr = (uint)(i << 10);
+                switch (i >> 14)
+                {
+                    case 0x0: // BIOS
+                        if (!write)
+                        {
+                            table[i] = Arm7Bios;
+                        }
+                        break;
+                }
+            }
         }
 
         public uint[] MemoryRegionMasks = {
@@ -80,6 +98,11 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint MaskAddress(uint addr)
         {
+            // TODO: Extend the array out properly to invalid memory regions
+            if (addr > 0xFFFFFFF)
+            {
+                return 0;
+            }
             return addr & MemoryRegionMasks[addr >> 24];
         }
 

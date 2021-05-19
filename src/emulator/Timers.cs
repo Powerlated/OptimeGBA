@@ -195,7 +195,7 @@ namespace OptimeGBA
 
             if (EnableIrq)
             {
-                Timers.Gba.HwControl.FlagInterrupt((Interrupt)((uint)Interrupt.Timer0Overflow + Id));
+                Timers.Gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.Timer0Overflow + Id));
             }
 
             if (!CountUpTiming)

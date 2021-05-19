@@ -34,7 +34,7 @@ namespace OptimeGBAEmulator
         string[] Log;
         int LogIndex = -0;
 
-        Gba Gba;
+        Nds Nds;
         Thread EmulationThread;
         AutoResetEvent ThreadSync = new AutoResetEvent(false);
 
@@ -65,14 +65,14 @@ namespace OptimeGBAEmulator
                 ThreadSync.WaitOne();
 
                 int cyclesLeft = 70224 * 4;
-                while (cyclesLeft > 0 && !Gba.Cpu.Errored)
+                while (cyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
                 {
-                    cyclesLeft -= (int)Gba.Step();
+                    cyclesLeft -= (int)Nds.Step();
                 }
 
-                while (!SyncToAudio && !Gba.Cpu.Errored && RunEmulator)
+                while (!SyncToAudio && !Nds.Nds7.Cpu.Errored && RunEmulator)
                 {
-                    Gba.Step();
+                    Nds.Step();
                     ThreadCyclesQueued = 0;
                 }
             }
@@ -87,7 +87,7 @@ namespace OptimeGBAEmulator
             if (RunEmulator)
             {
                 // const uint CyclesPerSample = 16777216 / 32768;
-                // if (Gba.GbaAudio.SampleBuffer.Entries / 2 < 4096)
+                // if (Nds.NdsAudio.SampleBuffer.Entries / 2 < 4096)
                 // {
                 //     ThreadCyclesQueued += (int)(CyclesPerSample * SAMPLES_PER_CALLBACK * 4);
                 // }
@@ -97,7 +97,7 @@ namespace OptimeGBAEmulator
 
                 for (uint i = 0; i < SAMPLES_PER_CALLBACK * 2; i++)
                 {
-                    AudioArray[i] = Gba.GbaAudio.SampleBuffer.Pop();
+                    AudioArray[i] = Nds.NdsAudio.SampleBuffer.Pop();
                 }
 
                 int bytes = sizeof(short) * AudioArray.Length;
@@ -115,9 +115,9 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Gba.Cpu.Errored && RunEmulator)
+            while (cycles > 0 && !Nds.Nds7.Cpu.Errored && RunEmulator)
             {
-                cycles -= (int)Gba.Step();
+                cycles -= (int)Nds.Step();
             }
         }
 
@@ -125,18 +125,18 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             CyclesLeft += FrameCycles;
-            while (CyclesLeft > 0 && !Gba.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
             {
-                CyclesLeft -= (int)Gba.Step();
+                CyclesLeft -= (int)Nds.Step();
             }
         }
 
         public void RunScanline()
         {
             CyclesLeft += ScanlineCycles;
-            while (CyclesLeft > 0 && !Gba.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
             {
-                CyclesLeft -= (int)Gba.Step();
+                CyclesLeft -= (int)Nds.Step();
             }
         }
 
@@ -161,10 +161,10 @@ namespace OptimeGBAEmulator
         public WindowNds(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
         {
             // Init SDL
-            byte[] bios = System.IO.File.ReadAllBytes("gba_bios.bin");
-            // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
-            Gba = new Gba(new ProviderGba(bios, new byte[0], "", AudioReady) { BootBios = true });
-            LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.gba");
+            byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
+            byte[] bios9 = new byte[0];
+            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady) { BootBios = true });
+            // LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.Nds");
 
             SearchForRoms();
 
@@ -197,7 +197,7 @@ namespace OptimeGBAEmulator
 
         public void SearchForRoms()
         {
-            RomList = Directory.GetFiles("roms", "*.gba");
+            RomList = Directory.GetFiles("roms", "*.nds");
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -271,16 +271,16 @@ namespace OptimeGBAEmulator
         {
             base.OnUpdateFrame(e);
 
-            Gba.Keypad.B = KeyboardState.IsKeyDown(Keys.Z);
-            Gba.Keypad.A = KeyboardState.IsKeyDown(Keys.X);
-            Gba.Keypad.Left = KeyboardState.IsKeyDown(Keys.Left);
-            Gba.Keypad.Up = KeyboardState.IsKeyDown(Keys.Up);
-            Gba.Keypad.Right = KeyboardState.IsKeyDown(Keys.Right);
-            Gba.Keypad.Down = KeyboardState.IsKeyDown(Keys.Down);
-            Gba.Keypad.Start = KeyboardState.IsKeyDown(Keys.Enter) || KeyboardState.IsKeyDown(Keys.KeyPadEnter);
-            Gba.Keypad.Select = KeyboardState.IsKeyDown(Keys.Backspace);
-            Gba.Keypad.L = KeyboardState.IsKeyDown(Keys.Q);
-            Gba.Keypad.R = KeyboardState.IsKeyDown(Keys.E);
+            // Nds.Keypad.B = KeyboardState.IsKeyDown(Keys.Z);
+            // Nds.Keypad.A = KeyboardState.IsKeyDown(Keys.X);
+            // Nds.Keypad.Left = KeyboardState.IsKeyDown(Keys.Left);
+            // Nds.Keypad.Up = KeyboardState.IsKeyDown(Keys.Up);
+            // Nds.Keypad.Right = KeyboardState.IsKeyDown(Keys.Right);
+            // Nds.Keypad.Down = KeyboardState.IsKeyDown(Keys.Down);
+            // Nds.Keypad.Start = KeyboardState.IsKeyDown(Keys.Enter) || KeyboardState.IsKeyDown(Keys.KeyPadEnter);
+            // Nds.Keypad.Select = KeyboardState.IsKeyDown(Keys.Backspace);
+            // Nds.Keypad.L = KeyboardState.IsKeyDown(Keys.Q);
+            // Nds.Keypad.R = KeyboardState.IsKeyDown(Keys.E);
 
             SyncToAudio = !(KeyboardState.IsKeyDown(Keys.Tab) || KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
@@ -296,7 +296,7 @@ namespace OptimeGBAEmulator
                 Time += e.Time;
             }
 
-            if (Gba.Mem.SaveProvider.Dirty)
+            if (Nds.Nds7.Mem.SaveProvider.Dirty)
             {
                 DumpSav();
             }
@@ -320,7 +320,6 @@ namespace OptimeGBAEmulator
             DrawRomSelector();
             DrawHwioLog();
             DrawBankedRegisters();
-            DrawSoundVisualizer();
             DrawCpuProfiler();
 
             GL.ClearColor(1f, 1f, 1f, 1f);
@@ -332,12 +331,12 @@ namespace OptimeGBAEmulator
             Context.SwapBuffers();
         }
 
-        public void ResetGba()
+        public void ResetNds()
         {
-            byte[] save = Gba.Mem.SaveProvider.GetSave();
-            ProviderGba p = Gba.Provider;
-            Gba = new Gba(p);
-            Gba.Mem.SaveProvider.LoadSave(save);
+            byte[] save = Nds.Nds7.Mem.SaveProvider.GetSave();
+            ProviderNds p = Nds.Provider;
+            Nds = new Nds(p);
+            Nds.Nds7.Mem.SaveProvider.LoadSave(save);
         }
 
         static int MemoryViewerInit = 1;
@@ -355,32 +354,32 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(5);
 
                 ImGui.Text("User");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13usr, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14usr, 8));
+                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13usr, 8));
+                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14usr, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Supervisor");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13svc, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14svc, 8));
+                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13svc, 8));
+                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14svc, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Abort");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13abt, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14abt, 8));
+                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13abt, 8));
+                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14abt, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("IRQ");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13irq, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14irq, 8));
+                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13irq, 8));
+                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14irq, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Undefined");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13und, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14und, 8));
+                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13und, 8));
+                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14und, 8));
 
                 ImGui.End();
             }
@@ -464,7 +463,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text($"{Util.HexN(tempBase, 8)}:");
                     for (int j = 0; j < cols; j++)
                     {
-                        uint val = Gba.Mem.Read8(tempBase);
+                        uint val = Nds.Nds7.Mem.Read8(tempBase);
 
                         ImGui.SameLine();
                         ImGui.Selectable($"{HexN(val, 2)}");
@@ -510,23 +509,23 @@ namespace OptimeGBAEmulator
         public String BuildEmuText()
         {
             String text = "";
-            text += $"{HexN(Gba.Cpu.R[0], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[1], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[2], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[3], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[4], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[5], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[6], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[7], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[8], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[9], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[10], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[11], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[12], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[13], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[14], 8)} ";
-            text += $"{HexN(Gba.Cpu.R[15], 8)} ";
-            text += $"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[0], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[1], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[2], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[3], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[4], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[5], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[6], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[7], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[8], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[9], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[10], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[11], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[12], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[13], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[14], 8)} ";
+            text += $"{HexN(Nds.Nds7.Cpu.R[15], 8)} ";
+            text += $"cpsr: {HexN(Nds.Nds7.Cpu.GetCPSR(), 8)} ";
             String emuText = text.Substring(0, 135) + text.Substring(144, 14) + $" {LogIndex + 1}";
             return emuText;
         }
@@ -573,27 +572,27 @@ namespace OptimeGBAEmulator
 
         public String BuildEmuFullText()
         {
-            String disasm = Gba.Cpu.ThumbState ? DisasmThumb((ushort)Gba.Cpu.LastIns) : DisasmArm(Gba.Cpu.LastIns);
+            String disasm = Nds.Nds7.Cpu.ThumbState ? DisasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : DisasmArm(Nds.Nds7.Cpu.LastIns);
 
             StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(Gba.Cpu.R[0], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[1], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[2], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[3], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[4], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[5], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[6], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[7], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[8], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[9], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[10], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[11], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[12], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[13], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[14], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} | ");
-            builder.Append($"{(Gba.Cpu.ThumbState ? "    " + HexN(Gba.Cpu.LastIns, 4) : HexN(Gba.Cpu.LastIns, 8))}: {disasm}");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[0], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[1], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[2], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[3], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[4], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[5], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[6], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[7], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[8], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[9], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[10], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[11], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[12], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[13], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[14], 8)} ");
+            builder.Append($"{HexN(Nds.Nds7.Cpu.R[15], 8)} ");
+            builder.Append($"cpsr: {HexN(Nds.Nds7.Cpu.GetCPSR(), 8)} | ");
+            builder.Append($"{(Nds.Nds7.Cpu.ThumbState ? "    " + HexN(Nds.Nds7.Cpu.LastIns, 4) : HexN(Nds.Nds7.Cpu.LastIns, 8))}: {disasm}");
             // text += $"> {LogIndex + 1}";
             return builder.ToString();
         }
@@ -622,7 +621,7 @@ namespace OptimeGBAEmulator
                 }
 
                 ImGui.Separator();
-                ImGui.Text(Gba.Cpu.Debug);
+                ImGui.Text(Nds.Nds7.Cpu.Debug);
                 ImGui.End();
             }
         }
@@ -636,39 +635,39 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(4);
 
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-                ImGui.Text($"R0:  {Hex(Gba.Cpu.R[0], 8)}");
-                ImGui.Text($"R1:  {Hex(Gba.Cpu.R[1], 8)}");
-                ImGui.Text($"R2:  {Hex(Gba.Cpu.R[2], 8)}");
-                ImGui.Text($"R3:  {Hex(Gba.Cpu.R[3], 8)}");
-                ImGui.Text($"R4:  {Hex(Gba.Cpu.R[4], 8)}");
-                ImGui.Text($"R5:  {Hex(Gba.Cpu.R[5], 8)}");
-                ImGui.Text($"R6:  {Hex(Gba.Cpu.R[6], 8)}");
-                ImGui.Text($"R7:  {Hex(Gba.Cpu.R[7], 8)}");
-                ImGui.Text($"R8:  {Hex(Gba.Cpu.R[8], 8)}");
-                ImGui.Text($"R9:  {Hex(Gba.Cpu.R[9], 8)}");
-                ImGui.Text($"R10: {Hex(Gba.Cpu.R[10], 8)}");
-                ImGui.Text($"R11: {Hex(Gba.Cpu.R[11], 8)}");
-                ImGui.Text($"R12: {Hex(Gba.Cpu.R[12], 8)}");
-                ImGui.Text($"R13: {Hex(Gba.Cpu.R[13], 8)}");
-                ImGui.Text($"R14: {Hex(Gba.Cpu.R[14], 8)}");
-                ImGui.Text($"R15: {Hex(Gba.Cpu.R[15], 8)}");
-                ImGui.Text($"CPSR: {Hex(Gba.Cpu.GetCPSR(), 8)}");
-                ImGui.Text($"Instruction: {Hex(Gba.Cpu.LastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Prev. Ins.: {Hex(Gba.Cpu.LastLastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Disasm: {(Gba.Cpu.ThumbState ? DisasmThumb((ushort)Gba.Cpu.LastIns) : DisasmArm(Gba.Cpu.LastIns))}");
+                ImGui.Text($"R0:  {Hex(Nds.Nds7.Cpu.R[0], 8)}");
+                ImGui.Text($"R1:  {Hex(Nds.Nds7.Cpu.R[1], 8)}");
+                ImGui.Text($"R2:  {Hex(Nds.Nds7.Cpu.R[2], 8)}");
+                ImGui.Text($"R3:  {Hex(Nds.Nds7.Cpu.R[3], 8)}");
+                ImGui.Text($"R4:  {Hex(Nds.Nds7.Cpu.R[4], 8)}");
+                ImGui.Text($"R5:  {Hex(Nds.Nds7.Cpu.R[5], 8)}");
+                ImGui.Text($"R6:  {Hex(Nds.Nds7.Cpu.R[6], 8)}");
+                ImGui.Text($"R7:  {Hex(Nds.Nds7.Cpu.R[7], 8)}");
+                ImGui.Text($"R8:  {Hex(Nds.Nds7.Cpu.R[8], 8)}");
+                ImGui.Text($"R9:  {Hex(Nds.Nds7.Cpu.R[9], 8)}");
+                ImGui.Text($"R10: {Hex(Nds.Nds7.Cpu.R[10], 8)}");
+                ImGui.Text($"R11: {Hex(Nds.Nds7.Cpu.R[11], 8)}");
+                ImGui.Text($"R12: {Hex(Nds.Nds7.Cpu.R[12], 8)}");
+                ImGui.Text($"R13: {Hex(Nds.Nds7.Cpu.R[13], 8)}");
+                ImGui.Text($"R14: {Hex(Nds.Nds7.Cpu.R[14], 8)}");
+                ImGui.Text($"R15: {Hex(Nds.Nds7.Cpu.R[15], 8)}");
+                ImGui.Text($"CPSR: {Hex(Nds.Nds7.Cpu.GetCPSR(), 8)}");
+                ImGui.Text($"Instruction: {Hex(Nds.Nds7.Cpu.LastIns, Nds.Nds7.Cpu.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Prev. Ins.: {Hex(Nds.Nds7.Cpu.LastLastIns, Nds.Nds7.Cpu.ThumbState ? 4 : 8)}");
+                ImGui.Text($"Disasm: {(Nds.Nds7.Cpu.ThumbState ? DisasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : DisasmArm(Nds.Nds7.Cpu.LastIns))}");
 
-                ImGui.Text($"Mode: {Gba.Cpu.Mode}");
-                ImGui.Text($"Last Cycles: {Gba.Cpu.InstructionCycles}");
-                ImGui.Text($"Total Instrs.: {Gba.Cpu.InstructionsRan}");
-                ImGui.Text($"Pipeline: {Gba.Cpu.Pipeline}");
+                ImGui.Text($"Mode: {Nds.Nds7.Cpu.Mode}");
+                ImGui.Text($"Last Cycles: {Nds.Nds7.Cpu.InstructionCycles}");
+                ImGui.Text($"Total Instrs.: {Nds.Nds7.Cpu.InstructionsRan}");
+                ImGui.Text($"Pipeline: {Nds.Nds7.Cpu.Pipeline}");
 
-                // ImGui.Text($"Ins Next Up: {(Gba.Cpu.ThumbState ? Hex(Gba.Cpu.THUMBDecode, 4) : Hex(Gba.Cpu.ARMDecode, 8))}");
+                // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
 
                 ImGui.Text($"");
 
                 if (ImGui.Button("Reset"))
                 {
-                    ResetGba();
+                    ResetNds();
                 }
 
                 if (ImGui.Button("Frame Advance"))
@@ -682,34 +681,34 @@ namespace OptimeGBAEmulator
                 }
 
 
-                if (ImGui.Button("Start Time"))
-                {
-                    RecordTime = true;
-                    Time = 0;
-                    RecordStartFrames = Gba.Ppu.TotalFrames;
-                }
+                // if (ImGui.Button("Start Time"))
+                // {
+                //     RecordTime = true;
+                //     Time = 0;
+                //     RecordStartFrames = Nds.Ppu.TotalFrames;
+                // }
 
-                if (ImGui.Button("Stop Time"))
-                {
-                    RecordTime = false;
-                }
+                // if (ImGui.Button("Stop Time"))
+                // {
+                //     RecordTime = false;
+                // }
 
                 if (ImGui.Button("Un-error"))
                 {
-                    Gba.Cpu.Errored = false;
+                    Nds.Nds7.Cpu.Errored = false;
                 }
                 if (ImGui.Button("Step"))
                 {
-                    Gba.Step();
+                    Nds.Step();
                     LogIndex++;
                 }
                 // if (ImGui.Button("Step Until Error"))
                 // {
                 //     bool exit = false;
-                //     while (!Gba.Cpu.Errored && !exit)
+                //     while (!Nds.Nds7.Cpu.Errored && !exit)
                 //     {
 
-                //         Gba.Step();
+                //         Nds.Step();
                 //         LogIndex++;
 
                 //         if (BuildEmuText() != BuildLogText())
@@ -725,13 +724,13 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
                         int num = DebugStepFor;
-                        while (num > 0 && !Gba.Cpu.Errored)
+                        while (num > 0 && !Nds.Nds7.Cpu.Errored)
                         {
 
                             // file.WriteLine(BuildEmuFullText());
-                            Gba.Step();
+                            Nds.Step();
 
-                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
+                            if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
                             {
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
@@ -747,12 +746,12 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
                         int num = 250000;
-                        while (num > 0 && !Gba.Cpu.Errored)
+                        while (num > 0 && !Nds.Nds7.Cpu.Errored)
                         {
-                            Gba.Step();
+                            Nds.Step();
                             file.WriteLine(BuildEmuFullText());
 
-                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
+                            if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
                             {
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
@@ -765,19 +764,19 @@ namespace OptimeGBAEmulator
 
 
                 ImGui.Checkbox("Run Emulator", ref RunEmulator);
-                // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
+                // ImGui.Checkbox("Log HWIO Access", ref Nds.Nds7.Mem.LogHWIOAccess);
 
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
-                bool Negative = Gba.Cpu.Negative;
-                bool Zero = Gba.Cpu.Zero;
-                bool Carry = Gba.Cpu.Carry;
-                bool Overflow = Gba.Cpu.Overflow;
-                bool Sticky = Gba.Cpu.Sticky;
-                bool IRQDisable = Gba.Cpu.IRQDisable;
-                bool FIQDisable = Gba.Cpu.FIQDisable;
-                bool ThumbState = Gba.Cpu.ThumbState;
+                bool Negative = Nds.Nds7.Cpu.Negative;
+                bool Zero = Nds.Nds7.Cpu.Zero;
+                bool Carry = Nds.Nds7.Cpu.Carry;
+                bool Overflow = Nds.Nds7.Cpu.Overflow;
+                bool Sticky = Nds.Nds7.Cpu.Sticky;
+                bool IRQDisable = Nds.Nds7.Cpu.IRQDisable;
+                bool FIQDisable = Nds.Nds7.Cpu.FIQDisable;
+                bool ThumbState = Nds.Nds7.Cpu.ThumbState;
 
                 ImGui.Checkbox("Negative", ref Negative);
                 ImGui.Checkbox("Zero", ref Zero);
@@ -788,238 +787,238 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("FIQ Disable", ref FIQDisable);
                 ImGui.Checkbox("Thumb State", ref ThumbState);
 
-                // ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
-                // ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");
-                // ImGui.Text($"IWRAM Reads: {Gba.Mem.IwramReads}");
-                // ImGui.Text($"ROM Reads: {Gba.Mem.RomReads}");
-                // ImGui.Text($"HWIO Reads: {Gba.Mem.HwioReads}");
-                // ImGui.Text($"Palette Reads: {Gba.Mem.PaletteReads}");
-                // ImGui.Text($"VRAM Reads: {Gba.Mem.VramReads}");
-                // ImGui.Text($"OAM Reads: {Gba.Mem.OamReads}");
+                // ImGui.Text($"BIOS Reads: {Nds.Nds7.Mem.BiosReads}");
+                // ImGui.Text($"EWRAM Reads: {Nds.Nds7.Mem.EwramReads}");
+                // ImGui.Text($"IWRAM Reads: {Nds.Nds7.Mem.IwramReads}");
+                // ImGui.Text($"ROM Reads: {Nds.Nds7.Mem.RomReads}");
+                // ImGui.Text($"HWIO Reads: {Nds.Nds7.Mem.HwioReads}");
+                // ImGui.Text($"Palette Reads: {Nds.Nds7.Mem.PaletteReads}");
+                // ImGui.Text($"VRAM Reads: {Nds.Nds7.Mem.VramReads}");
+                // ImGui.Text($"OAM Reads: {Nds.Nds7.Mem.OamReads}");
                 ImGui.Text("");
-                // ImGui.Text($"EWRAM Writes: {Gba.Mem.EwramWrites}");
-                // ImGui.Text($"IWRAM Writes: {Gba.Mem.IwramWrites}");
-                // ImGui.Text($"HWIO Writes: {Gba.Mem.HwioWrites}");
-                // ImGui.Text($"Palette Writes: {Gba.Mem.PaletteWrites}");
-                // ImGui.Text($"VRAM Writes: {Gba.Mem.VramWrites}");
-                // ImGui.Text($"OAM Writes: {Gba.Mem.OamWrites}");
+                // ImGui.Text($"EWRAM Writes: {Nds.Nds7.Mem.EwramWrites}");
+                // ImGui.Text($"IWRAM Writes: {Nds.Nds7.Mem.IwramWrites}");
+                // ImGui.Text($"HWIO Writes: {Nds.Nds7.Mem.HwioWrites}");
+                // ImGui.Text($"Palette Writes: {Nds.Nds7.Mem.PaletteWrites}");
+                // ImGui.Text($"VRAM Writes: {Nds.Nds7.Mem.VramWrites}");
+                // ImGui.Text($"OAM Writes: {Nds.Nds7.Mem.OamWrites}");
                 ImGui.Text("");
-                bool ticked = Gba.HwControl.IME;
-                ImGui.Checkbox("IME", ref ticked);
+                // bool ticked = Nds.HwControl.IME;
+                // ImGui.Checkbox("IME", ref ticked);
 
-                ImGui.Checkbox("Log HWIO", ref Gba.Mem.LogHwioAccesses);
-                ImGui.Checkbox("Boot BIOS", ref Gba.Provider.BootBios);
-                ImGui.Checkbox("Big Screen", ref BigScreen);
-                ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
+                // ImGui.Checkbox("Log HWIO", ref Nds.Nds7.Mem.LogHwioAccesses);
+                // ImGui.Checkbox("Boot BIOS", ref Nds.Provider.BootBios);
+                // ImGui.Checkbox("Big Screen", ref BigScreen);
+                // ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
 
-                ImGui.NextColumn();
+                // ImGui.NextColumn();
 
-                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
+                // ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
-                ImGui.Text($"Total Frames: {Gba.Ppu.TotalFrames}");
-                if (RecordTime)
-                {
-                    ImGui.Text($"Timed Frames: {Gba.Ppu.TotalFrames - RecordStartFrames}");
-                    ImGui.Text($"Timed Seconds: {Time}");
-                    ImGui.Text($"Timed FPS: {(uint)(Gba.Ppu.TotalFrames - RecordStartFrames) / Time}");
-                }
+                // ImGui.Text($"Total Frames: {Nds.Ppu.TotalFrames}");
+                // if (RecordTime)
+                // {
+                //     ImGui.Text($"Timed Frames: {Nds.Ppu.TotalFrames - RecordStartFrames}");
+                //     ImGui.Text($"Timed Seconds: {Time}");
+                //     ImGui.Text($"Timed FPS: {(uint)(Nds.Ppu.TotalFrames - RecordStartFrames) / Time}");
+                // }
 
-                ImGui.Text($"VCOUNT: {Gba.Ppu.VCount}");
-                ImGui.Text($"Scanline Cycles: {Gba.Ppu.GetScanlineCycles()}");
+                // ImGui.Text($"VCOUNT: {Nds.Ppu.VCount}");
+                // ImGui.Text($"Scanline Cycles: {Nds.Ppu.GetScanlineCycles()}");
 
                 ImGuiColumnSeparator();
 
-                ImGui.Text($"DMA 0 Src: {Hex(Gba.Dma.Ch[0].DmaSource, 8)}");
-                ImGui.Text($"DMA 1 Src: {Hex(Gba.Dma.Ch[1].DmaSource, 8)}");
-                ImGui.Text($"DMA 2 Src: {Hex(Gba.Dma.Ch[2].DmaSource, 8)}");
-                ImGui.Text($"DMA 3 Src: {Hex(Gba.Dma.Ch[3].DmaSource, 8)}");
-                ImGui.Text("");
-                ImGui.Text($"DMA 0 Dest: {Hex(Gba.Dma.Ch[0].DmaDest, 8)}");
-                ImGui.Text($"DMA 1 Dest: {Hex(Gba.Dma.Ch[1].DmaDest, 8)}");
-                ImGui.Text($"DMA 2 Dest: {Hex(Gba.Dma.Ch[2].DmaDest, 8)}");
-                ImGui.Text($"DMA 3 Dest: {Hex(Gba.Dma.Ch[3].DmaDest, 8)}");
-                ImGui.Text("");
-                ImGui.Text($"DMA 0 Words: {Hex(Gba.Dma.Ch[0].DmaLength, 4)}");
-                ImGui.Text($"DMA 1 Words: {Hex(Gba.Dma.Ch[1].DmaLength, 4)}");
-                ImGui.Text($"DMA 2 Words: {Hex(Gba.Dma.Ch[2].DmaLength, 4)}");
-                ImGui.Text($"DMA 3 Words: {Hex(Gba.Dma.Ch[3].DmaLength, 4)}");
+                // ImGui.Text($"DMA 0 Src: {Hex(Nds.Dma.Ch[0].DmaSource, 8)}");
+                // ImGui.Text($"DMA 1 Src: {Hex(Nds.Dma.Ch[1].DmaSource, 8)}");
+                // ImGui.Text($"DMA 2 Src: {Hex(Nds.Dma.Ch[2].DmaSource, 8)}");
+                // ImGui.Text($"DMA 3 Src: {Hex(Nds.Dma.Ch[3].DmaSource, 8)}");
+                // ImGui.Text("");
+                // ImGui.Text($"DMA 0 Dest: {Hex(Nds.Dma.Ch[0].DmaDest, 8)}");
+                // ImGui.Text($"DMA 1 Dest: {Hex(Nds.Dma.Ch[1].DmaDest, 8)}");
+                // ImGui.Text($"DMA 2 Dest: {Hex(Nds.Dma.Ch[2].DmaDest, 8)}");
+                // ImGui.Text($"DMA 3 Dest: {Hex(Nds.Dma.Ch[3].DmaDest, 8)}");
+                // ImGui.Text("");
+                // ImGui.Text($"DMA 0 Words: {Hex(Nds.Dma.Ch[0].DmaLength, 4)}");
+                // ImGui.Text($"DMA 1 Words: {Hex(Nds.Dma.Ch[1].DmaLength, 4)}");
+                // ImGui.Text($"DMA 2 Words: {Hex(Nds.Dma.Ch[2].DmaLength, 4)}");
+                // ImGui.Text($"DMA 3 Words: {Hex(Nds.Dma.Ch[3].DmaLength, 4)}");
 
                 ImGuiColumnSeparator();
 
-                ImGui.Text($"Timer 0 Counter: {Hex(Gba.Timers.T[0].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 1 Counter: {Hex(Gba.Timers.T[1].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 2 Counter: {Hex(Gba.Timers.T[2].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 3 Counter: {Hex(Gba.Timers.T[3].CalculateCounter(), 4)}");
-                ImGui.Text("");
-                ImGui.Text($"Timer 0 Reload: {Hex(Gba.Timers.T[0].ReloadVal, 4)}");
-                ImGui.Text($"Timer 1 Reload: {Hex(Gba.Timers.T[1].ReloadVal, 4)}");
-                ImGui.Text($"Timer 2 Reload: {Hex(Gba.Timers.T[2].ReloadVal, 4)}");
-                ImGui.Text($"Timer 3 Reload: {Hex(Gba.Timers.T[3].ReloadVal, 4)}");
-                ImGui.Text("");
+                // ImGui.Text($"Timer 0 Counter: {Hex(Nds.Timers.T[0].CalculateCounter(), 4)}");
+                // ImGui.Text($"Timer 1 Counter: {Hex(Nds.Timers.T[1].CalculateCounter(), 4)}");
+                // ImGui.Text($"Timer 2 Counter: {Hex(Nds.Timers.T[2].CalculateCounter(), 4)}");
+                // ImGui.Text($"Timer 3 Counter: {Hex(Nds.Timers.T[3].CalculateCounter(), 4)}");
+                // ImGui.Text("");
+                // ImGui.Text($"Timer 0 Reload: {Hex(Nds.Timers.T[0].ReloadVal, 4)}");
+                // ImGui.Text($"Timer 1 Reload: {Hex(Nds.Timers.T[1].ReloadVal, 4)}");
+                // ImGui.Text($"Timer 2 Reload: {Hex(Nds.Timers.T[2].ReloadVal, 4)}");
+                // ImGui.Text($"Timer 3 Reload: {Hex(Nds.Timers.T[3].ReloadVal, 4)}");
+                // ImGui.Text("");
 
-                String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
+                // String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
 
-                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Gba.Timers.T[0].PrescalerSel]}");
-                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Gba.Timers.T[1].PrescalerSel]}");
-                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Gba.Timers.T[2].PrescalerSel]}");
-                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Gba.Timers.T[3].PrescalerSel]}");
+                // ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Timers.T[0].PrescalerSel]}");
+                // ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Timers.T[1].PrescalerSel]}");
+                // ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Timers.T[2].PrescalerSel]}");
+                // ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Timers.T[3].PrescalerSel]}");
 
                 ImGui.NextColumn();
-                // ImGui.Text($"FIFO A Current Bytes: {Gba.GbaAudio.A.Bytes}");
-                // ImGui.Text($"FIFO B Current Bytes: {Gba.GbaAudio.B.Bytes}");
-                // ImGui.Text($"FIFO A Collisions: {Gba.GbaAudio.A.Collisions}");
-                // ImGui.Text($"FIFO B Collisions: {Gba.GbaAudio.B.Collisions}");
-                // ImGui.Text($"FIFO A Total Pops: {Gba.GbaAudio.A.TotalPops}");
-                // ImGui.Text($"FIFO B Total Pops: {Gba.GbaAudio.B.TotalPops}");
-                // ImGui.Text($"FIFO A Empty Pops: {Gba.GbaAudio.A.EmptyPops}");
-                // ImGui.Text($"FIFO B Empty Pops: {Gba.GbaAudio.B.EmptyPops}");
-                // ImGui.Text($"FIFO A Full Inserts: {Gba.GbaAudio.A.FullInserts}");
-                // ImGui.Text($"FIFO B Full Inserts: {Gba.GbaAudio.B.FullInserts}");
+                // ImGui.Text($"FIFO A Current Bytes: {Nds.NdsAudio.A.Bytes}");
+                // ImGui.Text($"FIFO B Current Bytes: {Nds.NdsAudio.B.Bytes}");
+                // ImGui.Text($"FIFO A Collisions: {Nds.NdsAudio.A.Collisions}");
+                // ImGui.Text($"FIFO B Collisions: {Nds.NdsAudio.B.Collisions}");
+                // ImGui.Text($"FIFO A Total Pops: {Nds.NdsAudio.A.TotalPops}");
+                // ImGui.Text($"FIFO B Total Pops: {Nds.NdsAudio.B.TotalPops}");
+                // ImGui.Text($"FIFO A Empty Pops: {Nds.NdsAudio.A.EmptyPops}");
+                // ImGui.Text($"FIFO B Empty Pops: {Nds.NdsAudio.B.EmptyPops}");
+                // ImGui.Text($"FIFO A Full Inserts: {Nds.NdsAudio.A.FullInserts}");
+                // ImGui.Text($"FIFO B Full Inserts: {Nds.NdsAudio.B.FullInserts}");
                 // ImGui.Text("");
-                // ImGui.Text($"PSG A Output Value: {Gba.GbaAudio.GbAudio.Out1}");
-                // ImGui.Text($"PSG B Output Value: {Gba.GbaAudio.GbAudio.Out2}");
+                // ImGui.Text($"PSG A Output Value: {Nds.NdsAudio.Ndsudio.Out1}");
+                // ImGui.Text($"PSG B Output Value: {Nds.NdsAudio.Ndsudio.Out2}");
                 // ImGui.Text("");
-                // ImGui.Text($"Left Master Volume: {Gba.GbaAudio.GbAudio.leftMasterVol}");
-                // ImGui.Text($"Right Master Volume: {Gba.GbaAudio.GbAudio.rightMasterVol}");
+                // ImGui.Text($"Left Master Volume: {Nds.NdsAudio.Ndsudio.leftMasterVol}");
+                // ImGui.Text($"Right Master Volume: {Nds.NdsAudio.Ndsudio.rightMasterVol}");
                 // ImGui.Text("");
-                // ImGui.Text($"Pulse 1 Current Value: {Gba.GbaAudio.GbAudio.pulse1Val}");
-                // ImGui.Text($"Pulse 2 Current Value: {Gba.GbaAudio.GbAudio.pulse2Val}");
-                // ImGui.Text($"Wave Current Value: {Gba.GbaAudio.GbAudio.waveVal}");
-                // ImGui.Text($"Noise Current Value: {Gba.GbaAudio.GbAudio.noiseVal}");
+                // ImGui.Text($"Pulse 1 Current Value: {Nds.NdsAudio.Ndsudio.pulse1Val}");
+                // ImGui.Text($"Pulse 2 Current Value: {Nds.NdsAudio.Ndsudio.pulse2Val}");
+                // ImGui.Text($"Wave Current Value: {Nds.NdsAudio.Ndsudio.waveVal}");
+                // ImGui.Text($"Noise Current Value: {Nds.NdsAudio.Ndsudio.noiseVal}");
                 // ImGui.Text("");
-                // ImGui.Text($"Pulse 1 Enabled: {Gba.GbaAudio.GbAudio.pulse1_enabled}");
-                // ImGui.Text($"Pulse 1 Width: {Gba.GbaAudio.GbAudio.pulse1_width}");
-                // ImGui.Text($"Pulse 1 DAC Enabled: {Gba.GbaAudio.GbAudio.pulse1_dacEnabled}");
-                // ImGui.Text($"Pulse 1 Length Enable: {Gba.GbaAudio.GbAudio.pulse1_lengthEnable}");
-                // ImGui.Text($"Pulse 1 Length Counter: {Gba.GbaAudio.GbAudio.pulse1_lengthCounter}");
-                // ImGui.Text($"Pulse 1 Frequency Upper: {Gba.GbaAudio.GbAudio.pulse1_frequencyUpper}");
-                // ImGui.Text($"Pulse 1 Frequency Lower: {Gba.GbaAudio.GbAudio.pulse1_frequencyLower}");
-                // ImGui.Text($"Pulse 1 Volume: {Gba.GbaAudio.GbAudio.pulse1_volume}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Up: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeUp}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Sweep: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeSweep}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Start: {Gba.GbaAudio.GbAudio.pulse1_volumeEnvelopeStart}");
-                // ImGui.Text($"Pulse 1 Output Left: {Gba.GbaAudio.GbAudio.pulse1_outputLeft}");
-                // ImGui.Text($"Pulse 1 Output Right: {Gba.GbaAudio.GbAudio.pulse1_outputRight}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Period: {Gba.GbaAudio.GbAudio.pulse1_freqSweepPeriod}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Up: {Gba.GbaAudio.GbAudio.pulse1_freqSweepUp}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Gba.GbaAudio.GbAudio.pulse1_freqSweepShift}");
-                // ImGui.Text($"Pulse 1 Updated: {Gba.GbaAudio.GbAudio.pulse1_updated}");
+                // ImGui.Text($"Pulse 1 Enabled: {Nds.NdsAudio.Ndsudio.pulse1_enabled}");
+                // ImGui.Text($"Pulse 1 Width: {Nds.NdsAudio.Ndsudio.pulse1_width}");
+                // ImGui.Text($"Pulse 1 DAC Enabled: {Nds.NdsAudio.Ndsudio.pulse1_dacEnabled}");
+                // ImGui.Text($"Pulse 1 Length Enable: {Nds.NdsAudio.Ndsudio.pulse1_lengthEnable}");
+                // ImGui.Text($"Pulse 1 Length Counter: {Nds.NdsAudio.Ndsudio.pulse1_lengthCounter}");
+                // ImGui.Text($"Pulse 1 Frequency Upper: {Nds.NdsAudio.Ndsudio.pulse1_frequencyUpper}");
+                // ImGui.Text($"Pulse 1 Frequency Lower: {Nds.NdsAudio.Ndsudio.pulse1_frequencyLower}");
+                // ImGui.Text($"Pulse 1 Volume: {Nds.NdsAudio.Ndsudio.pulse1_volume}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Up: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeUp}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Sweep: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeSweep}");
+                // ImGui.Text($"Pulse 1 Volume Envelope Start: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeStart}");
+                // ImGui.Text($"Pulse 1 Output Left: {Nds.NdsAudio.Ndsudio.pulse1_outputLeft}");
+                // ImGui.Text($"Pulse 1 Output Right: {Nds.NdsAudio.Ndsudio.pulse1_outputRight}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Period: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepPeriod}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Up: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepUp}");
+                // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepShift}");
+                // ImGui.Text($"Pulse 1 Updated: {Nds.NdsAudio.Ndsudio.pulse1_updated}");
                 // ImGui.Text("");
-                // ImGui.Text($"Wave Bank: {Gba.GbaAudio.GbAudio.wave_bank}");
-                // ImGui.Text($"Wave Dimension: {Gba.GbaAudio.GbAudio.wave_dimension}");
-                // ImGui.Text($"Wave Enabled: {Gba.GbaAudio.GbAudio.wave_enabled}");
-                // ImGui.Text($"Wave DAC Enabled: {Gba.GbaAudio.GbAudio.wave_dacEnabled}");
-                // ImGui.Text($"Wave Length Enable: {Gba.GbaAudio.GbAudio.wave_lengthEnable}");
-                // ImGui.Text($"Wave Length Counter: {Gba.GbaAudio.GbAudio.wave_lengthCounter}");
-                // ImGui.Text($"Wave Frequency Upper: {Gba.GbaAudio.GbAudio.wave_frequencyUpper}");
-                // ImGui.Text($"Wave Frequency Lower: {Gba.GbaAudio.GbAudio.wave_frequencyLower}");
-                // ImGui.Text($"Wave Volume: {Gba.GbaAudio.GbAudio.wave_volume}");
-                // ImGui.Text($"Wavetable 0: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable0)}");
-                // ImGui.Text($"Wavetable 1: {string.Join(" ", Gba.GbaAudio.GbAudio.wave_waveTable1)}");
+                // ImGui.Text($"Wave Bank: {Nds.NdsAudio.Ndsudio.wave_bank}");
+                // ImGui.Text($"Wave Dimension: {Nds.NdsAudio.Ndsudio.wave_dimension}");
+                // ImGui.Text($"Wave Enabled: {Nds.NdsAudio.Ndsudio.wave_enabled}");
+                // ImGui.Text($"Wave DAC Enabled: {Nds.NdsAudio.Ndsudio.wave_dacEnabled}");
+                // ImGui.Text($"Wave Length Enable: {Nds.NdsAudio.Ndsudio.wave_lengthEnable}");
+                // ImGui.Text($"Wave Length Counter: {Nds.NdsAudio.Ndsudio.wave_lengthCounter}");
+                // ImGui.Text($"Wave Frequency Upper: {Nds.NdsAudio.Ndsudio.wave_frequencyUpper}");
+                // ImGui.Text($"Wave Frequency Lower: {Nds.NdsAudio.Ndsudio.wave_frequencyLower}");
+                // ImGui.Text($"Wave Volume: {Nds.NdsAudio.Ndsudio.wave_volume}");
+                // ImGui.Text($"Wavetable 0: {string.Join(" ", Nds.NdsAudio.Ndsudio.wave_waveTable0)}");
+                // ImGui.Text($"Wavetable 1: {string.Join(" ", Nds.NdsAudio.Ndsudio.wave_waveTable1)}");
 
-                // ImGui.Text($"Buffer Samples: {Gba.GbaAudio.SampleBuffer.Entries / 2}");
-                ImGui.Checkbox("Enable PSGs", ref Gba.GbaAudio.EnablePsg);
-                ImGui.Checkbox("Enable FIFOs", ref Gba.GbaAudio.EnableFifo);
+                // ImGui.Text($"Buffer Samples: {Nds.NdsAudio.SampleBuffer.Entries / 2}");
+                // ImGui.Checkbox("Enable PSGs", ref Nds.NdsAudio.EnablePsg);
+                // ImGui.Checkbox("Enable FIFOs", ref Nds.NdsAudio.EnableFifo);
 
-                ImGui.Text($"PSG Factor: {Gba.GbaAudio.GbAudio.PsgFactor}");
-                if (ImGui.Button("-##psg"))
-                {
-                    if (Gba.GbaAudio.GbAudio.PsgFactor > 0)
-                    {
-                        Gba.GbaAudio.GbAudio.PsgFactor--;
-                    }
-                }
-                ImGui.SameLine();
-                if (ImGui.Button("+##psg"))
-                {
-                    Gba.GbaAudio.GbAudio.PsgFactor++;
-                }
+                // ImGui.Text($"PSG Factor: {Nds.NdsAudio.Ndsudio.PsgFactor}");
+                // if (ImGui.Button("-##psg"))
+                // {
+                //     if (Nds.NdsAudio.Ndsudio.PsgFactor > 0)
+                //     {
+                //         Nds.NdsAudio.Ndsudio.PsgFactor--;
+                //     }
+                // }
+                // ImGui.SameLine();
+                // if (ImGui.Button("+##psg"))
+                // {
+                //     Nds.NdsAudio.Ndsudio.PsgFactor++;
+                // }
 
-                ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[0].ScreenSize]}");
-                ImGui.Text($"BG0 Scroll X: {Gba.Ppu.Backgrounds[0].HorizontalOffset}");
-                ImGui.Text($"BG0 Scroll Y: {Gba.Ppu.Backgrounds[0].VerticalOffset}");
-                ImGui.Text($"BG1 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[1].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[1].ScreenSize]}");
-                ImGui.Text($"BG1 Scroll X: {Gba.Ppu.Backgrounds[1].HorizontalOffset}");
-                ImGui.Text($"BG1 Scroll Y: {Gba.Ppu.Backgrounds[1].VerticalOffset}");
-                ImGui.Text($"BG2 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Scroll X: {Gba.Ppu.Backgrounds[2].HorizontalOffset}");
-                ImGui.Text($"BG2 Scroll Y: {Gba.Ppu.Backgrounds[2].VerticalOffset}");
-                ImGui.Text($"BG3 Size X/Y: {Ppu.CharWidthTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.CharHeightTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Affine Size: {Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.AffineSizeTable[Gba.Ppu.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Scroll X: {Gba.Ppu.Backgrounds[3].HorizontalOffset}");
-                ImGui.Text($"BG3 Scroll Y: {Gba.Ppu.Backgrounds[3].VerticalOffset}");
-                ImGui.Checkbox("Debug BG0", ref Gba.Ppu.DebugEnableBg[0]);
-                ImGui.Checkbox("Debug BG1", ref Gba.Ppu.DebugEnableBg[1]);
-                ImGui.Checkbox("Debug BG2", ref Gba.Ppu.DebugEnableBg[2]);
-                ImGui.Checkbox("Debug BG3", ref Gba.Ppu.DebugEnableBg[3]);
-                ImGui.Checkbox("Debug OBJ", ref Gba.Ppu.DebugEnableObj);
+                // ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[0].ScreenSize]}");
+                // ImGui.Text($"BG0 Scroll X: {Nds.Ppu.Backgrounds[0].HorizontalOffset}");
+                // ImGui.Text($"BG0 Scroll Y: {Nds.Ppu.Backgrounds[0].VerticalOffset}");
+                // ImGui.Text($"BG1 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[1].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[1].ScreenSize]}");
+                // ImGui.Text($"BG1 Scroll X: {Nds.Ppu.Backgrounds[1].HorizontalOffset}");
+                // ImGui.Text($"BG1 Scroll Y: {Nds.Ppu.Backgrounds[1].VerticalOffset}");
+                // ImGui.Text($"BG2 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[2].ScreenSize]}");
+                // ImGui.Text($"BG2 Affine Size: {Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[2].ScreenSize]}");
+                // ImGui.Text($"BG2 Scroll X: {Nds.Ppu.Backgrounds[2].HorizontalOffset}");
+                // ImGui.Text($"BG2 Scroll Y: {Nds.Ppu.Backgrounds[2].VerticalOffset}");
+                // ImGui.Text($"BG3 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[3].ScreenSize]}");
+                // ImGui.Text($"BG3 Affine Size: {Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[3].ScreenSize]}");
+                // ImGui.Text($"BG3 Scroll X: {Nds.Ppu.Backgrounds[3].HorizontalOffset}");
+                // ImGui.Text($"BG3 Scroll Y: {Nds.Ppu.Backgrounds[3].VerticalOffset}");
+                // ImGui.Checkbox("Debug BG0", ref Nds.Ppu.DebugEnableBg[0]);
+                // ImGui.Checkbox("Debug BG1", ref Nds.Ppu.DebugEnableBg[1]);
+                // ImGui.Checkbox("Debug BG2", ref Nds.Ppu.DebugEnableBg[2]);
+                // ImGui.Checkbox("Debug BG3", ref Nds.Ppu.DebugEnableBg[3]);
+                // ImGui.Checkbox("Debug OBJ", ref Nds.Ppu.DebugEnableObj);
 
-                ImGui.Text($"Window 0 Left..: {Gba.Ppu.Win0HLeft}");
-                ImGui.Text($"Window 0 Right.: {Gba.Ppu.Win0HRight}");
-                ImGui.Text($"Window 0 Top...: {Gba.Ppu.Win0VTop}");
-                ImGui.Text($"Window 0 Bottom: {Gba.Ppu.Win0VBottom}");
-                ImGui.Text($"Window 1 Left..: {Gba.Ppu.Win1HLeft}");
-                ImGui.Text($"Window 1 Right.: {Gba.Ppu.Win1HRight}");
-                ImGui.Text($"Window 1 Top...: {Gba.Ppu.Win1VTop}");
-                ImGui.Text($"Window 1 Bottom: {Gba.Ppu.Win1VBottom}");
+                // ImGui.Text($"Window 0 Left..: {Nds.Ppu.Win0HLeft}");
+                // ImGui.Text($"Window 0 Right.: {Nds.Ppu.Win0HRight}");
+                // ImGui.Text($"Window 0 Top...: {Nds.Ppu.Win0VTop}");
+                // ImGui.Text($"Window 0 Bottom: {Nds.Ppu.Win0VBottom}");
+                // ImGui.Text($"Window 1 Left..: {Nds.Ppu.Win1HLeft}");
+                // ImGui.Text($"Window 1 Right.: {Nds.Ppu.Win1HRight}");
+                // ImGui.Text($"Window 1 Top...: {Nds.Ppu.Win1VTop}");
+                // ImGui.Text($"Window 1 Bottom: {Nds.Ppu.Win1VBottom}");
 
                 ImGui.Columns(1);
                 ImGui.Separator();
 
                 ImGui.Text("Palettes");
 
-                for (int p = 0; p < 256; p++)
-                {
-                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p];
-                }
+                // for (int p = 0; p < 256; p++)
+                // {
+                //     PaletteImageBuffer[p] = Nds.Ppu.ProcessedPalettes[p];
+                // }
 
-                GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
+                // GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
 
-                // TexParameter needed for something to display :)
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+                // // TexParameter needed for something to display :)
+                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
 
-                GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-                GL.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    PixelInternalFormat.Rgb,
-                    16,
-                    16,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-                    PaletteImageBuffer
-                );
+                // GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+                // GL.TexImage2D(
+                //     TextureTarget.Texture2D,
+                //     0,
+                //     PixelInternalFormat.Rgb,
+                //     16,
+                //     16,
+                //     0,
+                //     PixelFormat.Rgba,
+                //     PixelType.UnsignedByte,
+                //     PaletteImageBuffer
+                // );
 
-                // ImGui.Text($"Pointer: {texId}");
-                ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
+                // // ImGui.Text($"Pointer: {texId}");
+                // ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
-                for (int p = 0; p < 256; p++)
-                {
-                    PaletteImageBuffer[p] = Gba.Ppu.ProcessedPalettes[p + 256];
-                }
+                // for (int p = 0; p < 256; p++)
+                // {
+                //     PaletteImageBuffer[p] = Nds.Ppu.ProcessedPalettes[p + 256];
+                // }
 
-                GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
+                // GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
 
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
 
-                GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-                GL.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    PixelInternalFormat.Rgb,
-                    16,
-                    16,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-                    PaletteImageBuffer
-                );
+                // GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+                // GL.TexImage2D(
+                //     TextureTarget.Texture2D,
+                //     0,
+                //     PixelInternalFormat.Rgb,
+                //     16,
+                //     16,
+                //     0,
+                //     PixelFormat.Rgba,
+                //     PixelType.UnsignedByte,
+                //     PaletteImageBuffer
+                // );
 
-                ImGui.SameLine(); ImGui.Image((IntPtr)objPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
+                // ImGui.SameLine(); ImGui.Image((IntPtr)objPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
                 ImGui.End();
 
@@ -1042,21 +1041,21 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Instruction Viewer"))
             {
-                uint back = Gba.Cpu.ThumbState ? 16U : 32U;
+                uint back = Nds.Nds7.Cpu.ThumbState ? 16U : 32U;
 
                 int rows = 32;
-                uint tempBase = Gba.Cpu.R[15] - back;
+                uint tempBase = Nds.Nds7.Cpu.R[15] - back;
 
 
                 for (int i = 0; i < rows; i++)
                 {
-                    if (Gba.Cpu.ThumbState)
+                    if (Nds.Nds7.Cpu.ThumbState)
                     {
-                        ushort val = Gba.Mem.Read16(tempBase);
+                        ushort val = Nds.Nds7.Mem.Read16(tempBase);
                         String disasm = DisasmThumb(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                        if (tempBase == Gba.Cpu.R[15] - (Gba.Cpu.Pipeline * 2))
+                        if (tempBase == Nds.Nds7.Cpu.R[15] - (Nds.Nds7.Cpu.Pipeline * 2))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -1068,11 +1067,11 @@ namespace OptimeGBAEmulator
                     }
                     else
                     {
-                        uint val = Gba.Mem.Read32(tempBase);
+                        uint val = Nds.Nds7.Mem.Read32(tempBase);
                         String disasm = DisasmArm(val);
 
                         String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                        if (tempBase == Gba.Cpu.R[15] - (Gba.Cpu.Pipeline * 4))
+                        if (tempBase == Nds.Nds7.Cpu.R[15] - (Nds.Nds7.Cpu.Pipeline * 4))
                         {
                             ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                         }
@@ -1095,44 +1094,44 @@ namespace OptimeGBAEmulator
                 gbTexId = 0;
 
                 // GL.ActiveTexture(TextureUnit.Texture0);
-                GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-                if (!ShowBackBuf)
-                {
-                    GL.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    PixelInternalFormat.Rgba,
-                    240,
-                    160,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-#if UNSAFE
-                    (IntPtr)Gba.Ppu.ScreenFront
-#else
-                    Gba.Ppu.ScreenFront
-#endif
-                );
+//                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
+//                 if (!ShowBackBuf)
+//                 {
+//                     GL.TexImage2D(
+//                     TextureTarget.Texture2D,
+//                     0,
+//                     PixelInternalFormat.Rgba,
+//                     240,
+//                     160,
+//                     0,
+//                     PixelFormat.Rgba,
+//                     PixelType.UnsignedByte,
+// #if UNSAFE
+//                     (IntPtr)Nds.Ppu.ScreenFront
+// #else
+//                     Nds.Ppu.ScreenFront
+// #endif
+//                 );
 
-                }
-                else
-                {
-                    GL.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    PixelInternalFormat.Rgba,
-                    240,
-                    160,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-#if UNSAFE
-                    (IntPtr)Gba.Ppu.ScreenBack
-#else
-                    Gba.Ppu.ScreenBack
-#endif
-                    );
-                }
+//                 }
+//                 else
+//                 {
+//                     GL.TexImage2D(
+//                     TextureTarget.Texture2D,
+//                     0,
+//                     PixelInternalFormat.Rgba,
+//                     240,
+//                     160,
+//                     0,
+//                     PixelFormat.Rgba,
+//                     PixelType.UnsignedByte,
+// #if UNSAFE
+//                     (IntPtr)Nds.Ppu.ScreenBack
+// #else
+//                     Nds.Ppu.ScreenBack
+// #endif
+//                     );
+//                 }
 
                 float height = BigScreen ? 240 * 5 : 240 * 2;
                 float width = BigScreen ? 160 * 5 : 160 * 2;
@@ -1190,13 +1189,13 @@ namespace OptimeGBAEmulator
                     new RegisterField("H-Blank Interval Form", 5),
                     new RegisterField("OBJ Character VRAM Mapping", 6),
                     new RegisterField("Forced Blank", 7),
-                    new RegisterField("Screen Display BG0", 8),
-                    new RegisterField("Screen Display BG1", 9),
-                    new RegisterField("Screen Display BG2", 10),
-                    new RegisterField("Screen Display BG3", 11),
-                    new RegisterField("Screen Display OBJ", 12),
-                    new RegisterField("Window 0 Display Flag", 13),
-                    new RegisterField("Window 1 Display Flag", 14),
+
+                    /* Unmerged change from project 'OptimeGBA-OpenTK'
+                    Before:
+                                        new RegisterField("Screen Display BG1", 9),
+                    After:
+                                        new RegisterField("Screen Display BG0", 8),
+                    */                 new RegisterField("Window 1 Display Flag", 14),
                     new RegisterField("OBJ Window Display Flag", 15)
                 ));
 
@@ -1393,7 +1392,7 @@ namespace OptimeGBAEmulator
                     ImGui.EndCombo();
                 }
 
-                uint value = Gba.Mem.Read32(RegViewerSelected.Address);
+                uint value = Nds.Nds7.Mem.Read32(RegViewerSelected.Address);
                 foreach (RegisterField f in RegViewerSelected.Fields)
                 {
                     if (f.Checkbox)
@@ -1435,7 +1434,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictThumb[k] = 0;
                     }
-                    CpuProfilerDictThumb[k] += Gba.Cpu.ThumbExecutorProfile[ti];
+                    CpuProfilerDictThumb[k] += Nds.Nds7.Cpu.ThumbExecutorProfile[ti];
                 }
 
                 for (int ai = 0; ai < 4096; ai++)
@@ -1445,7 +1444,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictArm[k] = 0;
                     }
-                    CpuProfilerDictArm[k] += Gba.Cpu.ArmExecutorProfile[ai];
+                    CpuProfilerDictArm[k] += Nds.Nds7.Cpu.ArmExecutorProfile[ai];
                 }
 
                 ImGui.Columns(1);
@@ -1481,12 +1480,12 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("HWIO Log"))
             {
-                foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioReadLog)
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                 }
                 ImGui.Separator();
-                foreach (KeyValuePair<uint, uint> entry in Gba.Mem.HwioWriteLog)
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                 }
@@ -1520,9 +1519,10 @@ namespace OptimeGBAEmulator
 
         public void LoadRomFromPath(string path)
         {
-            byte[] bios = Gba.Provider.Bios;
+            byte[] bios7 = Nds.Provider.Bios7;
+            byte[] bios9 = Nds.Provider.Bios9;
             byte[] rom = System.IO.File.ReadAllBytes(path);
-            AudioCallback audioCallback = Gba.Provider.AudioCallback;
+            AudioCallback audioCallback = Nds.Provider.AudioCallback;
 
             string savPath = path.Substring(0, path.Length - 3) + "sav";
             byte[] sav = new byte[0];
@@ -1543,15 +1543,15 @@ namespace OptimeGBAEmulator
                 Console.WriteLine(".sav not available");
             }
 
-            Gba = new Gba(new ProviderGba(bios, rom, savPath, audioCallback) { BootBios = true });
-            Gba.Mem.SaveProvider.LoadSave(sav);
+            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, audioCallback) { BootBios = true });
+            Nds.Nds7.Mem.SaveProvider.LoadSave(sav);
         }
 
         public void DumpSav()
         {
             try
             {
-                System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
+                System.IO.File.WriteAllBytesAsync(Nds.Provider.SavPath, Nds.Nds7.Mem.SaveProvider.GetSave());
             }
             catch
             {
@@ -1559,295 +1559,19 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public void DrawPulseBox(int duty, float widthMul, float heightMul)
-        {
-            ImDrawListPtr dl = ImGui.GetWindowDrawList();
-            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
-            float width = ImGui.GetWindowContentRegionWidth();
-
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
-
-            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
-
-            float init = 0;
-            float xPerUnit = ((width) / 8) * widthMul;
-            float valX = pos.X;
-
-            float yCenter = (pos.Y + 64);
-            float yHigh = (yCenter - (heightMul * 56));
-            float yLow = (yCenter + (heightMul * 56));
-
-            for (uint i = 0; i < 2048; i++)
-            {
-                float val = PulseDuty[duty][i & 7];
-                val = (val * -1) + 1;
-
-                float newX = valX + xPerUnit;
-                if (newX > pos.X + width) newX = pos.X + width;
-                if (valX > pos.X + width) valX = pos.X + width;
-                if (val != init)
-                {
-                    // Make sure vertical line isn't off the edge of the box
-                    if (valX > pos.X && valX < pos.X + width)
-                    {
-                        dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(valX, yLow), lineCol, 2);
-                    }
-                }
-                if (val != 0)
-                {
-                    dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(newX, yHigh), lineCol, 2);
-                }
-                else
-                {
-                    dl.AddLine(new System.Numerics.Vector2(valX, yLow), new System.Numerics.Vector2(newX, yLow), lineCol, 2);
-                }
-                valX += xPerUnit;
-
-                init = val;
-
-                if (valX > pos.X + width) return;
-            }
-        }
-
-        public void DrawWaveBox(byte[] waveTable, float widthMul, int waveShift)
-        {
-            ImDrawListPtr dl = ImGui.GetWindowDrawList();
-            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
-            float width = ImGui.GetWindowContentRegionWidth();
-
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
-
-            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
-
-            float prev = 0;
-            float xPerUnit = ((width) / 32) * widthMul;
-            float valX = pos.X;
-
-            float yCenter = (pos.Y + 64);
-            float yHigh = yCenter - 56;
-            float yLow = yCenter + 56;
-
-            for (uint i = 0; i < 2048; i++)
-            {
-                float val = waveTable[i & 31] >> waveShift;
-
-                float y = yLow - ((val / 15) * 112);
-                float yPrev = yLow - ((prev / 15) * 112);
-
-                float newX = valX + xPerUnit;
-                if (newX > pos.X + width) newX = pos.X + width;
-                if (valX > pos.X + width) valX = pos.X + width;
-                if (val != prev)
-                {
-                    // Make sure vertical line isn't off the edge of the box
-                    if (valX > pos.X && valX < pos.X + width)
-                    {
-                        dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(valX, yPrev), lineCol, 2);
-                    }
-                }
-                dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(newX, y), lineCol, 2);
-                valX += xPerUnit;
-
-                prev = val;
-
-                if (valX > pos.X + width) return;
-            }
-        }
-
-        public void DrawNoiseBox(byte[] noiseArray, float widthMul, float heightMul)
-        {
-            ImDrawListPtr dl = ImGui.GetWindowDrawList();
-            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
-            float width = ImGui.GetWindowContentRegionWidth();
-
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
-
-            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
-
-            float init = 0;
-            float xPerUnit = ((width) / 8) * widthMul;
-            float valX = pos.X;
-
-            float yCenter = (pos.Y + 64);
-            float yHigh = (yCenter - (heightMul * 56));
-            float yLow = (yCenter + (heightMul * 56));
-
-            for (uint i = 0; i < 2048; i++)
-            {
-                float val = noiseArray[NoisePos++ & 32767];
-                val = ((val * -1) + 1);
-
-                float newX = valX + xPerUnit;
-                if (newX > pos.X + width) newX = pos.X + width;
-                if (valX > pos.X + width) valX = pos.X + width;
-                if (val != init)
-                {
-                    // Make sure vertical line isn't off the edge of the box
-                    if (valX > pos.X && valX < pos.X + width)
-                    {
-                        dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(valX, yLow), lineCol, 2);
-                    }
-                }
-                if (val != 0)
-                {
-                    dl.AddLine(new System.Numerics.Vector2(valX, yHigh), new System.Numerics.Vector2(newX, yHigh), lineCol, 2);
-                }
-                else
-                {
-                    dl.AddLine(new System.Numerics.Vector2(valX, yLow), new System.Numerics.Vector2(newX, yLow), lineCol, 2);
-                }
-                valX += xPerUnit;
-
-                init = val;
-
-                if (valX > pos.X + width) return;
-            }
-        }
-
-        public void DrawSoundVisualizer()
-        {
-            if (ImGui.Begin("Sound Visualizer"))
-            {
-                // ImGui.Columns(2);
-                GbAudio gbAudio = Gba.GbaAudio.GbAudio;
-
-                ImGui.Text("Pulse 1");
-
-                float pulse1Hz = gbAudio.pulse1_getFrequencyHz();
-                bool pulse1Active = gbAudio.pulse1_enabled && gbAudio.pulse1_dacEnabled;
-                DrawPulseBox(gbAudio.pulse1_width, 64 / pulse1Hz, pulse1Active ? gbAudio.pulse1_volume / 15f : 0);
-                int pulse1Note = NoteFromFrequency(pulse1Hz);
-                float pulse1CentsOff = (float)CentsOffFromPitch(pulse1Hz, pulse1Note);
-                ImGui.Text($"Active: {pulse1Active}");
-                ImGui.Text($"Volume: {gbAudio.pulse1_volume}");
-                ImGui.Text($"Pitch: {pulse1Hz} hz");
-                ImGui.Text($"Note: {NoteNameFromFrequency(pulse1Hz)} {OctaveFromFrequency(pulse1Hz)} {(pulse1CentsOff < 0 ? "" : "+") + pulse1CentsOff}");
-
-                ImGuiColumnSeparator();
-
-                ImGui.Text("Pulse 2");
-
-                float pulse2Hz = gbAudio.pulse2_getFrequencyHz();
-                bool pulse2Active = gbAudio.pulse2_enabled && gbAudio.pulse2_dacEnabled;
-                DrawPulseBox(gbAudio.pulse2_width, 64 / pulse2Hz, pulse2Active ? gbAudio.pulse2_volume / 15f : 0);
-                int pulse2Note = NoteFromFrequency(pulse2Hz);
-                double pulse2CentsOff = CentsOffFromPitch(pulse2Hz, pulse2Note);
-                ImGui.Text($"Active: {pulse2Active}");
-                ImGui.Text($"Volume: {gbAudio.pulse2_volume}");
-                ImGui.Text($"Pitch: {pulse2Hz} hz");
-                ImGui.Text($"Note: {NoteNameFromFrequency(pulse2Hz)} {OctaveFromFrequency(pulse2Hz)} {(pulse2CentsOff < 0 ? "" : "+") + pulse2CentsOff}");
-
-                ImGuiColumnSeparator();
-
-                ImGui.Text("Wave");
-                float waveHz = Gba.GbaAudio.GbAudio.wave_getFrequencyHz();
-                bool waveActive = gbAudio.wave_enabled && gbAudio.wave_dacEnabled && (gbAudio.wave_outputLeft || gbAudio.wave_outputRight) && gbAudio.wave_volume != 0;
-                DrawWaveBox(gbAudio.wave_bank ? gbAudio.wave_waveTable1 : gbAudio.wave_waveTable0, 32 / waveHz, waveActive ? WaveShiftCodes[gbAudio.wave_volume] : 4);
-                int waveNote = NoteFromFrequency(waveHz);
-                double waveCentsOff = CentsOffFromPitch(waveHz, waveNote);
-                ImGui.Text($"Pitch: {waveHz} hz");
-                ImGui.Text($"Note: {NoteNameFromFrequency(waveHz)} {OctaveFromFrequency(waveHz)} {(waveCentsOff < 0 ? "" : "+") + waveCentsOff}");
-
-                ImGuiColumnSeparator();
-
-                ImGui.Text("Noise");
-
-                long noiseHz = 524288 / NoiseDivisors[gbAudio.noise_divisorCode] / 2 ^ (gbAudio.noise_shiftClockFrequency + 1);
-                bool noiseActive = gbAudio.noise_enabled && gbAudio.noise_dacEnabled && (gbAudio.noise_outputLeft || gbAudio.noise_outputRight);
-                DrawNoiseBox(gbAudio.noise_counterStep ? GbAudio.SEVEN_BIT_NOISE : GbAudio.FIFTEEN_BIT_NOISE, 0.025f, noiseActive ? gbAudio.noise_volume / 15f : 0);
-
-                // ImGui.NextColumn();
-
-                // uint basePtr = 0x03006380;
-                // ImGui.Text("Base Pointer: " + Hex(basePtr, 8));
-
-                // ImGui.Text("ID: " + Gba.Mem.Read32(basePtr)); basePtr += 4;
-                // ImGui.Text("PCM DMA Counter: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Reverb: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Max Channels: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Master Volume: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Frequency: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-
-                // ImGui.Text("Mode: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Transpose: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-                // ImGui.Text("Transpose: " + Gba.Mem.Read8(basePtr)); basePtr += 1;
-
-                // const uint maxChans = 12;
-                // uint soundChannelPtr = basePtr + 0x90;
-                // for (int i = 0; i < maxChans; i++)
-                // {
-                //     ImGui.Text($"Ch{i} Left Vol: " + Gba.Mem.Read8(soundChannelPtr + 2));
-                //     ImGui.Text($"Ch{i} Right Vol: " + Gba.Mem.Read8(soundChannelPtr + 3));
-                //     soundChannelPtr += 0x10;
-                // }
-
-
-                ImGui.End();
-
-            }
-        }
-
-        uint NoisePos = 0;
-
-        public uint[][] PulseDuty = new uint[][] {
-            new uint[] {0, 0, 0, 0, 0, 0, 0, 1},
-            new uint[] {1, 0, 0, 0, 0, 0, 0, 1},
-            new uint[] {1, 0, 0, 0, 0, 1, 1, 1},
-            new uint[] {0, 1, 1, 1, 1, 1, 1, 0},
-        };
-
-        public uint[] NoiseDivisors = { 8, 16, 32, 48, 63, 80, 96, 112 };
-
-        public int[] WaveShiftCodes = { 4, 0, 1, 2 };
-
-        string[] noteStrings = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-
-        int NoteFromFrequency(float frequency)
-        {
-            var noteNum = 12 * (Math.Log(frequency / 440) / Math.Log(2));
-            return (int)(Math.Round(noteNum) + 69);
-        }
-
-        double FrequencyFromNote(int note)
-        {
-            return Math.Pow(2, (double)(note - 69) / 12) * 440;
-        }
-
-        string NoteNameFromFrequency(float frequency)
-        {
-            return noteStrings[(uint)(NoteFromFrequency(frequency)) % 12];
-        }
-
-        double OctaveFromFrequency(float frequency)
-        {
-            // Use octave 0 as base
-            return Math.Floor(Math.Log2(frequency / 27.50));
-        }
-
-        double CentsOffFromPitch(float frequency, int note)
-        {
-            return Math.Floor(1200 * Math.Log(frequency / FrequencyFromNote(note)) / Math.Log(2));
-        }
-
         public void DrawSchedulerInfo()
         {
             if (ImGui.Begin("Scheduler"))
             {
-                // if (ImGui.Button("Pop First Event")) Gba.Scheduler.PopFirstEvent();
-                // if (ImGui.Button("Add 0")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 0, (long cyclesLate) => { });
-                // if (ImGui.Button("Add 100")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 100, (long cyclesLate) => { });
-                // if (ImGui.Button("Add 500")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 500, (long cyclesLate) => { });
-                // if (ImGui.Button("Add 42069")) Gba.Scheduler.AddEventRelative(SchedulerId.None, 42069, (long cyclesLate) => { });
+                // if (ImGui.Button("Pop First Event")) Nds.Scheduler.PopFirstEvent();
+                // if (ImGui.Button("Add 0")) Nds.Scheduler.AddEventRelative(SchedulerId.None, 0, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 100")) Nds.Scheduler.AddEventRelative(SchedulerId.None, 100, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 500")) Nds.Scheduler.AddEventRelative(SchedulerId.None, 500, (long cyclesLate) => { });
+                // if (ImGui.Button("Add 42069")) Nds.Scheduler.AddEventRelative(SchedulerId.None, 42069, (long cyclesLate) => { });
 
-                ImGui.Text($"Current Ticks: {Gba.Scheduler.CurrentTicks}");
-                ImGui.Text($"Next event at: {Gba.Scheduler.NextEventTicks}");
-                ImGui.Text($"Events queued: {Gba.Scheduler.EventsQueued}");
+                ImGui.Text($"Current Ticks: {Nds.Scheduler.CurrentTicks}");
+                ImGui.Text($"Next event at: {Nds.Scheduler.NextEventTicks}");
+                ImGui.Text($"Events queued: {Nds.Scheduler.EventsQueued}");
 
                 ImGui.Separator();
 
@@ -1863,13 +1587,13 @@ namespace OptimeGBAEmulator
 
                 ImGui.Separator();
 
-                SchedulerEvent evt = Gba.Scheduler.RootEvent.NextEvent;
+                SchedulerEvent evt = Nds.Scheduler.RootEvent.NextEvent;
                 int index = 0;
                 while (evt != null)
                 {
                     ImGui.Text(index.ToString());
                     ImGui.NextColumn();
-                    ImGui.Text((evt.Ticks - Gba.Scheduler.CurrentTicks).ToString());
+                    ImGui.Text((evt.Ticks - Nds.Scheduler.CurrentTicks).ToString());
                     ImGui.NextColumn();
                     ImGui.Text(Scheduler.ResolveId(evt.Id));
                     ImGui.NextColumn();

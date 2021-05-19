@@ -812,7 +812,7 @@ namespace OptimeGBA
 
             if (HBlankIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(Interrupt.HBlank);
+                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
             }
 
         }
@@ -823,7 +823,7 @@ namespace OptimeGBA
 
             if (HBlankIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(Interrupt.HBlank);
+                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
             }
         }
 
@@ -853,7 +853,7 @@ namespace OptimeGBA
 
                         if (VBlankIrqEnable)
                         {
-                            DeviceUnit.HwControl.FlagInterrupt(Interrupt.VBlank);
+                            DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VBlank);
                         }
 
                         TotalFrames++;
@@ -900,7 +900,7 @@ namespace OptimeGBA
                 VCounterMatch = VCount == VCountSetting;
                 if (VCounterMatch && VCounterIrqEnable)
                 {
-                    DeviceUnit.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                    DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
@@ -913,7 +913,7 @@ namespace OptimeGBA
 
             if (VCounterMatch && VCounterIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(Interrupt.VCounterMatch);
+                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
             }
         }
     }

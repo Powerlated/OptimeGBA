@@ -17,6 +17,5 @@ namespace OptimeGBA
         public AudioCallback AudioCallback;
 
         public abstract void StateChange();
-        public abstract void Tick(uint cycles);
     }
 }

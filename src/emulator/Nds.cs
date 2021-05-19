@@ -3,7 +3,7 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class Nds : Device
+    public sealed class Nds
     {
         public ProviderNds Provider;
 
@@ -11,16 +11,16 @@ namespace OptimeGBA
         public Keypad Keypad;
 
         public Nds7 Nds7;
+        public Scheduler Scheduler;
 
         public uint[] registers = new uint[16];
         public Nds(ProviderNds provider)
         {
             Provider = provider;
             Scheduler = new Scheduler();
-            AudioCallback = provider.AudioCallback;
+            // AudioCallback = provider.AudioCallback;
 
-            Mem.InitPageTables();
-            Cpu.FillPipelineArm();
+            Nds7 = new Nds7(this) { Scheduler = Scheduler };
 
 #if UNSAFE
             Console.WriteLine("Starting in memory UNSAFE mode");
@@ -31,15 +31,15 @@ namespace OptimeGBA
 
         public uint Step()
         {
-            Cpu.CheckInterrupts();
+            Nds7.Cpu.CheckInterrupts();
             long beforeTicks = Scheduler.CurrentTicks;
-            if (!Cpu.ThumbState)
+            if (!Nds7.Cpu.ThumbState)
             {
-                Scheduler.CurrentTicks += Cpu.ExecuteArm();
+                Scheduler.CurrentTicks += Nds7.Cpu.ExecuteArm();
             }
             else
             {
-                Scheduler.CurrentTicks += Cpu.ExecuteThumb();
+                Scheduler.CurrentTicks += Nds7.Cpu.ExecuteThumb();
             }
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {
@@ -84,25 +84,16 @@ namespace OptimeGBA
             return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }
 
-        public override void Tick(uint cycles)
+        public void Tick(uint cycles)
         {
             Scheduler.CurrentTicks += cycles;
         }
 
-        public void HaltSkip(long cyclesLate)
-        {
-            long before = Scheduler.CurrentTicks;
-            while (!HwControl.Available)
-            {
-                long ticksPassed = Scheduler.NextEventTicks - Scheduler.CurrentTicks;
-                Scheduler.CurrentTicks = Scheduler.NextEventTicks;
-                Scheduler.PopFirstEvent().Callback(0);
-            }
-        }
-
-        public override void StateChange()
+        public void StateChange()
         {
             Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
         }
+
+        public void HaltSkip(long cyclesOffset) {}
     }
 }
