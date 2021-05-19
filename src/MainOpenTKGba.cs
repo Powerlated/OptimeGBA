@@ -4,7 +4,7 @@ using OpenTK.Windowing.Common.Input;
 
 namespace OptimeGBAEmulator
 {
-    class MainOpenTK
+    class MainOpenTKGba
     {
         static IntPtr window = IntPtr.Zero;
         static IntPtr glcontext;
@@ -13,7 +13,7 @@ namespace OptimeGBAEmulator
 
         public static void Main(string[] args)
         {
-            using (Game game = new Game(1600, 900, "Optime GBA"))
+            using (WindowGba game = new WindowGba(1600, 900, "Optime GBA"))
             {
                 game.Icon = new WindowIcon();
 

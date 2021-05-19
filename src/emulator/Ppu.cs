@@ -212,9 +212,9 @@ namespace OptimeGBA
 
     public sealed unsafe partial class Ppu
     {
-        DeviceUnit DeviceUnit;
+        Device DeviceUnit;
         Scheduler Scheduler;
-        public Ppu(DeviceUnit deviceUnit, Scheduler scheduler)
+        public Ppu(Device deviceUnit, Scheduler scheduler)
         {
             DeviceUnit = deviceUnit;
             Scheduler = scheduler;
@@ -339,50 +339,50 @@ namespace OptimeGBA
         // RGB, 24-bit
         public const int ScreenBufferSize = WIDTH * HEIGHT;
 #if UNSAFE
-        public uint* ScreenFront = Memory.AllocateUnmanagedArray32(ScreenBufferSize);
-        public uint* ScreenBack = Memory.AllocateUnmanagedArray32(ScreenBufferSize);
-        public uint* ProcessedPalettes = Memory.AllocateUnmanagedArray32(512);
+        public uint* ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
+        public uint* ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
+        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
 
-        public byte* Palettes = Memory.AllocateUnmanagedArray(1024);
-        public byte* Vram = Memory.AllocateUnmanagedArray(98304);
-        public byte* Oam = Memory.AllocateUnmanagedArray(1024);
+        public byte* Palettes = MemoryUtil.AllocateUnmanagedArray(1024);
+        public byte* Vram = MemoryUtil.AllocateUnmanagedArray(98304);
+        public byte* Oam = MemoryUtil.AllocateUnmanagedArray(1024);
 
         public byte*[] BackgroundBuffers = {
-            Memory.AllocateUnmanagedArray(WIDTH + 8),
-            Memory.AllocateUnmanagedArray(WIDTH + 8),
-            Memory.AllocateUnmanagedArray(WIDTH + 8),
-            Memory.AllocateUnmanagedArray(WIDTH + 8),
+            MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
+            MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
+            MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
+            MemoryUtil.AllocateUnmanagedArray(WIDTH + 8),
         };
 
         ~Ppu()
         {
-            Memory.FreeUnmanagedArray(ScreenFront);
-            Memory.FreeUnmanagedArray(ScreenBack);
-            Memory.FreeUnmanagedArray(ProcessedPalettes);
+            MemoryUtil.FreeUnmanagedArray(ScreenFront);
+            MemoryUtil.FreeUnmanagedArray(ScreenBack);
+            MemoryUtil.FreeUnmanagedArray(ProcessedPalettes);
 
-            Memory.FreeUnmanagedArray(Palettes);
-            Memory.FreeUnmanagedArray(Vram);
-            Memory.FreeUnmanagedArray(Oam);
+            MemoryUtil.FreeUnmanagedArray(Palettes);
+            MemoryUtil.FreeUnmanagedArray(Vram);
+            MemoryUtil.FreeUnmanagedArray(Oam);
 
-            Memory.FreeUnmanagedArray(BackgroundBuffers[0]);
-            Memory.FreeUnmanagedArray(BackgroundBuffers[1]);
-            Memory.FreeUnmanagedArray(BackgroundBuffers[2]);
-            Memory.FreeUnmanagedArray(BackgroundBuffers[3]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[0]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[1]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[2]);
+            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[3]);
         }
 #else
-        public byte[] Palettes = Memory.AllocateManagedArray(1024);
-        public byte[] Vram = Memory.AllocateManagedArray(98304);
-        public byte[] Oam = Memory.AllocateManagedArray(1024);
+        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
+        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
+        public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
 
-        public uint[] ScreenFront = Memory.AllocateManagedArray32(ScreenBufferSize);
-        public uint[] ScreenBack = Memory.AllocateManagedArray32(ScreenBufferSize);
-        public uint[] ProcessedPalettes = Memory.AllocateManagedArray32(512);
+        public uint[] ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
+        public uint[] ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
+        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
 
         public byte[][] BackgroundBuffers = {
-            Memory.AllocateManagedArray(WIDTH + 8),
-            Memory.AllocateManagedArray(WIDTH + 8),
-            Memory.AllocateManagedArray(WIDTH + 8),
-            Memory.AllocateManagedArray(WIDTH + 8),
+            MemoryUtil.AllocateManagedArray(WIDTH + 8),
+            MemoryUtil.AllocateManagedArray(WIDTH + 8),
+            MemoryUtil.AllocateManagedArray(WIDTH + 8),
+            MemoryUtil.AllocateManagedArray(WIDTH + 8),
         };
 #endif
 

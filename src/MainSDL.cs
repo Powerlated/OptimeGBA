@@ -270,7 +270,7 @@ namespace OptimeGBAEmulator
                 Log(".sav not available");
             }
 
-            var provider = new GbaProvider(bios, rom, savPath, AudioReady);
+            var provider = new ProviderGba(bios, rom, savPath, AudioReady);
             provider.BootBios = true;
             Gba = new Gba(provider);
 
@@ -329,7 +329,7 @@ namespace OptimeGBAEmulator
                 {
                     ResetDue = false;
                     byte[] save = Gba.Mem.SaveProvider.GetSave();
-                    GbaProvider p = Gba.Provider;
+                    ProviderGba p = Gba.Provider;
                     Gba = new Gba(p);
                     Gba.Mem.SaveProvider.LoadSave(save);
 

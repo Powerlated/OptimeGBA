@@ -375,10 +375,10 @@ namespace OptimeGBA
                     uint parameterId = (attr1 >> 9) & 0b11111;
                     uint pBase = parameterId * 32;
 
-                    short pA = (short)Memory.GetUshort(Oam, pBase + 6);
-                    short pB = (short)Memory.GetUshort(Oam, pBase + 14);
-                    short pC = (short)Memory.GetUshort(Oam, pBase + 22);
-                    short pD = (short)Memory.GetUshort(Oam, pBase + 30);
+                    short pA = (short)MemoryUtil.GetUshort(Oam, pBase + 6);
+                    short pB = (short)MemoryUtil.GetUshort(Oam, pBase + 14);
+                    short pC = (short)MemoryUtil.GetUshort(Oam, pBase + 22);
+                    short pD = (short)MemoryUtil.GetUshort(Oam, pBase + 30);
 
                     uint xofs;
                     uint yofs;

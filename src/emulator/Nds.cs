@@ -3,28 +3,20 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class Gba : Device
+    public sealed class Nds : Device
     {
-        public ProviderGba Provider;
+        public ProviderNds Provider;
 
         public GbaAudio GbaAudio;
         public Keypad Keypad;
 
-        public Gba(ProviderGba provider)
+        public Nds7 Nds7;
+
+        public uint[] registers = new uint[16];
+        public Nds(ProviderNds provider)
         {
             Provider = provider;
-
             Scheduler = new Scheduler();
-
-            Mem = new MemoryGba(this, provider);
-            GbaAudio = new GbaAudio(this, Scheduler);
-            Ppu = new Ppu(this, Scheduler);
-            Keypad = new Keypad();
-            Dma = new Dma(this);
-            Timers = new Timers(this, Scheduler);
-            HwControl = new HwControl(this);
-            Cpu = new Arm7(this);
-
             AudioCallback = provider.AudioCallback;
 
             Mem.InitPageTables();
@@ -61,28 +53,23 @@ namespace OptimeGBA
 
         public void DoNothing(long cyclesLate) { }
 
-        public override void StateChange()
-        {
-            Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
-        }
-
         public uint StateStep()
         {
-            Cpu.CheckInterrupts();
+            Nds7.Cpu.CheckInterrupts();
 
             long beforeTicks = Scheduler.CurrentTicks;
-            if (!Cpu.ThumbState)
+            if (!Nds7.Cpu.ThumbState)
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    Scheduler.CurrentTicks += Cpu.ExecuteArm();
+                    Scheduler.CurrentTicks += Nds7.Cpu.ExecuteArm();
                 }
             }
             else
             {
                 while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
                 {
-                    Scheduler.CurrentTicks += Cpu.ExecuteThumb();
+                    Scheduler.CurrentTicks += Nds7.Cpu.ExecuteThumb();
                 }
             }
 
@@ -111,6 +98,11 @@ namespace OptimeGBA
                 Scheduler.CurrentTicks = Scheduler.NextEventTicks;
                 Scheduler.PopFirstEvent().Callback(0);
             }
+        }
+
+        public override void StateChange()
+        {
+            Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
         }
     }
 }

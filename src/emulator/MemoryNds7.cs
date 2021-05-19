@@ -4,11 +4,11 @@ using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
 using static OptimeGBA.Bits;
 using System.Runtime.InteropServices;
-using static OptimeGBA.Memory;
+using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
 {
-    public sealed unsafe class MemoryNds7
+    public sealed unsafe class MemoryNds7 : Memory
     {
         Nds7 Nds7;
 
@@ -19,50 +19,30 @@ namespace OptimeGBA
             
         }
 
-        public uint EepromThreshold = 0x2000000;
-
-        public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
-        public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
-        public bool LogHwioAccesses = false;
-
-        public SaveProvider SaveProvider = new NullSaveProvider();
-
-        public const int BiosSize = 16384;
-        public const int MaxRomSize = 67108864;
-        public const int EwramSize = 262144;
-        public const int IwramSize = 32768;
-        public const int PageSize = 1024;
         public uint RomSize;
 
-#if UNSAFE
-        public byte* Bios = Memory.AllocateUnmanagedArray(BiosSize);
-        public byte* Rom = Memory.AllocateUnmanagedArray(MaxRomSize);
-        public byte* Ewram = Memory.AllocateUnmanagedArray(EwramSize);
-        public byte* Iwram = Memory.AllocateUnmanagedArray(IwramSize);
+        public const int Arm7WramSize = 65536; 
 
-        public byte* EmptyPage = Memory.AllocateUnmanagedArray(PageSize);
+#if UNSAFE
+        public byte* Bios = MemoryUtil.AllocateUnmanagedArray(Arm7WramSize);
+
+        public byte* EmptyPage = MemoryUtil.AllocateUnmanagedArray(PageSize);
         public byte*[] PageTableRead = new byte*[4194304];
         public byte*[] PageTableWrite = new byte*[4194304];
 
         ~MemoryNds7()
         {
-            Memory.FreeUnmanagedArray(Bios);
-            Memory.FreeUnmanagedArray(Rom);
-            Memory.FreeUnmanagedArray(Ewram);
-            Memory.FreeUnmanagedArray(Iwram);
+            MemoryUtil.FreeUnmanagedArray(Bios);
         }
 #else
-        public byte[] Bios = Memory.AllocateManagedArray(BiosSize);
-        public byte[] Rom = Memory.AllocateManagedArray(MaxRomSize);
-        public byte[] Ewram = Memory.AllocateManagedArray(EwramSize);
-        public byte[] Iwram = Memory.AllocateManagedArray(IwramSize);
+        public byte[] Bios = MemoryUtil.AllocateManagedArray(Arm7WramSize);
 
-        public byte[] EmptyPage = Memory.AllocateManagedArray(PageSize);
+        public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
         public byte[][] PageTableRead = new byte[4194304][];
         public byte[][] PageTableWrite = new byte[4194304][];
 #endif
 
-        public void InitPageTables()
+        public override void InitPageTables()
         {
             InitPageTable(PageTableRead, false);
             InitPageTable(PageTableWrite, true);
@@ -80,21 +60,21 @@ namespace OptimeGBA
 
         public uint[] MemoryRegionMasks = {
             0x00003FFF, // 0x0 - BIOS
-            0x00000000, // 0x1 - Unused
-            0x0003FFFF, // 0x2 - EWRAM
-            0x00007FFF, // 0x3 - IWRAM
-            0x00000000, // 0x4 - I/O
-            0x000003FF, // 0x5 - Palettes
-            0x0001FFFF, // 0x6 - VRAM
-            0x000003FF, // 0x7 - OAM
-            0x01FFFFFF, // 0x8 - ROM
-            0x01FFFFFF, // 0x9 - ROM
-            0x01FFFFFF, // 0xA - ROM
-            0x01FFFFFF, // 0xB - ROM
-            0x01FFFFFF, // 0xC - ROM
-            0x01FFFFFF, // 0xD - ROM
-            0x00000000, // 0xE - SRAM / FLASH
-            0x00000000, // 0xF - SRAM / FLASH
+            0x00000000, // 0x1 - 
+            0x00000000, // 0x2 - 
+            0x00000000, // 0x3 - 
+            0x00000000, // 0x4 - 
+            0x00000000, // 0x5 - 
+            0x00000000, // 0x6 - 
+            0x00000000, // 0x7 - 
+            0x00000000, // 0x8 - 
+            0x00000000, // 0x9 - 
+            0x00000000, // 0xA - 
+            0x00000000, // 0xB - 
+            0x00000000, // 0xC - 
+            0x00000000, // 0xD - 
+            0x00000000, // 0xE - 
+            0x00000000, // 0xF - 
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -123,7 +103,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte Read8(uint addr)
+        public override byte Read8(uint addr)
         {
             var page = ResolvePageRead(addr);
             if (page != null)
@@ -153,7 +133,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ushort Read16(uint addr)
+        public override ushort Read16(uint addr)
         {
 #if DEBUG
             if ((addr & 1) != 0)
@@ -177,7 +157,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint Read32(uint addr)
+        public override uint Read32(uint addr)
         {
 #if DEBUG
             if ((addr & 3) != 0)
@@ -204,7 +184,7 @@ namespace OptimeGBA
 
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write8(uint addr, byte val)
+        public override void Write8(uint addr, byte val)
         {
             var page = ResolvePageWrite(addr);
             if (page != null)
@@ -235,7 +215,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write16(uint addr, ushort val)
+        public override void Write16(uint addr, ushort val)
         {
 #if DEBUG
             if ((addr & 1) != 0)
@@ -264,7 +244,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Write32(uint addr, uint val)
+        public override void Write32(uint addr, uint val)
         {
 #if DEBUG
             if ((addr & 3) != 0)

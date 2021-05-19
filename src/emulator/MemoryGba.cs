@@ -4,15 +4,15 @@ using System.Runtime.CompilerServices;
 using System.Collections.Concurrent;
 using static OptimeGBA.Bits;
 using System.Runtime.InteropServices;
-using static OptimeGBA.Memory;
+using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
 {
-    public sealed unsafe class MemoryGba : MemoryUnit
+    public sealed unsafe class MemoryGba : Memory
     {
         Gba Gba;
 
-        public MemoryGba(Gba gba, GbaProvider provider)
+        public MemoryGba(Gba gba, ProviderGba provider)
         {
             Gba = gba;
 
@@ -97,33 +97,32 @@ namespace OptimeGBA
         public const int MaxRomSize = 67108864;
         public const int EwramSize = 262144;
         public const int IwramSize = 32768;
-        public const int PageSize = 1024;
         public uint RomSize;
 
 #if UNSAFE
-        public byte* Bios = Memory.AllocateUnmanagedArray(BiosSize);
-        public byte* Rom = Memory.AllocateUnmanagedArray(MaxRomSize);
-        public byte* Ewram = Memory.AllocateUnmanagedArray(EwramSize);
-        public byte* Iwram = Memory.AllocateUnmanagedArray(IwramSize);
+        public byte* Bios = MemoryUtil.AllocateUnmanagedArray(BiosSize);
+        public byte* Rom = MemoryUtil.AllocateUnmanagedArray(MaxRomSize);
+        public byte* Ewram = MemoryUtil.AllocateUnmanagedArray(EwramSize);
+        public byte* Iwram = MemoryUtil.AllocateUnmanagedArray(IwramSize);
 
-        public byte* EmptyPage = Memory.AllocateUnmanagedArray(PageSize);
+        public byte* EmptyPage = MemoryUtil.AllocateUnmanagedArray(PageSize);
         public byte*[] PageTableRead = new byte*[4194304];
         public byte*[] PageTableWrite = new byte*[4194304];
 
         ~MemoryGba()
         {
-            Memory.FreeUnmanagedArray(Bios);
-            Memory.FreeUnmanagedArray(Rom);
-            Memory.FreeUnmanagedArray(Ewram);
-            Memory.FreeUnmanagedArray(Iwram);
+            MemoryUtil.FreeUnmanagedArray(Bios);
+            MemoryUtil.FreeUnmanagedArray(Rom);
+            MemoryUtil.FreeUnmanagedArray(Ewram);
+            MemoryUtil.FreeUnmanagedArray(Iwram);
         }
 #else
-        public byte[] Bios = Memory.AllocateManagedArray(BiosSize);
-        public byte[] Rom = Memory.AllocateManagedArray(MaxRomSize);
-        public byte[] Ewram = Memory.AllocateManagedArray(EwramSize);
-        public byte[] Iwram = Memory.AllocateManagedArray(IwramSize);
+        public byte[] Bios = MemoryUtil.AllocateManagedArray(BiosSize);
+        public byte[] Rom = MemoryUtil.AllocateManagedArray(MaxRomSize);
+        public byte[] Ewram = MemoryUtil.AllocateManagedArray(EwramSize);
+        public byte[] Iwram = MemoryUtil.AllocateManagedArray(IwramSize);
 
-        public byte[] EmptyPage = Memory.AllocateManagedArray(PageSize);
+        public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
         public byte[][] PageTableRead = new byte[4194304][];
         public byte[][] PageTableWrite = new byte[4194304][];
 #endif

@@ -22,7 +22,7 @@ using System.Linq;
 
 namespace OptimeGBAEmulator
 {
-    public unsafe class Game : GameWindow
+    public unsafe class WindowGba : GameWindow
     {
         int gbTexId;
         int bgPalTexId;
@@ -158,12 +158,12 @@ namespace OptimeGBAEmulator
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public Game(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
+        public WindowGba(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
         {
             // Init SDL
             byte[] bios = System.IO.File.ReadAllBytes("gba_bios.bin");
             // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
-            Gba = new Gba(new GbaProvider(bios, new byte[0], "", AudioReady) { BootBios = true });
+            Gba = new Gba(new ProviderGba(bios, new byte[0], "", AudioReady) { BootBios = true });
             LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.gba");
 
             SearchForRoms();
@@ -335,7 +335,7 @@ namespace OptimeGBAEmulator
         public void ResetGba()
         {
             byte[] save = Gba.Mem.SaveProvider.GetSave();
-            GbaProvider p = Gba.Provider;
+            ProviderGba p = Gba.Provider;
             Gba = new Gba(p);
             Gba.Mem.SaveProvider.LoadSave(save);
         }
@@ -1543,7 +1543,7 @@ namespace OptimeGBAEmulator
                 Console.WriteLine(".sav not available");
             }
 
-            Gba = new Gba(new GbaProvider(bios, rom, savPath, audioCallback) { BootBios = true });
+            Gba = new Gba(new ProviderGba(bios, rom, savPath, audioCallback) { BootBios = true });
             Gba.Mem.SaveProvider.LoadSave(sav);
         }
 

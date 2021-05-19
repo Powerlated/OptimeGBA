@@ -2,7 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using static OptimeGBA.Bits;
-using static OptimeGBA.Memory;
+using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
 {
@@ -67,13 +67,13 @@ namespace OptimeGBA
         public const uint VectorIRQ = 0x18;
         public const uint VectorFIQ = 0x1C;
 
-        public DeviceUnit DeviceUnit;
+        public Device DeviceUnit;
 
 #if UNSAFE
-        public uint* R = Memory.AllocateUnmanagedArray32(16);
+        public uint* R = MemoryUtil.AllocateUnmanagedArray32(16);
 
         ~Arm7() {
-            Memory.FreeUnmanagedArray(R);
+            MemoryUtil.FreeUnmanagedArray(R);
         }
 #else
         public uint[] R = new uint[16];
@@ -136,7 +136,7 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
 
-        public Arm7(DeviceUnit deviceUnit)
+        public Arm7(Device deviceUnit)
         {
             DeviceUnit = deviceUnit;
 
