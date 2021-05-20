@@ -16,7 +16,10 @@ namespace OptimeGBAEmulator
             using (Window game = new Window(1600, 900, "Optime GBA"))
             {
                 game.Icon = new WindowIcon();
-
+                if (args.Length > 0)
+                {
+                    game.LoadRomFromPath(args[0]);
+                }
                 game.Run();
             }
 
