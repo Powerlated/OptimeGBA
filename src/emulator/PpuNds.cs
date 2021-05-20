@@ -4,14 +4,14 @@ using System;
 
 namespace OptimeGBA
 {
-    public sealed unsafe class PpuGba
+    public sealed unsafe class PpuNds
     {
         Device DeviceUnit;
         Scheduler Scheduler;
 
         public PpuRenderer Renderer = new PpuRenderer(240, 160);
 
-        public PpuGba(Device deviceUnit, Scheduler scheduler)
+        public PpuNds(Device deviceUnit, Scheduler scheduler)
         {
             DeviceUnit = deviceUnit;
             Scheduler = scheduler;

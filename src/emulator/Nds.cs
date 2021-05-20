@@ -8,12 +8,11 @@ namespace OptimeGBA
     {
         public ProviderNds Provider;
 
-        public GbaAudio GbaAudio;
-        public Keypad Keypad;
-
         public Nds7 Nds7;
         public Nds9 Nds9;
         public Scheduler Scheduler;
+
+        public PpuNds PpuNds;
 
         public byte[] MainRam = new byte[4194304];
         public byte[] SharedRam = new byte[32768];
