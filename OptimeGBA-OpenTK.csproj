@@ -9,7 +9,7 @@
     <OldToolsVersion>Current</OldToolsVersion>
     <TieredCompilation>true</TieredCompilation>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <StartupObject>OptimeGBAEmulator.MainOpenTKGba</StartupObject>
+    <StartupObject>OptimeGBAEmulator.MainOpenTK</StartupObject>
 
     <DefineConstants>OPENTK_DEBUGGER UNSAFE</DefineConstants>
 

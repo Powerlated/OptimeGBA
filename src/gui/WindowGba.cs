@@ -22,14 +22,12 @@ using System.Linq;
 
 namespace OptimeGBAEmulator
 {
-    public unsafe class WindowGba : GameWindow
+    public unsafe class WindowGba
     {
+        public GameWindow Window;
         int gbTexId;
         int bgPalTexId;
         int objPalTexId;
-        ImGuiController _controller;
-        int VertexBufferObject;
-        int VertexArrayObject;
 
         string[] Log;
         int LogIndex = -0;
@@ -158,16 +156,12 @@ namespace OptimeGBAEmulator
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public WindowGba(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
+        public WindowGba(GameWindow window)
         {
-            // Init SDL
+            Window = window;
+
             byte[] bios = System.IO.File.ReadAllBytes("gba_bios.bin");
-            // byte[] bios = System.IO.File.ReadAllBytes("roms/NormattBIOS.bin");
             Gba = new Gba(new ProviderGba(bios, new byte[0], "", AudioReady) { BootBios = true });
-            LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.gba");
-
-            SearchForRoms();
-
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -195,94 +189,41 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public void SearchForRoms()
+        public void OnLoad()
         {
-            RomList = Directory.GetFiles("roms", "*.gba");
-        }
-
-        protected override void OnResize(ResizeEventArgs e)
-        {
-            base.OnResize(e);
-            _controller.WindowResized(ClientSize.X, ClientSize.Y);
-            GL.Viewport(0, 0, ClientSize.X, ClientSize.Y);
-        }
-
-        protected override void OnMouseWheel(MouseWheelEventArgs e)
-        {
-            base.OnMouseWheel(e);
-
-            _controller.MouseScroll(e.Offset);
-        }
-
-        float[] vertices = {
-            1f,  1f, 0.0f, 1.0f, 0.0f, // top right
-            1f, -1f, 0.0f, 1.0f, 1.0f, // bottom right
-            -1f, -1f, 0.0f, 0.0f, 1.0f, // bottom left
-            -1f,  1f, 0.0f, 0.0f, 0.0f  // top left
-        };
-        protected override void OnLoad()
-        {
-            base.OnLoad();
-
-            VertexArrayObject = GL.GenVertexArray();
-            GL.ClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            VertexBufferObject = GL.GenBuffer();
-
-            GL.Enable(EnableCap.Texture2D);
-            // Disable texture filtering
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-            _controller = new ImGuiController(ClientSize.X, ClientSize.Y);
-
             gbTexId = GL.GenTexture();
             bgPalTexId = GL.GenTexture();
             objPalTexId = GL.GenTexture();
 
-            VSync = VSyncMode.Off;
-            UpdateFrequency = 59.7275;
-
-            FileDrop += (FileDropEventArgs args) =>
-            {
-                LoadRomFromPath(args.FileNames[0]);
-            };
+            Window.VSync = VSyncMode.Off;
+            Window.UpdateFrequency = 59.7275;
         }
 
-        protected override void OnTextInput(TextInputEventArgs args)
+        public void LoadRomAndSave(byte[] rom, byte[] sav, string savPath)
         {
-            ImGui.GetIO().AddInputCharacter((byte)args.Unicode);
-            ImGui.GetIO().KeysDown[(byte)args.Unicode] = true;
-        }
-
-        protected override void OnKeyDown(KeyboardKeyEventArgs args)
-        {
-            ImGui.GetIO().KeysDown[(int)args.Key] = true;
-        }
-
-        protected override void OnKeyUp(KeyboardKeyEventArgs args)
-        {
-            ImGui.GetIO().KeysDown[(int)args.Key] = false;
+            var bios = Gba.Provider.Bios;
+            Gba = new Gba(new ProviderGba(bios, rom, savPath, AudioReady) { BootBios = true });
+            Gba.Mem.SaveProvider.LoadSave(sav);
         }
 
         public double Time;
         public bool RecordTime;
         public uint RecordStartFrames;
 
-        protected override void OnUpdateFrame(FrameEventArgs e)
+        public void OnUpdateFrame(FrameEventArgs e)
         {
-            base.OnUpdateFrame(e);
+            Gba.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
+            Gba.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
+            Gba.Keypad.Left = Window.KeyboardState.IsKeyDown(Keys.Left);
+            Gba.Keypad.Up = Window.KeyboardState.IsKeyDown(Keys.Up);
+            Gba.Keypad.Right = Window.KeyboardState.IsKeyDown(Keys.Right);
+            Gba.Keypad.Down = Window.KeyboardState.IsKeyDown(Keys.Down);
+            Gba.Keypad.Start = Window.KeyboardState.IsKeyDown(Keys.Enter) || Window.KeyboardState.IsKeyDown(Keys.KeyPadEnter);
+            Gba.Keypad.Select = Window.KeyboardState.IsKeyDown(Keys.Backspace);
+            Gba.Keypad.L = Window.KeyboardState.IsKeyDown(Keys.Q);
+            Gba.Keypad.R = Window.KeyboardState.IsKeyDown(Keys.E);
 
-            Gba.Keypad.B = KeyboardState.IsKeyDown(Keys.Z);
-            Gba.Keypad.A = KeyboardState.IsKeyDown(Keys.X);
-            Gba.Keypad.Left = KeyboardState.IsKeyDown(Keys.Left);
-            Gba.Keypad.Up = KeyboardState.IsKeyDown(Keys.Up);
-            Gba.Keypad.Right = KeyboardState.IsKeyDown(Keys.Right);
-            Gba.Keypad.Down = KeyboardState.IsKeyDown(Keys.Down);
-            Gba.Keypad.Start = KeyboardState.IsKeyDown(Keys.Enter) || KeyboardState.IsKeyDown(Keys.KeyPadEnter);
-            Gba.Keypad.Select = KeyboardState.IsKeyDown(Keys.Backspace);
-            Gba.Keypad.L = KeyboardState.IsKeyDown(Keys.Q);
-            Gba.Keypad.R = KeyboardState.IsKeyDown(Keys.E);
-
-            SyncToAudio = !(KeyboardState.IsKeyDown(Keys.Tab) || KeyboardState.IsKeyDown(Keys.Space));
+            SyncToAudio = !(Window.KeyboardState.IsKeyDown(Keys.Tab) || Window.KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
 
             if (RunEmulator)
@@ -305,11 +246,8 @@ namespace OptimeGBAEmulator
         const int FrameCycles = 70224 * 4;
         const int ScanlineCycles = 1232;
 
-        protected override void OnRenderFrame(FrameEventArgs e)
+        public void OnRenderFrame(FrameEventArgs e)
         {
-            base.OnRenderFrame(e);
-            _controller.Update(this, (float)e.Time);
-
             DrawDisplay();
             DrawSchedulerInfo();
             DrawDebug();
@@ -317,19 +255,10 @@ namespace OptimeGBAEmulator
             DrawInstrInfo();
             DrawRegViewer();
             DrawMemoryViewer();
-            DrawRomSelector();
             DrawHwioLog();
             DrawBankedRegisters();
             DrawSoundVisualizer();
             DrawCpuProfiler();
-
-            GL.ClearColor(1f, 1f, 1f, 1f);
-            GL.Clear(ClearBufferMask.StencilBufferBit | ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            _controller.Render();
-            GL.Flush();
-
-            Context.SwapBuffers();
         }
 
         public void ResetGba()
@@ -1494,58 +1423,6 @@ namespace OptimeGBAEmulator
 
                 ImGui.End();
             }
-        }
-        string[] RomList;
-        public void DrawRomSelector()
-        {
-            if (ImGui.Begin("ROMs"))
-            {
-                if (ImGui.Button("Refresh"))
-                {
-                    SearchForRoms();
-                }
-                for (int i = 0; i < RomList.Length; i++)
-                {
-                    string s = RomList[i];
-                    if (ImGui.Button($"Load##{s}"))
-                    {
-                        Console.WriteLine(s);
-                        LoadRomFromPath(s);
-                    }
-                    ImGui.SameLine();
-                    ImGui.Text(s);
-                }
-                ImGui.End();
-            }
-        }
-
-        public void LoadRomFromPath(string path)
-        {
-            byte[] bios = Gba.Provider.Bios;
-            byte[] rom = System.IO.File.ReadAllBytes(path);
-            AudioCallback audioCallback = Gba.Provider.AudioCallback;
-
-            string savPath = path.Substring(0, path.Length - 3) + "sav";
-            byte[] sav = new byte[0];
-            if (System.IO.File.Exists(savPath))
-            {
-                Console.WriteLine(".sav exists, loading");
-                try
-                {
-                    sav = System.IO.File.ReadAllBytes(savPath);
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to load .sav file!");
-                }
-            }
-            else
-            {
-                Console.WriteLine(".sav not available");
-            }
-
-            Gba = new Gba(new ProviderGba(bios, rom, savPath, audioCallback) { BootBios = true });
-            Gba.Mem.SaveProvider.LoadSave(sav);
         }
 
         public void DumpSav()
