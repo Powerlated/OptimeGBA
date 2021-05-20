@@ -12,11 +12,14 @@ namespace OptimeGBA
         public Keypad Keypad;
 
         public Nds7 Nds7;
+        public Nds9 Nds9;
         public Scheduler Scheduler;
 
         public byte[] MainRam = new byte[4194304];
         public byte[] SharedRam = new byte[32768];
         public byte SharedRamControl = 0;
+
+        public int Arm9PendingTicks;
 
         public Nds(ProviderNds provider)
         {
@@ -25,6 +28,7 @@ namespace OptimeGBA
             // AudioCallback = provider.AudioCallback;
 
             Nds7 = new Nds7(this) { Scheduler = Scheduler };
+            Nds9 = new Nds9(this) { Scheduler = Scheduler };
 
 #if UNSAFE
             Console.WriteLine("Starting in memory UNSAFE mode");
@@ -50,14 +54,31 @@ namespace OptimeGBA
                     SharedRamControl = 3;
 
                     // ROM offset is aligned by 0x1000
-                    // Array.Copy(rom, arm9RomOffset & ~0xFFF, , arm9RamAddr, arm9Size);
                     Console.WriteLine("ARM7 RAM Address: " + Hex(arm7RamAddr, 8));
                     for (uint i = 0; i < arm7Size; i++)
                     {
                         Nds7.Mem.Write8(arm7RamAddr + i, rom[arm7RomOffset + i]);
                     }
+                    Nds7.Cpu.R[13] = 0x3002F7C;
+                    Nds7.Cpu.R13irq = 0x3003F80;
+                    Nds7.Cpu.R13svc = 0x3003FC0;
+                    Nds7.Cpu.R[12] = arm7RamAddr;
+                    Nds7.Cpu.R[14] = arm7RamAddr;
                     Nds7.Cpu.R[15] = arm7RamAddr;
                     Nds7.Cpu.FlushPipeline();
+
+                    Console.WriteLine("ARM9 RAM Address: " + Hex(arm9RamAddr, 8));
+                    for (uint i = 0; i < arm9Size; i++)
+                    {
+                        Nds9.Mem.Write8(arm9RamAddr + i, rom[arm9RomOffset + i]);
+                    }
+                    Nds9.Cpu.R[13] = 0x380FD80;
+                    Nds9.Cpu.R13irq = 0x380FF80;
+                    Nds9.Cpu.R13svc = 0x380FFC0;
+                    Nds9.Cpu.R[12] = arm9RamAddr;
+                    Nds9.Cpu.R[14] = arm9RamAddr;
+                    Nds9.Cpu.R[15] = arm9RamAddr;
+                    Nds9.Cpu.FlushPipeline();
 
                 }
             }
@@ -65,16 +86,18 @@ namespace OptimeGBA
 
         public uint Step()
         {
-            Nds7.Cpu.CheckInterrupts();
             long beforeTicks = Scheduler.CurrentTicks;
-            if (!Nds7.Cpu.ThumbState)
-            {
-                Scheduler.CurrentTicks += Nds7.Cpu.ExecuteArm();
+            
+            Nds7.Cpu.CheckInterrupts();
+            Nds9.Cpu.CheckInterrupts();
+
+            uint ticks7 = Nds7.Cpu.Execute();
+            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+            while (Arm9PendingTicks > 0) {
+                Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
             }
-            else
-            {
-                Scheduler.CurrentTicks += Nds7.Cpu.ExecuteThumb();
-            }
+            Scheduler.CurrentTicks += ticks7;
+
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {
                 long current = Scheduler.CurrentTicks;
@@ -86,37 +109,6 @@ namespace OptimeGBA
         }
 
         public void DoNothing(long cyclesLate) { }
-
-        public uint StateStep()
-        {
-            Nds7.Cpu.CheckInterrupts();
-
-            long beforeTicks = Scheduler.CurrentTicks;
-            if (!Nds7.Cpu.ThumbState)
-            {
-                while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
-                {
-                    Scheduler.CurrentTicks += Nds7.Cpu.ExecuteArm();
-                }
-            }
-            else
-            {
-                while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
-                {
-                    Scheduler.CurrentTicks += Nds7.Cpu.ExecuteThumb();
-                }
-            }
-
-            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
-            {
-                long current = Scheduler.CurrentTicks;
-                long next = Scheduler.NextEventTicks;
-                Scheduler.PopFirstEvent().Callback(current - next);
-            }
-
-            // Return cycles executed
-            return (uint)(Scheduler.CurrentTicks - beforeTicks);
-        }
 
         public void Tick(uint cycles)
         {

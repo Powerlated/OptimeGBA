@@ -3,21 +3,21 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class Nds7 : Device
+    public sealed class Nds9 : Device
     {
         public Nds Nds;
         
-        public Nds7(Nds nds)
+        public Nds9(Nds nds)
         { 
             Nds = nds;
 
-            HwControl = new HwControlNds7(this);
-
-            Mem = new MemoryNds7(this, nds.Provider);
-            Cpu = new Arm7(this, false);
+            Mem = new MemoryNds9(this, nds.Provider);
+            Cpu = new Arm7(this, true);
 
             Mem.InitPageTables();
             Cpu.FillPipelineArm();
+
+            Cpu.SetVectorMode(true);
         }
 
         public override void StateChange() { }

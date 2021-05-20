@@ -162,7 +162,7 @@ namespace OptimeGBAEmulator
         {
             // Init SDL
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
-            byte[] bios9 = new byte[0];
+            byte[] bios9 = System.IO.File.ReadAllBytes("bios9.bin");
             Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady) { DirectBoot = true });
             // LoadRomFromPath("roms/Pokemon - Emerald Version (U) - Emulator Playthrough.Nds");
 
@@ -302,8 +302,8 @@ namespace OptimeGBAEmulator
             }
         }
 
-        const int FrameCycles = 70224 * 4;
-        const int ScanlineCycles = 1232;
+        const int FrameCycles = 560190;
+        const int ScanlineCycles = 2130;
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
@@ -628,38 +628,65 @@ namespace OptimeGBAEmulator
 
         uint[] PaletteImageBuffer = new uint[16 * 16];
 
+        public void drawCpuInfo(Arm7 arm7)
+        {
+            ImGui.Text($"R0:  {Hex(arm7.R[0], 8)}");
+            ImGui.Text($"R1:  {Hex(arm7.R[1], 8)}");
+            ImGui.Text($"R2:  {Hex(arm7.R[2], 8)}");
+            ImGui.Text($"R3:  {Hex(arm7.R[3], 8)}");
+            ImGui.Text($"R4:  {Hex(arm7.R[4], 8)}");
+            ImGui.Text($"R5:  {Hex(arm7.R[5], 8)}");
+            ImGui.Text($"R6:  {Hex(arm7.R[6], 8)}");
+            ImGui.Text($"R7:  {Hex(arm7.R[7], 8)}");
+            ImGui.Text($"R8:  {Hex(arm7.R[8], 8)}");
+            ImGui.Text($"R9:  {Hex(arm7.R[9], 8)}");
+            ImGui.Text($"R10: {Hex(arm7.R[10], 8)}");
+            ImGui.Text($"R11: {Hex(arm7.R[11], 8)}");
+            ImGui.Text($"R12: {Hex(arm7.R[12], 8)}");
+            ImGui.Text($"R13: {Hex(arm7.R[13], 8)}");
+            ImGui.Text($"R14: {Hex(arm7.R[14], 8)}");
+            ImGui.Text($"R15: {Hex(arm7.R[15], 8)}");
+            ImGui.Text($"CPSR: {Hex(arm7.GetCPSR(), 8)}");
+            ImGui.Text($"Instruction: {Hex(arm7.LastIns, arm7.ThumbState ? 4 : 8)}");
+            ImGui.Text($"Prev. Ins.: {Hex(arm7.LastLastIns, arm7.ThumbState ? 4 : 8)}");
+            ImGui.Text($"Disasm: {(arm7.ThumbState ? DisasmThumb((ushort)arm7.LastIns) : DisasmArm(arm7.LastIns))}");
+
+            ImGui.Text($"Mode: {arm7.Mode}");
+            ImGui.Text($"Last Cycles: {arm7.InstructionCycles}");
+            ImGui.Text($"Total Instrs.: {arm7.InstructionsRan}");
+            ImGui.Text($"Pipeline: {arm7.Pipeline}");
+            
+            // bool Negative = arm7.Negative;
+            // bool Zero = arm7.Zero;
+            // bool Carry = arm7.Carry;
+            // bool Overflow = arm7.Overflow;
+            // bool Sticky = arm7.Sticky;
+            // bool IRQDisable = arm7.IRQDisable;
+            // bool FIQDisable = arm7.FIQDisable;
+            // bool ThumbState = arm7.ThumbState;
+
+            // ImGui.Checkbox("Negative", ref Negative);
+            // ImGui.Checkbox("Zero", ref Zero);
+            // ImGui.Checkbox("Carry", ref Carry);
+            // ImGui.Checkbox("Overflow", ref Overflow);
+            // ImGui.Checkbox("Sticky", ref Sticky);
+            // ImGui.Checkbox("IRQ Disable", ref IRQDisable);
+            // ImGui.Checkbox("FIQ Disable", ref FIQDisable);
+            // ImGui.Checkbox("Thumb State", ref ThumbState);
+
+        }
+
         public void DrawDebug()
         {
             if (ImGui.Begin("Debug"))
             {
                 ImGui.Columns(4);
-
+                ImGui.Text("ARM9");
+                drawCpuInfo(Nds.Nds9.Cpu);
+                ImGui.NextColumn();
+                ImGui.Text("ARM7");
+                drawCpuInfo(Nds.Nds7.Cpu);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
-                ImGui.Text($"R0:  {Hex(Nds.Nds7.Cpu.R[0], 8)}");
-                ImGui.Text($"R1:  {Hex(Nds.Nds7.Cpu.R[1], 8)}");
-                ImGui.Text($"R2:  {Hex(Nds.Nds7.Cpu.R[2], 8)}");
-                ImGui.Text($"R3:  {Hex(Nds.Nds7.Cpu.R[3], 8)}");
-                ImGui.Text($"R4:  {Hex(Nds.Nds7.Cpu.R[4], 8)}");
-                ImGui.Text($"R5:  {Hex(Nds.Nds7.Cpu.R[5], 8)}");
-                ImGui.Text($"R6:  {Hex(Nds.Nds7.Cpu.R[6], 8)}");
-                ImGui.Text($"R7:  {Hex(Nds.Nds7.Cpu.R[7], 8)}");
-                ImGui.Text($"R8:  {Hex(Nds.Nds7.Cpu.R[8], 8)}");
-                ImGui.Text($"R9:  {Hex(Nds.Nds7.Cpu.R[9], 8)}");
-                ImGui.Text($"R10: {Hex(Nds.Nds7.Cpu.R[10], 8)}");
-                ImGui.Text($"R11: {Hex(Nds.Nds7.Cpu.R[11], 8)}");
-                ImGui.Text($"R12: {Hex(Nds.Nds7.Cpu.R[12], 8)}");
-                ImGui.Text($"R13: {Hex(Nds.Nds7.Cpu.R[13], 8)}");
-                ImGui.Text($"R14: {Hex(Nds.Nds7.Cpu.R[14], 8)}");
-                ImGui.Text($"R15: {Hex(Nds.Nds7.Cpu.R[15], 8)}");
-                ImGui.Text($"CPSR: {Hex(Nds.Nds7.Cpu.GetCPSR(), 8)}");
-                ImGui.Text($"Instruction: {Hex(Nds.Nds7.Cpu.LastIns, Nds.Nds7.Cpu.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Prev. Ins.: {Hex(Nds.Nds7.Cpu.LastLastIns, Nds.Nds7.Cpu.ThumbState ? 4 : 8)}");
-                ImGui.Text($"Disasm: {(Nds.Nds7.Cpu.ThumbState ? DisasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : DisasmArm(Nds.Nds7.Cpu.LastIns))}");
-
-                ImGui.Text($"Mode: {Nds.Nds7.Cpu.Mode}");
-                ImGui.Text($"Last Cycles: {Nds.Nds7.Cpu.InstructionCycles}");
-                ImGui.Text($"Total Instrs.: {Nds.Nds7.Cpu.InstructionsRan}");
-                ImGui.Text($"Pipeline: {Nds.Nds7.Cpu.Pipeline}");
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
 
@@ -768,24 +795,6 @@ namespace OptimeGBAEmulator
 
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
-
-                bool Negative = Nds.Nds7.Cpu.Negative;
-                bool Zero = Nds.Nds7.Cpu.Zero;
-                bool Carry = Nds.Nds7.Cpu.Carry;
-                bool Overflow = Nds.Nds7.Cpu.Overflow;
-                bool Sticky = Nds.Nds7.Cpu.Sticky;
-                bool IRQDisable = Nds.Nds7.Cpu.IRQDisable;
-                bool FIQDisable = Nds.Nds7.Cpu.FIQDisable;
-                bool ThumbState = Nds.Nds7.Cpu.ThumbState;
-
-                ImGui.Checkbox("Negative", ref Negative);
-                ImGui.Checkbox("Zero", ref Zero);
-                ImGui.Checkbox("Carry", ref Carry);
-                ImGui.Checkbox("Overflow", ref Overflow);
-                ImGui.Checkbox("Sticky", ref Sticky);
-                ImGui.Checkbox("IRQ Disable", ref IRQDisable);
-                ImGui.Checkbox("FIQ Disable", ref FIQDisable);
-                ImGui.Checkbox("Thumb State", ref ThumbState);
 
                 // ImGui.Text($"BIOS Reads: {Nds.Nds7.Mem.BiosReads}");
                 // ImGui.Text($"EWRAM Reads: {Nds.Nds7.Mem.EwramReads}");
@@ -1041,46 +1050,58 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Instruction Viewer"))
             {
-                uint back = Nds.Nds7.Cpu.ThumbState ? 16U : 32U;
+                ImGui.Columns(2);
+                ImGui.Text("ARM9\n");
+                drawDisassembly(Nds.Nds9);
+                ImGui.NextColumn();
+                ImGui.Text("ARM7\n");
+                drawDisassembly(Nds.Nds7);
+                ImGui.Columns(1);
 
-                int rows = 32;
-                uint tempBase = Nds.Nds7.Cpu.R[15] - back;
+                ImGui.End();
+            }
+        }
 
+        public void drawDisassembly(Device dev)
+        {
+            uint back = dev.Cpu.ThumbState ? 16U : 32U;
 
-                for (int i = 0; i < rows; i++)
+            int rows = 32;
+            uint tempBase = dev.Cpu.R[15] - back;
+
+            for (int i = 0; i < rows; i++)
+            {
+                if (dev.Cpu.ThumbState)
                 {
-                    if (Nds.Nds7.Cpu.ThumbState)
-                    {
-                        ushort val = Nds.Nds7.Mem.Read16(tempBase);
-                        String disasm = DisasmThumb(val);
+                    ushort val = Nds.Nds7.Mem.Read16(tempBase);
+                    String disasm = DisasmThumb(val);
 
-                        String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                        if (tempBase == Nds.Nds7.Cpu.R[15] - (Nds.Nds7.Cpu.Pipeline * 2))
-                        {
-                            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
-                        }
-                        else
-                        {
-                            ImGui.Text(s);
-                        }
-                        tempBase += 2;
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
+                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 2))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
                     else
                     {
-                        uint val = Nds.Nds7.Mem.Read32(tempBase);
-                        String disasm = DisasmArm(val);
-
-                        String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                        if (tempBase == Nds.Nds7.Cpu.R[15] - (Nds.Nds7.Cpu.Pipeline * 4))
-                        {
-                            ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
-                        }
-                        else
-                        {
-                            ImGui.Text(s);
-                        }
-                        tempBase += 4;
+                        ImGui.Text(s);
                     }
+                    tempBase += 2;
+                }
+                else
+                {
+                    uint val = dev.Mem.Read32(tempBase);
+                    String disasm = DisasmArm(val);
+
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
+                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 4))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                    }
+                    else
+                    {
+                        ImGui.Text(s);
+                    }
+                    tempBase += 4;
                 }
             }
         }

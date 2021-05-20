@@ -17,7 +17,7 @@ namespace OptimeGBA
             // arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;
 
-            arm7.R[15] = Arm7.VectorSoftwareInterrupt;
+            arm7.R[15] = arm7.VectorSoftwareInterrupt;
             arm7.FlushPipeline();
         }
 

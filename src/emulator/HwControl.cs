@@ -15,7 +15,6 @@ namespace OptimeGBA
         public ushort IE;
         public ushort IF;
 
-        public bool AvailableAndEnabled = false;
         public bool Available;
     }
 }

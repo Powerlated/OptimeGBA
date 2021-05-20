@@ -25,7 +25,7 @@ namespace OptimeGBA
         public abstract void InitPageTable(byte[][] pageTable, bool write);
         public const int PageSize = 1024;
 
-        public uint[] MemoryRegionMasks = new uint[16];
+        public uint[] MemoryRegionMasks = new uint[256];
 
         public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
         public byte[][] PageTableRead = new byte[4194304][];
@@ -47,11 +47,6 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint MaskAddress(uint addr)
         {
-            // TODO: Extend the array out properly to invalid memory regions
-            if (addr > 0xFFFFFFF)
-            {
-                return 0;
-            }
             return addr & MemoryRegionMasks[addr >> 24];
         }
 

@@ -103,7 +103,7 @@ namespace OptimeGBA
         public override void CheckAndFireInterrupts()
         {
             Available = (IE & IF & 0x3FFF) != 0;
-            AvailableAndEnabled = Available && IME;
+            Gba.Cpu.FlagInterrupt = Available && IME;
         }
     }
 }

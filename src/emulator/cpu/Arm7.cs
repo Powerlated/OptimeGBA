@@ -58,14 +58,14 @@ namespace OptimeGBA
         public uint[] ThumbExecutorProfile = new uint[1024];
         public uint[] ArmExecutorProfile = new uint[4096];
 
-        public const uint VectorReset = 0x00;
-        public const uint VectorUndefined = 0x04;
-        public const uint VectorSoftwareInterrupt = 0x08;
-        public const uint VectorPrefetchAbort = 0x0C;
-        public const uint VectorDataAbort = 0x10;
-        public const uint VectorAddrGreaterThan26Bit = 0x14;
-        public const uint VectorIRQ = 0x18;
-        public const uint VectorFIQ = 0x1C;
+        public uint VectorReset;
+        public uint VectorUndefined;
+        public uint VectorSoftwareInterrupt;
+        public uint VectorPrefetchAbort;
+        public uint VectorDataAbort;
+        public uint VectorAddrGreaterThan26Bit;
+        public uint VectorIRQ;
+        public uint VectorFIQ;
 
         public Device Device;
 
@@ -136,19 +136,43 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
 
-        public Arm7(Device device)
+        public bool FlagInterrupt;
+
+        public Arm7(Device device, bool vectorMode)
         {
             Device = device;
 
             // Default Mode
             Mode = Arm7Mode.System;
 
-            R13svc = 0x03007FE0;
-            R13irq = 0x03007FA0;
-            R13usr = 0x03007F00;
+            SetVectorMode(vectorMode);
+            R[15] = VectorReset;
+        }
 
-            // Default Stack Pointer
-            R[13] = R13usr;
+        public void SetVectorMode(bool high)
+        {
+            if (high)
+            {
+                VectorReset = 0xFFFF0000;
+                VectorUndefined = 0xFFFF0004;
+                VectorSoftwareInterrupt = 0xFFFF0008;
+                VectorPrefetchAbort = 0xFFFF000C;
+                VectorDataAbort = 0xFFFF0010;
+                VectorAddrGreaterThan26Bit = 0xFFFF0014;
+                VectorIRQ = 0xFFFF0018;
+                VectorFIQ = 0xFFFF001C;
+            }
+            else
+            {
+                VectorReset = 0x00;
+                VectorUndefined = 0x04;
+                VectorSoftwareInterrupt = 0x08;
+                VectorPrefetchAbort = 0x0C;
+                VectorDataAbort = 0x10;
+                VectorAddrGreaterThan26Bit = 0x14;
+                VectorIRQ = 0x18;
+                VectorFIQ = 0x1C;
+            }
         }
 
         public void BiosInit()
@@ -319,7 +343,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void CheckInterrupts()
         {
-            if (Device.HwControl.AvailableAndEnabled && !IRQDisable)
+            if (FlagInterrupt && !IRQDisable)
             {
                 DispatchInterrupt();
             }

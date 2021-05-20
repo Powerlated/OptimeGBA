@@ -3,7 +3,7 @@ using System;
 namespace OptimeGBA
 {
 
-    public sealed class Gba : Device
+    public unsafe sealed class Gba : Device
     {
         public ProviderGba Provider;
 
@@ -23,7 +23,14 @@ namespace OptimeGBA
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);
             HwControl = new HwControlGba(this);
-            Cpu = new Arm7(this);
+            Cpu = new Arm7(this, false);
+            
+            Cpu.R13svc = 0x03007FE0;
+            Cpu.R13irq = 0x03007FA0;
+            Cpu.R13usr = 0x03007F00;
+
+            // Default Stack Pointer
+            Cpu.R[13] = Cpu.R13usr;
 
             AudioCallback = provider.AudioCallback;
 
