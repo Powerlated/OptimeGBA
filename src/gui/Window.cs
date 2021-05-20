@@ -27,6 +27,9 @@ namespace OptimeGBAEmulator
         public WindowGba WindowGba;
         public WindowNds WindowNds;
 
+        public static CapstoneArmDisassembler ArmDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
+        public static CapstoneArmDisassembler ThumbDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Thumb);
+
         ImGuiController _controller;
         int VertexBufferObject;
         int VertexArrayObject;
@@ -209,6 +212,91 @@ namespace OptimeGBAEmulator
             GL.Flush();
 
             Context.SwapBuffers();
+        }
+
+        public static void drawDisassembly(Device dev)
+        {
+            uint back = dev.Cpu.ThumbState ? 16U : 32U;
+
+            int rows = 32;
+            uint tempBase = dev.Cpu.R[15] - back;
+
+            // Forcibly align addresses to avoid race condition
+            for (int i = 0; i < rows; i++)
+            {
+                if (dev.Cpu.ThumbState)
+                {
+                    ushort val = dev.Mem.ReadDebug16(tempBase & ~1U);
+                    String disasm = disasmThumb(val);
+
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
+                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 2))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                    }
+                    else
+                    {
+                        ImGui.Text(s);
+                    }
+                    tempBase += 2;
+                }
+                else
+                {
+                    uint val = dev.Mem.ReadDebug32(tempBase & ~3U);
+                    String disasm = disasmArm(val);
+
+                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
+                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 4))
+                    {
+                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
+                    }
+                    else
+                    {
+                        ImGui.Text(s);
+                    }
+                    tempBase += 4;
+                }
+            }
+        }
+
+        public static String disasmThumb(ushort opcode)
+        {
+            ThumbDisassembler.EnableInstructionDetails = true;
+
+            byte[] code = new byte[] {
+                            (byte)((opcode >> 0) & 0xFF),
+                            (byte)((opcode >> 8) & 0xFF),
+                        };
+
+            String disasm = "";
+
+            ArmInstruction[] instructions = ThumbDisassembler.Disassemble(code);
+            foreach (ArmInstruction ins in instructions)
+            {
+                disasm = $"{ins.Mnemonic} {ins.Operand}";
+            }
+            return disasm;
+        }
+
+        public static String disasmArm(uint opcode)
+        {
+            ArmDisassembler.EnableInstructionDetails = true;
+
+            byte[] code = new byte[] {
+                            (byte)((opcode >> 0) & 0xFF),
+                            (byte)((opcode >> 8) & 0xFF),
+                            (byte)((opcode >> 16) & 0xFF),
+                            (byte)((opcode >> 24) & 0xFF),
+                        };
+
+            String disasm = "";
+
+            ArmInstruction[] instructions = ArmDisassembler.Disassemble(code);
+            foreach (ArmInstruction ins in instructions)
+            {
+                disasm = $"{ins.Mnemonic} {ins.Operand}";
+            }
+            return disasm;
         }
     }
 }

@@ -93,6 +93,18 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ushort ReadDebug16(uint addr)
+        {
+            var page = ResolvePageRead(addr);
+            if (page != null)
+            {
+                return GetUshort(page, MaskAddress(addr));
+            }
+
+            return Read16Unregistered(addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
 #if DEBUG
@@ -111,6 +123,17 @@ namespace OptimeGBA
             return Read32Unregistered(addr);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint ReadDebug32(uint addr)
+        {
+            var page = ResolvePageRead(addr);
+            if (page != null)
+            {
+                return GetUint(page, MaskAddress(addr));
+            }
+
+            return Read32Unregistered(addr);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)

@@ -18,6 +18,7 @@ using System.Text;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using static SDL2.SDL;
+using static OptimeGBAEmulator.Window;
 using System.Linq;
 
 namespace OptimeGBAEmulator
@@ -149,9 +150,6 @@ namespace OptimeGBAEmulator
                 RunFrame();
             }
         }
-
-        CapstoneArmDisassembler ArmDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Arm);
-        CapstoneArmDisassembler ThumbDisassembler = CapstoneArmDisassembler.CreateArmDisassembler(ArmDisassembleMode.Thumb);
 
         bool RunEmulator = false;
 
@@ -466,49 +464,9 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
-        public String DisasmThumb(ushort opcode)
-        {
-            ThumbDisassembler.EnableInstructionDetails = true;
-
-            byte[] code = new byte[] {
-                            (byte)((opcode >> 0) & 0xFF),
-                            (byte)((opcode >> 8) & 0xFF),
-                        };
-
-            String disasm = "";
-
-            ArmInstruction[] instructions = ThumbDisassembler.Disassemble(code);
-            foreach (ArmInstruction ins in instructions)
-            {
-                disasm = $"{ins.Mnemonic} {ins.Operand}";
-            }
-            return disasm;
-        }
-
-        public String DisasmArm(uint opcode)
-        {
-            ArmDisassembler.EnableInstructionDetails = true;
-
-            byte[] code = new byte[] {
-                            (byte)((opcode >> 0) & 0xFF),
-                            (byte)((opcode >> 8) & 0xFF),
-                            (byte)((opcode >> 16) & 0xFF),
-                            (byte)((opcode >> 24) & 0xFF),
-                        };
-
-            String disasm = "";
-
-            ArmInstruction[] instructions = ArmDisassembler.Disassemble(code);
-            foreach (ArmInstruction ins in instructions)
-            {
-                disasm = $"{ins.Mnemonic} {ins.Operand}";
-            }
-            return disasm;
-        }
-
         public String BuildEmuFullText()
         {
-            String disasm = Nds.Nds7.Cpu.ThumbState ? DisasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : DisasmArm(Nds.Nds7.Cpu.LastIns);
+            String disasm = Nds.Nds7.Cpu.ThumbState ? disasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : disasmArm(Nds.Nds7.Cpu.LastIns);
 
             StringBuilder builder = new StringBuilder();
             builder.Append($"{HexN(Nds.Nds7.Cpu.R[0], 8)} ");
@@ -585,7 +543,7 @@ namespace OptimeGBAEmulator
             ImGui.Text($"CPSR: {Hex(arm7.GetCPSR(), 8)}");
             ImGui.Text($"Instruction: {Hex(arm7.LastIns, arm7.ThumbState ? 4 : 8)}");
             ImGui.Text($"Prev. Ins.: {Hex(arm7.LastLastIns, arm7.ThumbState ? 4 : 8)}");
-            ImGui.Text($"Disasm: {(arm7.ThumbState ? DisasmThumb((ushort)arm7.LastIns) : DisasmArm(arm7.LastIns))}");
+            ImGui.Text($"Disasm: {(arm7.ThumbState ? disasmThumb((ushort)arm7.LastIns) : disasmArm(arm7.LastIns))}");
 
             ImGui.Text($"Mode: {arm7.Mode}");
             ImGui.Text($"Last Cycles: {arm7.InstructionCycles}");
@@ -998,50 +956,6 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public void drawDisassembly(Device dev)
-        {
-            uint back = dev.Cpu.ThumbState ? 16U : 32U;
-
-            int rows = 32;
-            uint tempBase = dev.Cpu.R[15] - back;
-
-            for (int i = 0; i < rows; i++)
-            {
-                if (dev.Cpu.ThumbState)
-                {
-                    ushort val = Nds.Nds7.Mem.Read16(tempBase);
-                    String disasm = DisasmThumb(val);
-
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 2))
-                    {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
-                    }
-                    else
-                    {
-                        ImGui.Text(s);
-                    }
-                    tempBase += 2;
-                }
-                else
-                {
-                    uint val = dev.Mem.Read32(tempBase);
-                    String disasm = DisasmArm(val);
-
-                    String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 4))
-                    {
-                        ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
-                    }
-                    else
-                    {
-                        ImGui.Text(s);
-                    }
-                    tempBase += 4;
-                }
-            }
-        }
-
         public bool BigScreen = false;
         public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
@@ -1349,7 +1263,7 @@ namespace OptimeGBAEmulator
                     ImGui.EndCombo();
                 }
 
-                uint value = Nds.Nds7.Mem.Read32(RegViewerSelected.Address);
+                uint value = Nds.Nds7.Mem.ReadDebug32(RegViewerSelected.Address);
                 foreach (RegisterField f in RegViewerSelected.Fields)
                 {
                     if (f.Checkbox)
