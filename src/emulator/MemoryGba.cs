@@ -165,11 +165,12 @@ namespace OptimeGBA
                     case 0xA: // Game Pak ROM/FlashROM 
                     case 0xB: // Game Pak ROM/FlashROM 
                     case 0xC: // Game Pak ROM/FlashROM 
-                    case 0xD: // Game Pak ROM/FlashROM 
                         if (!write)
                         {
                             table[i] = Rom;
                         }
+                        break;
+                    case 0xD: // Game Pak ROM/FlashROM/EEPROM
                         break;
                 }
             }
@@ -183,6 +184,17 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
                     return ReadHwio8(addr);
+                case 0xA: // ROM / EEPROM
+                case 0xB: // ROM / EEPROM
+                case 0xC: // ROM / EEPROM
+                case 0xD: // ROM / EEPROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        return SaveProvider.Read8(adjAddr);
+                    }
+
+                    return GetByte(Rom, adjAddr);
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     return SaveProvider.Read8(addr);
@@ -203,6 +215,17 @@ namespace OptimeGBA
                     ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
                     return u16;
+                case 0xA: // ROM / EEPROM
+                case 0xB: // ROM / EEPROM
+                case 0xC: // ROM / EEPROM
+                case 0xD: // ROM / EEPROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        return SaveProvider.Read8(adjAddr);
+                    }
+
+                    return GetUshort(Rom, adjAddr);
             }
 
             return 0;
@@ -236,6 +259,16 @@ namespace OptimeGBA
                     // addr &= 0x400FFFF;
                     WriteHwio8(addr, val);
                     break;
+                case 0xA: // ROM / EEPROM
+                case 0xB: // ROM / EEPROM
+                case 0xC: // ROM / EEPROM
+                case 0xD: // ROM / EEPROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        SaveProvider.Write8(adjAddr, val);
+                    }
+                    break;
                 case 0xE: // Game Pak SRAM/Flash
                 case 0xF: // Game Pak SRAM/Flash
                     SaveProvider.Write8(addr, val);
@@ -258,6 +291,16 @@ namespace OptimeGBA
                     {
                         SetUshort(Gba.Ppu.Renderer.Palettes, addr, val);
                         Gba.Ppu.Renderer.UpdatePalette((addr & ~1u) / 2);
+                    }
+                    break;
+                case 0xA: // ROM / EEPROM
+                case 0xB: // ROM / EEPROM
+                case 0xC: // ROM / EEPROM
+                case 0xD: // ROM / EEPROM
+                    uint adjAddr = addr & 0x1FFFFFF;
+                    if (adjAddr >= EepromThreshold)
+                    {
+                        SaveProvider.Write8(adjAddr, (byte)val);
                     }
                     break;
             }
