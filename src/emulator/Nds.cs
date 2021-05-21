@@ -29,6 +29,7 @@ namespace OptimeGBA
             // AudioCallback = provider.AudioCallback;
 
             Ppu = new PpuNds(this, Scheduler);
+            Ppu.Renderer.DisableColorCorrection();
 
             Nds7 = new Nds7(this) { Scheduler = Scheduler };
             Nds9 = new Nds9(this) { Scheduler = Scheduler };
