@@ -17,7 +17,10 @@ namespace OptimeGBAEmulator
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 1024;
         const int SAMPLES_PER_CALLBACK = 32;
 
+        const int CyclesPerFrameGba = 280896;
         const double SecondsPerFrameGba = 1D / (16777216D / 280896D);
+        const int CyclesPerFrameNds = 560190;
+        const double SecondsPerFrameNds = 1D / (33513982D / 560190D);
         const double SecondsPerFrameAnimation = 0.1D;
 
         const int LogoWidth = 34;
@@ -28,6 +31,8 @@ namespace OptimeGBAEmulator
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
+        static IntPtr Texture;
+
         static double Fps;
         static double Mips;
 
@@ -35,6 +40,9 @@ namespace OptimeGBAEmulator
         static IntPtr Renderer;
 
         static Gba Gba;
+        static Nds Nds;
+
+        static bool NdsMode;
 
         static Dictionary<string, string> GameNameDictionary = new Dictionary<string, string>();
 
@@ -53,6 +61,9 @@ namespace OptimeGBAEmulator
 
         const int GBA_WIDTH = 240;
         const int GBA_HEIGHT = 160;
+
+        const int NDS_WIDTH = 256;
+        const int NDS_HEIGHT = 192;
 
         static bool Excepted = false;
         static string ExceptionMessage = "";
@@ -119,12 +130,15 @@ namespace OptimeGBAEmulator
             AudioDevice = SDL_OpenAudioDevice(null, 0, ref want, out have, (int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
             SDL_PauseAudioDevice(AudioDevice, 0);
 
-            IntPtr texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, GBA_WIDTH, GBA_HEIGHT);
-
             string romPath;
             byte[] rom;
-            byte[] bios;
-            const string biosPath = "gba_bios.bin";
+            byte[] gbaBios;
+            byte[] ndsBios7;
+            byte[] ndsBios9;
+
+            const string gbaBiosPath = "gba_bios.bin";
+            const string ndsBios7Path = "bios7.bin";
+            const string ndsBios9Path = "bios9.bin";
 
             if (!GuiMode)
             {
@@ -235,24 +249,6 @@ namespace OptimeGBAEmulator
                 }
             }
 
-            if (!System.IO.File.Exists(biosPath))
-            {
-                SdlMessage("Error", "Please place a valid GBA BIOS in the same directory as OptimeGBA.exe named \"gba_bios.bin\"");
-                return;
-            }
-            else
-            {
-                try
-                {
-                    bios = System.IO.File.ReadAllBytes(biosPath);
-                }
-                catch
-                {
-                    SdlMessage("Error", "A GBA BIOS was provided, but there was an issue loading it.");
-                    return;
-                }
-            }
-
             string savPath = romPath.Substring(0, romPath.Length - 3) + "sav";
             byte[] sav = new byte[0];
 
@@ -273,13 +269,72 @@ namespace OptimeGBAEmulator
                 Log(".sav not available");
             }
 
-            var provider = new ProviderGba(bios, rom, savPath, AudioReady);
-            provider.BootBios = true;
-            Gba = new Gba(provider);
+            NdsMode = romPath.Substring(romPath.Length - 3).ToLower() == "nds";
 
-            UpdateRomName(romPath);
+            if (NdsMode)
+            {
+                Console.WriteLine("Loading NDS file");
 
-            Gba.Mem.SaveProvider.LoadSave(sav);
+                if (!System.IO.File.Exists(ndsBios7Path) || !System.IO.File.Exists(ndsBios9Path))
+                {
+                    SdlMessage("Error", "Please place valid NDS BIOSes in the same directory as OptimeGBA.exe named \"bios7.bin\" and \"bios9.bin\"");
+                    return;
+                }
+                else
+                {
+                    try
+                    {
+                        ndsBios7 = System.IO.File.ReadAllBytes(ndsBios7Path);
+                        ndsBios9 = System.IO.File.ReadAllBytes(ndsBios9Path);
+                    }
+                    catch
+                    {
+                        SdlMessage("Error", "NDS BIOSes were provided, but there was an issue loading them.");
+                        return;
+                    }
+                }
+
+                var provider = new ProviderNds(ndsBios7, ndsBios9, rom, savPath, AudioReady);
+                Nds = new Nds(provider);
+
+                Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);
+                SDL_SetWindowMinimumSize(Window, NDS_WIDTH, NDS_HEIGHT);
+                SDL_SetWindowSize(Window, NDS_WIDTH * 4, NDS_HEIGHT * 4);
+            }
+            else
+            {
+                Console.WriteLine("Loading GBA file");
+
+                if (!System.IO.File.Exists(gbaBiosPath))
+                {
+                    SdlMessage("Error", "Please place a valid GBA BIOS in the same directory as OptimeGBA.exe named \"gba_bios.bin\"");
+                    return;
+                }
+                else
+                {
+                    try
+                    {
+                        gbaBios = System.IO.File.ReadAllBytes(gbaBiosPath);
+                    }
+                    catch
+                    {
+                        SdlMessage("Error", "A GBA BIOS was provided, but there was an issue loading it.");
+                        return;
+                    }
+                }
+
+                var provider = new ProviderGba(gbaBios, rom, savPath, AudioReady);
+                provider.BootBios = true;
+                Gba = new Gba(provider);
+
+                UpdateRomName(romPath);
+
+                Gba.Mem.SaveProvider.LoadSave(sav);
+
+                Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, GBA_WIDTH, GBA_HEIGHT);
+                SDL_SetWindowMinimumSize(Window, GBA_WIDTH, GBA_HEIGHT);
+                SDL_SetWindowSize(Window, GBA_WIDTH * 4, GBA_HEIGHT * 4);
+            }
 
             bool quit = false;
             double nextFrameAt = 0;
@@ -328,112 +383,228 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                if (ResetDue)
+                if (NdsMode)
                 {
-                    ResetDue = false;
-                    byte[] save = Gba.Mem.SaveProvider.GetSave();
-                    ProviderGba p = Gba.Provider;
-                    Gba = new Gba(p);
-                    Gba.Mem.SaveProvider.LoadSave(save);
+                    if (ResetDue)
+                    {
+                        ResetDue = false;
+                        // TODO: NDS Save memory
+                        ProviderNds p = Nds.Provider;
+                        Nds = new Nds(p);
+                        nextFrameAt = GetTime();
+                    }
 
-                    nextFrameAt = GetTime();
-                }
+                    double currentSec = GetTime();
 
-                double currentSec = GetTime();
+                    // Reset time if behind schedule
+                    if (currentSec - nextFrameAt >= SecondsPerFrameNds)
+                    {
+                        double diff = currentSec - nextFrameAt;
+                        Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
+                        nextFrameAt = currentSec;
+                    }
 
-                // Reset time if behind schedule
-                if (currentSec - nextFrameAt >= SecondsPerFrameGba)
-                {
-                    double diff = currentSec - nextFrameAt;
-                    Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
-                    nextFrameAt = currentSec;
-                }
+                    if (currentSec >= nextFrameAt)
+                    {
+                        nextFrameAt += SecondsPerFrameNds;
 
-                if (currentSec >= nextFrameAt)
-                {
-                    nextFrameAt += SecondsPerFrameGba;
+                        ThreadSync.Set();
+                    }
 
-                    ThreadSync.Set();
-                }
+                    if (currentSec >= fpsEvalTimer)
+                    {
+                        double diff = currentSec - fpsEvalTimer + 1;
+                        double frames = CyclesRan / CyclesPerFrameNds;
+                        CyclesRan = 0;
 
-                if (currentSec >= fpsEvalTimer)
-                {
-                    double diff = currentSec - fpsEvalTimer + 1;
-                    double frames = CyclesRan / 280896;
-                    CyclesRan = 0;
+                        long ran =
+                            Nds.Nds7.Cpu.InstructionsRan +
+                            Nds.Nds9.Cpu.InstructionsRan;
+                        Nds.Nds7.Cpu.InstructionsRan = 0;
+                        Nds.Nds9.Cpu.InstructionsRan = 0;
+                        double mips = (double)ran / 1000000D;
 
-                    double mips = (double)Gba.Cpu.InstructionsRan / 1000000D;
-                    Gba.Cpu.InstructionsRan = 0;
+                        // Use Math.Floor to truncate to 2 decimal places
+                        Fps = Math.Floor((frames / diff) * 100) / 100;
+                        Mips = Math.Floor((mips / diff) * 100) / 100;
+                        UpdateTitle();
+                        Seconds++;
+                        UpdatePlayingRpc();
 
-                    // Use Math.Floor to truncate to 2 decimal places
-                    Fps = Math.Floor((frames / diff) * 100) / 100;
-                    Mips = Math.Floor((mips / diff) * 100) / 100;
-                    UpdateTitle();
-                    Seconds++;
-                    UpdatePlayingRpc();
-
-                    fpsEvalTimer += 1;
-                }
+                        fpsEvalTimer += 1;
+                    }
 
 #if UNSAFE
-                SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)Gba.Ppu.Renderer.ScreenFront, GBA_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
+                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Nds.Ppu.Renderer.ScreenFront, NDS_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
+#else
+                fixed (uint* pixels = &Nds.Ppu.ScreenFront[0])
+                {
+                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, NDS_WIDTH * Ppu.BYTES_PER_PIXEL);
+#endif
+
+                    SDL_Rect dest = new SDL_Rect();
+                    SDL_GetWindowSize(Window, out int w, out int h);
+                    double ratio = Math.Min((double)h / (double)NDS_HEIGHT, (double)w / (double)NDS_WIDTH);
+                    int fillWidth;
+                    int fillHeight;
+                    if (!Stretched)
+                    {
+                        if (IntegerScaling)
+                        {
+                            fillWidth = ((int)(ratio * NDS_WIDTH) / NDS_WIDTH) * NDS_WIDTH;
+                            fillHeight = ((int)(ratio * NDS_HEIGHT) / NDS_HEIGHT) * NDS_HEIGHT;
+                        }
+                        else
+                        {
+                            fillWidth = (int)(ratio * NDS_WIDTH);
+                            fillHeight = (int)(ratio * NDS_HEIGHT);
+                        }
+                        dest.w = fillWidth;
+                        dest.h = fillHeight;
+                        dest.x = (int)((w - fillWidth) / 2);
+                        dest.y = (int)((h - fillHeight) / 2);
+                    }
+                    else
+                    {
+                        dest.w = w;
+                        dest.h = h;
+                        dest.x = 0;
+                        dest.y = 0;
+                    }
+
+                    SDL_RenderClear(Renderer);
+                    SDL_RenderCopy(Renderer, Texture, IntPtr.Zero, ref dest);
+                    SDL_RenderPresent(Renderer);
+
+                    // TODO: NDS Saves
+                    // if (Gba.Mem.SaveProvider.Dirty)
+                    // {
+                    //     Gba.Mem.SaveProvider.Dirty = false;
+                    //     try
+                    //     {
+                    //         System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
+                    //     }
+                    //     catch
+                    //     {
+                    //         Console.WriteLine("Failed to write .sav file!");
+                    //     }
+                    // }
+
+                    if (Excepted)
+                    {
+                        SdlMessage("Exception Caught", ExceptionMessage);
+                        quit = true;
+                    }
+                }
+                else
+                {
+                    if (ResetDue)
+                    {
+                        ResetDue = false;
+                        byte[] save = Gba.Mem.SaveProvider.GetSave();
+                        ProviderGba p = Gba.Provider;
+                        Gba = new Gba(p);
+                        Gba.Mem.SaveProvider.LoadSave(save);
+
+                        nextFrameAt = GetTime();
+                    }
+
+                    double currentSec = GetTime();
+
+                    // Reset time if behind schedule
+                    if (currentSec - nextFrameAt >= SecondsPerFrameGba)
+                    {
+                        double diff = currentSec - nextFrameAt;
+                        Log("Can't keep up! Skipping " + (int)(diff * 1000) + " milliseconds");
+                        nextFrameAt = currentSec;
+                    }
+
+                    if (currentSec >= nextFrameAt)
+                    {
+                        nextFrameAt += SecondsPerFrameGba;
+
+                        ThreadSync.Set();
+                    }
+
+                    if (currentSec >= fpsEvalTimer)
+                    {
+                        double diff = currentSec - fpsEvalTimer + 1;
+                        double frames = CyclesRan / CyclesPerFrameGba;
+                        CyclesRan = 0;
+
+                        double mips = (double)Gba.Cpu.InstructionsRan / 1000000D;
+                        Gba.Cpu.InstructionsRan = 0;
+
+                        // Use Math.Floor to truncate to 2 decimal places
+                        Fps = Math.Floor((frames / diff) * 100) / 100;
+                        Mips = Math.Floor((mips / diff) * 100) / 100;
+                        UpdateTitle();
+                        Seconds++;
+                        UpdatePlayingRpc();
+
+                        fpsEvalTimer += 1;
+                    }
+
+#if UNSAFE
+                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Gba.Ppu.Renderer.ScreenFront, GBA_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
 #else
                 fixed (uint* pixels = &Gba.Ppu.ScreenFront[0])
                 {
                     SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, GBA_WIDTH * Ppu.BYTES_PER_PIXEL);GBA_HEIGHT
 #endif
 
-                SDL_Rect dest = new SDL_Rect();
-                SDL_GetWindowSize(Window, out int w, out int h);
-                double ratio = Math.Min((double)h / (double)GBA_HEIGHT, (double)w / (double)GBA_WIDTH);
-                int fillWidth;
-                int fillHeight;
-                if (!Stretched)
-                {
-                    if (IntegerScaling)
+                    SDL_Rect dest = new SDL_Rect();
+                    SDL_GetWindowSize(Window, out int w, out int h);
+                    double ratio = Math.Min((double)h / (double)GBA_HEIGHT, (double)w / (double)GBA_WIDTH);
+                    int fillWidth;
+                    int fillHeight;
+                    if (!Stretched)
                     {
-                        fillWidth = ((int)(ratio * GBA_WIDTH) / GBA_WIDTH) * GBA_WIDTH;
-                        fillHeight = ((int)(ratio * GBA_HEIGHT) / GBA_HEIGHT) * GBA_HEIGHT;
+                        if (IntegerScaling)
+                        {
+                            fillWidth = ((int)(ratio * GBA_WIDTH) / GBA_WIDTH) * GBA_WIDTH;
+                            fillHeight = ((int)(ratio * GBA_HEIGHT) / GBA_HEIGHT) * GBA_HEIGHT;
+                        }
+                        else
+                        {
+                            fillWidth = (int)(ratio * GBA_WIDTH);
+                            fillHeight = (int)(ratio * GBA_HEIGHT);
+                        }
+                        dest.w = fillWidth;
+                        dest.h = fillHeight;
+                        dest.x = (int)((w - fillWidth) / 2);
+                        dest.y = (int)((h - fillHeight) / 2);
                     }
                     else
                     {
-                        fillWidth = (int)(ratio * GBA_WIDTH);
-                        fillHeight = (int)(ratio * GBA_HEIGHT);
+                        dest.w = w;
+                        dest.h = h;
+                        dest.x = 0;
+                        dest.y = 0;
                     }
-                    dest.w = fillWidth;
-                    dest.h = fillHeight;
-                    dest.x = (int)((w - fillWidth) / 2);
-                    dest.y = (int)((h - fillHeight) / 2);
-                }
-                else
-                {
-                    dest.w = w;
-                    dest.h = h;
-                    dest.x = 0;
-                    dest.y = 0;
-                }
 
-                SDL_RenderClear(Renderer);
-                SDL_RenderCopy(Renderer, texture, IntPtr.Zero, ref dest);
-                SDL_RenderPresent(Renderer);
+                    SDL_RenderClear(Renderer);
+                    SDL_RenderCopy(Renderer, Texture, IntPtr.Zero, ref dest);
+                    SDL_RenderPresent(Renderer);
 
-                if (Gba.Mem.SaveProvider.Dirty)
-                {
-                    Gba.Mem.SaveProvider.Dirty = false;
-                    try
+                    if (Gba.Mem.SaveProvider.Dirty)
                     {
-                        System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
+                        Gba.Mem.SaveProvider.Dirty = false;
+                        try
+                        {
+                            System.IO.File.WriteAllBytesAsync(Gba.Provider.SavPath, Gba.Mem.SaveProvider.GetSave());
+                        }
+                        catch
+                        {
+                            Console.WriteLine("Failed to write .sav file!");
+                        }
                     }
-                    catch
-                    {
-                        Console.WriteLine("Failed to write .sav file!");
-                    }
-                }
 
-                if (Excepted)
-                {
-                    SdlMessage("Exception Caught", ExceptionMessage);
-                    quit = true;
+                    if (Excepted)
+                    {
+                        SdlMessage("Exception Caught", ExceptionMessage);
+                        quit = true;
+                    }
                 }
             }
 
@@ -530,46 +701,167 @@ namespace OptimeGBAEmulator
         public static void KeyEvent(SDL_KeyboardEvent kb)
         {
             bool pressed = kb.state == SDL_PRESSED;
+
+            if (NdsMode)
+            {
+                switch (kb.keysym.sym)
+                {
+                    case SDL_Keycode.SDLK_z:
+                        Nds.Keypad.B = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_x:
+                        Nds.Keypad.A = pressed;
+                        break;
+
+                    case SDL_Keycode.SDLK_BACKSPACE:
+                        Nds.Keypad.Select = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_RETURN:
+                    case SDL_Keycode.SDLK_KP_ENTER:
+                        if (!LAlt)
+                        {
+                            Nds.Keypad.Start = pressed;
+                        }
+                        break;
+
+                    case SDL_Keycode.SDLK_LEFT:
+                        Nds.Keypad.Left = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_RIGHT:
+                        Nds.Keypad.Right = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_UP:
+                        Nds.Keypad.Up = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_DOWN:
+                        Nds.Keypad.Down = pressed;
+                        break;
+
+                    case SDL_Keycode.SDLK_q:
+                        Nds.Keypad.L = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_e:
+                        Nds.Keypad.R = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_LCTRL:
+                        LCtrl = pressed;
+                        break;
+                }
+
+            }
+            else
+            {
+                switch (kb.keysym.sym)
+                {
+                    case SDL_Keycode.SDLK_z:
+                        Gba.Keypad.B = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_x:
+                        Gba.Keypad.A = pressed;
+                        break;
+
+                    case SDL_Keycode.SDLK_BACKSPACE:
+                        Gba.Keypad.Select = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_RETURN:
+                    case SDL_Keycode.SDLK_KP_ENTER:
+                        if (!LAlt)
+                        {
+                            Gba.Keypad.Start = pressed;
+                        }
+                        break;
+
+                    case SDL_Keycode.SDLK_LEFT:
+                        Gba.Keypad.Left = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_RIGHT:
+                        Gba.Keypad.Right = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_UP:
+                        Gba.Keypad.Up = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_DOWN:
+                        Gba.Keypad.Down = pressed;
+                        break;
+
+                    case SDL_Keycode.SDLK_q:
+                        Gba.Keypad.L = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_e:
+                        Gba.Keypad.R = pressed;
+                        break;
+
+                    case SDL_Keycode.SDLK_LCTRL:
+                        LCtrl = pressed;
+                        break;
+                }
+
+                if (pressed)
+                {
+                    switch (kb.keysym.sym)
+                    {
+                        case SDL_Keycode.SDLK_F1:
+                            if (Gba.Ppu.Renderer.ColorCorrection)
+                            {
+                                Gba.Ppu.Renderer.DisableColorCorrection();
+                            }
+                            else
+                            {
+                                Gba.Ppu.Renderer.EnableColorCorrection();
+                            }
+                            break;
+
+                        case SDL_Keycode.SDLK_F2:
+                            Gba.Ppu.Renderer.DebugEnableRendering = !Gba.Ppu.Renderer.DebugEnableRendering;
+                            break;
+                        case SDL_Keycode.SDLK_F3:
+                            Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;
+                            UpdateTitle();
+                            break;
+                        case SDL_Keycode.SDLK_F4:
+                            Gba.GbaAudio.DebugEnableB = !Gba.GbaAudio.DebugEnableB;
+                            UpdateTitle();
+                            break;
+                        case SDL_Keycode.SDLK_F5:
+                            Gba.GbaAudio.GbAudio.enable1Out = !Gba.GbaAudio.GbAudio.enable1Out;
+                            UpdateTitle();
+                            break;
+                        case SDL_Keycode.SDLK_F6:
+                            Gba.GbaAudio.GbAudio.enable2Out = !Gba.GbaAudio.GbAudio.enable2Out;
+                            UpdateTitle();
+                            break;
+                        case SDL_Keycode.SDLK_F7:
+                            Gba.GbaAudio.GbAudio.enable3Out = !Gba.GbaAudio.GbAudio.enable3Out;
+                            UpdateTitle();
+                            break;
+                        case SDL_Keycode.SDLK_F8:
+                            Gba.GbaAudio.GbAudio.enable4Out = !Gba.GbaAudio.GbAudio.enable4Out;
+                            UpdateTitle();
+                            break;
+
+                        case SDL_Keycode.SDLK_LEFTBRACKET:
+                            if (Gba.GbaAudio.GbAudio.PsgFactor > 0)
+                            {
+                                Gba.GbaAudio.GbAudio.PsgFactor--;
+                                UpdateTitle();
+                            }
+                            break;
+
+                        case SDL_Keycode.SDLK_RIGHTBRACKET:
+                            Gba.GbaAudio.GbAudio.PsgFactor++;
+                            UpdateTitle();
+                            break;
+
+                        case SDL_Keycode.SDLK_F9:
+                            Gba.GbaAudio.Resample = !Gba.GbaAudio.Resample;
+                            UpdateTitle();
+                            break;
+                    }
+                }
+            }
+
             switch (kb.keysym.sym)
             {
-                case SDL_Keycode.SDLK_z:
-                    Gba.Keypad.B = pressed;
-                    break;
-                case SDL_Keycode.SDLK_x:
-                    Gba.Keypad.A = pressed;
-                    break;
-
-                case SDL_Keycode.SDLK_BACKSPACE:
-                    Gba.Keypad.Select = pressed;
-                    break;
-                case SDL_Keycode.SDLK_RETURN:
-                case SDL_Keycode.SDLK_KP_ENTER:
-                    if (!LAlt)
-                    {
-                        Gba.Keypad.Start = pressed;
-                    }
-                    break;
-
-                case SDL_Keycode.SDLK_LEFT:
-                    Gba.Keypad.Left = pressed;
-                    break;
-                case SDL_Keycode.SDLK_RIGHT:
-                    Gba.Keypad.Right = pressed;
-                    break;
-                case SDL_Keycode.SDLK_UP:
-                    Gba.Keypad.Up = pressed;
-                    break;
-                case SDL_Keycode.SDLK_DOWN:
-                    Gba.Keypad.Down = pressed;
-                    break;
-
-                case SDL_Keycode.SDLK_q:
-                    Gba.Keypad.L = pressed;
-                    break;
-                case SDL_Keycode.SDLK_e:
-                    Gba.Keypad.R = pressed;
-                    break;
-
                 case SDL_Keycode.SDLK_SPACE:
                     Space = pressed;
                     Sync = !(Space || Tab);
@@ -579,13 +871,6 @@ namespace OptimeGBAEmulator
                     Sync = !(Space || Tab);
                     break;
 
-                case SDL_Keycode.SDLK_LCTRL:
-                    LCtrl = pressed;
-                    break;
-            }
-
-            switch (kb.keysym.sym)
-            {
                 case SDL_Keycode.SDLK_LALT:
                     LAlt = pressed;
                     break;
@@ -627,102 +912,53 @@ namespace OptimeGBAEmulator
                     break;
             }
 
-            if (pressed)
-            {
-                switch (kb.keysym.sym)
-                {
-                    case SDL_Keycode.SDLK_F1:
-                        if (Gba.Ppu.Renderer.ColorCorrection)
-                        {
-                            Gba.Ppu.Renderer.DisableColorCorrection();
-                        }
-                        else
-                        {
-                            Gba.Ppu.Renderer.EnableColorCorrection();
-                        }
-                        break;
-
-                    case SDL_Keycode.SDLK_F2:
-                        Gba.Ppu.Renderer.DebugEnableRendering = !Gba.Ppu.Renderer.DebugEnableRendering;
-                        break;
-                    case SDL_Keycode.SDLK_F3:
-                        Gba.GbaAudio.DebugEnableA = !Gba.GbaAudio.DebugEnableA;
-                        UpdateTitle();
-                        break;
-                    case SDL_Keycode.SDLK_F4:
-                        Gba.GbaAudio.DebugEnableB = !Gba.GbaAudio.DebugEnableB;
-                        UpdateTitle();
-                        break;
-                    case SDL_Keycode.SDLK_F5:
-                        Gba.GbaAudio.GbAudio.enable1Out = !Gba.GbaAudio.GbAudio.enable1Out;
-                        UpdateTitle();
-                        break;
-                    case SDL_Keycode.SDLK_F6:
-                        Gba.GbaAudio.GbAudio.enable2Out = !Gba.GbaAudio.GbAudio.enable2Out;
-                        UpdateTitle();
-                        break;
-                    case SDL_Keycode.SDLK_F7:
-                        Gba.GbaAudio.GbAudio.enable3Out = !Gba.GbaAudio.GbAudio.enable3Out;
-                        UpdateTitle();
-                        break;
-                    case SDL_Keycode.SDLK_F8:
-                        Gba.GbaAudio.GbAudio.enable4Out = !Gba.GbaAudio.GbAudio.enable4Out;
-                        UpdateTitle();
-                        break;
-
-                    case SDL_Keycode.SDLK_LEFTBRACKET:
-                        if (Gba.GbaAudio.GbAudio.PsgFactor > 0)
-                        {
-                            Gba.GbaAudio.GbAudio.PsgFactor--;
-                            UpdateTitle();
-                        }
-                        break;
-
-                    case SDL_Keycode.SDLK_RIGHTBRACKET:
-                        Gba.GbaAudio.GbAudio.PsgFactor++;
-                        UpdateTitle();
-                        break;
-
-                    case SDL_Keycode.SDLK_F9:
-                        Gba.GbaAudio.Resample = !Gba.GbaAudio.Resample;
-                        UpdateTitle();
-                        break;
-                }
-            }
         }
 
-        public static void UpdateRomName(string path) {
-            if (GameNameDictionary.ContainsKey(Gba.Provider.RomId)) {
+        public static void UpdateRomName(string path)
+        {
+            if (GameNameDictionary.ContainsKey(Gba.Provider.RomId))
+            {
                 RomName = GameNameDictionary[Gba.Provider.RomId];
-            } else {
+            }
+            else
+            {
                 RomName = Path.GetFileName(path);
             }
         }
 
         public static void UpdateTitle()
         {
-            bool fA = Gba.GbaAudio.DebugEnableA;
-            bool fB = Gba.GbaAudio.DebugEnableB;
-            bool p1 = Gba.GbaAudio.GbAudio.enable1Out;
-            bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
-            bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
-            bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
-            bool re = Gba.GbaAudio.Resample;
-            SDL_SetWindowTitle(
-                Window,
-                "Optime GBA - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
-                (fA ? "A " : "- ") +
-                (fB ? "B " : "- ") +
-                (p1 ? "1 " : "- ") +
-                (p2 ? "2 " : "- ") +
-                (p3 ? "3 " : "- ") +
-                (p4 ? "4 " : "- ") +
-                (re ? "RE " : "-- ") +
-                "PSG " + Gba.GbaAudio.GbAudio.PsgFactor + "X"
-            );
+            if (NdsMode)
+            {
+                SDL_SetWindowTitle(
+                    Window,
+                    "Optime GBA (DS) - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued"
+                );
+            }
+            else
+            {
+                bool fA = Gba.GbaAudio.DebugEnableA;
+                bool fB = Gba.GbaAudio.DebugEnableB;
+                bool p1 = Gba.GbaAudio.GbAudio.enable1Out;
+                bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
+                bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
+                bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
+                bool re = Gba.GbaAudio.Resample;
+                SDL_SetWindowTitle(
+                    Window,
+                    "Optime GBA - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
+                    (fA ? "A " : "- ") +
+                    (fB ? "B " : "- ") +
+                    (p1 ? "1 " : "- ") +
+                    (p2 ? "2 " : "- ") +
+                    (p3 ? "3 " : "- ") +
+                    (p4 ? "4 " : "- ") +
+                    (re ? "RE " : "-- ") +
+                    "PSG " + Gba.GbaAudio.GbAudio.PsgFactor + "X"
+                );
+            }
         }
 
-        const int FrameCycles = 70224 * 4;
         static int CyclesLeft;
         static long CyclesRan;
 
@@ -751,21 +987,23 @@ namespace OptimeGBAEmulator
 
         public static void RunFrame()
         {
-            CyclesLeft += FrameCycles;
-            CyclesRan += FrameCycles;
-            while (CyclesLeft > 0)
+            if (NdsMode)
             {
-                CyclesLeft -= (int)Gba.StateStep();
+                CyclesRan += CyclesPerFrameNds;
+                CyclesLeft += CyclesPerFrameNds;
+                while (CyclesLeft > 0)
+                {
+                    CyclesLeft -= (int)Nds.Step();
+                }
             }
-        }
-
-        public static void RunCycles(int cycles)
-        {
-            CyclesLeft += cycles;
-            CyclesRan += cycles;
-            while (CyclesLeft > 0)
+            else
             {
-                CyclesLeft -= (int)Gba.Step();
+                CyclesRan += CyclesPerFrameGba;
+                CyclesLeft += CyclesPerFrameGba;
+                while (CyclesLeft > 0)
+                {
+                    CyclesLeft -= (int)Gba.StateStep();
+                }
             }
         }
 
