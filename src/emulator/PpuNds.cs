@@ -1,4 +1,5 @@
 using static OptimeGBA.Bits;
+using System.Runtime.CompilerServices;
 using static OptimeGBA.PpuRenderer;
 using System;
 
@@ -6,26 +7,110 @@ namespace OptimeGBA
 {
     public sealed unsafe class PpuNds
     {
-        Device DeviceUnit;
+        Nds Nds;
         Scheduler Scheduler;
 
-        public PpuRenderer Renderer = new PpuRenderer(240, 160);
+        public PpuRenderer Renderer;
 
-        public PpuNds(Device deviceUnit, Scheduler scheduler)
+        public PpuNds(Nds gba, Scheduler scheduler)
         {
-            DeviceUnit = deviceUnit;
+            Nds = gba;
             Scheduler = scheduler;
+            Renderer = new PpuRenderer(true, 256, 192);
 
-            Scheduler.AddEventRelative(SchedulerId.Ppu, 960, EndDrawingToHblank);
+            Scheduler.AddEventRelative(SchedulerId.Ppu, 1536, EndDrawingToHblank);
+        }
+
+        // Raw VRAM Blocks
+        public byte[] VramA = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramB = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramC = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramD = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramE = MemoryUtil.AllocateManagedArray(65536);
+        public byte[] VramF = MemoryUtil.AllocateManagedArray(16384);
+        public byte[] VramG = MemoryUtil.AllocateManagedArray(16384);
+        public byte[] VramH = MemoryUtil.AllocateManagedArray(32768);
+        public byte[] VramI = MemoryUtil.AllocateManagedArray(16384);
+
+        // Built arrays (Passed to PpuRenderer for rendering)
+        public byte[] VramLcdc = MemoryUtil.AllocateManagedArray(671744);
+
+        public void PrepareScanline()
+        {
+            uint index = 0;
+            VramA.CopyTo(VramLcdc, index); index += 131072;
+            VramB.CopyTo(VramLcdc, index); index += 131072;
+            VramC.CopyTo(VramLcdc, index); index += 131072;
+            VramD.CopyTo(VramLcdc, index); index += 131072;
+            VramE.CopyTo(VramLcdc, index); index += 65536;
+            VramF.CopyTo(VramLcdc, index); index += 16384;
+            VramG.CopyTo(VramLcdc, index); index += 16384;
+            VramH.CopyTo(VramLcdc, index); index += 32768;
+            VramI.CopyTo(VramLcdc, index); index += 16384;
+        }
+
+        public void WriteVram8(uint addr, byte val)
+        {
+            switch (addr & 0xFFF00000)
+            {
+                case 0x06000000: // Engine A BG VRAM
+                    break;
+                case 0x06200000: // Engine B BG VRAM
+                    break;
+                case 0x06400000: // Engine A OBJ VRAM
+                    break;
+                case 0x06600000: // Engine B OBJ VRAM
+                    break;
+                case 0x06800000: // LCDC VRAM
+                    switch (addr & 0xFFFF0000)
+                    {
+                        case 0x06800000: // A
+                            VramA[addr & 0x1FFFF] = val;
+                            break;
+                        case 0x06820000: // B
+                            VramB[addr & 0x1FFFF] = val;
+                            break;
+                        case 0x06840000: // C
+                            VramC[addr & 0x1FFFF] = val;
+                            break;
+                        case 0x06860000: // D
+                            VramD[addr & 0x1FFFF] = val;
+                            break;
+                        case 0x06880000: // E
+                            VramE[addr & 0xFFFF] = val;
+                            break;
+                        case 0x06890000: // F, G, H
+                            switch (addr & 0xFFFFF000)
+                            {
+                                case 0x06890000: // F
+                                    VramF[addr & 0x3FFF] = val;
+                                    break;
+                                case 0x06894000: // G
+                                    VramG[addr & 0x3FFF] = val;
+                                    break;
+                                case 0x06898000: // H
+                                    VramH[addr & 0x7FFF] = val;
+                                    break;
+                            }
+                            break;
+                        case 0x068A0000: // I
+                            VramI[addr & 0x3FFF] = val;
+                            break;
+                    }
+                    break;
+            }
+        }
+
+        public void CompileVram()
+        {
+
         }
 
         public long ScanlineStartCycles;
 
-        public bool BiosMod = false;
-        public bool BiosModLayer2 = false;
         public sbyte[] OamColorOffsets = new sbyte[128];
 
-        public ushort DISPCNTValue;
+        public uint DISPCNTValue;
         public ushort WININValue;
         public ushort WINOUTValue;
         public ushort BLDCNTValue;
@@ -37,20 +122,6 @@ namespace OptimeGBA
         public bool HBlankIrqEnable;
         public bool VCounterIrqEnable;
         public byte VCountSetting;
-
-
-        public void DisableBiosMod(long cyclesLate)
-        {
-            BiosMod = false;
-        }
-
-        public void EnableBiosModLayer2(long cyclesLate)
-        {
-            BiosModLayer2 = true;
-
-            OamColorOffsets[4] = -28;
-            OamColorOffsets[20] = -28;
-        }
 
         public long GetScanlineCycles()
         {
@@ -66,6 +137,11 @@ namespace OptimeGBA
                     return (byte)(DISPCNTValue >> 0);
                 case 0x4000001: // DISPCNT B1
                     return (byte)(DISPCNTValue >> 8);
+                case 0x4000002: // DISPCNT B2
+                    return (byte)(DISPCNTValue >> 16);
+                case 0x4000003: // DISPCNT B3
+                    return (byte)(DISPCNTValue >> 24);
+
 
                 case 0x4000004: // DISPSTAT B0
                     // Vblank flag is set in scanlines 160-226, not including 227 for some reason
@@ -85,7 +161,8 @@ namespace OptimeGBA
                     val |= (byte)Renderer.VCount;
                     break;
                 case 0x4000007:
-                    return 0;
+                    val |= (byte)((Renderer.VCount >> 8) & 1);
+                    break;
 
                 case 0x4000008: // BG0CNT B0
                 case 0x4000009: // BG0CNT B1
@@ -192,15 +269,15 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000000: // DISPCNT B0
-                    Renderer.BgMode = (uint)(val & 0b111);
-                    Renderer.CgbMode = BitTest(val, 3);
-                    Renderer.DisplayFrameSelect = BitTest(val, 4);
-                    Renderer.HBlankIntervalFree = BitTest(val, 5);
-                    Renderer.ObjCharacterVramMapping = BitTest(val, 6);
+                    Renderer.BgMode = BitRange(val, 0, 2);
+                    Renderer.Bg0Is3D = BitTest(val, 3);
+                    Renderer.ObjCharacterVramMapping = BitTest(val, 4);
+                    Renderer.BitmapObjShape = BitTest(val, 5);
+                    Renderer.BitmapObjMapping = BitTest(val, 6);
                     Renderer.ForcedBlank = BitTest(val, 7);
 
-                    DISPCNTValue &= 0xFF00;
-                    DISPCNTValue |= (ushort)(val << 0);
+                    DISPCNTValue &= 0xFFFFFF00;
+                    DISPCNTValue |= (uint)(val << 0);
 
                     Renderer.BackgroundSettingsDirty = true;
                     break;
@@ -215,8 +292,31 @@ namespace OptimeGBA
                     Renderer.ObjWindowDisplayFlag = BitTest(val, 15 - 8);
                     Renderer.AnyWindowEnabled = (val & 0b11100000) != 0;
 
-                    DISPCNTValue &= 0x00FF;
-                    DISPCNTValue |= (ushort)(val << 8);
+                    DISPCNTValue &= 0xFFFF00FF;
+                    DISPCNTValue |= (uint)(val << 8);
+
+                    Renderer.BackgroundSettingsDirty = true;
+                    break;
+                case 0x4000002: // DISPCNT B2
+                    Renderer.DisplayMode = BitRange(val, 0, 1);
+                    Renderer.LcdcVramBlock = BitRange(val, 2, 3);
+                    Renderer.TileObj1DBoundary = BitRange(val, 4, 5);
+                    Renderer.BitmapObj1DBoundary = BitTest(val, 6);
+                    Renderer.HBlankIntervalFree = BitTest(val, 7);
+
+                    DISPCNTValue &= 0xFF00FFFF;
+                    DISPCNTValue |= (uint)(val << 16);
+
+                    Renderer.BackgroundSettingsDirty = true;
+                    break;
+                case 0x4000003: // DISPCNT B3
+                    Renderer.CharBaseBlockCoarse = BitRange(val, 0, 2);
+                    Renderer.MapBaseBlockCoarse = BitRange(val, 3, 5);
+                    Renderer.BgExtendedPalettes = BitTest(val, 6);
+                    Renderer.ObjExtendedPalettes  = BitTest(val, 7);
+
+                    DISPCNTValue &= 0x00FFFFFF;
+                    DISPCNTValue |= (uint)(val << 24);
 
                     Renderer.BackgroundSettingsDirty = true;
                     break;
@@ -388,55 +488,47 @@ namespace OptimeGBA
 
         public void EndDrawingToHblank(long cyclesLate)
         {
-            Scheduler.AddEventRelative(SchedulerId.Ppu, 272 - cyclesLate, EndHblank);
+            Scheduler.AddEventRelative(SchedulerId.Ppu, 594 - cyclesLate, EndHblank);
 
-            DeviceUnit.Dma.RepeatHblank();
+            // Nds.Dma.RepeatHblank();
 
-            if (HBlankIrqEnable)
-            {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
-            }
+            // if (HBlankIrqEnable)
+            // {
+            //     Nds.HwControl.FlagInterrupt(InterruptGba.HBlank);
+            // }
 
         }
 
         public void EndVblankToHblank(long cyclesLate)
         {
-            Scheduler.AddEventRelative(SchedulerId.Ppu, 272 - cyclesLate, EndHblank);
+            Scheduler.AddEventRelative(SchedulerId.Ppu, 594 - cyclesLate, EndHblank);
 
-            if (HBlankIrqEnable)
-            {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
-            }
+            // if (HBlankIrqEnable)
+            // {
+            //     Nds.HwControl.FlagInterrupt(InterruptGba.HBlank);
+            // }
         }
 
         public void EndHblank(long cyclesLate)
         {
             ScanlineStartCycles = Scheduler.CurrentTicks;
 
-            if (Renderer.VCount != 227)
+            if (Renderer.VCount != 262)
             {
                 Renderer.VCount++;
 
-                if (Renderer.VCount > 159)
+                if (Renderer.VCount > 191)
                 {
-                    Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndVblankToHblank);
+                    Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndVblankToHblank);
 
-                    if (Renderer.VCount == 160)
+                    if (Renderer.VCount == 192)
                     {
-#if DS_RESOLUTION
-                        while (VCount < HEIGHT) {
-                            RenderScanline();
-                            VCount++;
-                        }
-                        VCount = 160;
-#endif
+                        // Nds.Dma.RepeatVblank();
 
-                        DeviceUnit.Dma.RepeatVblank();
-
-                        if (VBlankIrqEnable)
-                        {
-                            DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VBlank);
-                        }
+                        // if (VBlankIrqEnable)
+                        // {
+                        //     Nds.HwControl.FlagInterrupt(InterruptGba.VBlank);
+                        // }
 
                         Renderer.TotalFrames++;
                         if (Renderer.DebugEnableRendering) Renderer.SwapBuffers();
@@ -446,59 +538,35 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    if (Renderer.DebugEnableRendering) Renderer.RenderScanline();
-                    Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
+                    if (Renderer.DebugEnableRendering)
+                    {
+                        PrepareScanline();
+                        Renderer.RenderScanline(VramLcdc);
+                    }
+                    Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
                 }
             }
             else
             {
-                if (BiosMod)
-                {
-                    uint objE0 = 8 * 3;
-                    uint objE1 = 8 * 19;
-                    uint objM0 = 8 * 4;
-                    uint objM1 = 8 * 20;
-
-                    for (uint i = 0; i < 6; i++)
-                    {
-                        Renderer.Oam[objE0++] = 0;
-                        Renderer.Oam[objE1++] = 0;
-                    }
-
-                    Renderer.Oam[objM0 + 4] = 68;
-                    Renderer.Oam[objM0 + 5] |= 2;
-
-                    if (BiosModLayer2)
-                    {
-                        Renderer.Oam[objM1 + 4] = 68;
-                        Renderer.Oam[objM1 + 5] |= 2;
-                    }
-
-                    // uint objG0 = 8 * 6;
-                    // uint objG1 = 8 * 5;
-                    // uint objA0 = 8 * 22;
-                    // uint objA1 = 8 * 21;
-                }
-
                 Renderer.VCount = 0;
                 VCounterMatch = Renderer.VCount == VCountSetting;
-                if (VCounterMatch && VCounterIrqEnable)
-                {
-                    DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
-                }
-                Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
+                // if (VCounterMatch && VCounterIrqEnable)
+                // {
+                //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
+                // }
+                Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
-                if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(0);
-                if (Renderer.DebugEnableRendering) Renderer.RenderScanline();
+                if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(VramLcdc, 0);
+                if (Renderer.DebugEnableRendering) Renderer.RenderScanline(VramLcdc);
             }
 
             VCounterMatch = Renderer.VCount == VCountSetting;
 
-            if (VCounterMatch && VCounterIrqEnable)
-            {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
-            }
+            // if (VCounterMatch && VCounterIrqEnable)
+            // {
+            //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
+            // }
         }
     }
 }

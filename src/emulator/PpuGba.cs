@@ -1,4 +1,5 @@
 using static OptimeGBA.Bits;
+using System.Runtime.CompilerServices;
 using static OptimeGBA.PpuRenderer;
 using System;
 
@@ -9,15 +10,18 @@ namespace OptimeGBA
         Device DeviceUnit;
         Scheduler Scheduler;
 
-        public PpuRenderer Renderer = new PpuRenderer(240, 160);
+        public PpuRenderer Renderer;
 
         public PpuGba(Device deviceUnit, Scheduler scheduler)
         {
             DeviceUnit = deviceUnit;
             Scheduler = scheduler;
+            Renderer = new PpuRenderer(false, 240, 160);
 
             Scheduler.AddEventRelative(SchedulerId.Ppu, 960, EndDrawingToHblank);
         }
+
+        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
 
         public long ScanlineStartCycles;
 
@@ -446,7 +450,7 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    if (Renderer.DebugEnableRendering) Renderer.RenderScanline();
+                    if (Renderer.DebugEnableRendering) Renderer.RenderScanline(Vram);
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
                 }
             }
@@ -489,8 +493,8 @@ namespace OptimeGBA
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
-                if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(0);
-                if (Renderer.DebugEnableRendering) Renderer.RenderScanline();
+                if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(Vram, 0);
+                if (Renderer.DebugEnableRendering) Renderer.RenderScanline(Vram);
             }
 
             VCounterMatch = Renderer.VCount == VCountSetting;

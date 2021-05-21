@@ -149,7 +149,7 @@ namespace OptimeGBA
                         addr &= 0x1FFFF;
                         if (addr < 0x18000)
                         {
-                            table[i] = Gba.Ppu.Renderer.Vram;
+                            table[i] = Gba.Ppu.Vram;
                         }
                         else
                         {
@@ -330,7 +330,7 @@ namespace OptimeGBA
                     addr &= 0x1FFFF;
                     if (addr < 0x18000)
                     {
-                        SetUint(Gba.Ppu.Renderer.Vram, addr, val);
+                        SetUint(Gba.Ppu.Vram, addr, val);
                     }
                     return;
             }
@@ -383,7 +383,6 @@ namespace OptimeGBA
 
         public void WriteHwio8(uint addr, byte val)
         {
-
             if (LogHwioAccesses && (addr & ~1) != 0)
             {
                 uint count;

@@ -217,16 +217,16 @@ namespace OptimeGBAEmulator
 
         public void OnUpdateFrame(FrameEventArgs e)
         {
-            // Nds.Keypad.B = KeyboardState.IsKeyDown(Keys.Z);
-            // Nds.Keypad.A = KeyboardState.IsKeyDown(Keys.X);
-            // Nds.Keypad.Left = KeyboardState.IsKeyDown(Keys.Left);
-            // Nds.Keypad.Up = KeyboardState.IsKeyDown(Keys.Up);
-            // Nds.Keypad.Right = KeyboardState.IsKeyDown(Keys.Right);
-            // Nds.Keypad.Down = KeyboardState.IsKeyDown(Keys.Down);
-            // Nds.Keypad.Start = KeyboardState.IsKeyDown(Keys.Enter) || KeyboardState.IsKeyDown(Keys.KeyPadEnter);
-            // Nds.Keypad.Select = KeyboardState.IsKeyDown(Keys.Backspace);
-            // Nds.Keypad.L = KeyboardState.IsKeyDown(Keys.Q);
-            // Nds.Keypad.R = KeyboardState.IsKeyDown(Keys.E);
+            Nds.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
+            Nds.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
+            Nds.Keypad.Left = Window.KeyboardState.IsKeyDown(Keys.Left);
+            Nds.Keypad.Up = Window.KeyboardState.IsKeyDown(Keys.Up);
+            Nds.Keypad.Right = Window.KeyboardState.IsKeyDown(Keys.Right);
+            Nds.Keypad.Down = Window.KeyboardState.IsKeyDown(Keys.Down);
+            Nds.Keypad.Start = Window.KeyboardState.IsKeyDown(Keys.Enter) || Window.KeyboardState.IsKeyDown(Keys.KeyPadEnter);
+            Nds.Keypad.Select = Window.KeyboardState.IsKeyDown(Keys.Backspace);
+            Nds.Keypad.L = Window.KeyboardState.IsKeyDown(Keys.Q);
+            Nds.Keypad.R = Window.KeyboardState.IsKeyDown(Keys.E);
 
             SyncToAudio = !(Window.KeyboardState.IsKeyDown(Keys.Tab) || Window.KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
@@ -685,7 +685,6 @@ namespace OptimeGBAEmulator
 
 
                 ImGui.Checkbox("Run Emulator", ref RunEmulator);
-                // ImGui.Checkbox("Log HWIO Access", ref Nds.Nds7.Mem.LogHWIOAccess);
 
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
@@ -709,7 +708,7 @@ namespace OptimeGBAEmulator
                 // bool ticked = Nds.HwControl.IME;
                 // ImGui.Checkbox("IME", ref ticked);
 
-                // ImGui.Checkbox("Log HWIO", ref Nds.Nds7.Mem.LogHwioAccesses);
+                ImGui.Checkbox("Log HWIO", ref Nds.Nds7.Mem.LogHwioAccesses);
                 // ImGui.Checkbox("Boot BIOS", ref Nds.Provider.BootBios);
                 // ImGui.Checkbox("Big Screen", ref BigScreen);
                 // ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
@@ -871,60 +870,38 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text("Palettes");
 
-                // for (int p = 0; p < 256; p++)
-                // {
-                //     PaletteImageBuffer[p] = Nds.Ppu.ProcessedPalettes[p];
-                // }
+                for (int i = 0; i < 4; i++)
+                {
+                    int paletteBase = i * 256;
+                    for (int p = 0; p < 256; p++)
+                    {
+                        PaletteImageBuffer[p] = Nds.Ppu.Renderer.ProcessedPalettes[paletteBase + p];
+                    }
 
-                // GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
+                    GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
 
-                // // TexParameter needed for something to display :)
-                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
+                    // TexParameter needed for something to display :)
+                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
+                    GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
 
-                // GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-                // GL.TexImage2D(
-                //     TextureTarget.Texture2D,
-                //     0,
-                //     PixelInternalFormat.Rgb,
-                //     16,
-                //     16,
-                //     0,
-                //     PixelFormat.Rgba,
-                //     PixelType.UnsignedByte,
-                //     PaletteImageBuffer
-                // );
+                    GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
+                    GL.TexImage2D(
+                        TextureTarget.Texture2D,
+                        0,
+                        PixelInternalFormat.Rgb,
+                        16,
+                        16,
+                        0,
+                        PixelFormat.Rgba,
+                        PixelType.UnsignedByte,
+                        PaletteImageBuffer
+                    );
 
-                // // ImGui.Text($"Pointer: {texId}");
-                // ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
-
-                // for (int p = 0; p < 256; p++)
-                // {
-                //     PaletteImageBuffer[p] = Nds.Ppu.ProcessedPalettes[p + 256];
-                // }
-
-                // GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
-
-                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-                // GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-
-                // GL.PixelStore(PixelStoreParameter.UnpackRowLength, 0);
-                // GL.TexImage2D(
-                //     TextureTarget.Texture2D,
-                //     0,
-                //     PixelInternalFormat.Rgb,
-                //     16,
-                //     16,
-                //     0,
-                //     PixelFormat.Rgba,
-                //     PixelType.UnsignedByte,
-                //     PaletteImageBuffer
-                // );
-
-                // ImGui.SameLine(); ImGui.Image((IntPtr)objPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
+                    // ImGui.Text($"Pointer: {texId}");
+                    ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));ImGui.SameLine();
+                }
 
                 ImGui.End();
-
             }
         }
 
@@ -964,48 +941,48 @@ namespace OptimeGBAEmulator
             {
                 gbTexId = 0;
 
-                // GL.ActiveTexture(TextureUnit.Texture0);
-                //                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-                //                 if (!ShowBackBuf)
-                //                 {
-                //                     GL.TexImage2D(
-                //                     TextureTarget.Texture2D,
-                //                     0,
-                //                     PixelInternalFormat.Rgba,
-                //                     240,
-                //                     160,
-                //                     0,
-                //                     PixelFormat.Rgba,
-                //                     PixelType.UnsignedByte,
-                // #if UNSAFE
-                //                     (IntPtr)Nds.Ppu.ScreenFront
-                // #else
-                //                     Nds.Ppu.ScreenFront
-                // #endif
-                //                 );
+                GL.ActiveTexture(TextureUnit.Texture0);
+                GL.BindTexture(TextureTarget.Texture2D, gbTexId);
+                if (!ShowBackBuf)
+                {
+                    GL.TexImage2D(
+                        TextureTarget.Texture2D,
+                        0,
+                        PixelInternalFormat.Rgba,
+                        256,
+                        192,
+                        0,
+                        PixelFormat.Rgba,
+                        PixelType.UnsignedByte,
+#if UNSAFE
+                        (IntPtr)Nds.Ppu.Renderer.ScreenFront
+#else
+                        Nds.Ppu.Renderer.ScreenFront
+#endif
+                    );
 
-                //                 }
-                //                 else
-                //                 {
-                //                     GL.TexImage2D(
-                //                     TextureTarget.Texture2D,
-                //                     0,
-                //                     PixelInternalFormat.Rgba,
-                //                     240,
-                //                     160,
-                //                     0,
-                //                     PixelFormat.Rgba,
-                //                     PixelType.UnsignedByte,
-                // #if UNSAFE
-                //                     (IntPtr)Nds.Ppu.ScreenBack
-                // #else
-                //                     Nds.Ppu.ScreenBack
-                // #endif
-                //                     );
-                //                 }
+                }
+                else
+                {
+                    GL.TexImage2D(
+                        TextureTarget.Texture2D,
+                        0,
+                        PixelInternalFormat.Rgba,
+                        256,
+                        192,
+                        0,
+                        PixelFormat.Rgba,
+                        PixelType.UnsignedByte,
+#if UNSAFE
+                        (IntPtr)Nds.Ppu.Renderer.ScreenFront
+#else   
+                        Nds.Ppu.Renderer.ScreenFront
+#endif
+                    );
+                }
 
-                float height = BigScreen ? 240 * 5 : 240 * 2;
-                float width = BigScreen ? 160 * 5 : 160 * 2;
+                float height = BigScreen ? 256 * 5 : 256 * 2;
+                float width = BigScreen ? 192 * 5 : 192 * 2;
 
                 ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(height, width));
                 ImGui.SetWindowSize(new System.Numerics.Vector2(height + 16, width + 36));
@@ -1055,11 +1032,12 @@ namespace OptimeGBAEmulator
             Registers.Add(
                 new Register("DISPCNT - PPU Control", 0x4000000,
                     new RegisterField("BG Mode", 0, 2),
-                    new RegisterField("Reserved / CGB Mode", 3),
-                    new RegisterField("Display Frame Select", 4),
-                    new RegisterField("H-Blank Interval Form", 5),
-                    new RegisterField("OBJ Character VRAM Mapping", 6),
+                    new RegisterField("BG0 is 3D", 3),
+                    new RegisterField("OBJ Character VRAM Mapping", 4),
+                    new RegisterField("OBJ Character Dimension", 5),
+                    new RegisterField("OBJ Bitmap VRAM Mapping", 6),
                     new RegisterField("Forced Blank", 7),
+
                     new RegisterField("Screen Display BG0", 8),
                     new RegisterField("Screen Display BG1", 9),
                     new RegisterField("Screen Display BG2", 10),
@@ -1067,7 +1045,18 @@ namespace OptimeGBAEmulator
                     new RegisterField("Screen Display OBJ", 12),
                     new RegisterField("Window 0 Display Flag", 13),
                     new RegisterField("Window 1 Display Flag", 14),
-                    new RegisterField("OBJ Window Display Flag", 15)
+                    new RegisterField("OBJ Window Display Flag", 15),
+                    
+                    new RegisterField("Display Mode", 16, 17),
+                    new RegisterField("LCDC VRAM Block", 18, 19),
+                    new RegisterField("Tile OBJ 1D Boundary", 20, 21),
+                    new RegisterField("Bitmap OBJ 1D Boundary", 22),
+                    new RegisterField("Disable H-Blank Rendering", 23),
+
+                    new RegisterField("Coarse Character Block Base", 24, 26),
+                    new RegisterField("Coarse Map Block Base", 27, 29),
+                    new RegisterField("Enable BG Extended Palettes", 30),
+                    new RegisterField("Enable OBJ Extended Palettes", 31)
                 ));
 
             Registers.Add(
@@ -1263,7 +1252,7 @@ namespace OptimeGBAEmulator
                     ImGui.EndCombo();
                 }
 
-                uint value = Nds.Nds7.Mem.ReadDebug32(RegViewerSelected.Address);
+                uint value = Nds.Nds9.Mem.ReadDebug32(RegViewerSelected.Address);
                 foreach (RegisterField f in RegViewerSelected.Fields)
                 {
                     if (f.Checkbox)
@@ -1351,12 +1340,13 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("HWIO Log"))
             {
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                ImGui.Text("ARM9");
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                 }
                 ImGui.Separator();
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                 }

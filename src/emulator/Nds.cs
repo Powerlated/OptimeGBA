@@ -12,7 +12,9 @@ namespace OptimeGBA
         public Nds9 Nds9;
         public Scheduler Scheduler;
 
-        public PpuNds PpuNds;
+        public PpuNds Ppu;
+
+        public Keypad Keypad = new Keypad();
 
         public byte[] MainRam = new byte[4194304];
         public byte[] SharedRam = new byte[32768];
@@ -25,6 +27,8 @@ namespace OptimeGBA
             Provider = provider;
             Scheduler = new Scheduler();
             // AudioCallback = provider.AudioCallback;
+
+            Ppu = new PpuNds(this, Scheduler);
 
             Nds7 = new Nds7(this) { Scheduler = Scheduler };
             Nds9 = new Nds9(this) { Scheduler = Scheduler };

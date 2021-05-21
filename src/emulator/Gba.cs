@@ -9,6 +9,7 @@ namespace OptimeGBA
 
         public GbaAudio GbaAudio;
         public Keypad Keypad;
+        public PpuGba Ppu;
 
         public Gba(ProviderGba provider)
         {

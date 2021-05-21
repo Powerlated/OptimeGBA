@@ -9,7 +9,7 @@ namespace OptimeGBA
     {
         public int Width;
         public int Height;
-        public PpuRenderer(int width, int height)
+        public PpuRenderer(bool nds, int width, int height)
         {
             Width = width;
             Height = height;
@@ -48,6 +48,12 @@ namespace OptimeGBA
                 ScreenBack[i] = 0xFFFFFFFF;
             }
 
+            RefreshPalettes();
+
+            if (!nds)
+            {
+                DisplayMode = 1;
+            }
         }
 
         // Internal State
@@ -60,7 +66,7 @@ namespace OptimeGBA
 #if UNSAFE
         public uint* ScreenFront;
         public uint* ScreenBack;
-        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
+        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(1024);
         
         public byte*[] BackgroundBuffers;
 
@@ -86,13 +92,12 @@ namespace OptimeGBA
 #else
         public uint[] ScreenFront;
         public uint[] ScreenBack;
-        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
+        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(1024);
 
         public byte[][] BackgroundBuffers;
 #endif
 
-        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
-        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
+        public byte[] Palettes = MemoryUtil.AllocateManagedArray(2048); // 1024 for GBA, 2048 for NDS A and B
         public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
 
         public ObjPixel[] ObjBuffer;
@@ -107,6 +112,9 @@ namespace OptimeGBA
 
         public uint White = Rgb555to888(0xFFFF, true);
 
+        public bool[] DebugEnableBg = new bool[4];
+        public bool DebugEnableObj = true;
+        public bool DebugEnableRendering = true;
 
         // BGCNT
         public Background[] Backgrounds = new Background[4] {
@@ -128,12 +136,20 @@ namespace OptimeGBA
         public bool Window0DisplayFlag;
         public bool Window1DisplayFlag;
         public bool ObjWindowDisplayFlag;
-
         public bool AnyWindowEnabled = false;
 
-        public bool[] DebugEnableBg = new bool[4];
-        public bool DebugEnableObj = true;
-        public bool DebugEnableRendering = true;
+        // DISPCNT - NDS Exclusive
+        public bool Bg0Is3D;
+        public bool BitmapObjShape;
+        public bool BitmapObjMapping;
+        public uint DisplayMode;
+        public uint LcdcVramBlock;
+        public uint TileObj1DBoundary;
+        public bool BitmapObj1DBoundary;
+        public uint CharBaseBlockCoarse;
+        public uint MapBaseBlockCoarse;
+        public bool BgExtendedPalettes;
+        public bool ObjExtendedPalettes;
 
         // WIN0H
         public byte Win0HRight;
@@ -171,34 +187,41 @@ namespace OptimeGBA
         // BLDY
         public uint BlendBrightness;
 
-
-        public void RenderScanline()
+        public void RenderScanline(byte[] vram)
         {
-            if (!ForcedBlank)
+            if (!ForcedBlank && DisplayMode != 0)
             {
-                switch (BgMode)
+                switch (DisplayMode)
                 {
-                    case 0:
-                        RenderMode0();
-                        break;
-                    case 1:
-                        RenderMode1();
-                        break;
-                    case 2:
-                        RenderMode2();
-                        break;
-                    case 3:
-                        RenderMode3();
-                        break;
-                    case 4:
-                        RenderMode4();
-                        break;
-                }
+                    case 1: // Regular rendering
+                        switch (BgMode)
+                        {
+                            case 0:
+                                RenderMode0(vram);
+                                break;
+                            case 1:
+                                RenderMode1(vram);
+                                break;
+                            case 2:
+                                RenderMode2(vram);
+                                break;
+                            case 3:
+                                RenderMode3(vram);
+                                break;
+                            case 4:
+                                RenderMode4(vram);
+                                break;
+                        }
 
-                if (BgMode <= 2)
-                {
-                    Composite();
-                    if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(VCount + 1);
+                        if (BgMode <= 2)
+                        {
+                            Composite();
+                            if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(vram, VCount + 1);
+                        }
+                        break;
+                    case 2: // LCDC Mode
+                        RenderMode3(vram); 
+                        break;
                 }
             }
             else
@@ -279,7 +302,7 @@ namespace OptimeGBA
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization)]
-        public void RenderCharBackground(Background bg)
+        public void RenderCharBackground(byte[] vram, Background bg)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
@@ -309,7 +332,7 @@ namespace OptimeGBA
                 uint horizontalOffsetBlocks = CharBlockWidthTable[screenSizeBase + ((pixelX & 511) >> 8)];
                 uint mapHoriOffset = MapBlockSize * horizontalOffsetBlocks;
                 uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
-                uint mapEntry = (uint)(Vram[mapEntryIndex + 1] << 8 | Vram[mapEntryIndex]);
+                uint mapEntry = (uint)(vram[mapEntryIndex + 1] << 8 | vram[mapEntryIndex]);
 
                 uint tileNumber = mapEntry & 1023; // 10 bits
                 bool xFlip = BitTest(mapEntry, 10);
@@ -341,7 +364,7 @@ namespace OptimeGBA
                     {
                         // 256 color, 64 bytes per tile, 8 bytes per row
                         uint vramAddr = (uint)(vramAddrTile + (tp / 1));
-                        byte vramValue = Vram[vramAddr];
+                        byte vramValue = vram[vramAddr];
 
                         byte finalColor = vramValue;
                         bgBuffer[lineIndex] = finalColor;
@@ -361,7 +384,7 @@ namespace OptimeGBA
                     {
                         uint vramAddr = (uint)(vramTileAddr + (tp / 2));
                         // 16 color, 32 bytes per tile, 4 bytes per row
-                        uint vramValue = Vram[vramAddr];
+                        uint vramValue = vram[vramAddr];
                         // Lower 4 bits is left pixel, upper 4 bits is right pixel
                         uint color = (vramValue >> (int)((tp & 1) * 4)) & 0xF;
 
@@ -383,7 +406,7 @@ namespace OptimeGBA
         public readonly static uint[] AffineTileSizeTable = { 16, 32, 64, 128 };
         public readonly static uint[] AffineSizeMask = { 127, 255, 511, 1023 };
 
-        public void RenderAffineBackground(Background bg)
+        public void RenderAffineBackground(byte[] vram, Background bg)
         {
             uint xInteger = (bg.RefPointX >> 8) & 0x7FFFF;
             uint yInteger = (bg.RefPointY >> 8) & 0x7FFFF;
@@ -411,14 +434,14 @@ namespace OptimeGBA
 
                 // 1 byte per tile
                 uint mapEntryIndex = mapBase + (tileY * AffineTileSizeTable[bg.ScreenSize]) + (tileX * 1);
-                uint tileNumber = Vram[mapEntryIndex];
+                uint tileNumber = vram[mapEntryIndex];
 
                 uint realIntraTileY = intraTileY;
 
                 // Always 256color
                 // 256 color, 64 bytes per tile, 8 bytes per row
                 uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
-                byte vramValue = Vram[vramAddr];
+                byte vramValue = vram[vramAddr];
 
                 byte finalColor = vramValue;
                 bgBuffer[lineIndex] = finalColor;
@@ -445,7 +468,7 @@ namespace OptimeGBA
             0,  0,  0,  0,
         };
 
-        public void RenderObjs(uint vcount)
+        public void RenderObjs(byte[] vram, uint vcount)
         {
             // OAM address for the last sprite
             uint oamBase = 1016;
@@ -528,7 +551,7 @@ namespace OptimeGBA
                                 objPixelX = (int)(xSize - objPixelX - 1);
                             }
 
-                            PlaceObjPixel(objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
+                            PlaceObjPixel(vram, objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
                         }
                         screenLineBase = (screenLineBase + 1) % 512;
                     }
@@ -604,7 +627,7 @@ namespace OptimeGBA
 
                             if (lerpedObjPixelX < xSize && lerpedObjPixelY < ySize)
                             {
-                                PlaceObjPixel((int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
+                                PlaceObjPixel(vram, (int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
                             }
                         }
                         objPixelXEdge0 += xPerPixel;
@@ -617,7 +640,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceObjPixel(int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority, ObjMode mode)
+        public void PlaceObjPixel(byte[] vram, int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority, ObjMode mode)
         {
             uint intraTileX = (uint)(objX & 7);
             uint intraTileY = (uint)(objY & 7);
@@ -648,7 +671,7 @@ namespace OptimeGBA
             {
                 // 256 color, 64 bytes per tile, 8 bytes per row
                 uint vramAddr = charBase + (effectiveTileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
-                uint vramValue = Vram[vramAddr];
+                uint vramValue = vram[vramAddr];
 
                 byte finalColor = (byte)vramValue;
 
@@ -676,7 +699,7 @@ namespace OptimeGBA
             {
                 // 16 color, 32 bytes per tile, 4 bytes per row
                 uint vramAddr = charBase + (effectiveTileNumber * 32) + (intraTileY * 4) + (intraTileX / 2);
-                uint vramValue = Vram[vramAddr];
+                uint vramValue = vram[vramAddr];
                 // Lower 4 bits is left pixel, upper 4 bits is right pixel
                 uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
 
@@ -863,35 +886,35 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderMode0()
+        public void RenderMode0(byte[] vram)
         {
-            RenderCharBackground(Backgrounds[3]);
-            RenderCharBackground(Backgrounds[2]);
-            RenderCharBackground(Backgrounds[1]);
-            RenderCharBackground(Backgrounds[0]);
+            RenderCharBackground(vram, Backgrounds[3]);
+            RenderCharBackground(vram, Backgrounds[2]);
+            RenderCharBackground(vram, Backgrounds[1]);
+            RenderCharBackground(vram, Backgrounds[0]);
         }
 
-        public void RenderMode1()
+        public void RenderMode1(byte[] vram)
         {
-            RenderAffineBackground(Backgrounds[2]);
-            RenderCharBackground(Backgrounds[1]);
-            RenderCharBackground(Backgrounds[0]);
+            RenderAffineBackground(vram, Backgrounds[2]);
+            RenderCharBackground(vram, Backgrounds[1]);
+            RenderCharBackground(vram, Backgrounds[0]);
         }
 
-        public void RenderMode2()
+        public void RenderMode2(byte[] vram)
         {
-            RenderAffineBackground(Backgrounds[2]);
-            RenderAffineBackground(Backgrounds[3]);
+            RenderAffineBackground(vram, Backgrounds[2]);
+            RenderAffineBackground(vram, Backgrounds[3]);
         }
 
-        public void RenderMode4()
+        public void RenderMode4(byte[] vram)
         {
             uint screenBase = (uint)(VCount * Width);
             uint vramBase = (uint)(0x0 + VCount * Width);
 
             for (uint p = 0; p < Width; p++)
             {
-                uint vramVal = Vram[vramBase];
+                uint vramVal = vram[vramBase];
 
                 ScreenBack[screenBase] = ProcessedPalettes[vramVal];
 
@@ -900,15 +923,15 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderMode3()
+        public void RenderMode3(byte[] vram)
         {
             uint screenBase = (uint)(VCount * Width);
             uint vramBase = (uint)(VCount * Width * 2);
 
             for (uint p = 0; p < Width; p++)
             {
-                byte b0 = Vram[vramBase + 0];
-                byte b1 = Vram[vramBase + 1];
+                byte b0 = vram[vramBase + 0];
+                byte b1 = vram[vramBase + 1];
 
                 ushort data = (ushort)((b1 << 8) | b0);
 
