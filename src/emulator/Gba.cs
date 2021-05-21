@@ -24,7 +24,7 @@ namespace OptimeGBA
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);
             HwControl = new HwControlGba(this);
-            Cpu = new Arm7(this, false);
+            Cpu = new Arm7(this, false, false);
             
             Cpu.R13svc = 0x03007FE0;
             Cpu.R13irq = 0x03007FA0;

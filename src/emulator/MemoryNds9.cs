@@ -253,8 +253,8 @@ namespace OptimeGBA
             if (LogHwioAccesses && (addr & ~1) != 0)
             {
                 uint count;
-                HwioWriteLog.TryGetValue(addr, out count);
-                HwioWriteLog[addr] = count + 1;
+                HwioReadLog.TryGetValue(addr, out count);
+                HwioReadLog[addr] = count + 1;
             }
 
             if (addr >= 0x4000000 && addr <= 0x400006C) // PPU
@@ -265,6 +265,10 @@ namespace OptimeGBA
             {
                 return Nds9.Nds.Keypad.ReadHwio8(addr);
             }
+            else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
+            {
+                return Nds9.HwControl.ReadHwio8(addr);
+            }
             return 0;
         }
 
@@ -273,13 +277,17 @@ namespace OptimeGBA
             if (LogHwioAccesses && (addr & ~1) != 0)
             {
                 uint count;
-                HwioReadLog.TryGetValue(addr, out count);
-                HwioReadLog[addr] = count + 1;
+                HwioWriteLog.TryGetValue(addr, out count);
+                HwioWriteLog[addr] = count + 1;
             }
 
             if (addr >= 0x4000000 && addr <= 0x400006C) // PPU
             {
                 Nds9.Nds.Ppu.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
+            {
+                Nds9.HwControl.WriteHwio8(addr, val);
             }
         }
     }

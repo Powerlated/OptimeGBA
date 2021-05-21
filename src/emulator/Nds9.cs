@@ -11,8 +11,10 @@ namespace OptimeGBA
         { 
             Nds = nds;
 
+            HwControl = new HwControlNds(Nds, true);
+
             Mem = new MemoryNds9(this, nds.Provider);
-            Cpu = new Arm7(this, true);
+            Cpu = new Arm7(this, true, true);
 
             Mem.InitPageTables();
             Cpu.FillPipelineArm();

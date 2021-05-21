@@ -8,6 +8,8 @@ namespace OptimeGBA
     {
         public ProviderNds Provider;
 
+        public HwControl HwControl;
+
         public Nds7 Nds7;
         public Nds9 Nds9;
         public Scheduler Scheduler;

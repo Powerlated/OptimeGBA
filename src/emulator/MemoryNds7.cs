@@ -103,6 +103,8 @@ namespace OptimeGBA
                 case 0x3: // Shared RAM
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     return GetByte(array, offset);
+                case 0x4: // I/O Registers
+                    return ReadHwio8(addr);
             }
 
             return 0;
@@ -115,6 +117,13 @@ namespace OptimeGBA
                 case 0x3: // Shared RAM
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     return GetUshort(array, offset);
+                case 0x4: // I/O Registers
+                    byte f0 = Read8Unregistered(addr++);
+                    byte f1 = Read8Unregistered(addr++);
+
+                    ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
+
+                    return u16;
             }
 
             return 0;
@@ -127,6 +136,15 @@ namespace OptimeGBA
                 case 0x3: // Shared RAM
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     return GetUint(array, offset);
+                case 0x4: // I/O Registers
+                    byte f0 = Read8Unregistered(addr++);
+                    byte f1 = Read8Unregistered(addr++);
+                    byte f2 = Read8Unregistered(addr++);
+                    byte f3 = Read8Unregistered(addr++);
+
+                    uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
+
+                    return u32;
             }
 
             return 0;
@@ -140,6 +158,9 @@ namespace OptimeGBA
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     SetByte(array, offset, val);
                     break;
+                case 0x4: // I/O Registers
+                    WriteHwio8(addr, val);
+                    break;
             }
         }
 
@@ -150,6 +171,10 @@ namespace OptimeGBA
                 case 0x3: // Shared RAM
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     SetUshort(array, offset, val);
+                    break;
+                case 0x4: // I/O Registers
+                    WriteHwio8(addr++, (byte)(val >> 0));
+                    WriteHwio8(addr++, (byte)(val >> 8));
                     break;
             }
         }
@@ -162,18 +187,46 @@ namespace OptimeGBA
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     SetUint(array, offset, val);
                     break;
+                case 0x4: // I/O Registers
+                    WriteHwio8(addr++, (byte)(val >> 0));
+                    WriteHwio8(addr++, (byte)(val >> 8));
+                    WriteHwio8(addr++, (byte)(val >> 16));
+                    WriteHwio8(addr++, (byte)(val >> 24));
+                    break;
             }
         }
 
 
         public byte ReadHwio8(uint addr)
         {
+            if (LogHwioAccesses && (addr & ~1) != 0)
+            {
+                uint count;
+                HwioReadLog.TryGetValue(addr, out count);
+                HwioReadLog[addr] = count + 1;
+            }
+
+            if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
+            {
+                return Nds7.HwControl.ReadHwio8(addr);
+            }
+
             return 0;
         }
 
         public void WriteHwio8(uint addr, byte val)
         {
+            if (LogHwioAccesses && (addr & ~1) != 0)
+            {
+                uint count;
+                HwioWriteLog.TryGetValue(addr, out count);
+                HwioWriteLog[addr] = +1;
+            }
 
+            if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
+            {
+                Nds7.HwControl.WriteHwio8(addr, val);
+            }
         }
     }
 }

@@ -50,6 +50,8 @@ namespace OptimeGBAEmulator
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
+        static bool LogHwioAccesses;
+
         public int ThreadCyclesQueued;
         public void EmulationThreadHandler()
         {
@@ -165,7 +167,7 @@ namespace OptimeGBAEmulator
             // Init SDL
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
             byte[] bios9 = System.IO.File.ReadAllBytes("bios9.bin");
-            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady) { DirectBoot = true });
+            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady));
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -207,7 +209,7 @@ namespace OptimeGBAEmulator
         {
             var bios7 = Nds.Provider.Bios7;
             var bios9 = Nds.Provider.Bios9;
-            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, AudioReady) { DirectBoot = true });
+            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, AudioReady));
             // Nds.Mem.SaveProvider.LoadSave(sav);
         }
 
@@ -397,7 +399,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text($"{Util.HexN(tempBase, 8)}:");
                     for (int j = 0; j < cols; j++)
                     {
-                        uint val = Nds.Nds7.Mem.Read8(tempBase);
+                        uint val = Nds.Nds9.Mem.Read8(tempBase);
 
                         ImGui.SameLine();
                         ImGui.Selectable($"{HexN(val, 2)}");
@@ -577,9 +579,13 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(4);
                 ImGui.Text("ARM9");
                 drawCpuInfo(Nds.Nds9.Cpu);
+                var Ime9 = Nds.Nds9.HwControl.IME;
+                ImGui.Checkbox("IME", ref Ime9);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
                 drawCpuInfo(Nds.Nds7.Cpu);
+                var Ime7 = Nds.Nds7.HwControl.IME;
+                ImGui.Checkbox("IME", ref Ime7);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
@@ -708,8 +714,10 @@ namespace OptimeGBAEmulator
                 // bool ticked = Nds.HwControl.IME;
                 // ImGui.Checkbox("IME", ref ticked);
 
-                ImGui.Checkbox("Log HWIO", ref Nds.Nds7.Mem.LogHwioAccesses);
-                // ImGui.Checkbox("Boot BIOS", ref Nds.Provider.BootBios);
+                ImGui.Checkbox("Log HWIO", ref LogHwioAccesses);
+                Nds.Nds7.Mem.LogHwioAccesses = LogHwioAccesses;
+                Nds.Nds9.Mem.LogHwioAccesses = LogHwioAccesses;
+                ImGui.Checkbox("Direct Boot", ref Nds.Provider.DirectBoot);
                 // ImGui.Checkbox("Big Screen", ref BigScreen);
                 // ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
 
@@ -898,7 +906,7 @@ namespace OptimeGBAEmulator
                     );
 
                     // ImGui.Text($"Pointer: {texId}");
-                    ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));ImGui.SameLine();
+                    ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
                 }
 
                 ImGui.End();
@@ -1046,7 +1054,7 @@ namespace OptimeGBAEmulator
                     new RegisterField("Window 0 Display Flag", 13),
                     new RegisterField("Window 1 Display Flag", 14),
                     new RegisterField("OBJ Window Display Flag", 15),
-                    
+
                     new RegisterField("Display Mode", 16, 17),
                     new RegisterField("LCDC VRAM Block", 18, 19),
                     new RegisterField("Tile OBJ 1D Boundary", 20, 21),
@@ -1340,13 +1348,28 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("HWIO Log"))
             {
+                ImGui.Columns(2);
+
                 ImGui.Text("ARM9");
                 foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                 }
-                ImGui.Separator();
+                ImGui.Text("");
                 foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                {
+                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                }
+
+                ImGui.NextColumn();
+
+                ImGui.Text("ARM7");
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                {
+                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                }
+                ImGui.Text("");
+                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                 }

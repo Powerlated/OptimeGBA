@@ -69,6 +69,8 @@ namespace OptimeGBA
 
         public Device Device;
 
+        public bool Armv5;
+
 #if UNSAFE
         public uint* R = MemoryUtil.AllocateUnmanagedArray32(16);
 
@@ -138,9 +140,10 @@ namespace OptimeGBA
 
         public bool FlagInterrupt;
 
-        public Arm7(Device device, bool vectorMode)
+        public Arm7(Device device, bool vectorMode, bool armv5)
         {
             Device = device;
+            Armv5 = armv5;
 
             ThumbDispatch = GenerateThumbDispatch();
             ArmDispatch = GenerateArmDispatch();
@@ -382,7 +385,7 @@ namespace OptimeGBA
             // Error("IRQ, ENTERING IRQ MODE!");
         }
 
-        public static ArmExecutor GetInstructionArm(uint ins)
+        public ArmExecutor GetInstructionArm(uint ins)
         {
             if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
             {
@@ -500,13 +503,27 @@ namespace OptimeGBA
             {
                 bool L = BitTest(ins, 20); // Load vs Store
 
-                if (L)
+                if (Armv5)
                 {
-                    return Arm.LDM;
+                    if (L)
+                    {
+                        return Arm.LDM_V5;
+                    }
+                    else
+                    {
+                        return Arm.STM_V5;
+                    }
                 }
                 else
                 {
-                    return Arm.STM;
+                    if (L)
+                    {
+                        return Arm.LDM;
+                    }
+                    else
+                    {
+                        return Arm.STM;
+                    }
                 }
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
@@ -517,7 +534,7 @@ namespace OptimeGBA
             return Arm.Invalid;
         }
 
-        public static ThumbExecutor GetInstructionThumb(ushort ins)
+        public ThumbExecutor GetInstructionThumb(ushort ins)
         {
             switch ((ins >> 13) & 0b111)
             {
