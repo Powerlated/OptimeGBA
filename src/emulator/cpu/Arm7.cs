@@ -25,8 +25,8 @@ namespace OptimeGBA
         }
 
         // 1024 functions, taking the top 10 bits of THUMB
-        public static ThumbExecutor[] ThumbDispatch = GenerateThumbDispatch();
-        public static ThumbExecutor[] GenerateThumbDispatch()
+        public ThumbExecutor[] ThumbDispatch;
+        public ThumbExecutor[] GenerateThumbDispatch()
         {
             ThumbExecutor[] table = new ThumbExecutor[1024];
 
@@ -39,8 +39,8 @@ namespace OptimeGBA
             return table;
         }
 
-        public static ArmExecutor[] ArmDispatch = GenerateArmDispatch();
-        public static ArmExecutor[] GenerateArmDispatch()
+        public ArmExecutor[] ArmDispatch;
+        public ArmExecutor[] GenerateArmDispatch()
         {
             ArmExecutor[] table = new ArmExecutor[4096];
 
@@ -141,6 +141,9 @@ namespace OptimeGBA
         public Arm7(Device device, bool vectorMode)
         {
             Device = device;
+
+            ThumbDispatch = GenerateThumbDispatch();
+            ArmDispatch = GenerateArmDispatch();
 
             // Default Mode
             Mode = Arm7Mode.System;

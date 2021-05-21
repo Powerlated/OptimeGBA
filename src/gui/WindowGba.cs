@@ -1278,7 +1278,7 @@ namespace OptimeGBAEmulator
 
                 for (int ti = 0; ti < 1024; ti++)
                 {
-                    ThumbExecutor k = Arm7.ThumbDispatch[ti];
+                    ThumbExecutor k = Gba.Cpu.ThumbDispatch[ti];
                     if (!CpuProfilerDictThumb.TryGetValue(k, out uint val))
                     {
                         CpuProfilerDictThumb[k] = 0;
@@ -1288,7 +1288,7 @@ namespace OptimeGBAEmulator
 
                 for (int ai = 0; ai < 4096; ai++)
                 {
-                    ArmExecutor k = Arm7.ArmDispatch[ai];
+                    ArmExecutor k = Gba.Cpu.ArmDispatch[ai];
                     if (!CpuProfilerDictArm.TryGetValue(k, out uint val))
                     {
                         CpuProfilerDictArm[k] = 0;
