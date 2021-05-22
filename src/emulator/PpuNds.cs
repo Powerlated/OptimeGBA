@@ -62,7 +62,7 @@ namespace OptimeGBA
                 case 0x06600000: // Engine B OBJ VRAM
                     break;
                 case 0x06800000: // LCDC VRAM
-                    switch (addr & 0xFFFF0000)
+                    switch (addr & 0xFFFE0000)
                     {
                         case 0x06800000: // A
                             VramA[addr & 0x1FFFF] = val;
@@ -76,12 +76,12 @@ namespace OptimeGBA
                         case 0x06860000: // D
                             VramD[addr & 0x1FFFF] = val;
                             break;
-                        case 0x06880000: // E
-                            VramE[addr & 0xFFFF] = val;
-                            break;
-                        case 0x06890000: // F, G, H
+                        case 0x06880000: // E, F, G, H
                             switch (addr & 0xFFFFF000)
                             {
+                                case 0x68800000:
+                                    VramE[addr & 0xFFFF] = val;
+                                    break;
                                 case 0x06890000: // F
                                     VramF[addr & 0x3FFF] = val;
                                     break;
@@ -313,7 +313,7 @@ namespace OptimeGBA
                     Renderer.CharBaseBlockCoarse = BitRange(val, 0, 2);
                     Renderer.MapBaseBlockCoarse = BitRange(val, 3, 5);
                     Renderer.BgExtendedPalettes = BitTest(val, 6);
-                    Renderer.ObjExtendedPalettes  = BitTest(val, 7);
+                    Renderer.ObjExtendedPalettes = BitTest(val, 7);
 
                     DISPCNTValue &= 0x00FFFFFF;
                     DISPCNTValue |= (uint)(val << 24);

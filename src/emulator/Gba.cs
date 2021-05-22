@@ -7,6 +7,7 @@ namespace OptimeGBA
     {
         public ProviderGba Provider;
 
+        public MemoryGba Mem;
         public GbaAudio GbaAudio;
         public Keypad Keypad;
         public PpuGba Ppu;
@@ -24,8 +25,8 @@ namespace OptimeGBA
             Dma = new Dma(this);
             Timers = new Timers(this, Scheduler);
             HwControl = new HwControlGba(this);
-            Cpu = new Arm7(this, false, false);
-            
+            Cpu = new Arm7(this, Mem, false, false, null);
+
             Cpu.R13svc = 0x03007FE0;
             Cpu.R13irq = 0x03007FA0;
             Cpu.R13usr = 0x03007F00;

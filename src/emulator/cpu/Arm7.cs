@@ -68,6 +68,7 @@ namespace OptimeGBA
         public uint VectorFIQ;
 
         public Device Device;
+        public Memory Mem;
 
         public bool Armv5;
 
@@ -140,10 +141,14 @@ namespace OptimeGBA
 
         public bool FlagInterrupt;
 
-        public Arm7(Device device, bool vectorMode, bool armv5)
+        public Cp15 Cp15;
+
+        public Arm7(Device device, Memory mem, bool vectorMode, bool armv5, Cp15 cp15)
         {
             Device = device;
+            Mem = mem;
             Armv5 = armv5;
+            Cp15 = cp15;
 
             ThumbDispatch = GenerateThumbDispatch();
             ArmDispatch = GenerateArmDispatch();
@@ -390,8 +395,8 @@ namespace OptimeGBA
             if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
             {
                 return Arm.B;
-            } // id mask    0b1111111100000000000011110000     0b1111111100000000000011110000
-            else if ((ins & 0b1111111100000000000011110000) == 0b0001001000000000000000010000) // BX
+            } // id mask    0b1111111100000000000011010000     0b1111111100000000000011110000
+            else if ((ins & 0b1111111100000000000011010000) == 0b0001001000000000000000010000) // BX
             {
                 return Arm.BX;
             }
@@ -523,6 +528,20 @@ namespace OptimeGBA
                     else
                     {
                         return Arm.STM;
+                    }
+                }
+            }
+            else if ((ins & 0b1111000000000000000000010000) == 0b1110000000000000000000010000) // Coprocessor register transfers
+            {
+                if (Armv5)
+                {
+                    if (BitTest(ins, 20))
+                    {
+                        return Arm.MRC;
+                    }
+                    else
+                    {
+                        return Arm.MCR;
                     }
                 }
             }
@@ -832,6 +851,8 @@ namespace OptimeGBA
                 case 0xD: // Signed less or Equal, Z=1 or N!=V
                     return Zero || (Negative != Overflow);
                 case 0xE: // Always
+                    return true;
+                case 0xF: // some ARMv5 instructions have 0xF as condition code in encoding
                     return true;
                 default:
                     Error($"Invalid condition? {Util.Hex(code, 1)}");
@@ -1279,56 +1300,56 @@ namespace OptimeGBA
         public byte Read8(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return Device.Mem.Read8(addr);
+            return Mem.Read8(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16(uint addr)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            return Device.Mem.Read16(addr);
+            return Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32(uint addr)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            return Device.Mem.Read32(addr);
+            return Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort Read16InstrFetch(uint addr)
         {
             InstructionCycles += Timing8And16InstrFetch[(addr >> 24) & 0xF];
-            return Device.Mem.Read16(addr);
+            return Mem.Read16(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint Read32InstrFetch(uint addr)
         {
             InstructionCycles += Timing32InstrFetch[(addr >> 24) & 0xF];
-            return Device.Mem.Read32(addr);
+            return Mem.Read32(addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            Device.Mem.Write8(addr, val);
+            Mem.Write8(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
-            Device.Mem.Write16(addr, val);
+            Mem.Write16(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
-            Device.Mem.Write32(addr, val);
+            Mem.Write32(addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

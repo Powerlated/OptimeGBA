@@ -71,7 +71,6 @@ namespace OptimeGBA
             arm7.Overflow = Arm7.CheckOverflowSub(rdVal, immed8, final);
         }
 
-
         public static void DataAND(Arm7 arm7, ushort ins) // AND
         {
             // Rm/Rs and Rd/Rn are the same, just different names for opcodes in this encoding

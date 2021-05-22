@@ -220,7 +220,7 @@ namespace OptimeGBA
                         }
                         break;
                     case 2: // LCDC Mode
-                        RenderMode3(vram); 
+                        RenderMode3(vram);
                         break;
                 }
             }

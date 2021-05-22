@@ -226,7 +226,7 @@ namespace OptimeGBAEmulator
             {
                 if (dev.Cpu.ThumbState)
                 {
-                    ushort val = dev.Mem.ReadDebug16(tempBase & ~1U);
+                    ushort val = dev.Cpu.Mem.ReadDebug16(tempBase & ~1U);
                     String disasm = disasmThumb(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
@@ -242,7 +242,7 @@ namespace OptimeGBAEmulator
                 }
                 else
                 {
-                    uint val = dev.Mem.ReadDebug32(tempBase & ~3U);
+                    uint val = dev.Cpu.Mem.ReadDebug32(tempBase & ~3U);
                     String disasm = disasmArm(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";

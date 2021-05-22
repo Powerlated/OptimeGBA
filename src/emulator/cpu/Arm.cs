@@ -522,9 +522,19 @@ namespace OptimeGBA
             // Cheap and easy sign-extend
             offset = (offset << 6) >> 6;
 
-            // Link - store return address in R14
-            if ((ins & BIT_24) != 0)
+            // BL - store return address in R14
+            if (BitTest(ins, 24))
             {
+                arm7.R[14] = arm7.R[15] - 4;
+            }
+
+            // BLX immediate
+            if ((ins >> 28) == 0b1111)
+            {
+                int halfwordOffset = (int)(ins >> 24) & 0b1;
+                arm7.ThumbState = true;
+                offset += halfwordOffset * 2;
+
                 arm7.R[14] = arm7.R[15] - 4;
             }
 
@@ -551,9 +561,15 @@ namespace OptimeGBA
                 arm7.LineDebug("Switch to ARM State");
             }
 
+            // BLX register
+            uint opcode = (ins >> 4) & 0xF;
+            if (opcode == 0b0011)
+            {
+                arm7.R[14] = arm7.R[15] - 4;
+            }
+
             arm7.R[15] = (rmValue & 0xFFFFFFFE);
             arm7.FlushPipeline();
-
         }
 
         public static void SWP(Arm7 arm7, uint ins)
@@ -1548,6 +1564,43 @@ namespace OptimeGBA
             else
             {
                 if (rd == 15) arm7.FlushPipeline();
+            }
+        }
+
+        public static void MCR(Arm7 arm7, uint ins)
+        {
+            uint opcode1 = (ins >> 21) & 0x7;
+            uint cRn = (ins >> 16) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint coproc = (ins >> 8) & 0xF;
+            uint opcode2 = (ins >> 5) & 0x7;
+            uint cRm = (ins >> 0) & 0xF;
+
+            if (coproc == 15)
+            {
+                uint rdVal = arm7.R[rd];
+                arm7.Cp15.TransferTo(opcode1, rdVal, cRn, cRm, opcode2);
+            }
+        }
+
+        public static void MRC(Arm7 arm7, uint ins)
+        {
+            uint opcode1 = (ins >> 21) & 0x7;
+            uint cRn = (ins >> 16) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint coproc = (ins >> 8) & 0xF;
+            uint opcode2 = (ins >> 5) & 0x7;
+            uint cRm = (ins >> 0) & 0xF;
+
+            uint data = arm7.Cp15.TransferFrom(opcode1, cRn, cRm, opcode2);
+            if (rd == 15)
+            {
+                arm7.Negative = BitTest(data, 31);
+                arm7.Zero = BitTest(data, 30);
+                arm7.Carry = BitTest(data, 29);
+                arm7.Overflow = BitTest(data, 28);
+            } else {
+                arm7.R[rd] = data;
             }
         }
 

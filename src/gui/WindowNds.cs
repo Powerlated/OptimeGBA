@@ -70,16 +70,35 @@ namespace OptimeGBAEmulator
                 ThreadSync.WaitOne();
 
                 int cyclesLeft = 70224 * 4;
-                while (cyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
+                while (cyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
                 {
                     cyclesLeft -= (int)Nds.Step();
+                    CheckBreakpoints();
                 }
 
-                while (!SyncToAudio && !Nds.Nds7.Cpu.Errored && RunEmulator)
+                while (!SyncToAudio && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored && RunEmulator)
                 {
                     Nds.Step();
+                    CheckBreakpoints();
                     ThreadCyclesQueued = 0;
                 }
+            }
+        }
+
+        public uint Arm9Breakpoint = 0x2000718;
+        public uint Arm7Breakpoint;
+        public bool EnableBreakpoints = false;
+
+        public void CheckBreakpoints()
+        {
+            if (EnableBreakpoints)
+            {
+                var sub9 = Nds.Nds9.Cpu.ThumbState ? 2 : 4;
+                var sub7 = Nds.Nds7.Cpu.ThumbState ? 2 : 4;
+                var arm9 = Nds.Nds9.Cpu;
+                var arm7 = Nds.Nds7.Cpu;
+                if (Arm9Breakpoint == arm9.R[15] - arm9.Pipeline * sub9) arm9.Error("Breakpoint hit");
+                if (Arm7Breakpoint == arm7.R[15] - arm7.Pipeline * sub7) arm7.Error("Breakpoint hit");
             }
         }
 
@@ -120,7 +139,7 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Nds.Nds7.Cpu.Errored && RunEmulator)
+            while (cycles > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored && RunEmulator)
             {
                 cycles -= (int)Nds.Step();
             }
@@ -130,7 +149,7 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             CyclesLeft += FrameCycles;
-            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
             {
                 CyclesLeft -= (int)Nds.Step();
             }
@@ -139,7 +158,7 @@ namespace OptimeGBAEmulator
         public void RunScanline()
         {
             CyclesLeft += ScanlineCycles;
-            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
             {
                 CyclesLeft -= (int)Nds.Step();
             }
@@ -518,6 +537,8 @@ namespace OptimeGBAEmulator
 
                 ImGui.Separator();
                 ImGui.Text(Nds.Nds7.Cpu.Debug);
+                ImGui.Separator();
+                ImGui.Text(Nds.Nds9.Cpu.Debug);
                 ImGui.End();
             }
         }
@@ -623,6 +644,7 @@ namespace OptimeGBAEmulator
                 if (ImGui.Button("Un-error"))
                 {
                     Nds.Nds7.Cpu.Errored = false;
+                    Nds.Nds9.Cpu.Errored = false;
                 }
                 if (ImGui.Button("Step"))
                 {
@@ -998,7 +1020,8 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public List<Register> Registers = new List<Register>();
+        public List<Register> Registers7 = new List<Register>();
+        public List<Register> Registers9 = new List<Register>();
         public class Register
         {
             public RegisterField[] Fields;
@@ -1037,7 +1060,7 @@ namespace OptimeGBAEmulator
 
         public void SetupRegViewer()
         {
-            Registers.Add(
+            Registers9.Add(
                 new Register("DISPCNT - PPU Control", 0x4000000,
                     new RegisterField("BG Mode", 0, 2),
                     new RegisterField("BG0 is 3D", 3),
@@ -1067,7 +1090,7 @@ namespace OptimeGBAEmulator
                     new RegisterField("Enable OBJ Extended Palettes", 31)
                 ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register("DISPSTAT - General PPU Status", 0x4000004,
                     new RegisterField("V-Blank flag", 0),
                     new RegisterField("H-Blank flag", 1),
@@ -1081,7 +1104,7 @@ namespace OptimeGBAEmulator
             uint[] bgCntAddrs = { 0x4000008, 0x400000A, 0x400000C, 0x400000E };
             for (uint r = 0; r < 4; r++)
             {
-                Registers.Add(
+                Registers9.Add(
                     new Register($"BG{r}CNT - BG{r} Control", bgCntAddrs[r],
                         new RegisterField("BG Priority", 0, 1),
                         new RegisterField("Character Base Block", 2, 3),
@@ -1094,7 +1117,7 @@ namespace OptimeGBAEmulator
                 ));
             }
 
-            Registers.Add(
+            Registers9.Add(
                 new Register("WININ - Window Interior Control", 0x4000048,
                     new RegisterField("Window 0 BG0", 0),
                     new RegisterField("Window 0 BG1", 1),
@@ -1111,7 +1134,7 @@ namespace OptimeGBAEmulator
                     new RegisterField("Window 1 Color Math", 13)
             ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register("WINOUT - Window Exterior Control", 0x400004A,
                     new RegisterField("Window 0 BG0", 0),
                     new RegisterField("Window 0 BG1", 1),
@@ -1128,7 +1151,7 @@ namespace OptimeGBAEmulator
                     new RegisterField("OBJ Window Color Math", 13)
             ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register($"BLDCNT - Blending Control", 0x4000050,
                     new RegisterField("BG0 1st Target Pixel", 0),
                     new RegisterField("BG1 1st Target Pixel", 1),
@@ -1145,18 +1168,18 @@ namespace OptimeGBAEmulator
                     new RegisterField("BD  2nd Target Pixel", 13)
                 ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register($"BLDALPHA - Blending Coefficients", 0x4000052,
                     new RegisterField("EVA Coefficient", 0, 4),
                     new RegisterField("EVB Coefficient", 8, 12)
                 ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register($"BLDY - Blending Brightness", 0x4000054,
                     new RegisterField("EVY Coefficient", 0, 4)
                 ));
 
-            Registers.Add(
+            Registers9.Add(
                 new Register($"SOUNDCNT_H - DMA Sound Control", 0x4000082,
                     new RegisterField("Sound # 1-4 Volume", 0, 1),
                     new RegisterField("DMA Sound A Volume", 2, 2),
@@ -1172,7 +1195,7 @@ namespace OptimeGBAEmulator
             uint[] dmaAddrs = { 0x40000BA, 0x40000C6, 0x40000D2, 0x40000DE };
             for (uint r = 0; r < 4; r++)
             {
-                Registers.Add(
+                Registers9.Add(
                     new Register($"DMA{r}CNT_H - DMA {r} Control", dmaAddrs[r],
                         new RegisterField("Dest Addr Control", 5, 6),
                         new RegisterField("Source Addr Control", 7, 8),
@@ -1188,7 +1211,7 @@ namespace OptimeGBAEmulator
             uint[] timerAddrs = { 0x4000102, 0x4000106, 0x400010A, 0x400010E };
             for (uint r = 0; r < 4; r++)
             {
-                Registers.Add(
+                Registers9.Add(
                     new Register($"TM{r}CNT_L - Timer {r} Control", timerAddrs[r],
                         new RegisterField("Prescaler Selection", 0, 1),
                         new RegisterField("Timer Cascade", 2),
@@ -1197,7 +1220,7 @@ namespace OptimeGBAEmulator
                 ));
             }
 
-            Registers.Add(
+            Registers9.Add(
                 new Register("KEYINPUT - Key Status", 0x4000130,
                     new RegisterField("Button A", 0),
                     new RegisterField("Button B", 1),
@@ -1215,7 +1238,7 @@ namespace OptimeGBAEmulator
             String[] ieIfStrings = { "IE - Interrupt Enable", "IF - Interrupt Request" };
             for (uint r = 0; r < 2; r++)
             {
-                Registers.Add(
+                Registers9.Add(
                     new Register(ieIfStrings[r], ieIfAddrs[r],
                         new RegisterField("PPU V-Blank", 0),
                         new RegisterField("PPU H-Blank", 1),
@@ -1230,27 +1253,52 @@ namespace OptimeGBAEmulator
                         new RegisterField("DMA 2", 10),
                         new RegisterField("DMA 3", 11),
                         new RegisterField("Keypad", 13),
-                        new RegisterField("Game Pak", 014
-                )));
+                        new RegisterField("Game Pak", 014)
+                    ));
             }
 
-            RegViewerSelected = Registers[0];
+            var ipcSync = new Register("IPCSYNC", 0x4000180,
+                new RegisterField("Data In", 0, 3),
+                new RegisterField("Data Out", 8, 11),
+                new RegisterField("Send Remote IRQ", 13),
+                new RegisterField("Enable Remote IRQ", 14)
+            );
+            var ipcFifoCnt = new Register("IPCFIFOCNT", 0x4000184,
+                new RegisterField("Send FIFO is Empty", 0),
+                new RegisterField("Send FIFO is Full", 1),
+                new RegisterField("Receive FIFO is Empty", 8),
+                new RegisterField("Receive FIFO is Full", 9),
+                new RegisterField("Enable Receive FIFO Not Empty IRQ", 10),
+                new RegisterField("Read Empty/Send Full Error", 14),
+                new RegisterField("Enable FIFOs", 15)
+            );
+
+            Registers7.Add(ipcSync);
+            Registers9.Add(ipcSync);
+            Registers7.Add(ipcFifoCnt);
+            Registers9.Add(ipcFifoCnt);
+
+            RegViewerSelected9 = Registers9[0];
+            RegViewerSelected7 = Registers7[0];
         }
 
-        Register RegViewerSelected;
+        Register RegViewerSelected7;
+        Register RegViewerSelected9;
 
         public void DrawRegViewer()
         {
             if (ImGui.Begin("Register Viewer"))
             {
-                if (ImGui.BeginCombo("", $"{Hex(RegViewerSelected.Address, 8)} {RegViewerSelected.Name}"))
+                ImGui.Columns(2);
+
+                if (ImGui.BeginCombo("##regviewer9-combo", $"{Hex(RegViewerSelected9.Address, 8)} {RegViewerSelected9.Name}"))
                 {
-                    foreach (Register r in Registers)
+                    foreach (Register r in Registers9)
                     {
-                        bool selected = r == RegViewerSelected;
+                        bool selected = r == RegViewerSelected9;
                         if (ImGui.Selectable($"{Hex(r.Address, 8)} {r.Name}", selected))
                         {
-                            RegViewerSelected = r;
+                            RegViewerSelected9 = r;
                         }
                         if (selected)
                         {
@@ -1259,9 +1307,8 @@ namespace OptimeGBAEmulator
                     }
                     ImGui.EndCombo();
                 }
-
-                uint value = Nds.Nds9.Mem.ReadDebug32(RegViewerSelected.Address);
-                foreach (RegisterField f in RegViewerSelected.Fields)
+                uint value = Nds.Nds9.Mem.ReadDebug32(RegViewerSelected9.Address);
+                foreach (RegisterField f in RegViewerSelected9.Fields)
                 {
                     if (f.Checkbox)
                     {
@@ -1276,6 +1323,42 @@ namespace OptimeGBAEmulator
                         ImGui.SameLine(); ImGui.Text(f.Name);
                     }
                 }
+
+                ImGui.NextColumn();
+
+                if (ImGui.BeginCombo("##regviewer7-combo", $"{Hex(RegViewerSelected7.Address, 8)} {RegViewerSelected7.Name}"))
+                {
+                    foreach (Register r in Registers7)
+                    {
+                        bool selected = r == RegViewerSelected7;
+                        if (ImGui.Selectable($"{Hex(r.Address, 8)} {r.Name}", selected))
+                        {
+                            RegViewerSelected7 = r;
+                        }
+                        if (selected)
+                        {
+                            ImGui.SetItemDefaultFocus();
+                        }
+                    }
+                    ImGui.EndCombo();
+                }
+                value = Nds.Nds7.Mem.ReadDebug32(RegViewerSelected7.Address);
+                foreach (RegisterField f in RegViewerSelected7.Fields)
+                {
+                    if (f.Checkbox)
+                    {
+                        bool ticked = Bits.BitTest(value, f.Bit);
+                        // ImGui.Text($"{f.Bit}");
+                        // ImGui.SameLine(); 
+                        ImGui.Checkbox(f.Name, ref ticked);
+                    }
+                    else
+                    {
+                        ImGui.Text($" {Bits.BitRange(value, f.Bit, f.EndBit)}");
+                        ImGui.SameLine(); ImGui.Text(f.Name);
+                    }
+                }
+
                 ImGui.End();
             }
         }

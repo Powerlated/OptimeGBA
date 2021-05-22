@@ -46,7 +46,7 @@ namespace OptimeGBA
             MemoryRegionMasks[0x8] = 0x00000000; // 
             MemoryRegionMasks[0x9] = 0x00000000; // 
             MemoryRegionMasks[0xA] = 0x00000000; // 
-            MemoryRegionMasks[0xB] = 0x00000000; // 
+            MemoryRegionMasks[0xB] = 0x00003FFF; // Data TCM????? 
             MemoryRegionMasks[0xC] = 0x00000000; // 
             MemoryRegionMasks[0xD] = 0x00000000; // 
             MemoryRegionMasks[0xE] = 0x00000000; // 
@@ -75,6 +75,9 @@ namespace OptimeGBA
                             table[i] = Nds9.Nds.Ppu.Renderer.Palettes;
                         }
                         break;
+                    case 0xB: // Data TCM???????????
+                        table[i] = Dtcm;
+                        break;
                     case 0xFF: // BIOS
                         if (!write)
                         {
@@ -83,6 +86,10 @@ namespace OptimeGBA
                         break;
                 }
             }
+        }
+
+        public void UpdateTcmSettings() {
+            
         }
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
@@ -265,9 +272,17 @@ namespace OptimeGBA
             {
                 return Nds9.Nds.Keypad.ReadHwio8(addr);
             }
+            else if (addr >= 0x4000180 && addr <= 0x400018B) // FIFO
+            {
+                return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
+            }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {
                 return Nds9.HwControl.ReadHwio8(addr);
+            }
+            else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
+            {
+                return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
             }
             return 0;
         }
@@ -284,6 +299,10 @@ namespace OptimeGBA
             if (addr >= 0x4000000 && addr <= 0x400006C) // PPU
             {
                 Nds9.Nds.Ppu.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4000180 && addr <= 0x400018B) // FIFO
+            {
+                Nds9.Nds.Ipcs[1].WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {

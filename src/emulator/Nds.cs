@@ -14,6 +14,10 @@ namespace OptimeGBA
         public Nds9 Nds9;
         public Scheduler Scheduler;
 
+        public Cp15 Cp15;
+
+        public Ipc[] Ipcs; // 0: to ARM9, 1: to ARM7
+
         public PpuNds Ppu;
 
         public Keypad Keypad = new Keypad();
@@ -29,6 +33,13 @@ namespace OptimeGBA
             Provider = provider;
             Scheduler = new Scheduler();
             // AudioCallback = provider.AudioCallback;
+
+            Ipcs = new Ipc[] {
+                new Ipc(this, 0),
+                new Ipc(this, 1),
+            };
+
+            Cp15 = new Cp15(this);
 
             Ppu = new PpuNds(this, Scheduler);
             Ppu.Renderer.DisableColorCorrection();
@@ -51,7 +62,7 @@ namespace OptimeGBA
                     uint arm9EntryAddr = GetUint(rom, 0x24);
                     uint arm9RamAddr = GetUint(rom, 0x28);
                     uint arm9Size = GetUint(rom, 0x2C);
-                    uint arm7RomOffset = GetUint(rom, 0x30) & ~0xFFFu;
+                    uint arm7RomOffset = GetUint(rom, 0x30);
                     uint arm7EntryAddr = GetUint(rom, 0x34);
                     uint arm7RamAddr = GetUint(rom, 0x38);
                     uint arm7Size = GetUint(rom, 0x3C);
@@ -60,6 +71,7 @@ namespace OptimeGBA
                     SharedRamControl = 3;
 
                     // ROM offset is aligned by 0x1000
+                    Console.WriteLine("ARM7 ROM Offset: " + Hex(arm7RomOffset, 8));
                     Console.WriteLine("ARM7 RAM Address: " + Hex(arm7RamAddr, 8));
                     for (uint i = 0; i < arm7Size; i++)
                     {
@@ -73,6 +85,7 @@ namespace OptimeGBA
                     Nds7.Cpu.R[15] = arm7RamAddr;
                     Nds7.Cpu.FlushPipeline();
 
+                    Console.WriteLine("ARM9 ROM Offset: " + Hex(arm9RomOffset, 8));
                     Console.WriteLine("ARM9 RAM Address: " + Hex(arm9RamAddr, 8));
                     for (uint i = 0; i < arm9Size; i++)
                     {
@@ -95,14 +108,17 @@ namespace OptimeGBA
             long beforeTicks = Scheduler.CurrentTicks;
             
             Nds7.Cpu.CheckInterrupts();
+            Nds7.Cpu.Execute();
             Nds9.Cpu.CheckInterrupts();
+            Nds9.Cpu.Execute();
 
-            uint ticks7 = Nds7.Cpu.Execute();
-            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            while (Arm9PendingTicks > 0) {
-                Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
-            }
-            Scheduler.CurrentTicks += ticks7;
+            // TODO: Proper NDS timings
+            // uint ticks7 = Nds7.Cpu.Execute();
+            // Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+            // while (Arm9PendingTicks > 0) {
+            //     Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+            // }
+            Scheduler.CurrentTicks += 4;
 
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {
