@@ -8,15 +8,13 @@ namespace OptimeGBA
     {
         public ProviderNds Provider;
 
-        public HwControl HwControl;
-
         public Nds7 Nds7;
         public Nds9 Nds9;
         public Scheduler Scheduler;
 
         public Cp15 Cp15;
 
-        public Ipc[] Ipcs; // 0: to ARM9, 1: to ARM7
+        public Ipc[] Ipcs; // 0: ARM7 to ARM9, 1: ARM9 to ARM7
 
         public PpuNds Ppu;
 
@@ -107,9 +105,7 @@ namespace OptimeGBA
         {
             long beforeTicks = Scheduler.CurrentTicks;
             
-            Nds7.Cpu.CheckInterrupts();
             Nds7.Cpu.Execute();
-            Nds9.Cpu.CheckInterrupts();
             Nds9.Cpu.Execute();
 
             // TODO: Proper NDS timings

@@ -7,14 +7,14 @@ namespace OptimeGBA
 {
     public sealed unsafe class PpuGba
     {
-        Device DeviceUnit;
+        Gba Gba;
         Scheduler Scheduler;
 
         public PpuRenderer Renderer;
 
-        public PpuGba(Device deviceUnit, Scheduler scheduler)
+        public PpuGba(Gba gba, Scheduler scheduler)
         {
-            DeviceUnit = deviceUnit;
+            Gba = gba;
             Scheduler = scheduler;
             Renderer = new PpuRenderer(false, 240, 160);
 
@@ -394,11 +394,11 @@ namespace OptimeGBA
         {
             Scheduler.AddEventRelative(SchedulerId.Ppu, 272 - cyclesLate, EndHblank);
 
-            DeviceUnit.Dma.RepeatHblank();
+            Gba.Dma.RepeatHblank();
 
             if (HBlankIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
+                Gba.HwControl.FlagInterrupt(InterruptGba.HBlank);
             }
 
         }
@@ -409,7 +409,7 @@ namespace OptimeGBA
 
             if (HBlankIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.HBlank);
+                Gba.HwControl.FlagInterrupt(InterruptGba.HBlank);
             }
         }
 
@@ -435,11 +435,11 @@ namespace OptimeGBA
                         VCount = 160;
 #endif
 
-                        DeviceUnit.Dma.RepeatVblank();
+                        Gba.Dma.RepeatVblank();
 
                         if (VBlankIrqEnable)
                         {
-                            DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VBlank);
+                            Gba.HwControl.FlagInterrupt(InterruptGba.VBlank);
                         }
 
                         Renderer.TotalFrames++;
@@ -488,7 +488,7 @@ namespace OptimeGBA
                 VCounterMatch = Renderer.VCount == VCountSetting;
                 if (VCounterMatch && VCounterIrqEnable)
                 {
-                    DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
+                    Gba.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
                 }
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
 
@@ -501,7 +501,7 @@ namespace OptimeGBA
 
             if (VCounterMatch && VCounterIrqEnable)
             {
-                DeviceUnit.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
+                Gba.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
             }
         }
     }

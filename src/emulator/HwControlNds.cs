@@ -3,7 +3,7 @@ using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
-    public enum InterruptNds7
+    public enum InterruptNds
     {
         VBlank = 0,
         HBlank = 1,
@@ -22,7 +22,7 @@ namespace OptimeGBA
         // 14, 15, unused
         IpcSync = 16,
         IpcSendFifoEmpty = 17,
-        IpcRecvFifoNotEmpty = 18,
+        IpcRecvFifoPending = 18,
         Slot1DataTransferComplete = 19,
         Slot1rq = 20,
         GeometryFifo = 21, // ARM9 only
@@ -31,18 +31,25 @@ namespace OptimeGBA
         Wifi = 24, // ARM7 only
     }
 
-    public sealed class HwControlNds : HwControl
+    public sealed class HwControlNds
     {
-        Nds Nds;
+        Device Device;
         bool Arm9; // Or Arm7
 
-        public HwControlNds(Nds nds, bool arm9)
+        public HwControlNds(Device device, bool arm9)
         {
-            Nds = nds;
+            Device = device;
             Arm9 = arm9;
         }
 
-        public override byte ReadHwio8(uint addr)
+        public bool IME = false;
+
+        public uint IE;
+        public uint IF;
+
+        public bool Available;
+
+        public byte ReadHwio8(uint addr)
         {
             byte val = 0;
             switch (addr)
@@ -68,20 +75,16 @@ namespace OptimeGBA
                     return (byte)(IF >> 16);
                 case 0x4000217: // IF B3
                     return (byte)(IF >> 24);
-
-
             }
             return val;
         }
 
-        public override void WriteHwio8(uint addr, byte val)
+        public void WriteHwio8(uint addr, byte val)
         {
             switch (addr)
             {
                 case 0x4000208: // IME
                     IME = BitTest(val, 0);
-                    Console.WriteLine(IME);
-
                     CheckAndFireInterrupts();
                     break;
 
@@ -107,55 +110,34 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000214: // IF B0
-                    IF &= 0xFFFFFF00;
-                    IF |= (uint)((uint)val << 0);
+                    IF &= ~(uint)((uint)val << 0);
                     CheckAndFireInterrupts();
                     break;
                 case 0x4000215: // IF B1
-                    IF &= 0xFFFF00FF;
-                    IF |= (uint)((uint)val << 8);
+                    IF &= ~(uint)((uint)val << 8);
                     CheckAndFireInterrupts();
                     break;
                 case 0x4000216: // IF B2
-                    IF &= 0xFF00FFFF;
-                    IF |= (uint)((uint)val << 16);
+                    IF &= ~(uint)((uint)val << 16);
                     CheckAndFireInterrupts();
                     break;
                 case 0x4000217: // IF B3
-                    IF &= 0x00FFFFFF;
-                    IF |= (uint)((uint)val << 24);
+                    IF &= ~(uint)((uint)val << 24);
                     CheckAndFireInterrupts();
-                    break;
-
-                case 0x4000301: // HALTCNT
-                    if (BitTest(val, 7))
-                    {
-                    }
-                    else
-                    {
-                        Nds.Scheduler.AddEventRelative(SchedulerId.HaltSkip, 0, Nds.HaltSkip);
-                    }
                     break;
             }
         }
 
-        public override void FlagInterrupt(InterruptGba i)
+        public void FlagInterrupt(InterruptNds i)
         {
-            IF |= (ushort)(1 << (int)i);
+            IF |= (uint)(1 << (int)i);
             CheckAndFireInterrupts();
         }
 
-        public override void CheckAndFireInterrupts()
+        public void CheckAndFireInterrupts()
         {
-            Available = (IE & IF & 0x3FFF) != 0;
-            if (Arm9)
-            {
-                Nds.Nds9.Cpu.FlagInterrupt = Available && IME;
-            }
-            else
-            {
-                Nds.Nds7.Cpu.FlagInterrupt = Available && IME;
-            }
+            Available = (IE & IF & 0xFFFFFFFF) != 0;
+            Device.Cpu.FlagInterrupt = Available && IME;
         }
     }
 }

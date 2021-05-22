@@ -4,7 +4,7 @@ namespace OptimeGBA
 {
     public sealed class ProviderNds : Provider
     {
-        public bool DirectBoot;
+        public bool DirectBoot = true;
 
         public byte[] Bios7;
         public byte[] Bios9;

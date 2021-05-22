@@ -2,7 +2,6 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Graphics.OpenGL;
-using OpenTK.Mathematics;
 using System;
 using System.IO;
 using ImGuiNET;
@@ -10,16 +9,13 @@ using System.Threading;
 using ImGuiUtils;
 using static Util;
 using System.Collections.Generic;
-using System.Runtime;
-using System.Numerics;
 using OptimeGBA;
-using Gee.External.Capstone.Arm;
 using System.Text;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using static SDL2.SDL;
 using static OptimeGBAEmulator.Window;
 using System.Linq;
+using static OptimeGBA.Bits;
 
 namespace OptimeGBAEmulator
 {
@@ -85,9 +81,9 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public uint Arm9Breakpoint = 0x2000718;
+        public uint Arm9Breakpoint = 0x2005960;
         public uint Arm7Breakpoint;
-        public bool EnableBreakpoints = false;
+        public bool EnableBreakpoints = true;
 
         public void CheckBreakpoints()
         {
@@ -284,6 +280,7 @@ namespace OptimeGBAEmulator
             DrawHwioLog();
             DrawBankedRegisters();
             DrawCpuProfiler();
+            DrawInterruptStatus();
         }
 
         public void ResetNds()
@@ -796,75 +793,6 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Timers.T[3].PrescalerSel]}");
 
                 ImGui.NextColumn();
-                // ImGui.Text($"FIFO A Current Bytes: {Nds.NdsAudio.A.Bytes}");
-                // ImGui.Text($"FIFO B Current Bytes: {Nds.NdsAudio.B.Bytes}");
-                // ImGui.Text($"FIFO A Collisions: {Nds.NdsAudio.A.Collisions}");
-                // ImGui.Text($"FIFO B Collisions: {Nds.NdsAudio.B.Collisions}");
-                // ImGui.Text($"FIFO A Total Pops: {Nds.NdsAudio.A.TotalPops}");
-                // ImGui.Text($"FIFO B Total Pops: {Nds.NdsAudio.B.TotalPops}");
-                // ImGui.Text($"FIFO A Empty Pops: {Nds.NdsAudio.A.EmptyPops}");
-                // ImGui.Text($"FIFO B Empty Pops: {Nds.NdsAudio.B.EmptyPops}");
-                // ImGui.Text($"FIFO A Full Inserts: {Nds.NdsAudio.A.FullInserts}");
-                // ImGui.Text($"FIFO B Full Inserts: {Nds.NdsAudio.B.FullInserts}");
-                // ImGui.Text("");
-                // ImGui.Text($"PSG A Output Value: {Nds.NdsAudio.Ndsudio.Out1}");
-                // ImGui.Text($"PSG B Output Value: {Nds.NdsAudio.Ndsudio.Out2}");
-                // ImGui.Text("");
-                // ImGui.Text($"Left Master Volume: {Nds.NdsAudio.Ndsudio.leftMasterVol}");
-                // ImGui.Text($"Right Master Volume: {Nds.NdsAudio.Ndsudio.rightMasterVol}");
-                // ImGui.Text("");
-                // ImGui.Text($"Pulse 1 Current Value: {Nds.NdsAudio.Ndsudio.pulse1Val}");
-                // ImGui.Text($"Pulse 2 Current Value: {Nds.NdsAudio.Ndsudio.pulse2Val}");
-                // ImGui.Text($"Wave Current Value: {Nds.NdsAudio.Ndsudio.waveVal}");
-                // ImGui.Text($"Noise Current Value: {Nds.NdsAudio.Ndsudio.noiseVal}");
-                // ImGui.Text("");
-                // ImGui.Text($"Pulse 1 Enabled: {Nds.NdsAudio.Ndsudio.pulse1_enabled}");
-                // ImGui.Text($"Pulse 1 Width: {Nds.NdsAudio.Ndsudio.pulse1_width}");
-                // ImGui.Text($"Pulse 1 DAC Enabled: {Nds.NdsAudio.Ndsudio.pulse1_dacEnabled}");
-                // ImGui.Text($"Pulse 1 Length Enable: {Nds.NdsAudio.Ndsudio.pulse1_lengthEnable}");
-                // ImGui.Text($"Pulse 1 Length Counter: {Nds.NdsAudio.Ndsudio.pulse1_lengthCounter}");
-                // ImGui.Text($"Pulse 1 Frequency Upper: {Nds.NdsAudio.Ndsudio.pulse1_frequencyUpper}");
-                // ImGui.Text($"Pulse 1 Frequency Lower: {Nds.NdsAudio.Ndsudio.pulse1_frequencyLower}");
-                // ImGui.Text($"Pulse 1 Volume: {Nds.NdsAudio.Ndsudio.pulse1_volume}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Up: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeUp}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Sweep: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeSweep}");
-                // ImGui.Text($"Pulse 1 Volume Envelope Start: {Nds.NdsAudio.Ndsudio.pulse1_volumeEnvelopeStart}");
-                // ImGui.Text($"Pulse 1 Output Left: {Nds.NdsAudio.Ndsudio.pulse1_outputLeft}");
-                // ImGui.Text($"Pulse 1 Output Right: {Nds.NdsAudio.Ndsudio.pulse1_outputRight}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Period: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepPeriod}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Up: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepUp}");
-                // ImGui.Text($"Pulse 1 Freq Sweep Shift: {Nds.NdsAudio.Ndsudio.pulse1_freqSweepShift}");
-                // ImGui.Text($"Pulse 1 Updated: {Nds.NdsAudio.Ndsudio.pulse1_updated}");
-                // ImGui.Text("");
-                // ImGui.Text($"Wave Bank: {Nds.NdsAudio.Ndsudio.wave_bank}");
-                // ImGui.Text($"Wave Dimension: {Nds.NdsAudio.Ndsudio.wave_dimension}");
-                // ImGui.Text($"Wave Enabled: {Nds.NdsAudio.Ndsudio.wave_enabled}");
-                // ImGui.Text($"Wave DAC Enabled: {Nds.NdsAudio.Ndsudio.wave_dacEnabled}");
-                // ImGui.Text($"Wave Length Enable: {Nds.NdsAudio.Ndsudio.wave_lengthEnable}");
-                // ImGui.Text($"Wave Length Counter: {Nds.NdsAudio.Ndsudio.wave_lengthCounter}");
-                // ImGui.Text($"Wave Frequency Upper: {Nds.NdsAudio.Ndsudio.wave_frequencyUpper}");
-                // ImGui.Text($"Wave Frequency Lower: {Nds.NdsAudio.Ndsudio.wave_frequencyLower}");
-                // ImGui.Text($"Wave Volume: {Nds.NdsAudio.Ndsudio.wave_volume}");
-                // ImGui.Text($"Wavetable 0: {string.Join(" ", Nds.NdsAudio.Ndsudio.wave_waveTable0)}");
-                // ImGui.Text($"Wavetable 1: {string.Join(" ", Nds.NdsAudio.Ndsudio.wave_waveTable1)}");
-
-                // ImGui.Text($"Buffer Samples: {Nds.NdsAudio.SampleBuffer.Entries / 2}");
-                // ImGui.Checkbox("Enable PSGs", ref Nds.NdsAudio.EnablePsg);
-                // ImGui.Checkbox("Enable FIFOs", ref Nds.NdsAudio.EnableFifo);
-
-                // ImGui.Text($"PSG Factor: {Nds.NdsAudio.Ndsudio.PsgFactor}");
-                // if (ImGui.Button("-##psg"))
-                // {
-                //     if (Nds.NdsAudio.Ndsudio.PsgFactor > 0)
-                //     {
-                //         Nds.NdsAudio.Ndsudio.PsgFactor--;
-                //     }
-                // }
-                // ImGui.SameLine();
-                // if (ImGui.Button("+##psg"))
-                // {
-                //     Nds.NdsAudio.Ndsudio.PsgFactor++;
-                // }
 
                 // ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[0].ScreenSize]}");
                 // ImGui.Text($"BG0 Scroll X: {Nds.Ppu.Backgrounds[0].HorizontalOffset}");
@@ -1234,29 +1162,6 @@ namespace OptimeGBAEmulator
                     new RegisterField("Button L", 9)
             ));
 
-            uint[] ieIfAddrs = { 0x4000200, 0x4000202 };
-            String[] ieIfStrings = { "IE - Interrupt Enable", "IF - Interrupt Request" };
-            for (uint r = 0; r < 2; r++)
-            {
-                Registers9.Add(
-                    new Register(ieIfStrings[r], ieIfAddrs[r],
-                        new RegisterField("PPU V-Blank", 0),
-                        new RegisterField("PPU H-Blank", 1),
-                        new RegisterField("PPU V-Counter Match", 2),
-                        new RegisterField("PPU Timer 0 Overflow", 3),
-                        new RegisterField("PPU Timer 1 Overflow", 4),
-                        new RegisterField("PPU Timer 2 Overflow", 5),
-                        new RegisterField("PPU Timer 3 Overflow", 6),
-                        new RegisterField("Serial", 7),
-                        new RegisterField("DMA 0", 8),
-                        new RegisterField("DMA 1", 9),
-                        new RegisterField("DMA 2", 10),
-                        new RegisterField("DMA 3", 11),
-                        new RegisterField("Keypad", 13),
-                        new RegisterField("Game Pak", 014)
-                    ));
-            }
-
             var ipcSync = new Register("IPCSYNC", 0x4000180,
                 new RegisterField("Data In", 0, 3),
                 new RegisterField("Data Out", 8, 11),
@@ -1268,7 +1173,7 @@ namespace OptimeGBAEmulator
                 new RegisterField("Send FIFO is Full", 1),
                 new RegisterField("Receive FIFO is Empty", 8),
                 new RegisterField("Receive FIFO is Full", 9),
-                new RegisterField("Enable Receive FIFO Not Empty IRQ", 10),
+                new RegisterField("Enable Receive FIFO Pending IRQ", 10),
                 new RegisterField("Read Empty/Send Full Error", 14),
                 new RegisterField("Enable FIFOs", 15)
             );
@@ -1522,5 +1427,65 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public static readonly string[] IeIfBitNames = {
+            "PPU V-Blank",
+            "PPU H-Blank",
+            "PPU V-Counter Match",
+            "Timer 0 Overflow",
+            "Timer 1 Overflow",
+            "Timer 2 Overflow",
+            "Timer 3 Overflow",
+            "SIO/RCNT/RTC",
+            "DMA 0",
+            "DMA 1",
+            "DMA 2",
+            "DMA 3",
+            "Keypad",
+            "Slot 2",
+            "Unused",
+            "Unused",
+            "IPC Sync",
+            "IPC Empty Send FIFO",
+            "IPC Pending FIFO",
+            "Slot 1 Data Transfer Complete",
+            "Slot 1 IREQ_MC",
+            "Geometry Command FIFO",
+            "Screens Unfolding",
+            "SPI Bus",
+            "Wi-Fi"
+        };
+
+        public void DrawInterruptStatus()
+        {
+            if (ImGui.Begin("Interrupt Status"))
+            {
+                ImGui.Columns(2);
+
+                ImGui.Text("ARM9");
+                ImGui.SetColumnWidth(0, 61);
+                displayCheckbox("IME##arm9", Nds.Nds9.HwControl.IME);
+                drawInterruptColumn(Nds.Nds9.HwControl.IE, Nds.Nds9.HwControl.IF, false);
+                ImGui.NextColumn();
+                ImGui.Text("ARM7");
+                displayCheckbox("IME##arm7", Nds.Nds7.HwControl.IME);
+                drawInterruptColumn(Nds.Nds7.HwControl.IE, Nds.Nds7.HwControl.IF, true);
+
+                ImGui.End();
+            }
+        }
+
+        public void drawInterruptColumn(uint IE, uint IF, bool text)
+        {
+            ImGui.Text("IE  IF");
+            for (uint i = 0; i < IeIfBitNames.Length; i++)
+            {
+                displayCheckbox("", BitTest(IE, (byte)i)); ImGui.SameLine();
+                displayCheckbox("", BitTest(IF, (byte)i)); 
+                if (text) {
+                    ImGui.SameLine();
+                    ImGui.Text(IeIfBitNames[i]);
+                }
+            }
+        }
     }
 }

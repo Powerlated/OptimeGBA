@@ -7,12 +7,13 @@ namespace OptimeGBA
     {
         public Nds Nds;
         public MemoryNds9 Mem;
+        public HwControlNds HwControl;
         
         public Nds9(Nds nds)
         { 
             Nds = nds;
 
-            HwControl = new HwControlNds(Nds, true);
+            HwControl = new HwControlNds(this, true);
 
             Mem = new MemoryNds9(this, nds.Provider);
             Cpu = new Arm7(this, Mem, true, true, Nds.Cp15);

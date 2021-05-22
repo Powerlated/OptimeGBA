@@ -657,23 +657,14 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
-                bool Negative = Gba.Cpu.Negative;
-                bool Zero = Gba.Cpu.Zero;
-                bool Carry = Gba.Cpu.Carry;
-                bool Overflow = Gba.Cpu.Overflow;
-                bool Sticky = Gba.Cpu.Sticky;
-                bool IRQDisable = Gba.Cpu.IRQDisable;
-                bool FIQDisable = Gba.Cpu.FIQDisable;
-                bool ThumbState = Gba.Cpu.ThumbState;
-
-                ImGui.Checkbox("Negative", ref Negative);
-                ImGui.Checkbox("Zero", ref Zero);
-                ImGui.Checkbox("Carry", ref Carry);
-                ImGui.Checkbox("Overflow", ref Overflow);
-                ImGui.Checkbox("Sticky", ref Sticky);
-                ImGui.Checkbox("IRQ Disable", ref IRQDisable);
-                ImGui.Checkbox("FIQ Disable", ref FIQDisable);
-                ImGui.Checkbox("Thumb State", ref ThumbState);
+                displayCheckbox("Negative", Gba.Cpu.Negative);
+                displayCheckbox("Zero", Gba.Cpu.Zero);
+                displayCheckbox("Carry", Gba.Cpu.Carry);
+                displayCheckbox("Overflow", Gba.Cpu.Overflow);
+                displayCheckbox("Sticky", Gba.Cpu.Sticky);
+                displayCheckbox("IRQ Disable", Gba.Cpu.IRQDisable);
+                displayCheckbox("FIQ Disable", Gba.Cpu.FIQDisable);
+                displayCheckbox("Thumb State", Gba.Cpu.ThumbState);
 
                 // ImGui.Text($"BIOS Reads: {Gba.Mem.BiosReads}");
                 // ImGui.Text($"EWRAM Reads: {Gba.Mem.EwramReads}");

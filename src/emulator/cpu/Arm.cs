@@ -1,5 +1,6 @@
 using static OptimeGBA.Bits;
 using static Util;
+using System.Numerics;
 using System;
 
 namespace OptimeGBA
@@ -1592,15 +1593,37 @@ namespace OptimeGBA
             uint opcode2 = (ins >> 5) & 0x7;
             uint cRm = (ins >> 0) & 0xF;
 
-            uint data = arm7.Cp15.TransferFrom(opcode1, cRn, cRm, opcode2);
-            if (rd == 15)
+            if (coproc == 15)
             {
-                arm7.Negative = BitTest(data, 31);
-                arm7.Zero = BitTest(data, 30);
-                arm7.Carry = BitTest(data, 29);
-                arm7.Overflow = BitTest(data, 28);
-            } else {
-                arm7.R[rd] = data;
+                uint data = arm7.Cp15.TransferFrom(opcode1, cRn, cRm, opcode2);
+                if (rd == 15)
+                {
+                    arm7.Negative = BitTest(data, 31);
+                    arm7.Zero = BitTest(data, 30);
+                    arm7.Carry = BitTest(data, 29);
+                    arm7.Overflow = BitTest(data, 28);
+                }
+                else
+                {
+                    arm7.R[rd] = data;
+                }
+            }
+        }
+
+        public static void CLZ(Arm7 arm7, uint ins)
+        {
+            uint rd = (ins >> 12) & 0xF;
+            uint rm = (ins >> 0) & 0xF;
+
+            uint rmVal = arm7.R[rm];
+
+            if (rmVal == 0)
+            {
+                arm7.R[rd] = 32;
+            }
+            else
+            {
+                arm7.R[rd] = (uint)BitOperations.LeadingZeroCount(rmVal);
             }
         }
 

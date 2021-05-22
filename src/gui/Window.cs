@@ -298,5 +298,9 @@ namespace OptimeGBAEmulator
             }
             return disasm;
         }
+
+        public static void displayCheckbox(string label, bool v) {
+            ImGui.Checkbox(label, ref v);
+        }
     }
 }

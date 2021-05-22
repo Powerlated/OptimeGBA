@@ -510,6 +510,11 @@ namespace OptimeGBA
             uint val = arm7.R[rm];
             arm7.LineDebug($"R{rm}");
 
+            // BLX (2)
+            if (BitTest(ins, 7)) {
+                arm7.R[14] = (arm7.R[15] - 2) | 1;
+            }
+
             arm7.ThumbState = BitTest(val, 0);
             arm7.R[15] = val & 0xFFFFFFFE;
             arm7.FlushPipeline();
@@ -1304,6 +1309,10 @@ namespace OptimeGBA
             arm7.Device.StateChange();
         }
 
+        public static void BLXRegister(Arm7 arm7, ushort ins) {
+
+            arm7.Device.StateChange();
+        }
 
         public static void Invalid(Arm7 arm7, ushort ins)
         {

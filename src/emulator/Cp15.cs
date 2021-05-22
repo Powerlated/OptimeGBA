@@ -16,7 +16,7 @@ namespace OptimeGBA
 
         public void TransferTo(uint opcode1, uint rdVal, uint cRn, uint cRm, uint opcode2)
         {
-            Console.WriteLine($"TO CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(rdVal, 8)}");
+            // Console.WriteLine($"TO CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(rdVal, 8)}");
 
             uint reg = ((cRn & 0xF) << 8) | ((cRm & 0xF) << 4) | (opcode2 & 0x7);
 
@@ -48,9 +48,9 @@ namespace OptimeGBA
                     break;
             }
 
-            Console.WriteLine($"FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(val, 8)}");
+            // Console.WriteLine($"FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(val, 8)}");
 
-            return 0;
+            return val;
         }
     }
 }

@@ -2,6 +2,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Diagnostics;
 using static OptimeGBA.Bits;
+using static Util;
 using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
@@ -399,6 +400,11 @@ namespace OptimeGBA
             else if ((ins & 0b1111111100000000000011010000) == 0b0001001000000000000000010000) // BX
             {
                 return Arm.BX;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111111110000111111110000
+            else if ((ins & 0b1111111100000000000011110000) == 0b0001011000000000000000010000) // Count Leading Zeros
+            {
+                return Arm.CLZ;
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1111101100000000000011110000) == 0b0001000000000000000010010000) // SWP / SWPB

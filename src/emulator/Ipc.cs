@@ -18,15 +18,17 @@ namespace OptimeGBA
         public uint LastSendValue;
         public uint LastRecvValue;
 
+        public bool SendFifoEmptyIrqLevel;
+        public bool RecvFifoPendingIrqLevel;
+
         public byte IpcSyncDataOut;
 
         // IPCSYNC
-        public bool SendRemoteIrq;
         public bool EnableRemoteIrq;
 
         // IPCFIFOCNT
         public bool EnableSendFifoEmptyIrq;
-        public bool EnableRecvFifoNotEmptyIrq;
+        public bool EnableRecvFifoPendingIrq;
 
         public bool FifoError;
         public bool EnableFifos;
@@ -42,7 +44,6 @@ namespace OptimeGBA
                 case 0x4000181: // IPCSYNC B1
                     val |= IpcSyncDataOut;
 
-                    if (SendRemoteIrq) val = BitSet(val, 13 - 8);
                     if (EnableRemoteIrq) val = BitSet(val, 14 - 8);
                     break;
 
@@ -50,18 +51,31 @@ namespace OptimeGBA
                     if (GetRemote().RecvFifo.Entries == 0) val = BitSet(val, 0); // Send FIFO empty
                     if (GetRemote().RecvFifo.Entries == 16) val = BitSet(val, 1); // Send FIFO full
                     if (EnableSendFifoEmptyIrq) val = BitSet(val, 2);
+                    CheckSendFifoEmptyIrq();
                     break;
                 case 0x4000185: // IPCFIFOCNT B1
                     if (RecvFifo.Entries == 0) val = BitSet(val, 0); // Receive FIFO empty
                     if (RecvFifo.Entries == 16) val = BitSet(val, 1); // Receive FIFO full
-                    if (EnableRecvFifoNotEmptyIrq) val = BitSet(val, 2);
+                    if (EnableRecvFifoPendingIrq) val = BitSet(val, 2);
+                    CheckRecvFifoPendingIrq();
 
                     if (FifoError) val = BitSet(val, 6);
                     if (EnableFifos) val = BitSet(val, 7);
                     break;
 
                 case 0x4100000: // IPCFIFORECV B0
-                    LastRecvValue = RecvFifo.Pop();
+                    if (RecvFifo.Entries > 0)
+                    {
+                        if (EnableFifos)
+                        {
+                            LastRecvValue = RecvFifo.Pop();
+                            GetRemote().CheckSendFifoEmptyIrq();
+                        }
+                    }
+                    else
+                    {
+                        FifoError = true;
+                    }
                     val = (byte)(LastRecvValue >> 0);
                     break;
                 case 0x4100001: // IPCFIFORECV B1
@@ -88,6 +102,20 @@ namespace OptimeGBA
                 case 0x4000181: // IPCSYNC B1
                     IpcSyncDataOut = (byte)(val & 0xF);
 
+                    // send IRQ to remote 
+                    if (BitTest(val, 13 - 8) && GetRemote().EnableRemoteIrq)
+                    {
+                        // Console.WriteLine($"[{Id}] Sending IRQ");
+                        switch (Id)
+                        {
+                            case 0:
+                                Nds.Nds9.HwControl.FlagInterrupt(InterruptNds.IpcSync);
+                                break;
+                            case 1:
+                                Nds.Nds7.HwControl.FlagInterrupt(InterruptNds.IpcSync);
+                                break;
+                        }
+                    }
                     EnableRemoteIrq = BitTest(val, 14 - 8);
                     break;
 
@@ -99,7 +127,7 @@ namespace OptimeGBA
                     }
                     break;
                 case 0x4000185: // IPCFIFOCNT B1
-                    EnableRecvFifoNotEmptyIrq = BitTest(val, 2);
+                    EnableRecvFifoPendingIrq = BitTest(val, 2);
 
                     if (BitTest(val, 6))
                     {
@@ -123,7 +151,11 @@ namespace OptimeGBA
                 case 0x400018B: // IPCFIFOSEND B3
                     LastSendValue &= 0x00FFFFFF;
                     LastSendValue |= (uint)(val << 24);
-                    GetRemote().RecvFifo.Insert(LastSendValue);
+                    if (EnableFifos)
+                    {
+                        GetRemote().RecvFifo.Insert(LastSendValue);
+                        GetRemote().CheckRecvFifoPendingIrq();
+                    }
                     break;
             }
         }
@@ -131,6 +163,39 @@ namespace OptimeGBA
         public Ipc GetRemote()
         {
             return Nds.Ipcs[Id ^ 1];
+        }
+
+        public void CheckSendFifoEmptyIrq()
+        {
+            var prev = SendFifoEmptyIrqLevel;
+            SendFifoEmptyIrqLevel = GetRemote().RecvFifo.Entries == 0 && EnableSendFifoEmptyIrq;
+            if (!prev && SendFifoEmptyIrqLevel)
+            {
+                FlagSourceInterrupt(InterruptNds.IpcSendFifoEmpty);
+            }
+        }
+
+        public void CheckRecvFifoPendingIrq()
+        {
+            var prev = RecvFifoPendingIrqLevel;
+            RecvFifoPendingIrqLevel = RecvFifo.Entries > 0 && EnableRecvFifoPendingIrq;
+            if (!prev && RecvFifoPendingIrqLevel)
+            {
+                FlagSourceInterrupt(InterruptNds.IpcRecvFifoPending);
+            }
+        }
+
+        public void FlagSourceInterrupt(InterruptNds interrupt)
+        {
+            switch (Id)
+            {
+                case 0:
+                    Nds.Nds7.HwControl.FlagInterrupt(interrupt);
+                    break;
+                case 1:
+                    Nds.Nds9.HwControl.FlagInterrupt(interrupt);
+                    break;
+            }
         }
     }
 }

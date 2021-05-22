@@ -21,7 +21,7 @@ namespace OptimeGBA
         GamePak = 13,
     }
 
-    public sealed class HwControlGba : HwControl
+    public sealed class HwControlGba
     {
         Gba Gba;
 
@@ -30,7 +30,14 @@ namespace OptimeGBA
             Gba = gba;
         }
 
-        public override byte ReadHwio8(uint addr)
+        public bool IME = false;
+
+        public uint IE;
+        public uint IF;
+
+        public bool Available;
+
+        public byte ReadHwio8(uint addr)
         {
             byte val = 0;
             switch (addr)
@@ -52,7 +59,7 @@ namespace OptimeGBA
             return val;
         }
 
-        public override void WriteHwio8(uint addr, byte val)
+        public void WriteHwio8(uint addr, byte val)
         {
             switch (addr)
             {
@@ -94,13 +101,13 @@ namespace OptimeGBA
             }
         }
 
-        public override void FlagInterrupt(InterruptGba i)
+        public void FlagInterrupt(InterruptGba i)
         {
             IF |= (ushort)(1 << (int)i);
             CheckAndFireInterrupts();
         }
         
-        public override void CheckAndFireInterrupts()
+        public void CheckAndFireInterrupts()
         {
             Available = (IE & IF & 0x3FFF) != 0;
             Gba.Cpu.FlagInterrupt = Available && IME;
