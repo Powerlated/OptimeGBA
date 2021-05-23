@@ -826,6 +826,12 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool CheckCondition(uint code)
         {
+            // Unconditional execution is most common, do a quick check 
+            // instead of going through a slow switch
+            if (code == 0xE) {
+                return true;
+            }
+            
             switch (code)
             {
                 case 0x0: // Zero, Equal, Z=1
@@ -860,10 +866,9 @@ namespace OptimeGBA
                     return true;
                 case 0xF: // some ARMv5 instructions have 0xF as condition code in encoding
                     return true;
-                default:
-                    Error($"Invalid condition? {Util.Hex(code, 1)}");
-                    return false;
             }
+
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
