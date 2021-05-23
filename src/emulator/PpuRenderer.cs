@@ -281,7 +281,7 @@ namespace OptimeGBA
                     {
                         val = WinObjEnable;
                     }
-                    
+
                     WinMasks[i] = val;
 
                     // Also prepare backgrounds arrays in this loop
@@ -507,8 +507,8 @@ namespace OptimeGBA
         public void RenderObjs(byte[] vram, uint vcount)
         {
             // OAM address for the last sprite
-            uint oamBase = 1016;
-            for (int s = 127; s >= 0; s--, oamBase -= 8)
+            uint oamBase = 0;
+            for (int s = 127; s >= 0; s--, oamBase += 8)
             {
                 uint attr0 = (uint)(Oam[oamBase + 1] << 8 | Oam[oamBase + 0]);
                 uint attr1 = (uint)(Oam[oamBase + 3] << 8 | Oam[oamBase + 2]);
@@ -560,6 +560,9 @@ namespace OptimeGBA
                         render = true;
                     }
                 }
+
+                if ((byte)mode == 3) render = false;
+                if ((byte)shape == 3) render = false;
 
                 if (!render) continue;
 
@@ -716,11 +719,17 @@ namespace OptimeGBA
                     switch (mode)
                     {
                         case ObjMode.Normal:
-                        case ObjMode.Translucent:
-                            if (priority <= ObjBuffer[x].Priority)
+                            if (priority < ObjBuffer[x].Priority)
                             {
                                 ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
                             }
+                            break;
+                        case ObjMode.Translucent:
+                            if (priority < ObjBuffer[x].Priority)
+                            {
+                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                            }
+                            ObjBuffer[x].Priority = priority;
                             break;
                         default:
                             if (ObjWindowDisplayFlag)
@@ -738,17 +747,31 @@ namespace OptimeGBA
                 uint vramValue = vram[vramAddr];
                 // Lower 4 bits is left pixel, upper 4 bits is right pixel
                 uint color = (vramValue >> (int)((intraTileX & 1) * 4)) & 0xF;
+                byte finalColor = (byte)(palette * 16 + color);
 
                 if (color != 0)
                 {
-                    if (mode != ObjMode.ObjWindow)
+                    switch (mode)
                     {
-                        byte finalColor = (byte)(palette * 16 + color);
-                        ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                    }
-                    else if (ObjWindowDisplayFlag)
-                    {
-                        ObjWindowBuffer[x] = 1;
+                        case ObjMode.Normal:
+                            if (priority < ObjBuffer[x].Priority)
+                            {
+                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                            }
+                            break;
+                        case ObjMode.Translucent:
+                            if (priority < ObjBuffer[x].Priority)
+                            {
+                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
+                            }
+                            ObjBuffer[x].Priority = priority;
+                            break;
+                        default:
+                            if (ObjWindowDisplayFlag)
+                            {
+                                ObjWindowBuffer[x] = 1;
+                            }
+                            break;
                     }
                 }
             }
@@ -780,9 +803,9 @@ namespace OptimeGBA
                     if (objPixel.Priority <= hiPrio)
                     {
                         loPaletteIndex = hiPaletteIndex;
-                        hiPaletteIndex = objPaletteIndex;
-
                         loPixelFlag = hiPixelFlag;
+
+                        hiPaletteIndex = objPaletteIndex;
                         hiPixelFlag = BlendFlag.Obj;
                     }
                     else if (objPixel.Priority <= loPrio)
