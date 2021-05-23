@@ -21,23 +21,24 @@ namespace OptimeGBA
             ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
 
-            BackgroundBuffers = new byte*[]{
-            MemoryUtil.AllocateUnmanagedArray(Width + 8),
-            MemoryUtil.AllocateUnmanagedArray(Width + 8),
-            MemoryUtil.AllocateUnmanagedArray(Width + 8),
-            MemoryUtil.AllocateUnmanagedArray(Width + 8),
-        };
-
+            WinMasks = MemoryUtil.AllocateUnmanagedArray(Width);
+            BgLoColor = MemoryUtil.AllocateUnmanagedArray(width);
+            BgHiColor = MemoryUtil.AllocateUnmanagedArray(width);
+            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width);
+            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width);
+            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width);
+            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width);
 #else 
             ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
 
-            BackgroundBuffers = new byte[][] {
-            MemoryUtil.AllocateManagedArray(Width + 8),
-            MemoryUtil.AllocateManagedArray(Width + 8),
-            MemoryUtil.AllocateManagedArray(Width + 8),
-            MemoryUtil.AllocateManagedArray(Width + 8),
-        };
+            WinMasks = MemoryUtil.AllocateManagedArray(Width);
+            BgLoColor = MemoryUtil.AllocateManagedArray(width);
+            BgHiColor = MemoryUtil.AllocateManagedArray(width);
+            BgHiPrio = MemoryUtil.AllocateManagedArray(width);
+            BgLoPrio = MemoryUtil.AllocateManagedArray(width);
+            BgHiFlags = MemoryUtil.AllocateManagedArray(width);
+            BgLoFlags = MemoryUtil.AllocateManagedArray(width);
 #endif
             ObjBuffer = new ObjPixel[Width];
             ObjWindowBuffer = new byte[Width];
@@ -67,34 +68,37 @@ namespace OptimeGBA
         public uint* ScreenFront;
         public uint* ScreenBack;
         public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(1024);
-        
-        public byte*[] BackgroundBuffers;
 
-        // public byte* Palettes = MemoryUtil.AllocateUnmanagedArray(1024);
-        // public byte* Vram = MemoryUtil.AllocateUnmanagedArray(98304);
-        // public byte* Oam = MemoryUtil.AllocateUnmanagedArray(1024);
+        public byte* WinMasks;
+
+        public byte* BgLoColor;
+        public byte* BgHiColor;
+        public byte* BgHiPrio;
+        public byte* BgLoPrio;
+        public byte* BgHiFlags;
+        public byte* BgLoFlags;
 
         ~PpuRenderer()
         {
             MemoryUtil.FreeUnmanagedArray(ScreenFront);
             MemoryUtil.FreeUnmanagedArray(ScreenBack);
             MemoryUtil.FreeUnmanagedArray(ProcessedPalettes);
-
-            // MemoryUtil.FreeUnmanagedArray(Palettes);
-            // MemoryUtil.FreeUnmanagedArray(Vram);
-            // MemoryUtil.FreeUnmanagedArray(Oam);
-
-            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[0]);
-            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[1]);
-            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[2]);
-            MemoryUtil.FreeUnmanagedArray(BackgroundBuffers[3]);
+            
+            MemoryUtil.FreeUnmanagedArray(WinMasks);
         }
 #else
         public uint[] ScreenFront;
         public uint[] ScreenBack;
         public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(1024);
 
-        public byte[][] BackgroundBuffers;
+        public byte[] WinMasks;
+
+        public byte[] BgLoColor;
+        public byte[] BgHiColor;
+        public byte[] BgHiPrio;
+        public byte[] BgLoPrio;
+        public byte[] BgHiFlags;
+        public byte[] BgLoFlags;
 #endif
 
         public byte[] Palettes = MemoryUtil.AllocateManagedArray(2048); // 1024 for GBA, 2048 for NDS A and B
@@ -191,6 +195,11 @@ namespace OptimeGBA
         {
             if (!ForcedBlank && DisplayMode != 0)
             {
+                if (BgMode <= 2)
+                {
+                    PrepareBackgroundAndWindow();
+                }
+
                 switch (DisplayMode)
                 {
                     case 1: // Regular rendering
@@ -244,51 +253,45 @@ namespace OptimeGBA
             ScreenFront = temp;
         }
 
-        public int[] BgList = new int[4];
-#if UNSAFE
-        public byte*[] BgRefList = new byte*[4];
-#else
-        public byte[][] BgRefList = new byte[4][];
-#endif
-        public uint[] BgPrioList = new uint[4];
-        public uint BgCount = 0;
         public bool BackgroundSettingsDirty = true;
 
-        public void PrepareBackgrounds()
+        public void PrepareBackgroundAndWindow()
         {
-            BgCount = 0;
-            for (int bg = 0; bg < 4; bg++)
+            bool win0InsideY = ((VCount - Win0VTop) & 0xFF) < ((Win0VBottom - Win0VTop) & 0xFF) && Window0DisplayFlag;
+            bool win1InsideY = ((VCount - Win1VTop) & 0xFF) < ((Win1VBottom - Win1VTop) & 0xFF) && Window1DisplayFlag;
+
+            uint win0ThresholdX = (uint)(Win0HRight - Win0HLeft) & 0xFF;
+            uint win1ThresholdX = (uint)(Win1HRight - Win1HLeft) & 0xFF;
+
+            for (int i = 0; i < Width; i++)
             {
-                // -1 means disabled
-                BgList[bg] = -1;
-                BgList[BgCount] = bg;
-                if (ScreenDisplayBg[bg] && DebugEnableBg[bg])
+                WinMasks[i] = 0b111111;
+
+                if (AnyWindowEnabled)
                 {
-                    BgCount++;
+                    WinMasks[i] = (byte)WinOutEnable;
+
+                    if (win0InsideY && ((i - Win0HLeft) & 0xFF) < win0ThresholdX)
+                    {
+                        WinMasks[i] = (byte)Win0InEnable;
+                    }
+                    else if (win1InsideY && ((i - Win1HLeft) & 0xFF) < win1ThresholdX)
+                    {
+                        WinMasks[i] = (byte)Win1InEnable;
+                    }
+                    else if (ObjWindowBuffer[i] != 0)
+                    {
+                        WinMasks[i] = (byte)WinObjEnable;
+                    }
                 }
-            }
 
-            // Insertion sort backgrounds according to priority
-            int key;
-            int j;
-            for (int i = 1; i < BgCount; i++)
-            {
-                key = (int)Backgrounds[BgList[i]].Priority;
-                j = i - 1;
-
-                while (j >= 0 && Backgrounds[BgList[j]].Priority > key)
-                {
-                    Swap(ref BgList[j + 1], ref BgList[j]);
-                    j--;
-                }
-            }
-
-            for (int i = 0; i < BgCount; i++)
-            {
-                // Look up priorities for each background
-                BgPrioList[i] = Backgrounds[BgList[i]].Priority;
-                // Put references in place
-                BgRefList[i] = BackgroundBuffers[BgList[i]];
+                // Also prepare backgrounds arrays in this loop
+                BgLoColor[i] = 0;
+                BgHiColor[i] = 0;
+                BgHiPrio[i] = 4;
+                BgLoPrio[i] = 4;
+                BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                BgLoFlags[i] = (byte)BlendFlag.Backdrop;
             }
         }
 
@@ -328,7 +331,7 @@ namespace OptimeGBA
             uint lineIndex = 0;
             int tp = (int)(pixelX & 7);
 
-            var bgBuffer = BackgroundBuffers[bg.Id];
+            byte flag = (byte)(1 << bg.Id);
 
             for (uint tile = 0; tile < Width / 8 + 1; tile++)
             {
@@ -374,7 +377,7 @@ namespace OptimeGBA
                         byte vramValue = vram[vramAddr];
 
                         byte finalColor = vramValue;
-                        bgBuffer[lineIndex] = finalColor;
+                        PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
 
                         pixelX++;
                         lineIndex++;
@@ -397,7 +400,7 @@ namespace OptimeGBA
 
                         byte finalColor = (byte)(palettebase + color);
                         if (color == 0) finalColor = 0;
-                        bgBuffer[lineIndex] = finalColor;
+                        PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
 
                         pixelX++;
                         lineIndex++;
@@ -429,7 +432,7 @@ namespace OptimeGBA
             uint tileY = pixelYWrapped >> 3;
             uint intraTileY = pixelYWrapped & 7;
 
-            var bgBuffer = BackgroundBuffers[bg.Id];
+            byte flag = (byte)(1 << bg.Id);
 
             for (uint p = 0; p < Width; p++)
             {
@@ -451,9 +454,27 @@ namespace OptimeGBA
                 byte vramValue = vram[vramAddr];
 
                 byte finalColor = vramValue;
-                bgBuffer[lineIndex] = finalColor;
+                PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
 
                 lineIndex++;
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PlaceBgPixel(uint lineIndex, byte color, byte priority, byte flag)
+        {
+            if (color != 0 && (WinMasks[lineIndex] & flag) != 0)
+            {
+                // if (priority < BgLoColor[lineIndex])
+                // {
+                    BgLoPrio[lineIndex] = BgHiPrio[lineIndex];
+                    BgLoColor[lineIndex] = BgHiColor[lineIndex];
+                    BgLoFlags[lineIndex] = BgHiFlags[lineIndex];
+                // }
+
+                BgHiPrio[lineIndex] = priority;
+                BgHiColor[lineIndex] = color;
+                BgHiFlags[lineIndex] = flag;
             }
         }
 
@@ -727,87 +748,21 @@ namespace OptimeGBA
 
         public void Composite()
         {
-            if (BackgroundSettingsDirty)
-            {
-                BackgroundSettingsDirty = false;
-                PrepareBackgrounds();
-            }
-
             uint screenBase = (uint)(VCount * Width);
 
-            bool win0InsideY = ((VCount - Win0VTop) & 0xFF) < ((Win0VBottom - Win0VTop) & 0xFF) && Window0DisplayFlag;
-            bool win1InsideY = ((VCount - Win1VTop) & 0xFF) < ((Win1VBottom - Win1VTop) & 0xFF) && Window1DisplayFlag;
-
-            uint win0ThresholdX = (uint)(Win0HRight - Win0HLeft) & 0xFF;
-            uint win1ThresholdX = (uint)(Win1HRight - Win1HLeft) & 0xFF;
-
-            for (uint i = 0; i < Width; i++)
+            for (int i = 0; i < Width; i++)
             {
-                uint winMask = 0b111111;
-
-                if (AnyWindowEnabled)
-                {
-                    winMask = WinOutEnable;
-
-                    if (win0InsideY && ((i - Win0HLeft) & 0xFF) < win0ThresholdX)
-                    {
-                        winMask = Win0InEnable;
-                    }
-                    else if (win1InsideY && ((i - Win1HLeft) & 0xFF) < win1ThresholdX)
-                    {
-                        winMask = Win1InEnable;
-                    }
-                    else if (ObjWindowBuffer[i] != 0)
-                    {
-                        winMask = WinObjEnable;
-                    }
-                }
-
+                uint winMask = WinMasks[i];
                 var objPixel = ObjBuffer[i];
 
-                // winMask = 0b111111;
-
-                uint hiPaletteIndex = 0;
-                uint loPaletteIndex = 0;
+                uint hiPaletteIndex = BgHiColor[i];
+                uint loPaletteIndex = BgLoColor[i];
                 // Make sure sprites always draw over backdrop
-                uint hiPrio = 4;
-                uint loPrio = 4;
-                BlendFlag hiPixelFlag = BlendFlag.Backdrop;
-                BlendFlag loPixelFlag = BlendFlag.Backdrop;
+                uint hiPrio = BgHiPrio[i];
+                uint loPrio = BgLoPrio[i];
+                BlendFlag hiPixelFlag = (BlendFlag)BgHiFlags[i];
+                BlendFlag loPixelFlag = (BlendFlag)BgLoFlags[i];
                 uint objPaletteIndex = objPixel.Color + 256U;
-
-                for (int bg = 0; bg < BgCount; bg++)
-                {
-                    int flag = 1 << BgList[bg];
-                    uint color = BgRefList[bg][i];
-
-                    if (color != 0 && (winMask & flag) != 0)
-                    {
-                        hiPrio = loPrio;
-                        loPrio = BgPrioList[bg];
-
-                        hiPaletteIndex = loPaletteIndex;
-                        loPaletteIndex = color;
-
-                        hiPixelFlag = loPixelFlag;
-                        loPixelFlag = (BlendFlag)flag;
-
-                        if (hiPaletteIndex != 0)
-                        {
-                            break;
-                        }
-                    }
-
-                    if (bg == BgCount - 1)
-                    {
-                        hiPaletteIndex = loPaletteIndex;
-                        hiPrio = loPrio;
-                        hiPixelFlag = loPixelFlag;
-
-                        loPaletteIndex = 0;
-                        loPixelFlag = BlendFlag.Backdrop;
-                    }
-                }
 
                 uint effectiveTarget1Flags = Target1Flags;
                 BlendEffect effectiveBlendEffect = BlendEffect;
@@ -895,25 +850,39 @@ namespace OptimeGBA
             }
         }
 
+        public bool BgIsEnabled(int id)
+        {
+            return ScreenDisplayBg[id] && DebugEnableBg[id];
+        }
+
         public void RenderMode0(byte[] vram)
         {
-            RenderCharBackground(vram, Backgrounds[3]);
-            RenderCharBackground(vram, Backgrounds[2]);
-            RenderCharBackground(vram, Backgrounds[1]);
-            RenderCharBackground(vram, Backgrounds[0]);
+            for (int pri = 3; pri >= 0; pri--)
+            {
+                if (BgIsEnabled(3) && Backgrounds[3].Priority == pri) RenderCharBackground(vram, Backgrounds[3]);
+                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderCharBackground(vram, Backgrounds[2]);
+                if (BgIsEnabled(1) && Backgrounds[1].Priority == pri) RenderCharBackground(vram, Backgrounds[1]);
+                if (BgIsEnabled(0) && Backgrounds[0].Priority == pri) RenderCharBackground(vram, Backgrounds[0]);
+            }
         }
 
         public void RenderMode1(byte[] vram)
         {
-            RenderAffineBackground(vram, Backgrounds[2]);
-            RenderCharBackground(vram, Backgrounds[1]);
-            RenderCharBackground(vram, Backgrounds[0]);
+            for (int pri = 3; pri >= 0; pri--)
+            {
+                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderAffineBackground(vram, Backgrounds[2]);
+                if (BgIsEnabled(1) && Backgrounds[1].Priority == pri) RenderCharBackground(vram, Backgrounds[1]);
+                if (BgIsEnabled(0) && Backgrounds[0].Priority == pri) RenderCharBackground(vram, Backgrounds[0]);
+            }
         }
 
         public void RenderMode2(byte[] vram)
         {
-            RenderAffineBackground(vram, Backgrounds[2]);
-            RenderAffineBackground(vram, Backgrounds[3]);
+            for (int pri = 3; pri >= 0; pri--)
+            {
+                if (BgIsEnabled(3) && Backgrounds[3].Priority == pri) RenderAffineBackground(vram, Backgrounds[3]);
+                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderAffineBackground(vram, Backgrounds[2]);
+            }
         }
 
         public void RenderMode4(byte[] vram)

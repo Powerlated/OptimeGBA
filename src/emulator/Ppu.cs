@@ -1,10 +1,11 @@
 using static OptimeGBA.Bits;
+using System.Runtime.InteropServices;
 
 namespace OptimeGBA
 {
     public sealed class Background
     {
-        public uint Priority = 0;
+        public byte Priority = 0;
         public uint CharBaseBlock = 0;
         public bool EnableMosaic = false;
         public bool Use8BitColor = false;
@@ -17,7 +18,7 @@ namespace OptimeGBA
         public uint HorizontalOffset;
         public uint VerticalOffset;
 
-        public uint Id;
+        public byte Id;
 
         public uint RefPointX;
         public uint RefPointY;
@@ -27,7 +28,7 @@ namespace OptimeGBA
         public uint AffineC;
         public uint AffineD;
 
-        public Background(uint id)
+        public Background(byte id)
         {
             Id = id;
         }
@@ -49,7 +50,7 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x00: // BGCNT B0
-                    Priority = (uint)(val >> 0) & 0b11;
+                    Priority = (byte)((val >> 0) & 0b11);
                     CharBaseBlock = (uint)(val >> 2) & 0b11;
                     EnableMosaic = BitTest(val, 6);
                     Use8BitColor = BitTest(val, 7);
@@ -153,6 +154,22 @@ namespace OptimeGBA
         }
     }
 
+    [StructLayout(LayoutKind.Sequential, Size = 4)]
+    public struct BgPixel
+    {
+        public byte Color;
+        public byte Priority;
+        public byte Flags;
+
+        public BgPixel(byte color, byte priority, byte flags)
+        {
+            Color = color;
+            Priority = priority;
+            Flags = flags;
+        }
+    }
+
+    [StructLayout(LayoutKind.Sequential, Size = 4)]
     public struct ObjPixel
     {
         public byte Color;
@@ -189,7 +206,7 @@ namespace OptimeGBA
         Darken = 3,
     }
 
-    public enum BlendFlag
+    public enum BlendFlag : byte
     {
         Bg0 = 1 << 0,
         Bg1 = 1 << 1,
@@ -199,7 +216,7 @@ namespace OptimeGBA
         Backdrop = 1 << 5,
     }
 
-    public enum WindowFlag
+    public enum WindowFlag : byte
     {
         Bg0 = 1 << 0,
         Bg1 = 1 << 1,
