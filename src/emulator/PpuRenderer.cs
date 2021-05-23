@@ -245,6 +245,11 @@ namespace OptimeGBA
         }
 
         public int[] BgList = new int[4];
+#if UNSAFE
+        public byte*[] BgRefList = new byte*[4];
+#else
+        public byte[][] BgRefList = new byte[4][];
+#endif
         public uint[] BgPrioList = new uint[4];
         public uint BgCount = 0;
         public bool BackgroundSettingsDirty = true;
@@ -278,10 +283,12 @@ namespace OptimeGBA
                 }
             }
 
-            // Look up priorities for each background
             for (int i = 0; i < BgCount; i++)
             {
+                // Look up priorities for each background
                 BgPrioList[i] = Backgrounds[BgList[i]].Priority;
+                // Put references in place
+                BgRefList[i] = BackgroundBuffers[BgList[i]];
             }
         }
 
@@ -734,7 +741,6 @@ namespace OptimeGBA
             uint win0ThresholdX = (uint)(Win0HRight - Win0HLeft) & 0xFF;
             uint win1ThresholdX = (uint)(Win1HRight - Win1HLeft) & 0xFF;
 
-            uint pixel = 0;
             for (uint i = 0; i < Width; i++)
             {
                 uint winMask = 0b111111;
@@ -757,6 +763,8 @@ namespace OptimeGBA
                     }
                 }
 
+                var objPixel = ObjBuffer[i];
+
                 // winMask = 0b111111;
 
                 uint hiPaletteIndex = 0;
@@ -766,13 +774,14 @@ namespace OptimeGBA
                 uint loPrio = 4;
                 BlendFlag hiPixelFlag = BlendFlag.Backdrop;
                 BlendFlag loPixelFlag = BlendFlag.Backdrop;
-                uint objPaletteIndex = ObjBuffer[i].Color + 256U;
+                uint objPaletteIndex = objPixel.Color + 256U;
 
                 for (int bg = 0; bg < BgCount; bg++)
                 {
-                    uint color = BackgroundBuffers[BgList[bg]][i];
+                    int flag = 1 << BgList[bg];
+                    uint color = BgRefList[bg][i];
 
-                    if (color != 0 && (winMask & ((uint)WindowFlag.Bg0 << BgList[bg])) != 0)
+                    if (color != 0 && (winMask & flag) != 0)
                     {
                         hiPrio = loPrio;
                         loPrio = BgPrioList[bg];
@@ -781,7 +790,7 @@ namespace OptimeGBA
                         loPaletteIndex = color;
 
                         hiPixelFlag = loPixelFlag;
-                        loPixelFlag = (BlendFlag)(1 << BgList[bg]);
+                        loPixelFlag = (BlendFlag)flag;
 
                         if (hiPaletteIndex != 0)
                         {
@@ -805,7 +814,7 @@ namespace OptimeGBA
 
                 if (objPaletteIndex != 256 && (winMask & (uint)WindowFlag.Obj) != 0)
                 {
-                    if (ObjBuffer[i].Priority <= hiPrio)
+                    if (objPixel.Priority <= hiPrio)
                     {
                         loPaletteIndex = hiPaletteIndex;
                         hiPaletteIndex = objPaletteIndex;
@@ -813,13 +822,13 @@ namespace OptimeGBA
                         loPixelFlag = hiPixelFlag;
                         hiPixelFlag = BlendFlag.Obj;
                     }
-                    else if (ObjBuffer[i].Priority <= loPrio)
+                    else if (objPixel.Priority <= loPrio)
                     {
                         loPaletteIndex = objPaletteIndex;
                         loPixelFlag = BlendFlag.Obj;
                     }
 
-                    if (ObjBuffer[i].Mode == ObjMode.Translucent)
+                    if (objPixel.Mode == ObjMode.Translucent)
                     {
                         effectiveTarget1Flags |= (uint)BlendFlag.Obj;
                         effectiveBlendEffect = BlendEffect.Blend;
@@ -880,9 +889,9 @@ namespace OptimeGBA
                 ScreenBack[screenBase++] = colorOut;
 
                 // Use this loop as an opportunity to clear the sprite buffer
-                ObjBuffer[pixel].Color = 0;
-                ObjBuffer[pixel].Priority = 4;
-                ObjWindowBuffer[pixel++] = 0;
+                ObjBuffer[i].Color = 0;
+                ObjBuffer[i].Priority = 4;
+                ObjWindowBuffer[i] = 0;
             }
         }
 
