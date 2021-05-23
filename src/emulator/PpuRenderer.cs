@@ -172,12 +172,12 @@ namespace OptimeGBA
 
 
         // WININ
-        public uint Win0InEnable;
-        public uint Win1InEnable;
+        public byte Win0InEnable;
+        public byte Win1InEnable;
 
         // WINOUT
-        public uint WinOutEnable;
-        public uint WinObjEnable;
+        public byte WinOutEnable;
+        public byte WinObjEnable;
 
         // BLDCNT
         public BlendEffect BlendEffect = 0;
@@ -257,41 +257,49 @@ namespace OptimeGBA
 
         public void PrepareBackgroundAndWindow()
         {
-            bool win0InsideY = ((VCount - Win0VTop) & 0xFF) < ((Win0VBottom - Win0VTop) & 0xFF) && Window0DisplayFlag;
-            bool win1InsideY = ((VCount - Win1VTop) & 0xFF) < ((Win1VBottom - Win1VTop) & 0xFF) && Window1DisplayFlag;
+            bool win0InsideY = (byte)(VCount - Win0VTop) < (byte)(Win0VBottom - Win0VTop) && Window0DisplayFlag;
+            bool win1InsideY = (byte)(VCount - Win1VTop) < (byte)(Win1VBottom - Win1VTop) && Window1DisplayFlag;
 
-            uint win0ThresholdX = (uint)(Win0HRight - Win0HLeft) & 0xFF;
-            uint win1ThresholdX = (uint)(Win1HRight - Win1HLeft) & 0xFF;
+            byte win0ThresholdX = (byte)(Win0HRight - Win0HLeft);
+            byte win1ThresholdX = (byte)(Win1HRight - Win1HLeft);
 
-            for (int i = 0; i < Width; i++)
+            if (AnyWindowEnabled)
             {
-                WinMasks[i] = 0b111111;
-
-                if (AnyWindowEnabled)
+                for (uint i = 0; i < Width; i++)
                 {
-                    WinMasks[i] = (byte)WinOutEnable;
+                    byte val = WinOutEnable;
 
-                    if (win0InsideY && ((i - Win0HLeft) & 0xFF) < win0ThresholdX)
+                    if (win0InsideY && ((byte)(i - Win0HLeft)) < win0ThresholdX)
                     {
-                        WinMasks[i] = (byte)Win0InEnable;
+                        val = Win0InEnable;
                     }
-                    else if (win1InsideY && ((i - Win1HLeft) & 0xFF) < win1ThresholdX)
+                    else if (win1InsideY && ((byte)(i - Win1HLeft)) < win1ThresholdX)
                     {
-                        WinMasks[i] = (byte)Win1InEnable;
+                        val = Win1InEnable;
                     }
                     else if (ObjWindowBuffer[i] != 0)
                     {
-                        WinMasks[i] = (byte)WinObjEnable;
+                        val = WinObjEnable;
                     }
-                }
+                    
+                    WinMasks[i] = val;
 
-                // Also prepare backgrounds arrays in this loop
-                BgLoColor[i] = 0;
-                BgHiColor[i] = 0;
-                BgHiPrio[i] = 4;
-                BgLoPrio[i] = 4;
-                BgHiFlags[i] = (byte)BlendFlag.Backdrop;
-                BgLoFlags[i] = (byte)BlendFlag.Backdrop;
+                    // Also prepare backgrounds arrays in this loop
+                    BgHiColor[i] = 0;
+                    BgHiPrio[i] = 4;
+                    BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                }
+            }
+            else
+            {
+                for (uint i = 0; i < Width; i++)
+                {
+                    WinMasks[i] = 0b111111;
+
+                    BgHiColor[i] = 0;
+                    BgHiPrio[i] = 4;
+                    BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                }
             }
         }
 
@@ -467,9 +475,9 @@ namespace OptimeGBA
             {
                 // if (priority < BgLoColor[lineIndex])
                 // {
-                    BgLoPrio[lineIndex] = BgHiPrio[lineIndex];
-                    BgLoColor[lineIndex] = BgHiColor[lineIndex];
-                    BgLoFlags[lineIndex] = BgHiFlags[lineIndex];
+                BgLoPrio[lineIndex] = BgHiPrio[lineIndex];
+                BgLoColor[lineIndex] = BgHiColor[lineIndex];
+                BgLoFlags[lineIndex] = BgHiFlags[lineIndex];
                 // }
 
                 BgHiPrio[lineIndex] = priority;

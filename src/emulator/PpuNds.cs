@@ -425,26 +425,26 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000048: // WININ B0
-                    Renderer.Win0InEnable = val & 0b111111U;
+                    Renderer.Win0InEnable = (byte)(val & 0b111111U);
 
                     WININValue &= 0x7F00;
                     WININValue |= (ushort)(val << 0);
                     break;
                 case 0x4000049: // WININ B1
-                    Renderer.Win1InEnable = val & 0b111111U;
+                    Renderer.Win1InEnable = (byte)(val & 0b111111U);
 
                     WININValue &= 0x007F;
                     WININValue |= (ushort)(val << 8);
                     break;
 
                 case 0x400004A: // WINOUT B0
-                    Renderer.WinOutEnable = val & 0b111111U;
+                    Renderer.WinOutEnable = (byte)(val & 0b111111U);
 
                     WINOUTValue &= 0x7F00;
                     WINOUTValue |= (ushort)(val << 0);
                     break;
                 case 0x400004B: // WINOUT B1
-                    Renderer.WinObjEnable = val & 0b111111U;
+                    Renderer.WinObjEnable = (byte)(val & 0b111111U);
 
                     WINOUTValue &= 0x007F;
                     WINOUTValue |= (ushort)(val << 8);
