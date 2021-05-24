@@ -38,27 +38,19 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetUint(byte* arr, uint addr)
         {
-            return (uint)(
-                    (arr[addr + 0] << 0) |
-                    (arr[addr + 1] << 8) |
-                    (arr[addr + 2] << 16) |
-                    (arr[addr + 3] << 24)
-                );
+            return *(uint*)(arr + addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ushort GetUshort(byte* arr, uint addr)
         {
-            return (ushort)(
-                    (arr[addr + 0] << 0) |
-                    (arr[addr + 1] << 8)
-                );
+            return *(ushort*)(arr + addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static byte GetByte(byte* arr, uint addr)
         {
-            return arr[addr];
+            return *(byte*)(arr + addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
