@@ -125,6 +125,16 @@ namespace OptimeGBA
                 case 0x400001F: // BG3VOFS B1
                     return Renderer.Backgrounds[3].ReadBGOFS(addr - 0x400001C);
 
+
+                case 0x4000020: // BG2PA B0
+                case 0x4000021: // BG2PA B1
+                case 0x4000022: // BG2PB B0
+                case 0x4000023: // BG2PB B1
+                case 0x4000024: // BG2PC B0
+                case 0x4000025: // BG2PC B1
+                case 0x4000026: // BG2PD B0
+                case 0x4000027: // BG2PD B1
+                    return Renderer.Backgrounds[3].ReadBGPX(addr & 7);
                 case 0x4000028: // BG2X B0
                 case 0x4000029: // BG2X B1
                 case 0x400002A: // BG2X B2
@@ -133,8 +143,17 @@ namespace OptimeGBA
                 case 0x400002D: // BG2Y B1
                 case 0x400002E: // BG2Y B2
                 case 0x400002F: // BG2Y B3
-                    return Renderer.Backgrounds[2].ReadBGXY(addr - 0x04000028);
+                    return Renderer.Backgrounds[2].ReadBGXY(addr & 7);
 
+                case 0x4000030: // BG3PA B0
+                case 0x4000031: // BG3PA B1
+                case 0x4000032: // BG3PB B0
+                case 0x4000033: // BG3PB B1
+                case 0x4000034: // BG3PC B0
+                case 0x4000035: // BG3PC B1
+                case 0x4000036: // BG3PD B0
+                case 0x4000037: // BG3PD B1
+                    return Renderer.Backgrounds[3].ReadBGPX(addr & 7);
                 case 0x4000038: // BG3X B0
                 case 0x4000039: // BG3X B1
                 case 0x400003A: // BG3X B2
@@ -143,7 +162,7 @@ namespace OptimeGBA
                 case 0x400003D: // BG3Y B1
                 case 0x400003E: // BG3Y B2
                 case 0x400003F: // BG3Y B3
-                    return Renderer.Backgrounds[3].ReadBGXY(addr - 0x04000038);
+                    return Renderer.Backgrounds[3].ReadBGXY(addr & 7);
 
                 case 0x4000040: // WIN0H B0
                     return Renderer.Win0HRight;
@@ -280,6 +299,16 @@ namespace OptimeGBA
                     Renderer.Backgrounds[3].WriteBGOFS(addr - 0x400001C, val);
                     break;
 
+                case 0x4000020: // BG2PA B0
+                case 0x4000021: // BG2PA B1
+                case 0x4000022: // BG2PB B0
+                case 0x4000023: // BG2PB B1
+                case 0x4000024: // BG2PC B0
+                case 0x4000025: // BG2PC B1
+                case 0x4000026: // BG2PD B0
+                case 0x4000027: // BG2PD B1
+                    Renderer.Backgrounds[2].WriteBGPX(addr & 7, val);
+                    break;
                 case 0x4000028: // BG2X B0
                 case 0x4000029: // BG2X B1
                 case 0x400002A: // BG2X B2
@@ -288,9 +317,19 @@ namespace OptimeGBA
                 case 0x400002D: // BG2Y B1
                 case 0x400002E: // BG2Y B2
                 case 0x400002F: // BG2Y B3
-                    Renderer.Backgrounds[2].WriteBGXY(addr - 0x04000028, val);
+                    Renderer.Backgrounds[2].WriteBGXY(addr & 7, val);
                     break;
 
+                case 0x4000030: // BG3PA B0
+                case 0x4000031: // BG3PA B1
+                case 0x4000032: // BG3PB B0
+                case 0x4000033: // BG3PB B1
+                case 0x4000034: // BG3PC B0
+                case 0x4000035: // BG3PC B1
+                case 0x4000036: // BG3PD B0
+                case 0x4000037: // BG3PD B1
+                    Renderer.Backgrounds[3].WriteBGPX(addr & 7, val);
+                    break;
                 case 0x4000038: // BG3X B0
                 case 0x4000039: // BG3X B1
                 case 0x400003A: // BG3X B2
@@ -299,7 +338,7 @@ namespace OptimeGBA
                 case 0x400003D: // BG3Y B1
                 case 0x400003E: // BG3Y B2
                 case 0x400003F: // BG3Y B3
-                    Renderer.Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
+                    Renderer.Backgrounds[3].WriteBGXY(addr & 7, val);
                     break;
 
                 case 0x4000040: // WIN0H B0
@@ -436,6 +475,9 @@ namespace OptimeGBA
 #endif
 
                         Gba.Dma.RepeatVblank();
+
+                        Renderer.Backgrounds[2].CopyAffineParams();
+                        Renderer.Backgrounds[3].CopyAffineParams();
 
                         if (VBlankIrqEnable)
                         {

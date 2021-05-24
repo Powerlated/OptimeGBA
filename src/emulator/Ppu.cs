@@ -23,10 +23,13 @@ namespace OptimeGBA
         public uint RefPointX;
         public uint RefPointY;
 
-        public uint AffineA;
-        public uint AffineB;
-        public uint AffineC;
-        public uint AffineD;
+        public short AffineA;
+        public short AffineB;
+        public short AffineC;
+        public short AffineD;
+
+        public int AffinePosX;
+        public int AffinePosY;
 
         public Background(byte id)
         {
@@ -149,6 +152,67 @@ namespace OptimeGBA
                 case 0x7: // BGY_H
                     RefPointY &= ~(0xFFu << offset);
                     RefPointY |= (uint)(val << offset);
+                    break;
+            }
+
+            CopyAffineParams();
+        }
+
+        public void CopyAffineParams()
+        {
+            // also sign extend
+            AffinePosX = ((int)RefPointX << 4) >> 4;
+            AffinePosY = ((int)RefPointY << 4) >> 4;
+        }
+
+        public byte ReadBGPX(uint addr)
+        {
+            byte offset = (byte)((addr & 1) * 8);
+            switch (addr)
+            {
+                case 0x0: // BGPA B0
+                case 0x1: // BGPA B1
+                    return (byte)(AffineA >> offset);
+                case 0x2: // BGPB B0
+                case 0x3: // BGPB B1
+                    return (byte)(AffineB >> offset);
+
+                case 0x4: // BGPC B0
+                case 0x5: // BGPC B1
+                    return (byte)(AffineC >> offset);
+                case 0x6: // BGPD B0
+                case 0x7: // BGPD B1
+                    return (byte)(AffineD >> offset);
+            }
+
+            return 0;
+        }
+
+        public void WriteBGPX(uint addr, byte val)
+        {
+            byte offset = (byte)((addr & 1) * 8);
+            switch (addr)
+            {
+                case 0x0: // BGPA B0
+                case 0x1: // BGPA B1
+                    AffineA &= (short)~(0xFFu << offset);
+                    AffineA |= (short)(val << offset);
+                    break;
+                case 0x2: // BGPB B0
+                case 0x3: // BGPB B1
+                    AffineB &= (short)~(0xFFu << offset);
+                    AffineB |= (short)(val << offset);
+                    break;
+
+                case 0x4: // BGPC B0
+                case 0x5: // BGPC B1
+                    AffineC &= (short)~(0xFFu << offset);
+                    AffineC |= (short)(val << offset);
+                    break;
+                case 0x6: // BGPD B0
+                case 0x7: // BGPD B1
+                    AffineD &= (short)~(0xFFu << offset);
+                    AffineD |= (short)(val << offset);
                     break;
             }
         }

@@ -426,32 +426,45 @@ namespace OptimeGBA
 
         public void RenderAffineBackground(byte[] vram, Background bg)
         {
-            uint xInteger = (bg.RefPointX >> 8) & 0x7FFFF;
-            uint yInteger = (bg.RefPointY >> 8) & 0x7FFFF;
-
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
-            uint lineIndex = 0;
-
-            uint pixelY = (yInteger + VCount) & AffineSizeMask[bg.ScreenSize];
-            uint pixelYWrapped = pixelY & 255;
-
-            uint tileY = pixelYWrapped >> 3;
-            uint intraTileY = pixelYWrapped & 7;
-
             byte flag = (byte)(1 << bg.Id);
+
+            int posX = bg.AffinePosX;
+            int posY = bg.AffinePosY;
+
+            uint size = AffineSizeTable[bg.ScreenSize];
+            uint sizeMask = AffineSizeMask[bg.ScreenSize];
+            uint tileSize = AffineTileSizeTable[bg.ScreenSize];
 
             for (uint p = 0; p < Width; p++)
             {
-                uint pixelX = (xInteger + p) & AffineSizeMask[bg.ScreenSize];
-                uint pixelXWrapped = pixelX & 255;
+                uint xInteger = (uint)((posX >> 8) & 0x7FFFF);
+                uint pixelX = xInteger;
 
-                uint tileX = pixelXWrapped >> 3;
-                uint intraTileX = pixelXWrapped & 7;
+                uint yInteger = (uint)((posY >> 8) & 0x7FFFF);
+                uint pixelY = yInteger;
+
+                posX += bg.AffineA;
+                posY += bg.AffineC;
+
+                if (!bg.OverflowWrap && (pixelX > size || pixelY > size))
+                {
+                    continue;
+                }
+
+                pixelX &= sizeMask;
+                pixelY &= sizeMask;
+
+                uint tileX = pixelX >> 3;
+                uint intraTileX = pixelX & 7;
+
+                uint tileY = pixelY >> 3;
+                uint intraTileY = pixelY & 7;
 
                 // 1 byte per tile
-                uint mapEntryIndex = mapBase + (tileY * AffineTileSizeTable[bg.ScreenSize]) + (tileX * 1);
+                uint mapEntryIndex = mapBase + (tileY * tileSize) + (tileX * 1);
                 uint tileNumber = vram[mapEntryIndex];
 
                 uint realIntraTileY = intraTileY;
@@ -462,10 +475,12 @@ namespace OptimeGBA
                 byte vramValue = vram[vramAddr];
 
                 byte finalColor = vramValue;
-                PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
+                PlaceBgPixel(p, finalColor, bg.Priority, flag);
 
-                lineIndex++;
             }
+
+            bg.AffinePosX += bg.AffineB;
+            bg.AffinePosY += bg.AffineD;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
