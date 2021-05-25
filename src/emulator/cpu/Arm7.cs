@@ -456,44 +456,105 @@ namespace OptimeGBA
                 // LineDebug("Data Processing / FSR Transfer");
                 // ALU Operations
                 uint opcode = (ins >> 21) & 0xF;
+                bool setFlags = (ins & BIT_20) != 0;
+                bool useImmediate32 = (ins & BIT_25) != 0;
 
                 // LineDebug($"Rn: R{rn}");
                 // LineDebug($"Rd: R{rd}");
 
-                switch (opcode)
+                if (setFlags)
                 {
-                    case 0x0: // AND
-                        return Arm.DataAND;
-                    case 0x1: // EOR
-                        return Arm.DataEOR;
-                    case 0x2: // SUB
-                        return Arm.DataSUB;
-                    case 0x3: // RSB
-                        return Arm.DataRSB;
-                    case 0x4: // ADD
-                        return Arm.DataADD;
-                    case 0x5: // ADC
-                        return Arm.DataADC;
-                    case 0x6: // SBC
-                        return Arm.DataSBC;
-                    case 0x7: // RSC
-                        return Arm.DataRSC;
-                    case 0x8: // TST
-                        return Arm.DataTST;
-                    case 0x9: // TEQ
-                        return Arm.DataTEQ;
-                    case 0xA: // CMP
-                        return Arm.DataCMP;
-                    case 0xB: // CMN
-                        return Arm.DataCMN;
-                    case 0xC: // ORR
-                        return Arm.DataORR;
-                    case 0xD: // MOV
-                        return Arm.DataMOV;
-                    case 0xE: // BIC
-                        return Arm.DataBIC;
-                    case 0xF: // MVN
-                        return Arm.DataMVN;
+                    if (useImmediate32)
+                    {
+                        switch (opcode)
+                        {
+                            case 0x0: return Arm.DataANDS_Imm;
+                            case 0x1: return Arm.DataEORS_Imm;
+                            case 0x2: return Arm.DataSUBS_Imm;
+                            case 0x3: return Arm.DataRSBS_Imm;
+                            case 0x4: return Arm.DataADDS_Imm;
+                            case 0x5: return Arm.DataADCS_Imm;
+                            case 0x6: return Arm.DataSBCS_Imm;
+                            case 0x7: return Arm.DataRSCS_Imm;
+                            case 0x8: return Arm.DataTSTS_Imm;
+                            case 0x9: return Arm.DataTEQS_Imm;
+                            case 0xA: return Arm.DataCMPS_Imm;
+                            case 0xB: return Arm.DataCMNS_Imm;
+                            case 0xC: return Arm.DataORRS_Imm;
+                            case 0xD: return Arm.DataMOVS_Imm;
+                            case 0xE: return Arm.DataBICS_Imm;
+                            case 0xF: return Arm.DataMVNS_Imm;
+                        }
+                    }
+                    else
+                    {
+                        switch (opcode)
+                        {
+                            case 0x0: return Arm.DataANDS_Reg;
+                            case 0x1: return Arm.DataEORS_Reg;
+                            case 0x2: return Arm.DataSUBS_Reg;
+                            case 0x3: return Arm.DataRSBS_Reg;
+                            case 0x4: return Arm.DataADDS_Reg;
+                            case 0x5: return Arm.DataADCS_Reg;
+                            case 0x6: return Arm.DataSBCS_Reg;
+                            case 0x7: return Arm.DataRSCS_Reg;
+                            case 0x8: return Arm.DataTSTS_Reg;
+                            case 0x9: return Arm.DataTEQS_Reg;
+                            case 0xA: return Arm.DataCMPS_Reg;
+                            case 0xB: return Arm.DataCMNS_Reg;
+                            case 0xC: return Arm.DataORRS_Reg;
+                            case 0xD: return Arm.DataMOVS_Reg;
+                            case 0xE: return Arm.DataBICS_Reg;
+                            case 0xF: return Arm.DataMVNS_Reg;
+                        }
+                    }
+                }
+                else
+                {
+                    if (useImmediate32)
+                    {
+                        switch (opcode)
+                        {
+                            case 0x0: return Arm.DataAND_Imm;
+                            case 0x1: return Arm.DataEOR_Imm;
+                            case 0x2: return Arm.DataSUB_Imm;
+                            case 0x3: return Arm.DataRSB_Imm;
+                            case 0x4: return Arm.DataADD_Imm;
+                            case 0x5: return Arm.DataADC_Imm;
+                            case 0x6: return Arm.DataSBC_Imm;
+                            case 0x7: return Arm.DataRSC_Imm;
+                            case 0x8: return Arm.DataTST_Imm;
+                            case 0x9: return Arm.DataTEQ_Imm;
+                            case 0xA: return Arm.DataCMP_Imm;
+                            case 0xB: return Arm.DataCMN_Imm;
+                            case 0xC: return Arm.DataORR_Imm;
+                            case 0xD: return Arm.DataMOV_Imm;
+                            case 0xE: return Arm.DataBIC_Imm;
+                            case 0xF: return Arm.DataMVN_Imm;
+                        }
+                    }
+                    else
+                    {
+                        switch (opcode)
+                        {
+                            case 0x0: return Arm.DataAND_Reg;
+                            case 0x1: return Arm.DataEOR_Reg;
+                            case 0x2: return Arm.DataSUB_Reg;
+                            case 0x3: return Arm.DataRSB_Reg;
+                            case 0x4: return Arm.DataADD_Reg;
+                            case 0x5: return Arm.DataADC_Reg;
+                            case 0x6: return Arm.DataSBC_Reg;
+                            case 0x7: return Arm.DataRSC_Reg;
+                            case 0x8: return Arm.DataTST_Reg;
+                            case 0x9: return Arm.DataTEQ_Reg;
+                            case 0xA: return Arm.DataCMP_Reg;
+                            case 0xB: return Arm.DataCMN_Reg;
+                            case 0xC: return Arm.DataORR_Reg;
+                            case 0xD: return Arm.DataMOV_Reg;
+                            case 0xE: return Arm.DataBIC_Reg;
+                            case 0xF: return Arm.DataMVN_Reg;
+                        }
+                    }
                 }
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
@@ -828,10 +889,11 @@ namespace OptimeGBA
         {
             // Unconditional execution is most common, do a quick check 
             // instead of going through a slow switch
-            if (code == 0xE) {
+            if (code == 0xE)
+            {
                 return true;
             }
-            
+
             switch (code)
             {
                 case 0x0: // Zero, Equal, Z=1
@@ -1456,21 +1518,18 @@ namespace OptimeGBA
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static (uint rd, bool setFlags) ArmDataOperandDecode(uint ins)
+        public static uint ArmDataOperandDecode(uint ins)
         {
-            bool setFlags = (ins & BIT_20) != 0;
             uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
 
-            return (rd, setFlags);
+            return rd;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins)
+        public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins, bool useImmediate32)
         {
             // ----- When using register as 2nd operand -----
             // Shift by immediate or shift by register
-            bool useImmediate32 = (ins & BIT_25) != 0;
-
             uint shifterOperand = 0;
             bool shifterCarryOut = false;
 

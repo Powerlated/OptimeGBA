@@ -1,7 +1,7 @@
 using static OptimeGBA.Bits;
 using static Util;
 using System.Numerics;
-using System;
+using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
@@ -1178,10 +1178,11 @@ namespace OptimeGBA
             arm7.LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
         }
 
-        public static void DataAND(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataAND(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("AND");
 
@@ -1205,10 +1206,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataEOR(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataEOR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("EOR");
 
@@ -1232,10 +1234,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataSUB(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataSUB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("SUB");
 
@@ -1261,10 +1264,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataRSB(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataRSB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("RSB");
 
@@ -1290,10 +1294,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataADD(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataADD(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("ADD");
 
@@ -1318,10 +1323,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataADC(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataADC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("ADC");
 
@@ -1346,10 +1352,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataSBC(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataSBC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("SBC");
 
@@ -1375,10 +1382,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataRSC(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataRSC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("RSC");
 
@@ -1404,10 +1412,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataTST(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataTST(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("TST");
 
@@ -1418,10 +1427,11 @@ namespace OptimeGBA
             arm7.Carry = shifterCarryOut;
         }
 
-        public static void DataTEQ(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataTEQ(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("TEQ");
 
@@ -1432,10 +1442,11 @@ namespace OptimeGBA
             arm7.Carry = shifterCarryOut; // C
         }
 
-        public static void DataCMP(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataCMP(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             // SBZ means should be zero, not relevant to the current code, just so you know
             arm7.LineDebug("CMP");
@@ -1448,10 +1459,11 @@ namespace OptimeGBA
             arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
         }
 
-        public static void DataCMN(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataCMN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("CMN");
 
@@ -1463,10 +1475,11 @@ namespace OptimeGBA
             arm7.Overflow = Arm7.CheckOverflowAdd(rnValue, shifterOperand, aluOut); // V
         }
 
-        public static void DataORR(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataORR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("ORR");
 
@@ -1490,10 +1503,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataMOV(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataMOV(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("MOV");
 
@@ -1516,10 +1530,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataBIC(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataBIC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("BIC");
 
@@ -1543,10 +1558,11 @@ namespace OptimeGBA
             }
         }
 
-        public static void DataMVN(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _DataMVN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint rd, bool setFlags) = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins);
+            uint rd = Arm7.ArmDataOperandDecode(ins);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
 
             arm7.LineDebug("MVN");
 
@@ -1567,6 +1583,76 @@ namespace OptimeGBA
                 if (rd == 15) arm7.FlushPipeline();
             }
         }
+
+        // Reducing branches during runtime, the private functions beginning
+        // with an underline are marked for inlining
+        public static void DataAND_Reg(Arm7 arm7, uint ins) { _DataAND(arm7, ins, false, false); }
+        public static void DataEOR_Reg(Arm7 arm7, uint ins) { _DataEOR(arm7, ins, false, false); }
+        public static void DataSUB_Reg(Arm7 arm7, uint ins) { _DataSUB(arm7, ins, false, false); }
+        public static void DataRSB_Reg(Arm7 arm7, uint ins) { _DataRSB(arm7, ins, false, false); }
+        public static void DataADD_Reg(Arm7 arm7, uint ins) { _DataADD(arm7, ins, false, false); }
+        public static void DataADC_Reg(Arm7 arm7, uint ins) { _DataADC(arm7, ins, false, false); }
+        public static void DataSBC_Reg(Arm7 arm7, uint ins) { _DataSBC(arm7, ins, false, false); }
+        public static void DataRSC_Reg(Arm7 arm7, uint ins) { _DataRSC(arm7, ins, false, false); }
+        public static void DataTST_Reg(Arm7 arm7, uint ins) { _DataTST(arm7, ins, false, false); }
+        public static void DataTEQ_Reg(Arm7 arm7, uint ins) { _DataTEQ(arm7, ins, false, false); }
+        public static void DataCMP_Reg(Arm7 arm7, uint ins) { _DataCMP(arm7, ins, false, false); }
+        public static void DataCMN_Reg(Arm7 arm7, uint ins) { _DataCMN(arm7, ins, false, false); }
+        public static void DataORR_Reg(Arm7 arm7, uint ins) { _DataORR(arm7, ins, false, false); }
+        public static void DataMOV_Reg(Arm7 arm7, uint ins) { _DataMOV(arm7, ins, false, false); }
+        public static void DataBIC_Reg(Arm7 arm7, uint ins) { _DataBIC(arm7, ins, false, false); }
+        public static void DataMVN_Reg(Arm7 arm7, uint ins) { _DataMVN(arm7, ins, false, false); }
+
+        public static void DataAND_Imm(Arm7 arm7, uint ins) { _DataAND(arm7, ins, true, false); }
+        public static void DataEOR_Imm(Arm7 arm7, uint ins) { _DataEOR(arm7, ins, true, false); }
+        public static void DataSUB_Imm(Arm7 arm7, uint ins) { _DataSUB(arm7, ins, true, false); }
+        public static void DataRSB_Imm(Arm7 arm7, uint ins) { _DataRSB(arm7, ins, true, false); }
+        public static void DataADD_Imm(Arm7 arm7, uint ins) { _DataADD(arm7, ins, true, false); }
+        public static void DataADC_Imm(Arm7 arm7, uint ins) { _DataADC(arm7, ins, true, false); }
+        public static void DataSBC_Imm(Arm7 arm7, uint ins) { _DataSBC(arm7, ins, true, false); }
+        public static void DataRSC_Imm(Arm7 arm7, uint ins) { _DataRSC(arm7, ins, true, false); }
+        public static void DataTST_Imm(Arm7 arm7, uint ins) { _DataTST(arm7, ins, true, false); }
+        public static void DataTEQ_Imm(Arm7 arm7, uint ins) { _DataTEQ(arm7, ins, true, false); }
+        public static void DataCMP_Imm(Arm7 arm7, uint ins) { _DataCMP(arm7, ins, true, false); }
+        public static void DataCMN_Imm(Arm7 arm7, uint ins) { _DataCMN(arm7, ins, true, false); }
+        public static void DataORR_Imm(Arm7 arm7, uint ins) { _DataORR(arm7, ins, true, false); }
+        public static void DataMOV_Imm(Arm7 arm7, uint ins) { _DataMOV(arm7, ins, true, false); }
+        public static void DataBIC_Imm(Arm7 arm7, uint ins) { _DataBIC(arm7, ins, true, false); }
+        public static void DataMVN_Imm(Arm7 arm7, uint ins) { _DataMVN(arm7, ins, true, false); }
+
+        public static void DataANDS_Reg(Arm7 arm7, uint ins) { _DataAND(arm7, ins, false, true); }
+        public static void DataEORS_Reg(Arm7 arm7, uint ins) { _DataEOR(arm7, ins, false, true); }
+        public static void DataSUBS_Reg(Arm7 arm7, uint ins) { _DataSUB(arm7, ins, false, true); }
+        public static void DataRSBS_Reg(Arm7 arm7, uint ins) { _DataRSB(arm7, ins, false, true); }
+        public static void DataADDS_Reg(Arm7 arm7, uint ins) { _DataADD(arm7, ins, false, true); }
+        public static void DataADCS_Reg(Arm7 arm7, uint ins) { _DataADC(arm7, ins, false, true); }
+        public static void DataSBCS_Reg(Arm7 arm7, uint ins) { _DataSBC(arm7, ins, false, true); }
+        public static void DataRSCS_Reg(Arm7 arm7, uint ins) { _DataRSC(arm7, ins, false, true); }
+        public static void DataTSTS_Reg(Arm7 arm7, uint ins) { _DataTST(arm7, ins, false, true); }
+        public static void DataTEQS_Reg(Arm7 arm7, uint ins) { _DataTEQ(arm7, ins, false, true); }
+        public static void DataCMPS_Reg(Arm7 arm7, uint ins) { _DataCMP(arm7, ins, false, true); }
+        public static void DataCMNS_Reg(Arm7 arm7, uint ins) { _DataCMN(arm7, ins, false, true); }
+        public static void DataORRS_Reg(Arm7 arm7, uint ins) { _DataORR(arm7, ins, false, true); }
+        public static void DataMOVS_Reg(Arm7 arm7, uint ins) { _DataMOV(arm7, ins, false, true); }
+        public static void DataBICS_Reg(Arm7 arm7, uint ins) { _DataBIC(arm7, ins, false, true); }
+        public static void DataMVNS_Reg(Arm7 arm7, uint ins) { _DataMVN(arm7, ins, false, true); }
+
+        public static void DataANDS_Imm(Arm7 arm7, uint ins) { _DataAND(arm7, ins, true, true); }
+        public static void DataEORS_Imm(Arm7 arm7, uint ins) { _DataEOR(arm7, ins, true, true); }
+        public static void DataSUBS_Imm(Arm7 arm7, uint ins) { _DataSUB(arm7, ins, true, true); }
+        public static void DataRSBS_Imm(Arm7 arm7, uint ins) { _DataRSB(arm7, ins, true, true); }
+        public static void DataADDS_Imm(Arm7 arm7, uint ins) { _DataADD(arm7, ins, true, true); }
+        public static void DataADCS_Imm(Arm7 arm7, uint ins) { _DataADC(arm7, ins, true, true); }
+        public static void DataSBCS_Imm(Arm7 arm7, uint ins) { _DataSBC(arm7, ins, true, true); }
+        public static void DataRSCS_Imm(Arm7 arm7, uint ins) { _DataRSC(arm7, ins, true, true); }
+        public static void DataTSTS_Imm(Arm7 arm7, uint ins) { _DataTST(arm7, ins, true, true); }
+        public static void DataTEQS_Imm(Arm7 arm7, uint ins) { _DataTEQ(arm7, ins, true, true); }
+        public static void DataCMPS_Imm(Arm7 arm7, uint ins) { _DataCMP(arm7, ins, true, true); }
+        public static void DataCMNS_Imm(Arm7 arm7, uint ins) { _DataCMN(arm7, ins, true, true); }
+        public static void DataORRS_Imm(Arm7 arm7, uint ins) { _DataORR(arm7, ins, true, true); }
+        public static void DataMOVS_Imm(Arm7 arm7, uint ins) { _DataMOV(arm7, ins, true, true); }
+        public static void DataBICS_Imm(Arm7 arm7, uint ins) { _DataBIC(arm7, ins, true, true); }
+        public static void DataMVNS_Imm(Arm7 arm7, uint ins) { _DataMVN(arm7, ins, true, true); }
 
         public static void MCR(Arm7 arm7, uint ins)
         {
