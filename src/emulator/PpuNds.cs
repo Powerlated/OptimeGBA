@@ -557,7 +557,10 @@ namespace OptimeGBA
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
-                if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(VramLcdc, 0);
+                fixed (byte* vram = VramLcdc)
+                {
+                    if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(vram, 0);
+                }
                 if (Renderer.DebugEnableRendering) Renderer.RenderScanline(VramLcdc);
             }
 

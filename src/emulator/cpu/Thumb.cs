@@ -126,7 +126,7 @@ namespace OptimeGBA
             else if ((rsValue & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdValue, (byte)(32 - (rsValue & 0xFF)));
-                rdValue = Arm7.LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
+                rdValue = LogicalShiftLeft32(rdValue, (byte)(rsValue & 0xFF));
             }
             else if ((rsValue & 0xFF) == 32)
             {
@@ -164,7 +164,7 @@ namespace OptimeGBA
             else if ((rsVal & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                arm7.R[rd] = Arm7.LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                arm7.R[rd] = LogicalShiftRight32(rdVal, (byte)(rsVal & 0xFF));
             }
             else if ((rsVal & 0xFF) == 32)
             {
@@ -203,7 +203,7 @@ namespace OptimeGBA
             else if ((rsVal & 0xFF) < 32)
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0xFF) - 1));
-                rdVal = Arm7.ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
+                rdVal = ArithmeticShiftRight32(rdVal, (byte)(rsVal & 0xFF));
             }
             else
             {
@@ -290,7 +290,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rdVal, (byte)((rsVal & 0b11111) - 1));
-                rdVal = Arm7.RotateRight32(rdVal, (byte)(rsVal & 0b11111));
+                rdVal = RotateRight32(rdVal, (byte)(rsVal & 0b11111));
                 arm7.R[rd] = rdVal;
             }
 
@@ -538,7 +538,7 @@ namespace OptimeGBA
 
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
         }
 
         public static void ImmShiftLSL(Arm7 arm7, ushort ins)
@@ -556,7 +556,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmValue, (byte)(32 - immed5));
-                arm7.R[rd] = Arm7.LogicalShiftLeft32(rmValue, (byte)immed5);
+                arm7.R[rd] = LogicalShiftLeft32(rmValue, (byte)immed5);
             }
 
             arm7.Negative = BitTest(arm7.R[rd], 31);
@@ -582,7 +582,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmVal, (byte)(immed5 - 1));
-                final = Arm7.LogicalShiftRight32(rmVal, (byte)immed5);
+                final = LogicalShiftRight32(rmVal, (byte)immed5);
             }
 
             arm7.R[rd] = final;
@@ -614,7 +614,7 @@ namespace OptimeGBA
             else
             {
                 arm7.Carry = BitTest(rmValue, (byte)(immed5 - 1));
-                arm7.R[rd] = Arm7.ArithmeticShiftRight32(rmValue, (byte)immed5);
+                arm7.R[rd] = ArithmeticShiftRight32(rmValue, (byte)immed5);
             }
 
             arm7.Negative = BitTest(arm7.R[rd], 31);
@@ -706,7 +706,7 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.LineDebug($"Addr: {Util.HexN(addr, 8)}");
 
@@ -845,7 +845,7 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.ICycle();
         }
@@ -865,7 +865,7 @@ namespace OptimeGBA
 
             arm7.LineDebug("Load");
             // Take care of alignment
-            arm7.R[rd] = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+            arm7.R[rd] = RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
 
             arm7.ICycle();
         }
@@ -939,7 +939,7 @@ namespace OptimeGBA
             // Misaligned
             uint readAddr = addr & ~0b11U;
             uint readVal = arm7.Read32(readAddr);
-            arm7.R[rd] = Arm7.RotateRight32(readVal, (byte)((addr & 0b11) * 8));
+            arm7.R[rd] = RotateRight32(readVal, (byte)((addr & 0b11) * 8));
 
             arm7.ICycle();
         }
@@ -970,7 +970,7 @@ namespace OptimeGBA
             uint addr = rnVal + (immed5 * 2);
 
             arm7.LineDebug("Load");
-            arm7.R[rd] = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
+            arm7.R[rd] = RotateRight32(arm7.Read16(addr & ~1u), (byte)(8 * (addr & 1)));
 
             arm7.ICycle();
         }

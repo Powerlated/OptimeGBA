@@ -85,6 +85,37 @@ namespace OptimeGBA
         {
             return (byte)((i * 0x0202020202U & 0x010884422010U) % 1023);
         }
+
+                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogicalShiftLeft32(uint n, byte bits)
+        {
+            return n << bits;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint LogicalShiftRight32(uint n, byte bits)
+        {
+            return n >> bits;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint ArithmeticShiftRight32(uint n, byte bits)
+        {
+            return (uint)((int)n >> bits);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint RotateRight32(uint n, byte bits)
+        {
+            return (n >> bits) | (n << -bits);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong RotateRight64(ulong n, byte bits)
+        {
+            return (n >> bits) | (n << -bits);
+        }
+
         // public bool bitReset(uint i, uint bit)
         // {
         //     return i & (~(1 << bit));

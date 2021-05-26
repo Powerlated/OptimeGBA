@@ -25,19 +25,19 @@ namespace OptimeGBA
             // screw it 
             Cpu.SetTimingsTable(
                 Cpu.Timing8And16,
-                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+                8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
             );
             Cpu.SetTimingsTable(
                 Cpu.Timing32,
-                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+                8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
             );
             Cpu.SetTimingsTable(
                 Cpu.Timing8And16InstrFetch,
-                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+                8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
             );
             Cpu.SetTimingsTable(
                 Cpu.Timing32InstrFetch,
-                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4
+                8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8
             );
         }
 

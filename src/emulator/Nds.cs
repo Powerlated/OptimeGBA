@@ -105,16 +105,16 @@ namespace OptimeGBA
         {
             long beforeTicks = Scheduler.CurrentTicks;
             
-            Nds7.Cpu.Execute();
-            Nds9.Cpu.Execute();
+            // Nds7.Cpu.Execute();
+            // Nds9.Cpu.Execute();
 
             // TODO: Proper NDS timings
-            // uint ticks7 = Nds7.Cpu.Execute();
-            // Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            // while (Arm9PendingTicks > 0) {
-            //     Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
-            // }
-            Scheduler.CurrentTicks += 4;
+            uint ticks7 = Nds7.Cpu.Execute();
+            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+            while (Arm9PendingTicks > 0) {
+                Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+            }
+            Scheduler.CurrentTicks += ticks7;
 
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {

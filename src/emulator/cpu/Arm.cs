@@ -448,7 +448,7 @@ namespace OptimeGBA
             uint storeValue = arm7.R[rm];
 
             arm7.LineDebug("SWP");
-            uint readVal = Arm7.RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
+            uint readVal = RotateRight32(arm7.Read32(addr & ~3u), (byte)((addr & 3u) * 8));
             arm7.Write32(addr & ~3u, storeValue);
             arm7.R[rd] = readVal;
 
@@ -498,7 +498,7 @@ namespace OptimeGBA
                 uint rotateBits = ((ins >> 8) & 0xF) * 2;
                 uint constant = ins & 0xFF;
 
-                operand = Arm7.RotateRight32(constant, (byte)rotateBits);
+                operand = RotateRight32(constant, (byte)rotateBits);
             }
             else
             {
@@ -708,7 +708,7 @@ namespace OptimeGBA
                     switch (shiftType)
                     {
                         case 0b00:
-                            offset = Arm7.LogicalShiftLeft32(rmVal, shiftBits);
+                            offset = LogicalShiftLeft32(rmVal, shiftBits);
                             break;
                         case 0b01:
                             if (shiftBits == 0)
@@ -717,7 +717,7 @@ namespace OptimeGBA
                             }
                             else
                             {
-                                offset = Arm7.LogicalShiftRight32(rmVal, shiftBits);
+                                offset = LogicalShiftRight32(rmVal, shiftBits);
                             }
                             break;
                         case 0b10:
@@ -735,18 +735,18 @@ namespace OptimeGBA
                             }
                             else
                             {
-                                offset = Arm7.ArithmeticShiftRight32(rmVal, shiftBits);
+                                offset = ArithmeticShiftRight32(rmVal, shiftBits);
                             }
                             break;
                         default:
                         case 0b11:
                             if (shiftBits == 0)
                             {
-                                offset = Arm7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (Arm7.LogicalShiftRight32(rmVal, 1));
+                                offset = LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (LogicalShiftRight32(rmVal, 1));
                             }
                             else
                             {
-                                offset = Arm7.RotateRight32(rmVal, shiftBits);
+                                offset = RotateRight32(rmVal, shiftBits);
                             }
                             break;
                     }
@@ -795,7 +795,7 @@ namespace OptimeGBA
 
                         // If the address isn't word-aligned
                         uint data = arm7.Read32(addr & 0xFFFFFFFC);
-                        loadVal = Arm7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
+                        loadVal = RotateRight32(data, (byte)(8 * (addr & 0b11)));
 
                         // Error("Misaligned LDR");
                     }
@@ -957,7 +957,7 @@ namespace OptimeGBA
                     {
                         arm7.LineDebug("Load unsigned halfword");
                         // Force halfword aligned, and rotate if unaligned
-                        loadVal = Arm7.RotateRight32(arm7.Read16(addr & ~1u), (byte)((addr & 1) * 8));
+                        loadVal = RotateRight32(arm7.Read16(addr & ~1u), (byte)((addr & 1) * 8));
                     }
                 }
             }

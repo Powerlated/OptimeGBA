@@ -1032,31 +1032,6 @@ namespace OptimeGBA
             }
         }
 
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogicalShiftLeft32(uint n, byte bits)
-        {
-            return n << bits;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint LogicalShiftRight32(uint n, byte bits)
-        {
-            return n >> bits;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ArithmeticShiftRight32(uint n, byte bits)
-        {
-            return (uint)((int)n >> bits);
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint RotateRight32(uint n, byte bits)
-        {
-            return (n >> bits) | (n << (32 - bits));
-        }
-
         public uint GetCPSR()
         {
             uint val = 0;
