@@ -28,12 +28,16 @@ namespace OptimeGBA
             HwControl = new HwControlGba(this);
             Cpu = new Arm7(this, Mem, false, false, null);
 
-            Cpu.R13svc = 0x03007FE0;
-            Cpu.R13irq = 0x03007FA0;
-            Cpu.R13usr = 0x03007F00;
+            if (!provider.BootBios)
+            {
+                Cpu.R13svc = 0x03007FE0;
+                Cpu.R13irq = 0x03007FA0;
+                Cpu.R13usr = 0x03007F00;
 
-            // Default Stack Pointer
-            Cpu.R[13] = Cpu.R13usr;
+                // Default Stack Pointer
+                Cpu.R[13] = Cpu.R13usr;
+                Cpu.R[15] = 0x08000000;
+            }
 
             AudioCallback = provider.AudioCallback;
 
