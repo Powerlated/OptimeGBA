@@ -671,7 +671,8 @@ namespace OptimeGBA
             }
         }
 
-        public static void RegularLDR(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _RegularLDRSTR(Arm7 arm7, uint ins, bool L, bool useRegister)
         {
             // LDR (Load Register)
             arm7.LineDebug("LDR (Load Register)");
@@ -685,149 +686,9 @@ namespace OptimeGBA
             bool B = BitTest(ins, 22);
             bool W = BitTest(ins, 21);
 
-            uint offset = RegularLDRSTRDecode(arm7, ins);
+            uint offset = 0;
 
-            uint addr = rnValue;
-            if (P)
-            {
-                if (U)
-                {
-                    addr += offset;
-                }
-                else
-                {
-                    addr -= offset;
-                }
-            }
-
-            arm7.LineDebug($"Rn: R{rn}");
-            arm7.LineDebug($"Rd: R{rd}");
-
-            uint loadVal = 0;
-            if (B)
-            {
-                loadVal = arm7.Read8(addr);
-            }
-            else
-            {
-
-                if ((addr & 0b11) != 0)
-                {
-
-                    // If the address isn't word-aligned
-                    uint data = arm7.Read32(addr & 0xFFFFFFFC);
-                    loadVal = Arm7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
-
-                    // Error("Misaligned LDR");
-                }
-                else
-                {
-                    loadVal = arm7.Read32(addr);
-                }
-            }
-
-            arm7.LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
-            arm7.LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
-
-            if (!P)
-            {
-                if (U)
-                {
-                    addr += offset;
-                }
-                else
-                {
-                    addr -= offset;
-                }
-            }
-
-            if (W || !P)
-            {
-                arm7.R[rn] = addr;
-            }
-
-            // Register loading happens after writeback, so if writeback register and Rd are the same, 
-            // the writeback value would be overwritten by Rd.
-            arm7.R[rd] = loadVal;
-
-            if (rd == 15) arm7.FlushPipeline();
-
-            arm7.ICycle();
-        }
-
-        public static void RegularSTR(Arm7 arm7, uint ins)
-        {
-            // STR (Store Register)
-            arm7.LineDebug("STR (Store Register)");
-
-            uint rn = (ins >> 16) & 0xF;
-            uint rd = (ins >> 12) & 0xF;
-            uint rnValue = arm7.R[rn];
-
-            bool P = BitTest(ins, 24); // post-indexed / offset addressing 
-            bool U = BitTest(ins, 23); // invert
-            bool B = BitTest(ins, 22);
-            bool W = BitTest(ins, 21);
-
-            uint offset = RegularLDRSTRDecode(arm7, ins);
-
-            uint addr = rnValue;
-            if (P)
-            {
-                if (U)
-                {
-                    addr += offset;
-                }
-                else
-                {
-                    addr -= offset;
-                }
-            }
-
-            arm7.LineDebug($"Rn: R{rn}");
-            arm7.LineDebug($"Rd: R{rd}");
-
-            arm7.R[15] += 4;
-
-            uint storeVal = arm7.R[rd];
-            if (B)
-            {
-                arm7.Write8(addr, (byte)storeVal);
-            }
-            else
-            {
-                arm7.Write32(addr & 0xFFFFFFFC, storeVal);
-            }
-
-            arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
-            arm7.LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
-
-            arm7.R[15] -= 4;
-
-            if (!P)
-            {
-                if (U)
-                {
-                    addr += offset;
-                }
-                else
-                {
-                    addr -= offset;
-                }
-            }
-
-            if (W || !P)
-            {
-                arm7.R[rn] = addr;
-            }
-        }
-
-
-        public static uint RegularLDRSTRDecode(Arm7 arm7, uint ins)
-        {
-            bool registerOffset = BitTest(ins, 25);
-
-            if (registerOffset)
+            if (useRegister)
             {
                 // Register offset
                 arm7.LineDebug($"Register Offset");
@@ -836,7 +697,7 @@ namespace OptimeGBA
                 if ((ins & 0b111111110000) == 0b000000000000)
                 {
                     arm7.LineDebug($"Non-scaled");
-                    return rmVal;
+                    offset = rmVal;
                 }
                 else
                 {
@@ -847,16 +708,18 @@ namespace OptimeGBA
                     switch (shiftType)
                     {
                         case 0b00:
-                            return Arm7.LogicalShiftLeft32(rmVal, shiftBits);
+                            offset = Arm7.LogicalShiftLeft32(rmVal, shiftBits);
+                            break;
                         case 0b01:
                             if (shiftBits == 0)
                             {
-                                return 0;
+                                offset = 0;
                             }
                             else
                             {
-                                return Arm7.LogicalShiftRight32(rmVal, shiftBits);
+                                offset = Arm7.LogicalShiftRight32(rmVal, shiftBits);
                             }
+                            break;
                         case 0b10:
                             if (shiftBits == 0)
                             {
@@ -868,22 +731,24 @@ namespace OptimeGBA
                                 // {
                                 //     return 0;
                                 // }
-                                return (uint)((int)rmVal >> 31);
+                                offset = (uint)((int)rmVal >> 31);
                             }
                             else
                             {
-                                return Arm7.ArithmeticShiftRight32(rmVal, shiftBits);
+                                offset = Arm7.ArithmeticShiftRight32(rmVal, shiftBits);
                             }
+                            break;
                         default:
                         case 0b11:
                             if (shiftBits == 0)
                             {
-                                return Arm7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (Arm7.LogicalShiftRight32(rmVal, 1));
+                                offset = Arm7.LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | (Arm7.LogicalShiftRight32(rmVal, 1));
                             }
                             else
                             {
-                                return Arm7.RotateRight32(rmVal, shiftBits);
+                                offset = Arm7.RotateRight32(rmVal, shiftBits);
                             }
+                            break;
                     }
                 }
 
@@ -895,22 +760,127 @@ namespace OptimeGBA
 
                 // if (L && U && !registerOffset && rd == 0 && (ins & 0b111111111111) == 0) Error("sdfsdf");
 
-
                 // This IS NOT A SHIFTED 32-BIT IMMEDIATE, IT'S PLAIN 12-BIT!
-                return ins & 0b111111111111;
+                offset = ins & 0b111111111111;
             }
 
+            uint addr = rnValue;
+            if (P)
+            {
+                if (U)
+                {
+                    addr += offset;
+                }
+                else
+                {
+                    addr -= offset;
+                }
+            }
+
+            if (L)
+            {
+                arm7.LineDebug($"Rn: R{rn}");
+                arm7.LineDebug($"Rd: R{rd}");
+
+                uint loadVal = 0;
+                if (B)
+                {
+                    loadVal = arm7.Read8(addr);
+                }
+                else
+                {
+
+                    if ((addr & 0b11) != 0)
+                    {
+
+                        // If the address isn't word-aligned
+                        uint data = arm7.Read32(addr & 0xFFFFFFFC);
+                        loadVal = Arm7.RotateRight32(data, (byte)(8 * (addr & 0b11)));
+
+                        // Error("Misaligned LDR");
+                    }
+                    else
+                    {
+                        loadVal = arm7.Read32(addr);
+                    }
+                }
+
+                arm7.LineDebug($"LDR Addr: {Util.Hex(addr, 8)}");
+                arm7.LineDebug($"LDR Value: {Util.Hex(loadVal, 8)}");
+
+                if (!P)
+                {
+                    if (U)
+                    {
+                        addr += offset;
+                    }
+                    else
+                    {
+                        addr -= offset;
+                    }
+                }
+
+                if (W || !P)
+                {
+                    arm7.R[rn] = addr;
+                }
+
+                // Register loading happens after writeback, so if writeback register and Rd are the same, 
+                // the writeback value would be overwritten by Rd.
+                arm7.R[rd] = loadVal;
+
+                if (rd == 15) arm7.FlushPipeline();
+
+                arm7.ICycle();
+            }
+            else
+            {
+                arm7.R[15] += 4;
+
+                uint storeVal = arm7.R[rd];
+                if (B)
+                {
+                    arm7.Write8(addr, (byte)storeVal);
+                }
+                else
+                {
+                    arm7.Write32(addr & 0xFFFFFFFC, storeVal);
+                }
+
+                arm7.LineDebug($"STR Addr: {Util.Hex(addr, 8)}");
+                arm7.LineDebug($"STR Value: {Util.Hex(storeVal, 8)}");
+
+                arm7.R[15] -= 4;
+
+                if (!P)
+                {
+                    if (U)
+                    {
+                        addr += offset;
+                    }
+                    else
+                    {
+                        addr -= offset;
+                    }
+                }
+
+                if (W || !P)
+                {
+                    arm7.R[rn] = addr;
+                }
+            }
         }
 
-        public static void SpecialLDRSTR(Arm7 arm7, uint ins)
+        public static void RegularLDR_Reg(Arm7 arm7, uint ins) { _RegularLDRSTR(arm7, ins, true, true); }
+        public static void RegularSTR_Reg(Arm7 arm7, uint ins) { _RegularLDRSTR(arm7, ins, false, true); }
+        public static void RegularLDR_Imm(Arm7 arm7, uint ins) { _RegularLDRSTR(arm7, ins, true, false); }
+        public static void RegularSTR_Imm(Arm7 arm7, uint ins) { _RegularLDRSTR(arm7, ins, false, false); }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _SpecialLDRSTR(Arm7 arm7, uint ins, bool L, bool S, bool H)
         {
             arm7.LineDebug("Halfword, Signed Byte, Doubleword Loads & Stores");
             arm7.LineDebug("LDR|STR H|SH|SB|D");
-
-            bool L = BitTest(ins, 20);
-            bool S = BitTest(ins, 6);
-            bool H = BitTest(ins, 5);
-
 
             bool W = BitTest(ins, 21); // Writeback to base register
             bool immediateOffset = BitTest(ins, 22);
@@ -1042,6 +1012,14 @@ namespace OptimeGBA
             arm7.LineDebug($"Writeback: {(W ? "Yes" : "No")}");
             arm7.LineDebug($"Offset / pre-indexed addressing: {(P ? "Yes" : "No")}");
         }
+
+        // In order mentioned in ARM architecture reference manual for ARMv5
+        public static void STRH(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, false, false, true); }
+        public static void LDRD(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, false, true, false); }
+        public static void STRD(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, false, true, true); }
+        public static void LDRH(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, false, true); }
+        public static void LDRSB(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, false); }
+        public static void LDRSH(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, true); }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataAND(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)

@@ -447,7 +447,16 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1110000000000000000010010000) == 0b0000000000000000000010010000) // Halfword, Signed Byte, Doubleword Loads and Stores
             {
-                return Arm.SpecialLDRSTR;
+
+                bool L = BitTest(ins, 20);
+                bool S = BitTest(ins, 6);
+                bool H = BitTest(ins, 5);
+                if (!L && !S && H) return Arm.STRH;
+                if (!L && S && !H) return Arm.LDRD;
+                if (!L && S && H) return Arm.STRD;
+                if (L && !S && H) return Arm.LDRH;
+                if (L && S && !H) return Arm.LDRSB;
+                if (L && S && H) return Arm.LDRSH;
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1100000000000000000000000000) == 0b0000000000000000000000000000) // Data Processing // ALU
@@ -561,13 +570,28 @@ namespace OptimeGBA
             else if ((ins & 0b1100000000000000000000000000) == 0b0100000000000000000000000000) // LDR / STR
             {
                 bool L = BitTest(ins, 20);
-                if (L)
+                bool useRegister = BitTest(ins, 25);
+                if (useRegister)
                 {
-                    return Arm.RegularLDR;
+                    if (L)
+                    {
+                        return Arm.RegularLDR_Reg;
+                    }
+                    else
+                    {
+                        return Arm.RegularSTR_Reg;
+                    }
                 }
                 else
                 {
-                    return Arm.RegularSTR;
+                    if (L)
+                    {
+                        return Arm.RegularLDR_Imm;
+                    }
+                    else
+                    {
+                        return Arm.RegularSTR_Imm;
+                    }
                 }
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
