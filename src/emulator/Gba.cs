@@ -28,6 +28,87 @@ namespace OptimeGBA
             HwControl = new HwControlGba(this);
             Cpu = new Arm7(this, Mem, false, false, null);
 
+            Cpu.SetTimingsTable(
+                Cpu.Timing8And16,
+                1, // BIOS
+                1, // Unused
+                3, // EWRAM
+                1, // IWRAM
+                1, // I/O Registers
+                1, // PPU Palettes
+                1, // PPU VRAM
+                1, // PPU OAM
+                5, // Game Pak ROM/FlashROM 
+                5, // Game Pak ROM/FlashROM 
+                5, // Game Pak ROM/FlashROM 
+                5, // Game Pak ROM/FlashROM 
+                5, // Game Pak ROM/FlashROM 
+                5, // Game Pak ROM/FlashROM
+                5, // Game Pak SRAM/Flash
+                5  // Game Pak SRAM/Flash
+            );
+            Cpu.SetTimingsTable(
+                Cpu.Timing32,
+                1, // BIOS
+                1, // Unused
+                6, // EWRAM
+                1, // IWRAM
+                1, // I/O Registers
+                2, // PPU Palettes
+                2, // PPU VRAM
+                1, // PPU OAM
+                8, // Game Pak ROM/FlashROM 
+                8, // Game Pak ROM/FlashROM 
+                8, // Game Pak ROM/FlashROM 
+                8, // Game Pak ROM/FlashROM 
+                8, // Game Pak ROM/FlashROM 
+                8, // Game Pak ROM/FlashROM
+                8, // Game Pak SRAM/Flash
+                8 // Game Pak SRAM/Flash
+            );
+
+            Cpu.SetTimingsTable(
+                Cpu.Timing8And16InstrFetch,
+                1, // BIOS
+                1, // Unused
+                3, // EWRAM
+                1, // IWRAM
+                1, // I/O Registers
+                1, // PPU Palettes
+                1, // PPU VRAM
+                1, // PPU OAM
+                   // Compensate for no prefetch buffer 5 -> 2
+                2, // Game Pak ROM/FlashROM 
+                2, // Game Pak ROM/FlashROM 
+                2, // Game Pak ROM/FlashROM 
+                2, // Game Pak ROM/FlashROM 
+                2, // Game Pak ROM/FlashROM 
+                2, // Game Pak ROM/FlashROM
+                5, // Game Pak SRAM/Flash
+                5 // Game Pak SRAM/Flash
+            );
+
+            Cpu.SetTimingsTable(
+                Cpu.Timing32InstrFetch,
+                1, // BIOS
+                1, // Unused
+                6, // EWRAM
+                1, // IWRAM
+                1, // I/O Registers
+                2, // PPU Palettes
+                2, // PPU VRAM
+                1, // PPU OAM
+                // Compensate for no prefetch buffer 8 -> 4
+                4, // Game Pak ROM/FlashROM 
+                4, // Game Pak ROM/FlashROM 
+                4, // Game Pak ROM/FlashROM 
+                4, // Game Pak ROM/FlashROM 
+                4, // Game Pak ROM/FlashROM 
+                4, // Game Pak ROM/FlashROM
+                8, // Game Pak SRAM/Flash
+                8  // Game Pak SRAM/Flash
+            );
+
             if (!provider.BootBios)
             {
                 Cpu.R13svc = 0x03007FE0;

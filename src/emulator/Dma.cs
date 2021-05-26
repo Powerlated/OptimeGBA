@@ -211,7 +211,7 @@ namespace OptimeGBA
         }
     }
 
-    public sealed class Dma
+    public unsafe sealed class Dma
     {
         Gba Gba;
 
@@ -353,8 +353,8 @@ namespace OptimeGBA
                 for (; c.DmaLength > 0; c.DmaLength--)
                 {
                     Gba.Mem.Write32(c.DmaDest & ~3u, Gba.Mem.Read32(c.DmaSource & ~3u));
-                    Gba.Tick(Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Tick(Gba.Cpu.Timing32[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(Gba.Cpu.Timing32[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -365,8 +365,8 @@ namespace OptimeGBA
                 for (; c.DmaLength > 0; c.DmaLength--)
                 {
                     Gba.Mem.Write16(c.DmaDest & ~1u, Gba.Mem.Read16(c.DmaSource & ~1u));
-                    Gba.Tick(Arm7.Timing8And16[(c.DmaSource >> 24) & 0xF]);
-                    Gba.Tick(Arm7.Timing8And16[(c.DmaDest >> 24) & 0xF]);
+                    Gba.Tick(Gba.Cpu.Timing8And16[(c.DmaSource >> 24) & 0xF]);
+                    Gba.Tick(Gba.Cpu.Timing8And16[(c.DmaDest >> 24) & 0xF]);
 
                     c.DmaDest = (uint)(long)(destOffsPerUnit + c.DmaDest);
                     c.DmaSource = (uint)(long)(sourceOffsPerUnit + c.DmaSource);
@@ -435,8 +435,8 @@ namespace OptimeGBA
                 // Applying proper timing to sound DMAs causes crackling in certain games including PMD.
                 // This only happens with scheduled timers, which leads me to believe the real problem is in there.
                 // PROBLEM SOLVED.... my timers were 1 cycle too slow to reload
-                Gba.Cpu.InstructionCycles += (Arm7.Timing32[(c.DmaSource >> 24) & 0xF]);
-                Gba.Cpu.InstructionCycles += (Arm7.Timing32[(c.DmaDest >> 24) & 0xF]);
+                Gba.Cpu.InstructionCycles += (Gba.Cpu.Timing32[(c.DmaSource >> 24) & 0xF]);
+                Gba.Cpu.InstructionCycles += (Gba.Cpu.Timing32[(c.DmaDest >> 24) & 0xF]);
             }
 
             c.DmaSource = srcAddr;

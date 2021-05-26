@@ -161,6 +161,14 @@ namespace OptimeGBA
             R[15] = VectorReset;
         }
 
+        public void SetTimingsTable(byte* table, params byte[] list)
+        {
+            for (uint i = 0; i < 16; i++)
+            {
+                table[i] = list[i];
+            }
+        }
+
         public void SetVectorMode(bool high)
         {
             if (high)
@@ -1455,91 +1463,10 @@ namespace OptimeGBA
             InstructionCycles += 1;
         }
 
-        public static readonly byte[] Timing8And16 = {
-            1, // BIOS
-            1, // Unused
-            3, // EWRAM
-            1, // IWRAM
-            1, // I/O Registers
-            1, // PPU Palettes
-            1, // PPU VRAM
-            1, // PPU OAM
-
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM 
-            5, // Game Pak ROM/FlashROM
-
-            5, // Game Pak SRAM/Flash
-            5, // Game Pak SRAM/Flash
-        };
-
-        public static readonly byte[] Timing32 = {
-            1, // BIOS
-            1, // Unused
-            6, // EWRAM
-            1, // IWRAM
-            1, // I/O Registers
-            2, // PPU Palettes
-            2, // PPU VRAM
-            1, // PPU OAM
-
-            8, // Game Pak ROM/FlashROM 
-            8, // Game Pak ROM/FlashROM 
-            8, // Game Pak ROM/FlashROM 
-            8, // Game Pak ROM/FlashROM 
-            8, // Game Pak ROM/FlashROM 
-            8, // Game Pak ROM/FlashROM
-
-            8, // Game Pak SRAM/Flash
-            8, // Game Pak SRAM/Flash
-        };
-
-        public static readonly byte[] Timing8And16InstrFetch = {
-            1, // BIOS
-            1, // Unused
-            3, // EWRAM
-            1, // IWRAM
-            1, // I/O Registers
-            1, // PPU Palettes
-            1, // PPU VRAM
-            1, // PPU OAM
-
-            // Compensate for no prefetch buffer 5 -> 2
-            2, // Game Pak ROM/FlashROM 
-            2, // Game Pak ROM/FlashROM 
-            2, // Game Pak ROM/FlashROM 
-            2, // Game Pak ROM/FlashROM 
-            2, // Game Pak ROM/FlashROM 
-            2, // Game Pak ROM/FlashROM
-
-            5, // Game Pak SRAM/Flash
-            5, // Game Pak SRAM/Flash
-        };
-
-        public static readonly byte[] Timing32InstrFetch = {
-            1, // BIOS
-            1, // Unused
-            6, // EWRAM
-            1, // IWRAM
-            1, // I/O Registers
-            2, // PPU Palettes
-            2, // PPU VRAM
-            1, // PPU OAM
-
-            // Compensate for no prefetch buffer 8 -> 4
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM 
-            4, // Game Pak ROM/FlashROM
-
-            8, // Game Pak SRAM/Flash
-            8, // Game Pak SRAM/Flash
-        };
+        public byte* Timing8And16 = AllocateUnmanagedArray(16);
+        public byte* Timing32 = AllocateUnmanagedArray(16);
+        public byte* Timing8And16InstrFetch = AllocateUnmanagedArray(16);
+        public byte* Timing32InstrFetch = AllocateUnmanagedArray(16);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public (uint shifterOperand, bool shifterCarryOut, uint rnVal, uint rd) ArmDataDecode(uint ins, bool useImmediate32)
@@ -1554,8 +1481,8 @@ namespace OptimeGBA
             if (useImmediate32)
             {
                 uint rn = (ins >> 16) & 0xF; // Rn
-                // uint rs = (ins >> 8) & 0xF;
-                // uint rm = ins & 0xF;
+                                             // uint rs = (ins >> 8) & 0xF;
+                                             // uint rm = ins & 0xF;
                 uint rnVal = R[rn];
                 // uint rsVal = R[rs];
                 // uint rmVal = R[rm];
@@ -1591,7 +1518,7 @@ namespace OptimeGBA
                     shiftBits = (byte)((ins >> 7) & 0b11111);
 
                     uint rn = (ins >> 16) & 0xF; // Rn
-                    // uint rs = (ins >> 8) & 0xF;
+                                                 // uint rs = (ins >> 8) & 0xF;
                     uint rm = ins & 0xF;
                     uint rnVal = R[rn];
                     // uint rsVal = R[rs];
