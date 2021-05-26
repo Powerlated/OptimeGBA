@@ -129,8 +129,6 @@ namespace OptimeGBA
             new Background(3),
         };
 
-
-
         // DISPCNT
         public uint BgMode;
         public bool CgbMode;
@@ -220,13 +218,9 @@ namespace OptimeGBA
                             switch (BgMode)
                             {
                                 case 0:
-                                    RenderMode0(vram);
-                                    break;
                                 case 1:
-                                    RenderMode1(vram);
-                                    break;
                                 case 2:
-                                    RenderMode2(vram);
+                                    RenderBgModes(vram);
                                     break;
                                 case 3:
                                     RenderMode3(vram);
@@ -290,10 +284,72 @@ namespace OptimeGBA
             ScreenFront = temp;
         }
 
+        public int[] BgList = new int[4];
+        public Background[] BgRefList = new Background[4];
+        public uint BgCount = 0;
         public bool BackgroundSettingsDirty = true;
 
         public void PrepareBackgroundAndWindow()
         {
+            if (BackgroundSettingsDirty)
+            {
+                BgCount = 0;
+                for (int bg = 0; bg < 4; bg++)
+                {
+                    // -1 means disabled
+                    // Look up backgrounds in reverse order to ensure backgrounds are in correct order
+                    // (backgrounds carry a specific render order even if they are the same priority)
+                    int invBg = 3 - bg;
+                    BgList[bg] = -1;
+                    BgList[BgCount] = invBg;
+                    if (ScreenDisplayBg[invBg] && DebugEnableBg[invBg])
+                    {
+                        BgCount++;
+                    }
+                }
+
+                // Insertion sort backgrounds according to priority
+                int key;
+                int j;
+                for (int i = 1; i < BgCount; i++)
+                {
+                    key = (int)Backgrounds[BgList[i]].Priority;
+                    j = i - 1;
+
+                    while (j >= 0 && Backgrounds[BgList[j]].Priority < key)
+                    {
+                        Swap(ref BgList[j + 1], ref BgList[j]);
+                        j--;
+                    }
+                }
+
+                // Look up references for each background
+                for (int i = 0; i < BgCount; i++)
+                {
+                    BgRefList[i] = Backgrounds[BgList[i]];
+                }
+
+                switch (BgMode)
+                {
+                    case 0:
+                        Backgrounds[0].IsAffine = false;
+                        Backgrounds[1].IsAffine = false;
+                        Backgrounds[2].IsAffine = false;
+                        Backgrounds[3].IsAffine = false;
+                        break;
+                    case 1:
+                        Backgrounds[0].IsAffine = false;
+                        Backgrounds[1].IsAffine = false;
+                        Backgrounds[2].IsAffine = true;
+                        break;
+                    case 2:
+                        Backgrounds[2].IsAffine = true;
+                        Backgrounds[3].IsAffine = true;
+                        break;
+
+                }
+            }
+
             bool win0InsideY = (byte)(VCount - Win0VTop) < (byte)(Win0VBottom - Win0VTop) && Window0DisplayFlag;
             bool win1InsideY = (byte)(VCount - Win1VTop) < (byte)(Win1VBottom - Win1VTop) && Window1DisplayFlag;
 
@@ -998,33 +1054,19 @@ namespace OptimeGBA
             return ScreenDisplayBg[id] && DebugEnableBg[id];
         }
 
-        public void RenderMode0(byte* vram)
+        public void RenderBgModes(byte* vram)
         {
-            for (int pri = 3; pri >= 0; pri--)
+            for (uint i = 0; i < BgCount; i++)
             {
-                if (BgIsEnabled(3) && Backgrounds[3].Priority == pri) RenderCharBackground(vram, Backgrounds[3]);
-                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderCharBackground(vram, Backgrounds[2]);
-                if (BgIsEnabled(1) && Backgrounds[1].Priority == pri) RenderCharBackground(vram, Backgrounds[1]);
-                if (BgIsEnabled(0) && Backgrounds[0].Priority == pri) RenderCharBackground(vram, Backgrounds[0]);
-            }
-        }
-
-        public void RenderMode1(byte* vram)
-        {
-            for (int pri = 3; pri >= 0; pri--)
-            {
-                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderAffineBackground(vram, Backgrounds[2]);
-                if (BgIsEnabled(1) && Backgrounds[1].Priority == pri) RenderCharBackground(vram, Backgrounds[1]);
-                if (BgIsEnabled(0) && Backgrounds[0].Priority == pri) RenderCharBackground(vram, Backgrounds[0]);
-            }
-        }
-
-        public void RenderMode2(byte* vram)
-        {
-            for (int pri = 3; pri >= 0; pri--)
-            {
-                if (BgIsEnabled(3) && Backgrounds[3].Priority == pri) RenderAffineBackground(vram, Backgrounds[3]);
-                if (BgIsEnabled(2) && Backgrounds[2].Priority == pri) RenderAffineBackground(vram, Backgrounds[2]);
+                var bg = BgRefList[i];
+                if (bg.IsAffine)
+                {
+                    RenderAffineBackground(vram, bg);
+                }
+                else
+                {
+                    RenderCharBackground(vram, bg);
+                }
             }
         }
 

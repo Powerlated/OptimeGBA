@@ -5,6 +5,9 @@ namespace OptimeGBA
 {
     public sealed class Background
     {
+        byte[] BGCNTValue = new byte[2];
+
+        // BGCNT
         public byte Priority = 0;
         public uint CharBaseBlock = 0;
         public bool EnableMosaic = false;
@@ -13,8 +16,7 @@ namespace OptimeGBA
         public bool OverflowWrap = false;
         public uint ScreenSize = 0;
 
-        byte[] BGCNTValue = new byte[2];
-
+        // BGH/VOFS
         public uint HorizontalOffset;
         public uint VerticalOffset;
 
@@ -30,6 +32,9 @@ namespace OptimeGBA
 
         public int AffinePosX;
         public int AffinePosY;
+
+        // Set by PrepareBackgroundAndWindow() and used by RenderBgModes()
+        public bool IsAffine;
 
         public Background(byte id)
         {
