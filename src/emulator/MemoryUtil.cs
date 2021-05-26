@@ -10,6 +10,21 @@ namespace OptimeGBA
     public static unsafe class MemoryUtil
     {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetUlong(byte[] arr, uint addr)
+        {
+            return (ulong)(
+                    (arr[addr + 0] << 0) |
+                    (arr[addr + 1] << 8) |
+                    (arr[addr + 2] << 16) |
+                    (arr[addr + 3] << 24) |
+                    (arr[addr + 4] << 32) |
+                    (arr[addr + 5] << 40) |
+                    (arr[addr + 6] << 48) |
+                    (arr[addr + 7] << 56)
+                );
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetUint(byte[] arr, uint addr)
         {
             return (uint)(
@@ -36,6 +51,12 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetUlong(byte* arr, uint addr)
+        {
+            return *(ulong*)(arr + addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint GetUint(byte* arr, uint addr)
         {
             return *(uint*)(arr + addr);
@@ -51,6 +72,19 @@ namespace OptimeGBA
         public static byte GetByte(byte* arr, uint addr)
         {
             return *(byte*)(arr + addr);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetUlong(byte[] arr, uint addr, ulong val)
+        {
+            arr[addr + 0] = (byte)(val >> 0);
+            arr[addr + 1] = (byte)(val >> 8);
+            arr[addr + 2] = (byte)(val >> 16);
+            arr[addr + 3] = (byte)(val >> 24);
+            arr[addr + 4] = (byte)(val >> 32);
+            arr[addr + 5] = (byte)(val >> 40);
+            arr[addr + 6] = (byte)(val >> 48);
+            arr[addr + 7] = (byte)(val >> 56);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -73,6 +107,12 @@ namespace OptimeGBA
         public static void SetByte(byte[] arr, uint addr, byte val)
         {
             arr[addr] = val;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static void SetUlong(byte* arr, uint addr, ulong val)
+        {
+            *(ulong*)(arr + addr) = val;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
