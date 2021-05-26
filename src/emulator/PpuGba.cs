@@ -34,6 +34,8 @@ namespace OptimeGBA
         public ushort WINOUTValue;
         public ushort BLDCNTValue;
         public uint BLDALPHAValue;
+        public byte MOSAICValueB0;
+        public byte MOSAICValueB1;
 
         // DISPSTAT        
         public bool VCounterMatch;
@@ -191,6 +193,11 @@ namespace OptimeGBA
                     return (byte)((WINOUTValue >> 0) & 0x3F);
                 case 0x400004B: // WINOUT B1
                     return (byte)((WINOUTValue >> 8) & 0x3F);
+
+                case 0x400004C: // MOSAIC B0
+                    return MOSAICValueB0;
+                case 0x400004D: // MOSAIC B1
+                    return MOSAICValueB1;
 
                 case 0x4000050: // BLDCNT B0
                     return (byte)((BLDCNTValue >> 0) & 0xFF);
@@ -393,6 +400,19 @@ namespace OptimeGBA
                     WINOUTValue |= (ushort)(val << 8);
                     break;
 
+                case 0x400004C: // MOSAIC B0
+                    MOSAICValueB0 = val;
+
+                    Renderer.BgMosaicX = (byte)((val >> 0) & 0xF);
+                    Renderer.BgMosaicY = (byte)((val >> 4) & 0xF);
+                    break;
+                case 0x400004D: // MOSAIC B1
+                    MOSAICValueB1 = val;
+
+                    Renderer.ObjMosaicX = (byte)((val >> 0) & 0xF);
+                    Renderer.ObjMosaicY = (byte)((val >> 4) & 0xF);
+                    break;
+
                 case 0x4000050: // BLDCNT B0
                     Renderer.Target1Flags = val & 0b111111U;
 
@@ -469,6 +489,7 @@ namespace OptimeGBA
 #if DS_RESOLUTION
                         while (VCount < HEIGHT) {
                             RenderScanline();
+                            Renderer.IncrementMosaicCounters();
                             VCount++;
                         }
                         VCount = 160;
@@ -476,8 +497,7 @@ namespace OptimeGBA
 
                         Gba.Dma.RepeatVblank();
 
-                        Renderer.Backgrounds[2].CopyAffineParams();
-                        Renderer.Backgrounds[3].CopyAffineParams();
+                        Renderer.RunVblankOperations();
 
                         if (VBlankIrqEnable)
                         {
@@ -493,6 +513,8 @@ namespace OptimeGBA
                 else
                 {
                     if (Renderer.DebugEnableRendering) Renderer.RenderScanline(Vram);
+                    Renderer.IncrementMosaicCounters();
+
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 960 - cyclesLate, EndDrawingToHblank);
                 }
             }
@@ -539,7 +561,6 @@ namespace OptimeGBA
                 {
                     if (Renderer.DebugEnableObj && Renderer.ScreenDisplayObj) Renderer.RenderObjs(vram, 0);
                 }
-                if (Renderer.DebugEnableRendering) Renderer.RenderScanline(Vram);
             }
 
             VCounterMatch = Renderer.VCount == VCountSetting;

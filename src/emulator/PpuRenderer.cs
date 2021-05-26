@@ -129,6 +129,8 @@ namespace OptimeGBA
             new Background(3),
         };
 
+
+
         // DISPCNT
         public uint BgMode;
         public bool CgbMode;
@@ -192,6 +194,15 @@ namespace OptimeGBA
         // BLDY
         public uint BlendBrightness;
 
+        // MOSAIC
+        public uint BgMosaicX;
+        public uint BgMosaicY;
+        public uint ObjMosaicX;
+        public uint ObjMosaicY;
+
+        public uint BgMosaicYCounter;
+        public uint ObjMosaicYCounter;
+
         public void RenderScanline(byte[] vramArr)
         {
             fixed (byte* vram = vramArr)
@@ -247,6 +258,28 @@ namespace OptimeGBA
                         screenBase++;
                     }
                 }
+            }
+        }
+
+        public void RunVblankOperations()
+        {
+            Backgrounds[2].CopyAffineParams();
+            Backgrounds[3].CopyAffineParams();
+
+            BgMosaicYCounter = BgMosaicY;
+            ObjMosaicYCounter = ObjMosaicY;
+        }
+
+        public void IncrementMosaicCounters()
+        {
+            if (++BgMosaicYCounter > BgMosaicY)
+            {
+                BgMosaicYCounter = 0;
+            }
+
+            if (++ObjMosaicYCounter > ObjMosaicY)
+            {
+                ObjMosaicYCounter = 0;
             }
         }
 
@@ -323,13 +356,30 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
-        [MethodImpl(MethodImplOptions.AggressiveOptimization)]
         public void RenderCharBackground(byte* vram, Background bg)
+        {
+            bool enableMosaicX = bg.EnableMosaic && BgMosaicX != 0;
+            if (enableMosaicX)
+            {
+                _RenderCharBackground(vram, bg, true);
+            }
+            else
+            {
+                _RenderCharBackground(vram, bg, false);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
+        private void _RenderCharBackground(byte* vram, Background bg, bool mosaicX)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
             uint pixelY = bg.VerticalOffset + VCount;
+            if (bg.EnableMosaic)
+            {
+                pixelY -= BgMosaicYCounter;
+            }
             uint pixelYWrapped = pixelY & 255;
 
             uint screenSizeBase = bg.ScreenSize * 2;
@@ -345,6 +395,9 @@ namespace OptimeGBA
 
             byte flag = (byte)(1 << bg.Id);
 
+            uint mosaicXCounter = BgMosaicX;
+            byte finalColor = 0;
+
             for (uint tile = 0; tile < Width / 8 + 1; tile++)
             {
                 uint pixelXWrapped = pixelX & 255;
@@ -354,7 +407,7 @@ namespace OptimeGBA
                 uint horizontalOffsetBlocks = CharBlockWidthTable[screenSizeBase + ((pixelX & 511) >> 8)];
                 uint mapHoriOffset = MapBlockSize * horizontalOffsetBlocks;
                 uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
-                uint mapEntry = (uint)(vram[mapEntryIndex + 1] << 8 | vram[mapEntryIndex]);
+                uint mapEntry = GetUshort(vram, mapEntryIndex);
 
                 uint tileNumber = mapEntry & 1023; // 10 bits
                 bool xFlip = BitTest(mapEntry, 10);
@@ -381,16 +434,29 @@ namespace OptimeGBA
                         for (; tp < 8; tp++)
                         {
                             // 256 color, 64 bytes per tile, 8 bytes per row
-                            byte finalColor = (byte)data;
+                            if (mosaicX)
+                            {
+                                if (++mosaicXCounter > BgMosaicX)
+                                {
+                                    finalColor = (byte)data;
+                                    mosaicXCounter = 0;
+                                }
+                            }
+                            else
+                            {
+                                finalColor = (byte)data;
+                            }
                             data = RotateRight64(data, rotateBy);
+
                             if (finalColor != 0)
                             {
                                 PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
                             }
 
-                            pixelX++;
                             lineIndex++;
                         }
+
+                        pixelX += 8;
                     }
                     else
                     {
@@ -418,17 +484,29 @@ namespace OptimeGBA
 
                         for (; tp < 8; tp++)
                         {
-                            byte color = (byte)(data & 0xF);
-                            data = RotateRight32(data, rotateBy);
-                            if (color != 0)
+                            if (mosaicX)
                             {
-                                byte finalColor = (byte)(paletteBase + color);
+                                if (++mosaicXCounter > BgMosaicX)
+                                {
+                                    finalColor = (byte)((data & 0xF) + paletteBase);
+                                    mosaicXCounter = 0;
+                                }
+                            }
+                            else
+                            {
+                                finalColor = (byte)((data & 0xF) + paletteBase);
+                            }
+                            data = RotateRight32(data, rotateBy);
+
+                            if ((finalColor & 0xF) != 0)
+                            {
                                 PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
                             }
 
-                            pixelX++;
                             lineIndex++;
                         }
+
+                        pixelX += 8;
                     }
                     else
                     {
@@ -596,8 +674,7 @@ namespace OptimeGBA
                     }
                 }
 
-                if ((byte)mode == 3) render = false;
-                if ((byte)shape == 3) render = false;
+                if ((byte)mode == 3 || (byte)shape == 3) render = false;
 
                 if (!render) continue;
 
@@ -643,10 +720,10 @@ namespace OptimeGBA
                     uint parameterId = (attr1 >> 9) & 0b11111;
                     uint pBase = parameterId * 32;
 
-                    short pA = (short)MemoryUtil.GetUshort(Oam, pBase + 6);
-                    short pB = (short)MemoryUtil.GetUshort(Oam, pBase + 14);
-                    short pC = (short)MemoryUtil.GetUshort(Oam, pBase + 22);
-                    short pD = (short)MemoryUtil.GetUshort(Oam, pBase + 30);
+                    short pA = (short)GetUshort(Oam, pBase + 6);
+                    short pB = (short)GetUshort(Oam, pBase + 14);
+                    short pC = (short)GetUshort(Oam, pBase + 22);
+                    short pD = (short)GetUshort(Oam, pBase + 30);
 
                     uint xofs;
                     uint yofs;
