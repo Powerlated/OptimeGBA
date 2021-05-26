@@ -1542,16 +1542,10 @@ namespace OptimeGBA
         };
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint ArmDataOperandDecode(uint ins)
+        public (uint shifterOperand, bool shifterCarryOut, uint rnVal, uint rd) ArmDataDecode(uint ins, bool useImmediate32)
         {
             uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
 
-            return rd;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public (uint shifterOperand, bool shifterCarryOut, uint rnVal) ArmDataShiftAndApplyFlags(uint ins, bool useImmediate32)
-        {
             // ----- When using register as 2nd operand -----
             // Shift by immediate or shift by register
             uint shifterOperand = 0;
@@ -1581,7 +1575,7 @@ namespace OptimeGBA
 
                 LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
 
-                return (shifterOperand, shifterCarryOut, rnVal);
+                return (shifterOperand, shifterCarryOut, rnVal, rd);
             }
             else
             {
@@ -1663,7 +1657,7 @@ namespace OptimeGBA
                             break;
                     }
 
-                    return (shifterOperand, shifterCarryOut, rnVal);
+                    return (shifterOperand, shifterCarryOut, rnVal, rd);
                 }
                 else
                 {
@@ -1773,7 +1767,7 @@ namespace OptimeGBA
                             break;
                     }
 
-                    return (shifterOperand, shifterCarryOut, rnVal);
+                    return (shifterOperand, shifterCarryOut, rnVal, rd);
                 }
             }
         }

@@ -56,7 +56,7 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            uint bitsSet = (uint)System.Numerics.BitOperations.PopCount(ins & 0xFFFF);
+            uint bitsSet = (uint)BitOperations.PopCount(ins & 0xFFFF);
             uint writebackValue;
             if (U)
             {
@@ -250,7 +250,7 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            uint bitsSet = (uint)System.Numerics.BitOperations.PopCount(ins & 0xFFFF);
+            uint bitsSet = (uint)BitOperations.PopCount(ins & 0xFFFF);
             uint writebackValue;
             if (U)
             {
@@ -1024,8 +1024,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataAND(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("AND");
 
@@ -1052,8 +1051,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataEOR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("EOR");
 
@@ -1080,8 +1078,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataSUB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("SUB");
 
@@ -1110,8 +1107,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataRSB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("RSB");
 
@@ -1140,8 +1136,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataADD(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("ADD");
 
@@ -1169,8 +1164,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataADC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("ADC");
 
@@ -1198,8 +1192,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataSBC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("SBC");
 
@@ -1228,8 +1221,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataRSC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("RSC");
 
@@ -1258,8 +1250,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataTST(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("TST");
 
@@ -1273,8 +1264,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataTEQ(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("TEQ");
 
@@ -1288,8 +1278,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataCMP(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             // SBZ means should be zero, not relevant to the current code, just so you know
             arm7.LineDebug("CMP");
@@ -1305,8 +1294,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataCMN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("CMN");
 
@@ -1321,8 +1309,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataORR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("ORR");
 
@@ -1349,8 +1336,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataMOV(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("MOV");
 
@@ -1376,8 +1362,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataBIC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("BIC");
 
@@ -1404,8 +1389,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataMVN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            uint rd = Arm7.ArmDataOperandDecode(ins);
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue) = arm7.ArmDataShiftAndApplyFlags(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
 
             arm7.LineDebug("MVN");
 

@@ -1,5 +1,6 @@
 using static OptimeGBA.Bits;
 using static Util;
+using System.Numerics;
 
 namespace OptimeGBA
 {
@@ -511,7 +512,8 @@ namespace OptimeGBA
             arm7.LineDebug($"R{rm}");
 
             // BLX (2)
-            if (BitTest(ins, 7)) {
+            if (BitTest(ins, 7))
+            {
                 arm7.R[14] = (arm7.R[15] - 2) | 1;
             }
 
@@ -1035,15 +1037,7 @@ namespace OptimeGBA
 
             uint addr = arm7.R[13];
 
-            if (BitTest(ins, 0)) { addr -= 4; }
-            if (BitTest(ins, 1)) { addr -= 4; }
-            if (BitTest(ins, 2)) { addr -= 4; }
-            if (BitTest(ins, 3)) { addr -= 4; }
-            if (BitTest(ins, 4)) { addr -= 4; }
-            if (BitTest(ins, 5)) { addr -= 4; }
-            if (BitTest(ins, 6)) { addr -= 4; }
-            if (BitTest(ins, 7)) { addr -= 4; }
-            if (BitTest(ins, 8)) { addr -= 4; }
+            addr -= 4 * (uint)BitOperations.PopCount((uint)ins & 0x1FF);
 
             if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.Write32(addr & ~3u, arm7.R[0]); addr += 4; arm7.R[13] -= 4; }
             if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.Write32(addr & ~3u, arm7.R[1]); addr += 4; arm7.R[13] -= 4; }
@@ -1146,7 +1140,7 @@ namespace OptimeGBA
             // String regs = "";
 
             uint registerList = ins & 0xFFU;
-            uint registerCount = (uint)System.Numerics.BitOperations.PopCount(registerList);
+            uint registerCount = (uint)BitOperations.PopCount(registerList);
             uint writebackVal = arm7.R[rn] + registerCount * 4;
 
             uint register = 0;
@@ -1186,7 +1180,7 @@ namespace OptimeGBA
             arm7.FetchPipelineThumb();
 
             uint registerList = ins & 0xFFU;
-            uint registerCount = (uint)System.Numerics.BitOperations.PopCount(registerList);
+            uint registerCount = (uint)BitOperations.PopCount(registerList);
             uint writebackVal = arm7.R[rn] + registerCount * 4;
 
             uint register = 0;
@@ -1309,7 +1303,8 @@ namespace OptimeGBA
             arm7.Device.StateChange();
         }
 
-        public static void BLXRegister(Arm7 arm7, ushort ins) {
+        public static void BLXRegister(Arm7 arm7, ushort ins)
+        {
 
             arm7.Device.StateChange();
         }
