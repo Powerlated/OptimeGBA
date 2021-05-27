@@ -121,6 +121,7 @@ namespace OptimeGBA
         public bool DebugEnableObj = true;
         public bool DebugEnableRendering = true;
 
+
         // BGCNT
         public Background[] Backgrounds = new Background[4] {
             new Background(0),
@@ -302,7 +303,7 @@ namespace OptimeGBA
                     int invBg = 3 - bg;
                     BgList[bg] = -1;
                     BgList[BgCount] = invBg;
-                    if (ScreenDisplayBg[invBg] && DebugEnableBg[invBg])
+                    if (BgIsEnabled(invBg))
                     {
                         BgCount++;
                     }
@@ -1051,6 +1052,19 @@ namespace OptimeGBA
 
         public bool BgIsEnabled(int id)
         {
+            switch (BgMode)
+            {
+                case 0:
+                    break;
+                case 1:
+                    if (id == 3) return false;
+                    break;
+                case 2:
+                    if (id == 0) return false;
+                    if (id == 1) return false;
+                    break;
+            }
+
             return ScreenDisplayBg[id] && DebugEnableBg[id];
         }
 
