@@ -129,7 +129,8 @@ namespace OptimeGBA
             }
         }
 
-        public void RecalculateInterval() {
+        public void RecalculateInterval()
+        {
             uint max = 0x10000;
             uint diff = max - ReloadVal;
 
@@ -174,15 +175,29 @@ namespace OptimeGBA
         {
             CounterVal = ReloadVal;
         }
-        
+
         public void TimerOverflow(long cyclesLate)
         {
             // On overflow, refill with reload value
             CounterVal = ReloadVal;
 
-            if (Id < 2)
+            if (!Timers.NdsMode)
             {
-                Timers.Gba.GbaAudio.TimerOverflow(cyclesLate, Id);
+                var gba = (Gba)Timers.Device;
+                if (EnableIrq)
+                {
+                    gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.Timer0Overflow + Id));
+                }
+
+                if (Id < 2)
+                {
+                    gba.GbaAudio.TimerOverflow(cyclesLate, Id);
+                }
+            }
+            else
+            {
+                var nds = (Nds7)Timers.Device;
+                nds.HwControl.FlagInterrupt((InterruptNds)((uint)InterruptNds.Timer0Overflow + Id));
             }
 
             if (Id < 3)
@@ -191,11 +206,6 @@ namespace OptimeGBA
                 {
                     UnscheduledTimerIncrement();
                 }
-            }
-
-            if (EnableIrq)
-            {
-                Timers.Gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.Timer0Overflow + Id));
             }
 
             if (!CountUpTiming)
@@ -219,13 +229,15 @@ namespace OptimeGBA
 
     public sealed class Timers
     {
-        public Gba Gba;
+        public Device Device;
+        public bool NdsMode;
         public Scheduler Scheduler;
 
-        public Timers(Gba gba, Scheduler scheduler)
+        public Timers(Device device, Scheduler scheduler, bool ndsMode)
         {
-            Gba = gba;
+            Device = device;
             Scheduler = scheduler;
+            NdsMode = ndsMode;
 
             T = new Timer[4] {
                 new Timer(this, 0),

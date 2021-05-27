@@ -266,6 +266,10 @@ namespace OptimeGBA
             {
                 return Nds9.Nds.Ppu.ReadHwio8(addr);
             }
+            else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
+            {
+                return Nds9.Timers.ReadHwio8(addr);
+            }
             else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
             {
                 return Nds9.Nds.Keypad.ReadHwio8(addr);
@@ -274,18 +278,27 @@ namespace OptimeGBA
             {
                 return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
             }
+            else if (addr >= 0x40001A0 && addr <= 0x40001AF) // Cartridge control
+            {
+                return Nds9.Nds.Cartridge.ReadHwio8(addr);
+            }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {
                 return Nds9.HwControl.ReadHwio8(addr);
-            }
-            else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
-            {
-                return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
             }
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 return Nds9.Math.ReadHwio8(addr);
             }
+            else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
+            {
+                return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
+            }
+            else if (addr >= 0x4100010 && addr <= 0x4100013) // Cartridge data read
+            {
+                return Nds9.Nds.Cartridge.ReadHwio8(addr);
+            }
+
             return 0;
         }
 
@@ -302,9 +315,17 @@ namespace OptimeGBA
             {
                 Nds9.Nds.Ppu.WriteHwio8(addr, val);
             }
+            else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
+            {
+                Nds9.Timers.WriteHwio8(addr, val);
+            }
             else if (addr >= 0x4000180 && addr <= 0x400018B) // FIFO
             {
                 Nds9.Nds.Ipcs[1].WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x40001A0 && addr <= 0x40001AF) // Cartridge control
+            {
+                Nds9.Nds.Cartridge.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {

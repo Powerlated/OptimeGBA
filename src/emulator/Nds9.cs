@@ -18,6 +18,8 @@ namespace OptimeGBA
             Mem = new MemoryNds9(this, nds.Provider);
             Cpu = new Arm7(this, Mem, true, true, Nds.Cp15);
 
+            Timers = new Timers(this, Nds.Scheduler, true);
+
             Math = new Nds9Math(this);
 
             Mem.InitPageTables();

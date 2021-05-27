@@ -17,6 +17,8 @@ namespace OptimeGBA
             Mem = new MemoryNds7(this, nds.Provider);
             Cpu = new Arm7(this, Mem, false, false, null);
 
+            Timers = new Timers(this, Nds.Scheduler, true);
+
             Mem.InitPageTables();
             Cpu.FillPipelineArm();
 

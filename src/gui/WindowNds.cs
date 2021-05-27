@@ -1326,7 +1326,7 @@ namespace OptimeGBAEmulator
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                 }
-                ImGui.Text("");
+                ImGui.Text("---------");
                 foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
@@ -1339,7 +1339,7 @@ namespace OptimeGBAEmulator
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                 }
-                ImGui.Text("");
+                ImGui.Text("---------");
                 foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
                 {
                     ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");

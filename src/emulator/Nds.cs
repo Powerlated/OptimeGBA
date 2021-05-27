@@ -14,6 +14,8 @@ namespace OptimeGBA
 
         public Cp15 Cp15;
 
+        public CartridgeNds Cartridge;
+
         public Ipc[] Ipcs; // 0: ARM7 to ARM9, 1: ARM9 to ARM7
 
         public PpuNds Ppu;
@@ -38,6 +40,8 @@ namespace OptimeGBA
             };
 
             Cp15 = new Cp15(this);
+
+            Cartridge = new CartridgeNds(this);
 
             Ppu = new PpuNds(this, Scheduler);
             Ppu.Renderer.DisableColorCorrection();

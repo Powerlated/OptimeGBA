@@ -24,7 +24,7 @@ namespace OptimeGBA
             Ppu = new PpuGba(this, Scheduler);
             Keypad = new Keypad();
             Dma = new Dma(this);
-            Timers = new Timers(this, Scheduler);
+            Timers = new Timers(this, Scheduler, false);
             HwControl = new HwControlGba(this);
             Cpu = new Arm7(this, Mem, false, false, null);
 
