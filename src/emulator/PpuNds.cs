@@ -510,13 +510,19 @@ namespace OptimeGBA
         {
             Scheduler.AddEventRelative(SchedulerId.Ppu, 594 - cyclesLate, EndHblank);
 
-            // Nds.Dma.RepeatHblank();
-
             // if (HBlankIrqEnable)
             // {
-            //     Nds.HwControl.FlagInterrupt(InterruptGba.HBlank);
+                // Gba.HwControl.FlagInterrupt(InterruptGba.HBlank);
             // }
 
+            if (Renderer.DebugEnableRendering)
+            {
+                PrepareScanline();
+                Renderer.RenderScanline(VramLcdc);
+            }
+            Renderer.IncrementMosaicCounters();
+
+            // Gba.Dma.RepeatHblank();
         }
 
         public void EndVblankToHblank(long cyclesLate)
@@ -560,12 +566,6 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    if (Renderer.DebugEnableRendering)
-                    {
-                        PrepareScanline();
-                        Renderer.RenderScanline(VramLcdc);
-                    }
-                    Renderer.IncrementMosaicCounters();
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
                 }
             }
