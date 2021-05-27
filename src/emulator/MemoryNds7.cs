@@ -30,47 +30,32 @@ namespace OptimeGBA
         public byte[] Arm7Bios = MemoryUtil.AllocateManagedArray(Arm7BiosSize);
         public byte[] Arm7Wram = MemoryUtil.AllocateManagedArray(Arm7WramSize);
 
-        public override void InitPageTable(byte[][] table, bool write)
+        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
         {
-            MemoryRegionMasks[0x0] = 0x00003FFF; // BIOS
-            MemoryRegionMasks[0x1] = 0x00000000; // 
-            MemoryRegionMasks[0x2] = 0x003FFFFF; // Main Memory
-            MemoryRegionMasks[0x3] = 0x0000FFFF; //  Shared WRAM / ARM7 WRAM
-            MemoryRegionMasks[0x4] = 0x00000000; // 
-            MemoryRegionMasks[0x5] = 0x00000000; // 
-            MemoryRegionMasks[0x6] = 0x00000000; // 
-            MemoryRegionMasks[0x7] = 0x00000000; // 
-            MemoryRegionMasks[0x8] = 0x00000000; // 
-            MemoryRegionMasks[0x9] = 0x00000000; // 
-            MemoryRegionMasks[0xA] = 0x00000000; // 
-            MemoryRegionMasks[0xB] = 0x00000000; // 
-            MemoryRegionMasks[0xC] = 0x00000000; // 
-            MemoryRegionMasks[0xD] = 0x00000000; // 
-            MemoryRegionMasks[0xE] = 0x00000000; // 
-            MemoryRegionMasks[0xF] = 0x00000000; // 
-
-            // 10 bits shaved off already, shave off another 14 to get 24
-            for (uint i = 0; i < 4194304; i++)
+            // 12 bits shaved off already, shave off another 12 to get 24
+            for (uint i = 0; i < 1048576; i++)
             {
-                uint addr = (uint)(i << 10);
-                switch (i >> 14)
+                uint addr = (uint)(i << 12);
+                switch (i >> 12)
                 {
                     case 0x0: // BIOS
                         if (!write)
                         {
                             table[i] = Arm7Bios;
                         }
+                        maskTable[i] = 0x00003FFF;
                         break;
                     case 0x2: // Main Memory
                         table[i] = Nds7.Nds.MainRam;
+                        maskTable[i] = 0x003FFFFF;
                         break;
                     case 0x3: // Shared RAM / ARM7 WRAM
                         if (addr >= 0x03800000)
                         {
                             table[i] = Arm7Wram;
                         }
+                        maskTable[i] = 0x0000FFFF;
                         break;
-
                 }
             }
         }
@@ -225,7 +210,6 @@ namespace OptimeGBA
             else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
             {
                 return Nds7.Nds.Ipcs[0].ReadHwio8(addr);
-
             }
 
             return 0;

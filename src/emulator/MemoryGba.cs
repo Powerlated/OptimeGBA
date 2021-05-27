@@ -102,48 +102,36 @@ namespace OptimeGBA
         public byte[] Ewram = MemoryUtil.AllocateManagedArray(EwramSize);
         public byte[] Iwram = MemoryUtil.AllocateManagedArray(IwramSize);
 
-        public override void InitPageTable(byte[][] table, bool write)
+        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
         {
-            MemoryRegionMasks[0x0] = 0x00003FFF; // BIOS
-            MemoryRegionMasks[0x1] = 0x00000000; // Unused
-            MemoryRegionMasks[0x2] = 0x0003FFFF; // EWRAM
-            MemoryRegionMasks[0x3] = 0x00007FFF; // IWRAM
-            MemoryRegionMasks[0x4] = 0x00000000; // I/O
-            MemoryRegionMasks[0x5] = 0x000003FF; // Palettes
-            MemoryRegionMasks[0x6] = 0x0001FFFF; // VRAM
-            MemoryRegionMasks[0x7] = 0x000003FF; // OAM
-            MemoryRegionMasks[0x8] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0x9] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0xA] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0xB] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0xC] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0xD] = 0x01FFFFFF; // ROM
-            MemoryRegionMasks[0xE] = 0x00000000; // SRAM / FLASH
-            MemoryRegionMasks[0xF] = 0x00000000; // SRAM / FLASH
 
-            // 10 bits shaved off already, shave off another 14 to get 24
-            for (uint i = 0; i < 4194304; i++)
+            // 12 bits shaved off already, shave off another 12 to get 24
+            for (uint i = 0; i < 1048576; i++)
             {
-                uint addr = (uint)(i << 10);
-                switch (i >> 14)
+                uint addr = (uint)(i << 12);
+                switch (i >> 12)
                 {
                     case 0x0: // BIOS
                         if (!write)
                         {
                             table[i] = Bios;
                         }
+                        maskTable[i] = 0x00003FFF;
                         break;
                     case 0x2: // EWRAM
                         table[i] = Ewram;
+                        maskTable[i] = 0x0003FFFF;
                         break;
                     case 0x3: // IWRAM
                         table[i] = Iwram;
+                        maskTable[i] = 0x00007FFF;
                         break;
                     case 0x5: // Palettes
                         if (!write)
                         {
                             table[i] = Gba.Ppu.Renderer.Palettes;
                         }
+                        maskTable[i] = 0x3FF;
                         break;
                     case 0x6: // PPU VRAM
                         addr &= 0x1FFFF;
@@ -155,10 +143,11 @@ namespace OptimeGBA
                         {
                             table[i] = EmptyPage;
                         }
+                        maskTable[i] = 0x0001FFFF; // VRAM
                         break;
                     case 0x7: // PPU OAM
-                        addr &= 0x3FF;
                         table[i] = Gba.Ppu.Renderer.Oam;
+                        maskTable[i] = 0x000003FF;
                         break;
                     case 0x8: // Game Pak ROM/FlashROM 
                     case 0x9: // Game Pak ROM/FlashROM 
@@ -169,8 +158,10 @@ namespace OptimeGBA
                         {
                             table[i] = Rom;
                         }
+                        maskTable[i] = 0x01FFFFFF;
                         break;
                     case 0xD: // Game Pak ROM/FlashROM/EEPROM
+                        maskTable[i] = 0x01FFFFFF;
                         break;
                 }
             }

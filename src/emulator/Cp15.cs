@@ -40,6 +40,9 @@ namespace OptimeGBA
             uint reg = ((cRn & 0xF) << 8) | ((cRm & 0xF) << 4) | (opcode2 & 0x7);
             switch (reg)
             {
+                case 0x000: // ID register
+                    val = 0x41059461;
+                    break;
                 case 0x910:
                     val = DataTcmSettings;
                     break;

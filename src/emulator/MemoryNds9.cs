@@ -31,65 +31,63 @@ namespace OptimeGBA
         public const int DtcmSize = 16384;
         public byte[] Dtcm = MemoryUtil.AllocateManagedArray(DtcmSize);
 
-        public override void InitPageTable(byte[][] table, bool write)
+        public uint DtcmBase = 0;
+        public uint ItcmVirtualSize = 0;
+        public uint DtcmVirtualSize = 0;
+
+        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
         {
-            // TODO: Implement TCM moving/mirroring correctly
-
-            MemoryRegionMasks[0x0] = 0x00007FFF; // Instruction TCM
-            MemoryRegionMasks[0x1] = 0x00003FFF; // Data TCM 
-            MemoryRegionMasks[0x2] = 0x003FFFFF; // Main Memory
-            MemoryRegionMasks[0x3] = 0x0000FFFF; // Shared WRAM
-            MemoryRegionMasks[0x4] = 0x00000000; // ARM9 I/O
-            MemoryRegionMasks[0x5] = 0x000007FF; // Standard Palettes (2KB)
-            MemoryRegionMasks[0x6] = 0x00000000; // VRAM
-            MemoryRegionMasks[0x7] = 0x00000000; // 
-            MemoryRegionMasks[0x8] = 0x00000000; // 
-            MemoryRegionMasks[0x9] = 0x00000000; // 
-            MemoryRegionMasks[0xA] = 0x00000000; // 
-            MemoryRegionMasks[0xB] = 0x00003FFF; // Data TCM????? 
-            MemoryRegionMasks[0xC] = 0x00000000; // 
-            MemoryRegionMasks[0xD] = 0x00000000; // 
-            MemoryRegionMasks[0xE] = 0x00000000; // 
-            MemoryRegionMasks[0xFF] = 0x00000FFF; // BIOS
-
-            // 10 bits shaved off already, shave off another 14 to get 24
-            for (uint i = 0; i < 4194304; i++)
+            // 12 bits shaved off already, shave off another 12 to get 24
+            for (uint i = 0; i < 1048576; i++)
             {
-                uint addr = (uint)(i << 10);
-                switch (i >> 14)
+                uint addr = (uint)(i << 12);
+                switch (i >> 12)
                 {
-                    case 0x0: // Instruction TCM
-                        table[i] = Itcm;
-                        break;
-                    case 0x1: // Data TCM
-                        table[i] = Dtcm;
-                        break;
                     case 0x2: // Main Memory
                         table[i] = Nds9.Nds.MainRam;
-                        break;
-                    case 0x3: // Shared RAM / ARM7 WRAM
+                        maskTable[i] = 0x003FFFFF;
                         break;
                     case 0x5: // Palettes
                         if (!write)
                         {
                             table[i] = Nds9.Nds.Ppu.Renderer.Palettes;
                         }
-                        break;
-                    case 0xB: // Data TCM???????????
-                        table[i] = Dtcm;
+                        maskTable[i] = 0x000007FF;
                         break;
                     case 0xFF: // BIOS
                         if (!write)
                         {
                             table[i] = Arm9Bios;
                         }
+                        maskTable[i] = 0x00000FFF;
                         break;
+                }
+
+                // ITCM is immovable
+                if (addr < ItcmVirtualSize)
+                {
+                    table[i] = Itcm;
+                    maskTable[i] = 0x00007FFF;
+                }
+
+                if (addr >= DtcmBase && addr < DtcmBase + DtcmVirtualSize)
+                {
+                    table[i] = Dtcm;
+                    maskTable[i] = 0x00003FFF;
                 }
             }
         }
 
-        public void UpdateTcmSettings() {
-            
+        public void UpdateTcmSettings()
+        {
+            ItcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.InstTcmSettings >> 1) & 0x1F);
+            DtcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.DataTcmSettings >> 1) & 0x1F);
+
+            DtcmBase = (uint)(Nds9.Nds.Cp15.DataTcmSettings & 0xFFFFF000);
+
+            Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
+
+            InitPageTables();
         }
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
@@ -284,6 +282,10 @@ namespace OptimeGBA
             {
                 return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
             }
+            else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
+            {
+                return Nds9.Math.ReadHwio8(addr);
+            }
             return 0;
         }
 
@@ -307,6 +309,10 @@ namespace OptimeGBA
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {
                 Nds9.HwControl.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
+            {
+                Nds9.Math.WriteHwio8(addr, val);
             }
         }
     }

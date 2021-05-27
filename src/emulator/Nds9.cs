@@ -7,6 +7,7 @@ namespace OptimeGBA
         public Nds Nds;
         public MemoryNds9 Mem;
         public HwControlNds HwControl;
+        public Nds9Math Math;
 
         public Nds9(Nds nds)
         {
@@ -16,6 +17,8 @@ namespace OptimeGBA
 
             Mem = new MemoryNds9(this, nds.Provider);
             Cpu = new Arm7(this, Mem, true, true, Nds.Cp15);
+
+            Math = new Nds9Math(this);
 
             Mem.InitPageTables();
             Cpu.FillPipelineArm();

@@ -7,6 +7,7 @@ using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
 {
+    // ARM DDI 0100I manual used for implementation of this CPU
     public unsafe sealed class Arm7
     {
         public enum Arm7Mode
@@ -139,6 +140,7 @@ namespace OptimeGBA
         // DEBUG INFO
         public uint LastIns;
         public uint LastLastIns;
+        public bool LastThumbState;
 
         public bool FlagInterrupt;
 
@@ -309,6 +311,7 @@ namespace OptimeGBA
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
+            LastThumbState = ThumbState;
 #endif
 
             LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
@@ -348,6 +351,7 @@ namespace OptimeGBA
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
+            LastThumbState = ThumbState;
             ThumbExecutorProfile[decodeBits]++;
 #endif
             LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
@@ -409,7 +413,27 @@ namespace OptimeGBA
             {
                 return Arm.BX;
             }
-            // id mask      0b1111111100000000000011110000     0b1111111111110000111111110000
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111100100000000000011110000) == 0b0001000000000000000001010000) // QADD/QSUB/QDADD/QDSUB
+            {
+                if (Armv5)
+                {
+                    if (BitTest(ins, 21))
+                    {
+                        return Arm.QSUB;
+                    }
+                    else
+                    {
+                        return Arm.QADD;
+                    }
+                }
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
+            else if ((ins & 0b1111100100000000000010010000) == 0b0001000000000000000010000000) // ARMv5 signed multiply
+            {
+                return Arm.Invalid;
+            }
+            // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1111111100000000000011110000) == 0b0001011000000000000000010000) // Count Leading Zeros
             {
                 return Arm.CLZ;
@@ -460,8 +484,8 @@ namespace OptimeGBA
                 bool S = BitTest(ins, 6);
                 bool H = BitTest(ins, 5);
                 if (!L && !S && H) return Arm.STRH;
-                if (!L && S && !H) return Arm.LDRD;
-                if (!L && S && H) return Arm.STRD;
+                if (!L && S && !H && Armv5) return Arm.LDRD;
+                if (!L && S && H && Armv5) return Arm.STRD;
                 if (L && !S && H) return Arm.LDRH;
                 if (L && S && !H) return Arm.LDRSB;
                 if (L && S && H) return Arm.LDRSH;

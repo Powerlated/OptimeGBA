@@ -1540,6 +1540,90 @@ namespace OptimeGBA
             }
         }
 
+        public static void QADD(Arm7 arm7, uint ins)
+        {
+            uint rm = (ins >> 0) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rn = (ins >> 16) & 0xF;
+
+            long rmVal = (int)arm7.R[rm];
+            long rnVal = (int)arm7.R[rn];
+
+            bool doubling = BitTest(ins, 22);
+            if (doubling)
+            {
+                rnVal *= 2;
+
+                if (rnVal < int.MinValue)
+                {
+                    rnVal = int.MinValue;
+                    arm7.Sticky = true;
+                }
+                if (rnVal > int.MaxValue)
+                {
+                    rnVal = int.MaxValue;
+                    arm7.Sticky = true;
+                }
+            }
+
+            long result = rmVal + rnVal;
+
+            if (result < int.MinValue)
+            {
+                result = int.MinValue;
+                arm7.Sticky = true;
+            }
+            if (result > int.MaxValue)
+            {
+                result = int.MaxValue;
+                arm7.Sticky = true;
+            }
+
+            arm7.R[rd] = (uint)result;
+        }
+
+        public static void QSUB(Arm7 arm7, uint ins)
+        {
+            uint rm = (ins >> 0) & 0xF;
+            uint rd = (ins >> 12) & 0xF;
+            uint rn = (ins >> 16) & 0xF;
+
+            long rmVal = (int)arm7.R[rm];
+            long rnVal = (int)arm7.R[rn];
+
+            bool doubling = BitTest(ins, 22);
+            if (doubling)
+            {
+                rnVal *= 2;
+
+                if (rnVal < int.MinValue)
+                {
+                    rnVal = int.MinValue;
+                    arm7.Sticky = true;
+                }
+                if (rnVal > int.MaxValue)
+                {
+                    rnVal = int.MaxValue;
+                    arm7.Sticky = true;
+                }
+            }
+
+            long result = rmVal - rnVal;
+
+            if (result < int.MinValue)
+            {
+                result = int.MinValue;
+                arm7.Sticky = true;
+            }
+            if (result > int.MaxValue)
+            {
+                result = int.MaxValue;
+                arm7.Sticky = true;
+            }
+
+            arm7.R[rd] = (uint)result;
+        }
+
         public static void Invalid(Arm7 arm7, uint ins)
         {
             arm7.Error($"Invalid ARM Instruction: {Hex(ins, 8)}");

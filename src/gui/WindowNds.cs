@@ -83,7 +83,7 @@ namespace OptimeGBAEmulator
 
         public uint Arm9Breakpoint = 0x2005960;
         public uint Arm7Breakpoint;
-        public bool EnableBreakpoints = true;
+        public bool EnableBreakpoints = false;
 
         public void CheckBreakpoints()
         {
@@ -338,19 +338,13 @@ namespace OptimeGBAEmulator
         }
 
         static String[] baseNames = {
-                    "BIOS",
-                    "EWRAM",
-                    "IWRAM",
-                    "VRAM",
-                    "ROM",
+                    "ITCM",
+                    "BIOS DTCM",
                 };
 
         static uint[] baseAddrs = {
                 0x00000000,
-                0x02000000,
-                0x03000000,
-                0x06000000,
-                0x08000000
+                0x00800000,
             };
 
         public void DrawMemoryViewer()
@@ -359,7 +353,7 @@ namespace OptimeGBAEmulator
             int rows = 2048;
             int cols = 16;
 
-            if (ImGui.Begin("Memory Viewer"))
+            if (ImGui.Begin("Memory Viewer ARM9"))
             {
                 if (ImGui.BeginCombo("", $"{baseNames[MemoryViewerCurrent]}: {Hex(baseAddrs[MemoryViewerCurrent], 8)}"))
                 {
@@ -484,27 +478,27 @@ namespace OptimeGBAEmulator
 
         public String BuildEmuFullText()
         {
-            String disasm = Nds.Nds7.Cpu.ThumbState ? disasmThumb((ushort)Nds.Nds7.Cpu.LastIns) : disasmArm(Nds.Nds7.Cpu.LastIns);
+            String disasm = Nds.Nds9.Cpu.ThumbState ? disasmThumb((ushort)Nds.Nds9.Cpu.LastIns) : disasmArm(Nds.Nds9.Cpu.LastIns);
 
             StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[0], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[1], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[2], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[3], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[4], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[5], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[6], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[7], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[8], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[9], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[10], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[11], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[12], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[13], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[14], 8)} ");
-            builder.Append($"{HexN(Nds.Nds7.Cpu.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(Nds.Nds7.Cpu.GetCPSR(), 8)} | ");
-            builder.Append($"{(Nds.Nds7.Cpu.ThumbState ? "    " + HexN(Nds.Nds7.Cpu.LastIns, 4) : HexN(Nds.Nds7.Cpu.LastIns, 8))}: {disasm}");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[0], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[1], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[2], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[3], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[4], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[5], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[6], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[9], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[8], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[9], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[10], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[11], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[12], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[13], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[14], 8)} ");
+            builder.Append($"{HexN(Nds.Nds9.Cpu.R[15], 8)} ");
+            builder.Append($"cpsr: {HexN(Nds.Nds9.Cpu.GetCPSR(), 8)} | ");
+            builder.Append($"{(Nds.Nds9.Cpu.ThumbState ? "    " + HexN(Nds.Nds9.Cpu.LastIns, 4) : HexN(Nds.Nds9.Cpu.LastIns, 8))}: {disasm}");
             // text += $"> {LogIndex + 1}";
             return builder.ToString();
         }
@@ -561,9 +555,10 @@ namespace OptimeGBAEmulator
             ImGui.Text($"R14: {Hex(arm7.R[14], 8)}");
             ImGui.Text($"R15: {Hex(arm7.R[15], 8)}");
             ImGui.Text($"CPSR: {Hex(arm7.GetCPSR(), 8)}");
-            ImGui.Text($"Instruction: {Hex(arm7.LastIns, arm7.ThumbState ? 4 : 8)}");
-            ImGui.Text($"Prev. Ins.: {Hex(arm7.LastLastIns, arm7.ThumbState ? 4 : 8)}");
-            ImGui.Text($"Disasm: {(arm7.ThumbState ? disasmThumb((ushort)arm7.LastIns) : disasmArm(arm7.LastIns))}");
+            // ImGui.Text($"Instruction: {Hex(arm7.LastIns, arm7.ThumbState ? 4 : 8)}");
+            ImGui.Text($"Prev. Ins.: {Hex(arm7.LastIns, arm7.LastThumbState ? 4 : 8)}");
+            ImGui.Text($"Disasm: {(arm7.LastThumbState ? disasmThumb((ushort)arm7.LastIns) : disasmArm(arm7.LastIns))}");
+            ImGui.Text($"Decoded as: {(arm7.LastThumbState ? arm7.GetInstructionThumb((ushort)arm7.LastIns).Method.Name : arm7.GetInstructionArm(arm7.LastIns).Method.Name)}");
 
             ImGui.Text($"Mode: {arm7.Mode}");
             ImGui.Text($"Last Cycles: {arm7.InstructionCycles}");
@@ -667,23 +662,11 @@ namespace OptimeGBAEmulator
                 ImGui.InputInt("Instrs", ref DebugStepFor);
                 if (ImGui.Button("Step For"))
                 {
-                    using (StreamWriter file = new StreamWriter("log.txt"))
+                    int num = DebugStepFor;
+                    while (num > 0 && !Nds.Nds7.Cpu.Errored)
                     {
-                        int num = DebugStepFor;
-                        while (num > 0 && !Nds.Nds7.Cpu.Errored)
-                        {
-
-                            // file.WriteLine(BuildEmuFullText());
-                            Nds.Step();
-
-                            if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
-                            {
-                                file.WriteLine("---------------- INTERRUPT ----------------");
-                            }
-
-                            LogIndex++;
-                            num--;
-                        }
+                        Nds.Step();
+                        num--;
                     }
                 }
 
@@ -692,12 +675,12 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
                         int num = 250000;
-                        while (num > 0 && !Nds.Nds7.Cpu.Errored)
+                        while (num > 0 && !Nds.Nds9.Cpu.Errored)
                         {
                             Nds.Step();
                             file.WriteLine(BuildEmuFullText());
 
-                            if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
+                            if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
                             {
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
@@ -1480,8 +1463,9 @@ namespace OptimeGBAEmulator
             for (uint i = 0; i < IeIfBitNames.Length; i++)
             {
                 displayCheckbox("", BitTest(IE, (byte)i)); ImGui.SameLine();
-                displayCheckbox("", BitTest(IF, (byte)i)); 
-                if (text) {
+                displayCheckbox("", BitTest(IF, (byte)i));
+                if (text)
+                {
                     ImGui.SameLine();
                     ImGui.Text(IeIfBitNames[i]);
                 }

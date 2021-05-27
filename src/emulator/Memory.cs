@@ -22,14 +22,14 @@ namespace OptimeGBA
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
         public bool LogHwioAccesses = false;
 
-        public abstract void InitPageTable(byte[][] pageTable, bool write);
+        public abstract void InitPageTable(byte[][] pageTable, uint[] maskTable, bool write);
         public const int PageSize = 1024;
 
-        public uint[] MemoryRegionMasks = new uint[256];
+        public uint[] MemoryRegionMasks = new uint[1048576];
 
         public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
-        public byte[][] PageTableRead = new byte[4194304][];
-        public byte[][] PageTableWrite = new byte[4194304][];
+        public byte[][] PageTableRead = new byte[1048576][];
+        public byte[][] PageTableWrite = new byte[1048576][];
 
         public abstract byte Read8Unregistered(uint addr);
         public abstract void Write8Unregistered(uint addr, byte val);
@@ -40,25 +40,25 @@ namespace OptimeGBA
 
         public void InitPageTables()
         {
-            InitPageTable(PageTableRead, false);
-            InitPageTable(PageTableWrite, true);
+            InitPageTable(PageTableRead, MemoryRegionMasks, false);
+            InitPageTable(PageTableWrite, MemoryRegionMasks, true);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint MaskAddress(uint addr)
         {
-            return addr & MemoryRegionMasks[addr >> 24];
+            return addr & MemoryRegionMasks[addr >> 12];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte[] ResolvePageRead(uint addr)
         {
-            return PageTableRead[addr >> 10];
+            return PageTableRead[addr >> 12];
         }
 
         public byte[] ResolvePageWrite(uint addr)
         {
-            return PageTableWrite[addr >> 10];
+            return PageTableWrite[addr >> 12];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -117,7 +117,8 @@ namespace OptimeGBA
             var page = ResolvePageRead(addr);
             if (page != null)
             {
-                return GetUint(page, MaskAddress(addr));
+                var maskedAddr = MaskAddress(addr);
+                return GetUint(page, maskedAddr);
             }
 
             return Read32Unregistered(addr);
@@ -129,7 +130,8 @@ namespace OptimeGBA
             var page = ResolvePageRead(addr);
             if (page != null)
             {
-                return GetUint(page, MaskAddress(addr));
+                var maskedAddr = MaskAddress(addr);
+                return GetUint(page, maskedAddr);
             }
 
             return Read32Unregistered(addr);
@@ -141,7 +143,8 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                SetByte(page, MaskAddress(addr), val);
+                var maskedAddr = MaskAddress(addr);
+                SetByte(page, maskedAddr, val);
                 return;
             }
 
@@ -161,7 +164,8 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                SetUshort(page, MaskAddress(addr), val);
+                var maskedAddr = MaskAddress(addr);
+                SetUshort(page, maskedAddr, val);
                 return;
             }
 
@@ -181,7 +185,8 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                SetUint(page, MaskAddress(addr), val);
+                var maskedAddr = MaskAddress(addr);
+                SetUint(page, maskedAddr, val);
                 return;
             }
 

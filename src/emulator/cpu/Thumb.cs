@@ -1293,10 +1293,9 @@ namespace OptimeGBA
 
             uint oldR14 = arm7.R[14];
             arm7.R[14] = (arm7.R[15] - 2) | 1;
-            arm7.R[15] = (uint)((oldR14 + (offset11 << 1)) & 0xFFFFFFFC);
-            arm7.R[15] &= 0xFFFFFFFE;
-            arm7.FlushPipeline();
+            arm7.R[15] = (uint)((oldR14 + (offset11 << 1)) & ~3);
             arm7.ThumbState = false;
+            arm7.FlushPipeline();
             arm7.LineDebug($"Jump to ${Util.HexN(arm7.R[15], 8)}");
             arm7.LineDebug("Exit THUMB state");
 
