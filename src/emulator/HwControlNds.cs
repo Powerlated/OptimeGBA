@@ -31,7 +31,7 @@ namespace OptimeGBA
         Wifi = 24, // ARM7 only
     }
 
-    public sealed class HwControlNds
+    public sealed class HwControlNds : HwControl
     {
         Device Device;
         bool Arm9; // Or Arm7
@@ -41,13 +41,6 @@ namespace OptimeGBA
             Device = device;
             Arm9 = arm9;
         }
-
-        public bool IME = false;
-
-        public uint IE;
-        public uint IF;
-
-        public bool Available;
 
         public byte ReadHwio8(uint addr)
         {
@@ -128,7 +121,7 @@ namespace OptimeGBA
             }
         }
 
-        public void FlagInterrupt(InterruptNds i)
+        public override void FlagInterrupt(uint i)
         {
             IF |= (uint)(1 << (int)i);
             CheckAndFireInterrupts();

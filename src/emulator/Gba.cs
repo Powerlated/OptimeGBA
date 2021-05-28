@@ -7,11 +7,12 @@ namespace OptimeGBA
     {
         public ProviderGba Provider;
 
-        public MemoryGba Mem;
+        public new MemoryGba Mem;
         public GbaAudio GbaAudio;
         public Keypad Keypad;
         public PpuGba Ppu;
-        public HwControlGba HwControl;
+        public new HwControlGba HwControl;
+        public DmaGba Dma;
 
         public Gba(ProviderGba provider)
         {
@@ -23,7 +24,7 @@ namespace OptimeGBA
             GbaAudio = new GbaAudio(this, Scheduler);
             Ppu = new PpuGba(this, Scheduler);
             Keypad = new Keypad();
-            Dma = new Dma(this);
+            Dma = new DmaGba(this);
             Timers = new Timers(this, Scheduler, false);
             HwControl = new HwControlGba(this);
             Cpu = new Arm7(this, Mem, false, false, null);

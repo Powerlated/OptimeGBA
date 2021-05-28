@@ -109,10 +109,10 @@ namespace OptimeGBA
                         switch (Id)
                         {
                             case 0:
-                                Nds.Nds9.HwControl.FlagInterrupt(InterruptNds.IpcSync);
+                                Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.IpcSync);
                                 break;
                             case 1:
-                                Nds.Nds7.HwControl.FlagInterrupt(InterruptNds.IpcSync);
+                                Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.IpcSync);
                                 break;
                         }
                     }
@@ -190,10 +190,10 @@ namespace OptimeGBA
             switch (Id)
             {
                 case 0:
-                    Nds.Nds7.HwControl.FlagInterrupt(interrupt);
+                    Nds.Nds7.HwControl.FlagInterrupt((uint)interrupt);
                     break;
                 case 1:
-                    Nds.Nds9.HwControl.FlagInterrupt(interrupt);
+                    Nds.Nds9.HwControl.FlagInterrupt((uint)interrupt);
                     break;
             }
         }

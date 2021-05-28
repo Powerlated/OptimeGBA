@@ -195,6 +195,10 @@ namespace OptimeGBA
             {
                 return Nds7.Nds.Ppu.ReadHwio8(addr);
             }
+            else if (addr >= 0x40000B0 && addr <= 0x40000EF) // DMA
+            {
+                return Nds7.Dma.ReadHwio8(addr);
+            }
             else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
             {
                 return Nds7.Timers.ReadHwio8(addr);
@@ -239,6 +243,10 @@ namespace OptimeGBA
             if (addr >= 0x4000000 && addr <= 0x4000007) // PPU
             {
                 Nds7.Nds.Ppu.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x40000B0 && addr <= 0x40000EF) // DMA
+            {
+                Nds7.Dma.WriteHwio8(addr, val);
             }
             else if (addr >= 0x4000100 && addr <= 0x400010F) // Timer
             {

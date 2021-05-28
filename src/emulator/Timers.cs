@@ -186,7 +186,7 @@ namespace OptimeGBA
                 var gba = (Gba)Timers.Device;
                 if (EnableIrq)
                 {
-                    gba.HwControl.FlagInterrupt((InterruptGba)((uint)InterruptGba.Timer0Overflow + Id));
+                    gba.HwControl.FlagInterrupt((uint)InterruptGba.Timer0Overflow + Id);
                 }
 
                 if (Id < 2)
@@ -197,7 +197,7 @@ namespace OptimeGBA
             else
             {
                 var nds = (Nds7)Timers.Device;
-                nds.HwControl.FlagInterrupt((InterruptNds)((uint)InterruptNds.Timer0Overflow + Id));
+                nds.HwControl.FlagInterrupt((uint)InterruptNds.Timer0Overflow + Id);
             }
 
             if (Id < 3)

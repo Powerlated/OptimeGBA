@@ -13,15 +13,15 @@ namespace OptimeGBA
         Timer2Overflow = 5,
         Timer3Overflow = 6,
         Serial = 7,
-        DMA0 = 8,
-        DMA1 = 9,
-        DMA2 = 10,
-        DMA3 = 11,
+        Dma0 = 8,
+        Dma1 = 9,
+        Dma2 = 10,
+        Dma3 = 11,
         Keypad = 12,
         GamePak = 13,
     }
 
-    public sealed class HwControlGba
+    public sealed class HwControlGba : HwControl
     {
         Gba Gba;
 
@@ -29,13 +29,6 @@ namespace OptimeGBA
         {
             Gba = gba;
         }
-
-        public bool IME = false;
-
-        public uint IE;
-        public uint IF;
-
-        public bool Available;
 
         public byte ReadHwio8(uint addr)
         {
@@ -101,7 +94,7 @@ namespace OptimeGBA
             }
         }
 
-        public void FlagInterrupt(InterruptGba i)
+        public override void FlagInterrupt(uint i)
         {
             IF |= (ushort)(1 << (int)i);
             CheckAndFireInterrupts();

@@ -2,17 +2,18 @@ using System;
 
 namespace OptimeGBA
 {
-    public unsafe sealed class Nds7 : Device
+    public unsafe sealed class Nds7 : DeviceNds
     {
-        public Nds Nds;
-        public MemoryNds7 Mem;
-        public HwControlNds HwControl;
+        public new MemoryNds7 Mem;
+        public new HwControlNds HwControl;
+        public DmaNds Dma;
 
         public Nds7(Nds nds)
         {
             Nds = nds;
 
             HwControl = new HwControlNds(this, false);
+            Dma = new DmaNds(this);
 
             Mem = new MemoryNds7(this, nds.Provider);
             Cpu = new Arm7(this, Mem, false, false, null);
