@@ -82,9 +82,9 @@ namespace OptimeGBA
                     Nds7.Cpu.R[13] = 0x3002F7C;
                     Nds7.Cpu.R13irq = 0x3003F80;
                     Nds7.Cpu.R13svc = 0x3003FC0;
-                    Nds7.Cpu.R[12] = arm7RamAddr;
-                    Nds7.Cpu.R[14] = arm7RamAddr;
-                    Nds7.Cpu.R[15] = arm7RamAddr;
+                    Nds7.Cpu.R[12] = arm7EntryAddr;
+                    Nds7.Cpu.R[14] = arm7EntryAddr;
+                    Nds7.Cpu.R[15] = arm7EntryAddr;
                     Nds7.Cpu.FlushPipeline();
 
                     Console.WriteLine("ARM9 ROM Offset: " + Hex(arm9RomOffset, 8));
@@ -96,9 +96,9 @@ namespace OptimeGBA
                     Nds9.Cpu.R[13] = 0x380FD80;
                     Nds9.Cpu.R13irq = 0x380FF80;
                     Nds9.Cpu.R13svc = 0x380FFC0;
-                    Nds9.Cpu.R[12] = arm9RamAddr;
-                    Nds9.Cpu.R[14] = arm9RamAddr;
-                    Nds9.Cpu.R[15] = arm9RamAddr;
+                    Nds9.Cpu.R[12] = arm9EntryAddr;
+                    Nds9.Cpu.R[14] = arm9EntryAddr;
+                    Nds9.Cpu.R[15] = arm9EntryAddr;
                     Nds9.Cpu.FlushPipeline();
 
                 }

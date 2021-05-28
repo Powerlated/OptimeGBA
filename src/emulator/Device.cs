@@ -11,8 +11,6 @@ namespace OptimeGBA
 
         public Scheduler Scheduler;
 
-        public HwControl HwControl;
-
         public AudioCallback AudioCallback;
 
         public abstract void StateChange();

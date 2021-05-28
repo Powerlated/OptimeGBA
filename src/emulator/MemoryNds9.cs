@@ -303,6 +303,12 @@ namespace OptimeGBA
                 return Nds9.Nds.Cartridge.ReadHwio8(addr);
             }
 
+            switch (addr)
+            {
+                case 0x4000247:
+                    return Nds9.Nds.SharedRamControl;
+            }
+
             return 0;
         }
 
@@ -342,6 +348,13 @@ namespace OptimeGBA
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 Nds9.Math.WriteHwio8(addr, val);
+            }
+
+            switch (addr)
+            {
+                case 0x4000247:
+                    Nds9.Nds.SharedRamControl = (byte)(val & 0b11);
+                    break;
             }
         }
     }

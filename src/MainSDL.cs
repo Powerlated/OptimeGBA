@@ -135,10 +135,12 @@ namespace OptimeGBAEmulator
             byte[] gbaBios;
             byte[] ndsBios7;
             byte[] ndsBios9;
+            byte[] ndsFirmware;
 
             const string gbaBiosPath = "gba_bios.bin";
             const string ndsBios7Path = "bios7.bin";
             const string ndsBios9Path = "bios9.bin";
+            const string ndsFirmwarePath = "firmware.bin";
 
             if (!GuiMode)
             {
@@ -275,9 +277,9 @@ namespace OptimeGBAEmulator
             {
                 Console.WriteLine("Loading NDS file");
 
-                if (!System.IO.File.Exists(ndsBios7Path) || !System.IO.File.Exists(ndsBios9Path))
+                if (!System.IO.File.Exists(ndsBios7Path) || !System.IO.File.Exists(ndsBios9Path) || !System.IO.File.Exists(ndsFirmwarePath))
                 {
-                    SdlMessage("Error", "Please place valid NDS BIOSes in the same directory as OptimeGBA.exe named \"bios7.bin\" and \"bios9.bin\"");
+                    SdlMessage("Error", "Please place valid NDS BIOSes and firmware in the same directory as OptimeGBA.exe named \"bios7.bin\", \"bios9.bin\", and \"firmware.bin\"");
                     return;
                 }
                 else
@@ -286,15 +288,16 @@ namespace OptimeGBAEmulator
                     {
                         ndsBios7 = System.IO.File.ReadAllBytes(ndsBios7Path);
                         ndsBios9 = System.IO.File.ReadAllBytes(ndsBios9Path);
+                        ndsFirmware = System.IO.File.ReadAllBytes(ndsFirmwarePath);
                     }
                     catch
                     {
-                        SdlMessage("Error", "NDS BIOSes were provided, but there was an issue loading them.");
+                        SdlMessage("Error", "NDS BIOSes/firmware were provided, but there was an issue loading them.");
                         return;
                     }
                 }
 
-                var provider = new ProviderNds(ndsBios7, ndsBios9, rom, savPath, AudioReady);
+                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady);
                 Nds = new Nds(provider);
 
                 Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);

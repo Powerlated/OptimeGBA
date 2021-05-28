@@ -188,6 +188,7 @@ namespace OptimeGBA
     public unsafe sealed class DmaNds
     {
         DeviceNds Device;
+        Memory Mem;
 
         public DmaChannelNds[] Ch = new DmaChannelNds[4] {
             new DmaChannelNds(),
@@ -203,9 +204,10 @@ namespace OptimeGBA
 
         public bool DmaLock;
 
-        public DmaNds(DeviceNds deviceNds)
+        public DmaNds(DeviceNds deviceNds, Memory mem)
         {
             Device = deviceNds;
+            Mem = mem;
         }
 
         public byte ReadHwio8(uint addr)
@@ -338,7 +340,7 @@ namespace OptimeGBA
             {
                 for (; c.DmaLength > 0; c.DmaLength--)
                 {
-                    Device.Mem.Write32(c.DmaDest & ~3u, Device.Mem.Read32(c.DmaSource & ~3u));
+                    Mem.Write32(c.DmaDest & ~3u, Mem.Read32(c.DmaSource & ~3u));
                     // Gba.Tick(Gba.Cpu.Timing32[(c.DmaSource >> 24) & 0xF]);
                     // Gba.Tick(Gba.Cpu.Timing32[(c.DmaDest >> 24) & 0xF]);
 
@@ -350,7 +352,7 @@ namespace OptimeGBA
             {
                 for (; c.DmaLength > 0; c.DmaLength--)
                 {
-                    Device.Mem.Write16(c.DmaDest & ~1u, Device.Mem.Read16(c.DmaSource & ~1u));
+                    Mem.Write16(c.DmaDest & ~1u, Mem.Read16(c.DmaSource & ~1u));
                     // Gba.Tick(Nds.Timing8And16[(c.DmaSource >> 24) & 0xF]);
                     // Gba.Tick(Nds.Timing8And16[(c.DmaDest >> 24) & 0xF]);
 

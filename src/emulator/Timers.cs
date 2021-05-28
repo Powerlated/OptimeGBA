@@ -196,7 +196,7 @@ namespace OptimeGBA
             }
             else
             {
-                var nds = (Nds7)Timers.Device;
+                var nds = (DeviceNds)Timers.Device;
                 nds.HwControl.FlagInterrupt((uint)InterruptNds.Timer0Overflow + Id);
             }
 

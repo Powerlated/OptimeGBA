@@ -87,15 +87,20 @@ namespace OptimeGBAEmulator
 
         public void CheckBreakpoints()
         {
+            var arm9 = Nds.Nds9.Cpu;
+            var arm7 = Nds.Nds7.Cpu;
+
             if (EnableBreakpoints)
             {
                 var sub9 = Nds.Nds9.Cpu.ThumbState ? 2 : 4;
                 var sub7 = Nds.Nds7.Cpu.ThumbState ? 2 : 4;
-                var arm9 = Nds.Nds9.Cpu;
-                var arm7 = Nds.Nds7.Cpu;
+
                 if (Arm9Breakpoint == arm9.R[15] - arm9.Pipeline * sub9) arm9.Error("Breakpoint hit");
                 if (Arm7Breakpoint == arm7.R[15] - arm7.Pipeline * sub7) arm7.Error("Breakpoint hit");
+
             }
+
+            // if (arm9.GetInstructionArm(arm9.LastIns) == Arm.SWI) arm9.Error("damn it");
         }
 
         static bool FrameNow = false;
@@ -182,7 +187,8 @@ namespace OptimeGBAEmulator
             // Init SDL
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
             byte[] bios9 = System.IO.File.ReadAllBytes("bios9.bin");
-            Nds = new Nds(new ProviderNds(bios7, bios9, new byte[0], "", AudioReady));
+            byte[] firmware = System.IO.File.ReadAllBytes("firmware.bin");
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, new byte[0], "", AudioReady));
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -224,7 +230,8 @@ namespace OptimeGBAEmulator
         {
             var bios7 = Nds.Provider.Bios7;
             var bios9 = Nds.Provider.Bios9;
-            Nds = new Nds(new ProviderNds(bios7, bios9, rom, savPath, AudioReady));
+            var firmware = Nds.Provider.Firmware;
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady));
             // Nds.Mem.SaveProvider.LoadSave(sav);
         }
 
@@ -340,11 +347,15 @@ namespace OptimeGBAEmulator
         static String[] baseNames = {
                     "ITCM",
                     "BIOS DTCM",
+                    "Main Memory",
+                    "Upper Main Memory",
                 };
 
         static uint[] baseAddrs = {
                 0x00000000,
                 0x00800000,
+                0x02000000,
+                0x027FF800
             };
 
         public void DrawMemoryViewer()
@@ -476,29 +487,29 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
-        public String BuildEmuFullText()
+        public String BuildEmuFullText(Arm7 arm7)
         {
-            String disasm = Nds.Nds9.Cpu.ThumbState ? disasmThumb((ushort)Nds.Nds9.Cpu.LastIns) : disasmArm(Nds.Nds9.Cpu.LastIns);
+            String disasm = arm7.LastThumbState ? disasmThumb((ushort)arm7.LastIns) : disasmArm(arm7.LastIns);
 
             StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[0], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[1], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[2], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[3], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[4], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[5], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[6], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[9], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[8], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[9], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[10], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[11], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[12], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[13], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[14], 8)} ");
-            builder.Append($"{HexN(Nds.Nds9.Cpu.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(Nds.Nds9.Cpu.GetCPSR(), 8)} | ");
-            builder.Append($"{(Nds.Nds9.Cpu.ThumbState ? "    " + HexN(Nds.Nds9.Cpu.LastIns, 4) : HexN(Nds.Nds9.Cpu.LastIns, 8))}: {disasm}");
+            builder.Append($"{HexN(arm7.R[0], 8)} ");
+            builder.Append($"{HexN(arm7.R[1], 8)} ");
+            builder.Append($"{HexN(arm7.R[2], 8)} ");
+            builder.Append($"{HexN(arm7.R[3], 8)} ");
+            builder.Append($"{HexN(arm7.R[4], 8)} ");
+            builder.Append($"{HexN(arm7.R[5], 8)} ");
+            builder.Append($"{HexN(arm7.R[6], 8)} ");
+            builder.Append($"{HexN(arm7.R[9], 8)} ");
+            builder.Append($"{HexN(arm7.R[8], 8)} ");
+            builder.Append($"{HexN(arm7.R[9], 8)} ");
+            builder.Append($"{HexN(arm7.R[10], 8)} ");
+            builder.Append($"{HexN(arm7.R[11], 8)} ");
+            builder.Append($"{HexN(arm7.R[12], 8)} ");
+            builder.Append($"{HexN(arm7.R[13], 8)} ");
+            builder.Append($"{HexN(arm7.R[14], 8)} ");
+            builder.Append($"{HexN(arm7.R[15], 8)} ");
+            builder.Append($"cpsr: {HexN(arm7.GetCPSR(), 8)} | ");
+            builder.Append($"{(arm7.LastThumbState ? "    " + HexN(arm7.LastIns, 4) : HexN(arm7.LastIns, 8))}: {disasm}");
             // text += $"> {LogIndex + 1}";
             return builder.ToString();
         }
@@ -672,21 +683,25 @@ namespace OptimeGBAEmulator
 
                 if (ImGui.Button("Step 250000"))
                 {
-                    using (StreamWriter file = new StreamWriter("log.txt"))
+                    using (StreamWriter file7 = new StreamWriter("log7.txt"))
                     {
-                        int num = 250000;
-                        while (num > 0 && !Nds.Nds9.Cpu.Errored)
+                        using (StreamWriter file9 = new StreamWriter("log9.txt"))
                         {
-                            Nds.Step();
-                            file.WriteLine(BuildEmuFullText());
-
-                            if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
+                            int num = 250000;
+                            while (num > 0 && !Nds.Nds9.Cpu.Errored)
                             {
-                                file.WriteLine("---------------- INTERRUPT ----------------");
-                            }
+                                Nds.Step();
+                                file7.WriteLine(BuildEmuFullText(Nds.Nds7.Cpu));
+                                file9.WriteLine(BuildEmuFullText(Nds.Nds9.Cpu));
 
-                            LogIndex++;
-                            num--;
+                                // if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
+                                // {
+                                //     file.WriteLine("---------------- INTERRUPT ----------------");
+                                // }
+
+                                LogIndex++;
+                                num--;
+                            }
                         }
                     }
                 }

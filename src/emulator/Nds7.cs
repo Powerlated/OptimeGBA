@@ -5,18 +5,19 @@ namespace OptimeGBA
     public unsafe sealed class Nds7 : DeviceNds
     {
         public new MemoryNds7 Mem;
-        public new HwControlNds HwControl;
         public DmaNds Dma;
+        public Spi Spi;
 
         public Nds7(Nds nds)
         {
             Nds = nds;
 
             HwControl = new HwControlNds(this, false);
-            Dma = new DmaNds(this);
-
             Mem = new MemoryNds7(this, nds.Provider);
+            Spi = new Spi(this);
+
             Cpu = new Arm7(this, Mem, false, false, null);
+            Dma = new DmaNds(this, Mem);
 
             Timers = new Timers(this, Nds.Scheduler, true);
 

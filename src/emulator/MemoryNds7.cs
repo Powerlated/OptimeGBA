@@ -215,6 +215,10 @@ namespace OptimeGBA
             {
                 return Nds7.Nds.Cartridge.ReadHwio8(addr);
             }
+            else if (addr >= 0x40001C0 && addr <= 0x40001C3) // SPI
+            {
+                return Nds7.Spi.ReadHwio8(addr);
+            }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {
                 return Nds7.HwControl.ReadHwio8(addr);
@@ -226,6 +230,11 @@ namespace OptimeGBA
             else if (addr >= 0x4100010 && addr <= 0x4100013)
             { // Cartridge data read
                 return Nds7.Nds.Cartridge.ReadHwio8(addr);
+            }
+
+            switch (addr) {
+                case 0x4000241:
+                    return Nds7.Nds.SharedRamControl;
             }
 
             return 0;
@@ -263,6 +272,10 @@ namespace OptimeGBA
             else if (addr >= 0x40001A0 && addr <= 0x40001AF) // Cartridge control
             {
                 Nds7.Nds.Cartridge.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x40001C0 && addr <= 0x40001C3) // SPI
+            {
+                Nds7.Spi.WriteHwio8(addr, val);
             }
         }
     }
