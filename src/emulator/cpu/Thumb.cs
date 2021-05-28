@@ -1010,7 +1010,11 @@ namespace OptimeGBA
             if (BitTest(ins, 8))
             {
                 /* regs += "PC "; */
-                arm7.R[15] = arm7.Read32(addr) & 0xFFFFFFFE;
+                arm7.R[15] = arm7.Read32(addr);
+                if (arm7.Armv5)
+                {
+                    arm7.ThumbState = BitTest(arm7.R[15], 0);
+                }
                 arm7.FlushPipeline();
                 arm7.LineDebug(Util.Hex(arm7.R[15], 8));
                 addr += 4;
@@ -1021,8 +1025,12 @@ namespace OptimeGBA
             // Handle empty rlist
             if ((ins & 0x1FF) == 0)
             {
-                arm7.R[15] = arm7.Read32(addr & ~3u);
-                arm7.FlushPipeline();
+                if (!arm7.Armv5)
+                {
+                    arm7.R[15] = arm7.Read32(addr & ~3u);
+                    arm7.FlushPipeline();
+                }
+                System.Console.WriteLine("POP empty Rlist");
                 arm7.R[13] += 0x40;
             }
 
@@ -1059,7 +1067,10 @@ namespace OptimeGBA
             // Handle empty rlist
             if ((ins & 0x1FF) == 0)
             {
-                arm7.Write32(addr & ~3u, arm7.R[15]);
+                if (!arm7.Armv5)
+                {
+                    arm7.Write32(addr & ~3u, arm7.R[15]);
+                }
                 arm7.R[13] += 0x40;
             }
 
@@ -1158,8 +1169,11 @@ namespace OptimeGBA
             // Handle empty rlist
             if ((ins & 0xFF) == 0)
             {
-                arm7.R[15] = arm7.Read32(addr & ~3u);
-                arm7.FlushPipeline();
+                if (!arm7.Armv5)
+                {
+                    arm7.R[15] = arm7.Read32(addr & ~3u);
+                    arm7.FlushPipeline();
+                }
                 arm7.R[rn] += 0x40;
             }
 
@@ -1198,7 +1212,10 @@ namespace OptimeGBA
             // Handle empty rlist
             if ((ins & 0xFF) == 0)
             {
-                arm7.Write32(addr & ~3u, arm7.R[15]);
+                if (!arm7.Armv5)
+                {
+                    arm7.Write32(addr & ~3u, arm7.R[15]);
+                }
                 arm7.R[rn] += 0x40;
             }
 

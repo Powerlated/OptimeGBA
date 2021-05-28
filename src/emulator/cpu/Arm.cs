@@ -312,11 +312,12 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
+                                arm7.R[r] = arm7.Read32(addr & ~3U);
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & ~3U);
+                                arm7.ThumbState = BitTest(arm7.R[15], 0);
                                 arm7.FlushPipeline();
                             }
                         }
@@ -324,11 +325,12 @@ namespace OptimeGBA
                         {
                             if (r != 15)
                             {
-                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
+                                arm7.SetUserReg(r, arm7.Read32(addr & ~3U));
                             }
                             else
                             {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                                arm7.R[15] = arm7.Read32(addr & ~3U);
+                                arm7.ThumbState = BitTest(arm7.R[15], 0);
                                 arm7.FlushPipeline();
                             }
                         }
@@ -829,7 +831,12 @@ namespace OptimeGBA
                 // the writeback value would be overwritten by Rd.
                 arm7.R[rd] = loadVal;
 
-                if (rd == 15) arm7.FlushPipeline();
+                if (rd == 15) {
+                    if (arm7.Armv5) {
+                        arm7.ThumbState = BitTest(loadVal, 0);
+                    }
+                    arm7.FlushPipeline();
+                }
 
                 arm7.ICycle();
             }
