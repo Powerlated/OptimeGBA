@@ -702,7 +702,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text($"Timed FPS: {(uint)(Gba.Ppu.Renderer.TotalFrames - RecordStartFrames) / Time}");
                 }
 
-                ImGui.Text($"VCOUNT: {Gba.Ppu.Renderer.VCount}");
+                ImGui.Text($"VCOUNT: {Gba.Ppu.VCount}");
                 ImGui.Text($"Scanline Cycles: {Gba.Ppu.GetScanlineCycles()}");
 
                 ImGuiColumnSeparator();

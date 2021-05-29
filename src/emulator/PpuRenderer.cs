@@ -68,7 +68,6 @@ namespace OptimeGBA
         }
 
         // Internal State
-        public uint VCount;
         public const int BYTES_PER_PIXEL = 4;
 
         public bool RenderingDone = false;
@@ -207,7 +206,15 @@ namespace OptimeGBA
         public uint BgMosaicYCounter;
         public uint ObjMosaicYCounter;
 
-        public void RenderScanlineGba(byte[] vramArr)
+        // Raw register values
+        public ushort WININValue;
+        public ushort WINOUTValue;
+        public ushort BLDCNTValue;
+        public uint BLDALPHAValue;
+        public byte MOSAICValueB0;
+        public byte MOSAICValueB1;
+
+        public void RenderScanlineGba(uint vcount, byte[] vramArr)
         {
             if (!ForcedBlank)
             {
@@ -215,7 +222,7 @@ namespace OptimeGBA
                 {
                     if (BgMode <= 2)
                     {
-                        PrepareBackgroundAndWindow();
+                        PrepareBackgroundAndWindow(vcount);
                     }
 
                     switch (BgMode)
@@ -223,30 +230,30 @@ namespace OptimeGBA
                         case 0:
                         case 1:
                         case 2:
-                            RenderBgModes(vram);
+                            RenderBgModes(vcount, vram);
                             break;
                         case 3:
-                            RenderMode3(vram);
+                            RenderMode3(vcount, vram);
                             break;
                         case 4:
-                            RenderMode4(vram);
+                            RenderMode4(vcount, vram);
                             break;
                     }
 
                     if (BgMode <= 2)
                     {
-                        Composite();
-                        if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(vram, VCount + 1);
+                        Composite(vcount);
+                        if (DebugEnableObj && ScreenDisplayObj && vcount != 159) RenderObjs(vcount + 1, vram);
                     }
                 }
             }
             else
             {
-                RenderWhiteScanline();
+                RenderWhiteScanline(vcount);
             }
         }
 
-        public void RenderScanlineNds(byte[] bgVramArr, byte[] objVramArr)
+        public void RenderScanlineNds(uint vcount, byte[] bgVramArr, byte[] objVramArr)
         {
             if (!ForcedBlank)
             {
@@ -255,20 +262,20 @@ namespace OptimeGBA
                     switch (DisplayMode)
                     {
                         case 1: // Regular rendering
-                            PrepareBackgroundAndWindow();
-                            RenderBgModes(bgVram);
-                            Composite();
-                            if (DebugEnableObj && ScreenDisplayObj && VCount != 191) RenderObjs(objVram, VCount + 1);
+                            PrepareBackgroundAndWindow(vcount);
+                            RenderBgModes(vcount, bgVram);
+                            Composite(vcount);
+                            if (DebugEnableObj && ScreenDisplayObj && vcount != 191) RenderObjs(vcount + 1, objVram);
                             break;
                         case 2: // LCDC Mode
-                            RenderMode3(bgVram);
+                            RenderMode3(vcount, bgVram);
                             break;
                     }
                 }
             }
             else
             {
-                RenderWhiteScanline();
+                RenderWhiteScanline(vcount);
             }
         }
 
@@ -306,7 +313,7 @@ namespace OptimeGBA
         public uint BgCount = 0;
         public bool BackgroundSettingsDirty = true;
 
-        public void PrepareBackgroundAndWindow()
+        public void PrepareBackgroundAndWindow(uint vcount)
         {
             if (BackgroundSettingsDirty)
             {
@@ -398,8 +405,8 @@ namespace OptimeGBA
                 }
             }
 
-            bool win0InsideY = (byte)(VCount - Win0VTop) < (byte)(Win0VBottom - Win0VTop) && Window0DisplayFlag;
-            bool win1InsideY = (byte)(VCount - Win1VTop) < (byte)(Win1VBottom - Win1VTop) && Window1DisplayFlag;
+            bool win0InsideY = (byte)(vcount - Win0VTop) < (byte)(Win0VBottom - Win0VTop) && Window0DisplayFlag;
+            bool win1InsideY = (byte)(vcount - Win1VTop) < (byte)(Win1VBottom - Win1VTop) && Window1DisplayFlag;
 
             byte win0ThresholdX = (byte)(Win0HRight - Win0HLeft);
             byte win1ThresholdX = (byte)(Win1HRight - Win1HLeft);
@@ -460,26 +467,26 @@ namespace OptimeGBA
         public readonly static uint[] CharWidthTable = { 256, 512, 256, 512 };
         public readonly static uint[] CharHeightTable = { 256, 256, 512, 512 };
 
-        public void RenderCharBackground(byte* vram, Background bg)
+        public void RenderCharBackground(uint vcount, byte* vram, Background bg)
         {
             bool enableMosaicX = bg.EnableMosaic && BgMosaicX != 0;
             if (enableMosaicX)
             {
-                _RenderCharBackground(vram, bg, true);
+                _RenderCharBackground(vcount, vram, bg, true);
             }
             else
             {
-                _RenderCharBackground(vram, bg, false);
+                _RenderCharBackground(vcount, vram, bg, false);
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
-        private void _RenderCharBackground(byte* vram, Background bg, bool mosaicX)
+        private void _RenderCharBackground(uint vcount, byte* vram, Background bg, bool mosaicX)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize + CharBaseBlockCoarse * CoarseBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize + MapBaseBlockCoarse * CoarseBlockSize;
 
-            uint pixelY = bg.VerticalOffset + VCount;
+            uint pixelY = bg.VerticalOffset + vcount;
             if (bg.EnableMosaic)
             {
                 pixelY -= BgMosaicYCounter;
@@ -628,7 +635,7 @@ namespace OptimeGBA
         public readonly static uint[] AffineTileSizeTable = { 16, 32, 64, 128 };
         public readonly static uint[] AffineSizeMask = { 127, 255, 511, 1023 };
 
-        public void RenderAffineBackground(byte* vram, Background bg)
+        public void RenderAffineBackground(uint vcount, byte* vram, Background bg)
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
@@ -721,7 +728,7 @@ namespace OptimeGBA
             0,  0,  0,  0,
         };
 
-        public void RenderObjs(byte* vram, uint vcount)
+        public void RenderObjs(uint vcount, byte* vram)
         {
             // OAM address for the last sprite
             uint oamBase = 0;
@@ -985,9 +992,9 @@ namespace OptimeGBA
             }
         }
 
-        public void Composite()
+        public void Composite(uint vcount)
         {
-            uint screenBase = (uint)(VCount * Width);
+            uint screenBase = (uint)(vcount * Width);
 
             for (int i = 0; i < Width; i++)
             {
@@ -1112,7 +1119,7 @@ namespace OptimeGBA
             return ScreenDisplayBg[id] && DebugEnableBg[id];
         }
 
-        public void RenderBgModes(byte* vram)
+        public void RenderBgModes(uint vcount, byte* vram)
         {
             for (uint i = 0; i < BgCount; i++)
             {
@@ -1120,19 +1127,19 @@ namespace OptimeGBA
                 switch (bg.Mode)
                 {
                     case BackgroundMode.Char:
-                        RenderCharBackground(vram, bg);
+                        RenderCharBackground(vcount, vram, bg);
                         break;
                     case BackgroundMode.Affine:
-                        RenderAffineBackground(vram, bg);
+                        RenderAffineBackground(vcount, vram, bg);
                         break;
                 }
             }
         }
 
-        public void RenderMode4(byte* vram)
+        public void RenderMode4(uint vcount, byte* vram)
         {
-            uint screenBase = (uint)(VCount * Width);
-            uint vramBase = (uint)(0x0 + VCount * Width);
+            uint screenBase = (uint)(vcount * Width);
+            uint vramBase = (uint)(0x0 + vcount * Width);
 
             for (uint p = 0; p < Width; p++)
             {
@@ -1145,10 +1152,10 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderMode3(byte* vram)
+        public void RenderMode3(uint vcount, byte* vram)
         {
-            uint screenBase = (uint)(VCount * Width);
-            uint vramBase = (uint)(VCount * Width * 2);
+            uint screenBase = (uint)(vcount * Width);
+            uint vramBase = (uint)(vcount * Width * 2);
 
             for (uint p = 0; p < Width; p++)
             {
@@ -1164,10 +1171,10 @@ namespace OptimeGBA
             }
         }
 
-        public void RenderWhiteScanline()
+        public void RenderWhiteScanline(uint vcount)
         {
             // Render white
-            uint screenBase = (uint)(VCount * Width);
+            uint screenBase = (uint)(vcount * Width);
 
             for (uint p = 0; p < Width; p++)
             {
@@ -1240,5 +1247,324 @@ namespace OptimeGBA
             RefreshPalettes();
         }
 
+        public byte ReadHwio8(uint addr)
+        {
+            switch (addr)
+            {
+                case 0x08: // BG0CNT B0
+                case 0x09: // BG0CNT B1
+                    return Backgrounds[0].ReadBGCNT(addr & 1);
+                case 0x0A: // BG1CNT B0
+                case 0x0B: // BG1CNT B1
+                    return Backgrounds[1].ReadBGCNT(addr & 1);
+                case 0x0C: // BG2CNT B0
+                case 0x0D: // BG2CNT B1
+                    return Backgrounds[2].ReadBGCNT(addr & 1);
+                case 0x0E: // BG3CNT B0
+                case 0x0F: // BG3CNT B1
+                    return Backgrounds[3].ReadBGCNT(addr & 1);
+
+                case 0x10: // BG0HOFS B0
+                case 0x11: // BG0HOFS B1
+                case 0x12: // BG0VOFS B0
+                case 0x13: // BG0VOFS B1
+                    return Backgrounds[0].ReadBGOFS(addr & 3);
+                case 0x14: // BG1HOFS B0
+                case 0x15: // BG1HOFS B1
+                case 0x16: // BG1VOFS B0
+                case 0x17: // BG1VOFS B1
+                    return Backgrounds[1].ReadBGOFS(addr & 3);
+                case 0x18: // BG2HOFS B0
+                case 0x19: // BG2HOFS B1
+                case 0x1A: // BG2VOFS B0
+                case 0x1B: // BG2VOFS B1
+                    return Backgrounds[2].ReadBGOFS(addr & 3);
+                case 0x1C: // BG3HOFS B0
+                case 0x1D: // BG3HOFS B1
+                case 0x1E: // BG3VOFS B0
+                case 0x1F: // BG3VOFS B1
+                    return Backgrounds[3].ReadBGOFS(addr & 3);
+
+
+                case 0x20: // BG2PA B0
+                case 0x21: // BG2PA B1
+                case 0x22: // BG2PB B0
+                case 0x23: // BG2PB B1
+                case 0x24: // BG2PC B0
+                case 0x25: // BG2PC B1
+                case 0x26: // BG2PD B0
+                case 0x27: // BG2PD B1
+                    return Backgrounds[3].ReadBGPX(addr & 7);
+                case 0x28: // BG2X B0
+                case 0x29: // BG2X B1
+                case 0x2A: // BG2X B2
+                case 0x2B: // BG2X B3
+                case 0x2C: // BG2Y B0
+                case 0x2D: // BG2Y B1
+                case 0x2E: // BG2Y B2
+                case 0x2F: // BG2Y B3
+                    return Backgrounds[2].ReadBGXY(addr & 7);
+
+                case 0x30: // BG3PA B0
+                case 0x31: // BG3PA B1
+                case 0x32: // BG3PB B0
+                case 0x33: // BG3PB B1
+                case 0x34: // BG3PC B0
+                case 0x35: // BG3PC B1
+                case 0x36: // BG3PD B0
+                case 0x37: // BG3PD B1
+                    return Backgrounds[3].ReadBGPX(addr & 7);
+                case 0x38: // BG3X B0
+                case 0x39: // BG3X B1
+                case 0x3A: // BG3X B2
+                case 0x3B: // BG3X B3
+                case 0x3C: // BG3Y B0
+                case 0x3D: // BG3Y B1
+                case 0x3E: // BG3Y B2
+                case 0x3F: // BG3Y B3
+                    return Backgrounds[3].ReadBGXY(addr & 7);
+
+                case 0x40: // WIN0H B0
+                    return Win0HRight;
+                case 0x41: // WIN0H B1
+                    return Win0HLeft;
+                case 0x42: // WIN1H B0
+                    return Win1HRight;
+                case 0x43: // WIN1H B1
+                    return Win1HLeft;
+
+                case 0x44: // WIN0V B0
+                    return Win0VBottom;
+                case 0x45: // WIN0V B1
+                    return Win0VTop;
+                case 0x46: // WIN1V B0
+                    return Win1VBottom;
+                case 0x47: // WIN1V B1
+                    return Win1VTop;
+
+                case 0x48: // WININ B0
+                    return (byte)((WININValue >> 0) & 0x3F);
+                case 0x49: // WININ B1
+                    return (byte)((WININValue >> 8) & 0x3F);
+
+                case 0x4A: // WINOUT B0
+                    return (byte)((WINOUTValue >> 0) & 0x3F);
+                case 0x4B: // WINOUT B1
+                    return (byte)((WINOUTValue >> 8) & 0x3F);
+
+                case 0x4C: // MOSAIC B0
+                    return MOSAICValueB0;
+                case 0x4D: // MOSAIC B1
+                    return MOSAICValueB1;
+
+                case 0x50: // BLDCNT B0
+                    return (byte)((BLDCNTValue >> 0) & 0xFF);
+                case 0x51: // BLDCNT B1
+                    return (byte)((BLDCNTValue >> 8) & 0x3F);
+
+                case 0x52: // BLDALPHA B0
+                    return (byte)(BLDALPHAValue >> 0);
+                case 0x53: // BLDALPHA B1
+                    return (byte)(BLDALPHAValue >> 8);
+
+                case 0x54: // BLDY
+                    return (byte)BlendBrightness;
+            }
+
+            return 0;
+        }
+
+        public void WriteHwio8(uint addr, byte val)
+        {
+            switch (addr)
+            {
+                case 0x08: // BG0CNT B0
+                case 0x09: // BG0CNT B1
+                    Backgrounds[0].WriteBGCNT(addr & 1, val);
+                    BackgroundSettingsDirty = true;
+                    break;
+                case 0x0A: // BG1CNT B0
+                case 0x0B: // BG1CNT B1
+                    Backgrounds[1].WriteBGCNT(addr & 1, val);
+                    BackgroundSettingsDirty = true;
+                    break;
+                case 0x0C: // BG2CNT B0
+                case 0x0D: // BG2CNT B1
+                    Backgrounds[2].WriteBGCNT(addr & 1, val);
+                    BackgroundSettingsDirty = true;
+                    break;
+                case 0x0E: // BG3CNT B0
+                case 0x0F: // BG3CNT B1
+                    Backgrounds[3].WriteBGCNT(addr & 1, val);
+                    BackgroundSettingsDirty = true;
+                    break;
+
+                case 0x10: // BG0HOFS B0
+                case 0x11: // BG0HOFS B1
+                case 0x12: // BG0VOFS B0
+                case 0x13: // BG0VOFS B1
+                    Backgrounds[0].WriteBGOFS(addr & 3, val);
+                    break;
+                case 0x14: // BG1HOFS B0
+                case 0x15: // BG1HOFS B1
+                case 0x16: // BG1VOFS B0
+                case 0x17: // BG1VOFS B1
+                    Backgrounds[1].WriteBGOFS(addr & 3, val);
+                    break;
+                case 0x18: // BG2HOFS B0
+                case 0x19: // BG2HOFS B1
+                case 0x1A: // BG2VOFS B0
+                case 0x1B: // BG2VOFS B1
+                    Backgrounds[2].WriteBGOFS(addr & 3, val);
+                    break;
+                case 0x1C: // BG3HOFS B0
+                case 0x1D: // BG3HOFS B1
+                case 0x1E: // BG3VOFS B0
+                case 0x1F: // BG3VOFS B1
+                    Backgrounds[3].WriteBGOFS(addr & 3, val);
+                    break;
+
+                case 0x20: // BG2PA B0
+                case 0x21: // BG2PA B1
+                case 0x22: // BG2PB B0
+                case 0x23: // BG2PB B1
+                case 0x24: // BG2PC B0
+                case 0x25: // BG2PC B1
+                case 0x26: // BG2PD B0
+                case 0x27: // BG2PD B1
+                    Backgrounds[2].WriteBGPX(addr & 7, val);
+                    break;
+                case 0x28: // BG2X B0
+                case 0x29: // BG2X B1
+                case 0x2A: // BG2X B2
+                case 0x2B: // BG2X B3
+                case 0x2C: // BG2Y B0
+                case 0x2D: // BG2Y B1
+                case 0x2E: // BG2Y B2
+                case 0x2F: // BG2Y B3
+                    Backgrounds[2].WriteBGXY(addr & 7, val);
+                    break;
+
+                case 0x30: // BG3PA B0
+                case 0x31: // BG3PA B1
+                case 0x32: // BG3PB B0
+                case 0x33: // BG3PB B1
+                case 0x34: // BG3PC B0
+                case 0x35: // BG3PC B1
+                case 0x36: // BG3PD B0
+                case 0x37: // BG3PD B1
+                    Backgrounds[3].WriteBGPX(addr & 7, val);
+                    break;
+                case 0x38: // BG3X B0
+                case 0x39: // BG3X B1
+                case 0x3A: // BG3X B2
+                case 0x3B: // BG3X B3
+                case 0x3C: // BG3Y B0
+                case 0x3D: // BG3Y B1
+                case 0x3E: // BG3Y B2
+                case 0x3F: // BG3Y B3
+                    Backgrounds[3].WriteBGXY(addr & 7, val);
+                    break;
+
+                case 0x40: // WIN0H B0
+                    Win0HRight = val;
+                    break;
+                case 0x41: // WIN0H B1
+                    Win0HLeft = val;
+                    break;
+                case 0x42: // WIN1H B0
+                    Win1HRight = val;
+                    break;
+                case 0x43: // WIN1H B1
+                    Win1HLeft = val;
+                    break;
+
+                case 0x44: // WIN0V B0
+                    Win0VBottom = val;
+                    break;
+                case 0x45: // WIN0V B1
+                    Win0VTop = val;
+                    break;
+                case 0x46: // WIN1V B0
+                    Win1VBottom = val;
+                    break;
+                case 0x47: // WIN1V B1
+                    Win1VTop = val;
+                    break;
+
+                case 0x48: // WININ B0
+                    Win0InEnable = (byte)(val & 0b111111U);
+
+                    WININValue &= 0x7F00;
+                    WININValue |= (ushort)(val << 0);
+                    break;
+                case 0x49: // WININ B1
+                    Win1InEnable = (byte)(val & 0b111111U);
+
+                    WININValue &= 0x007F;
+                    WININValue |= (ushort)(val << 8);
+                    break;
+
+                case 0x4A: // WINOUT B0
+                    WinOutEnable = (byte)(val & 0b111111U);
+
+                    WINOUTValue &= 0x7F00;
+                    WINOUTValue |= (ushort)(val << 0);
+                    break;
+                case 0x4B: // WINOUT B1
+                    WinObjEnable = (byte)(val & 0b111111U);
+
+                    WINOUTValue &= 0x007F;
+                    WINOUTValue |= (ushort)(val << 8);
+                    break;
+
+                case 0x4C: // MOSAIC B0
+                    MOSAICValueB0 = val;
+
+                    BgMosaicX = (byte)((val >> 0) & 0xF);
+                    BgMosaicY = (byte)((val >> 4) & 0xF);
+                    break;
+                case 0x4D: // MOSAIC B1
+                    MOSAICValueB1 = val;
+
+                    ObjMosaicX = (byte)((val >> 0) & 0xF);
+                    ObjMosaicY = (byte)((val >> 4) & 0xF);
+                    break;
+
+                case 0x50: // BLDCNT B0
+                    Target1Flags = val & 0b111111U;
+
+                    BlendEffect = (BlendEffect)((val >> 6) & 0b11U);
+
+                    BLDCNTValue &= 0x7F00;
+                    BLDCNTValue |= (ushort)(val << 0);
+                    break;
+                case 0x51: // BLDCNT B1
+                    Target2Flags = val & 0b111111U;
+
+                    BLDCNTValue &= 0x00FF;
+                    BLDCNTValue |= (ushort)(val << 8);
+                    break;
+
+                case 0x52: // BLDALPHA B0
+                    BlendACoeff = val & 0b11111U;
+                    if (BlendACoeff == 31) BlendACoeff = 0;
+
+                    BLDALPHAValue &= 0x7F00;
+                    BLDALPHAValue |= (ushort)(val << 0);
+                    break;
+                case 0x53: // BLDALPHA B1
+                    BlendBCoeff = val & 0b11111U;
+                    if (BlendBCoeff == 31) BlendBCoeff = 0;
+
+                    BLDALPHAValue &= 0x00FF;
+                    BLDALPHAValue |= (ushort)(val << 8);
+                    break;
+
+                case 0x54: // BLDY
+                    BlendBrightness = (byte)(val & 0b11111);
+                    break;
+            }
+        }
     }
 }

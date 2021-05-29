@@ -1,5 +1,7 @@
 using static OptimeGBA.Bits;
 using static OptimeGBA.MemoryUtil;
+using System.Runtime.CompilerServices;
+using System;
 
 namespace OptimeGBA
 {
@@ -37,9 +39,12 @@ namespace OptimeGBA
         public byte[] VramLcdc = MemoryUtil.AllocateManagedArray(671744);
         public byte[] VramBgA = MemoryUtil.AllocateManagedArray(524288);
         public byte[] VramObjA = MemoryUtil.AllocateManagedArray(262144);
+        public byte[] VramBgB = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramObjB = MemoryUtil.AllocateManagedArray(131072);
 
         public bool VramDirty;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool EnabledAndSet(uint bank, uint mst)
         {
             uint vramcntMst = Nds.MemoryControl.VRAMCNT[bank] & 0b111U;
@@ -48,15 +53,26 @@ namespace OptimeGBA
             return vramcntEnable && vramcntMst == mst;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetOffset(uint bank)
         {
             return (uint)(Nds.MemoryControl.VRAMCNT[bank] >> 3) & 0b11U;
         }
 
+        // Needed since some games write to VRAM over and over again with the
+        // same values.
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void SetVram(byte[] arr, uint offs, byte val)
+        {
+            if (arr[offs] != val)
+            {
+                arr[offs] = val;
+                VramDirty = true;
+            }
+        }
+
         public void WriteVram8(uint addr, byte val)
         {
-            VramDirty = true;
-
             uint offs;
             switch (addr & 0xFFF00000)
             {
@@ -65,112 +81,134 @@ namespace OptimeGBA
                     offs = GetOffset(0) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 1))
                     {
-                        VramA[addr & 0x1FFFF] = val;
+                        SetVram(VramA, addr & 0x1FFFF, val);
                     }
                     offs = GetOffset(1) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 1))
                     {
-                        VramB[addr & 0x1FFFF] = val;
+                        SetVram(VramB, addr & 0x1FFFF, val);
                     }
                     offs = GetOffset(2) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(2, 1))
                     {
-                        VramC[addr & 0x1FFFF] = val;
+                        SetVram(VramC, addr & 0x1FFFF, val);
                     }
                     offs = GetOffset(3) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(3, 1))
                     {
-                        VramD[addr & 0x1FFFF] = val;
+                        SetVram(VramD, addr & 0x1FFFF, val);
                     }
                     if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 1))
                     {
-                        VramE[addr & 0xFFFF] = val;
+                        SetVram(VramE, addr & 0xFFFF, val);
                     }
                     offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
                     if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 1))
                     {
-                        VramF[addr & 0x3FFF] = val;
+                        SetVram(VramF, addr & 0x3FFF, val);
                     }
                     offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
                     if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 1))
                     {
-                        VramG[addr & 0x3FFF] = val;
+                        SetVram(VramG, addr & 0x3FFF, val);
                     }
                     break;
                 case 0x06200000: // Engine B BG VRAM
+                    addr &= 0x1FFFFF;
+                    if (addr < 0x20000 && EnabledAndSet(2, 4))
+                    {
+                        SetVram(VramC, addr & 0x1FFFF, val);
+                    }
+                    if (addr < 0x8000 && EnabledAndSet(7, 1))
+                    {
+                        SetVram(VramH, addr & 0x7FFF, val);
+                    }
+                    if (addr >= 0x8000 && addr < 0xC000 && EnabledAndSet(8, 1))
+                    {
+                        SetVram(VramI, addr & 0x3FFF, val);
+                    }
                     break;
                 case 0x06400000: // Engine A OBJ VRAM
                     addr &= 0x1FFFFF;
                     offs = (GetOffset(0) & 1) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 2))
                     {
-                        VramA[addr & 0x1FFFF] = val;
+                        SetVram(VramA, addr & 0x1FFFF, val);
                     }
                     offs = (GetOffset(1) & 1) * 0x20000;
                     if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 2))
                     {
-                        VramB[addr & 0x1FFFF] = val;
+                        SetVram(VramB, addr & 0x1FFFF, val);
                     }
                     if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 2))
                     {
-                        VramE[addr & 0xFFFF] = val;
+                        SetVram(VramE, addr & 0xFFFF, val);
                     }
                     offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
                     if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 2))
                     {
-                        VramF[addr & 0x3FFF] = val;
+                        SetVram(VramF, addr & 0x3FFF, val);
                     }
                     offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
                     if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 2))
                     {
-                        VramG[addr & 0x3FFF] = val;
+                        SetVram(VramG, addr & 0x3FFF, val);
                     }
                     break;
                 case 0x06600000: // Engine B OBJ VRAM
+                    addr &= 0x1FFFFF;
+                    if (addr < 0x20000 && EnabledAndSet(3, 4))
+                    {
+                        SetVram(VramD, addr & 0x1FFFF, val);
+                    }
+                    if (addr < 0x4000 && EnabledAndSet(8, 2))
+                    {
+                        SetVram(VramI, addr & 0x3FFF, val);
+                    }
                     break;
                 case 0x06800000: // LCDC VRAM
                     switch (addr & 0xFFFE0000)
                     {
                         case 0x06800000: // A
                             if (EnabledAndSet(0, 0))
-                                VramA[addr & 0x1FFFF] = val;
+                                SetVram(VramA, addr & 0x1FFFF, val);
                             break;
                         case 0x06820000: // B
                             if (EnabledAndSet(1, 0))
-                                VramB[addr & 0x1FFFF] = val;
+                                SetVram(VramB, addr & 0x1FFFF, val);
                             break;
                         case 0x06840000: // C
                             if (EnabledAndSet(2, 0))
-                                VramC[addr & 0x1FFFF] = val;
+                                SetVram(VramC, addr & 0x1FFFF, val);
                             break;
                         case 0x06860000: // D
                             if (EnabledAndSet(3, 0))
-                                VramD[addr & 0x1FFFF] = val;
+                                SetVram(VramD, addr & 0x1FFFF, val);
                             break;
                         case 0x06880000: // E, F, G, H
                             switch (addr & 0xFFFFF000)
                             {
                                 case 0x68800000:
                                     if (EnabledAndSet(4, 0))
-                                        VramE[addr & 0xFFFF] = val;
+                                        SetVram(VramE, addr & 0xFFFF, val);
                                     break;
                                 case 0x06890000: // F
                                     if (EnabledAndSet(5, 0))
-                                        VramF[addr & 0x3FFF] = val;
+                                        SetVram(VramF, addr & 0x3FFF, val);
                                     break;
                                 case 0x06894000: // G
                                     if (EnabledAndSet(6, 0))
-                                        VramG[addr & 0x3FFF] = val;
+                                        SetVram(VramG, addr & 0x3FFF, val);
                                     break;
                                 case 0x06898000: // H
                                     if (EnabledAndSet(7, 0))
-                                        VramH[addr & 0x7FFF] = val;
+                                        SetVram(VramH, addr & 0x7FFF, val);
                                     break;
                             }
                             break;
                         case 0x068A0000: // I
                             if (EnabledAndSet(8, 0))
-                                VramI[addr & 0x3FFF] = val;
+                                SetVram(VramI, addr & 0x3FFF, val);
                             break;
                     }
                     break;
@@ -222,6 +260,19 @@ namespace OptimeGBA
                     }
                     break;
                 case 0x06200000: // Engine B BG VRAM
+                    addr &= 0x1FFFFF;
+                    if (addr < 0x20000 && EnabledAndSet(2, 4))
+                    {
+                        val |= VramC[addr & 0x1FFFF];
+                    }
+                    if (addr < 0x8000 && EnabledAndSet(7, 1))
+                    {
+                        val |= VramH[addr & 0x7FFF];
+                    }
+                    if (addr >= 0x8000 && addr < 0xC000 && EnabledAndSet(8, 1))
+                    {
+                        val |= VramI[addr & 0x3FFF];
+                    }
                     break;
                 case 0x06400000: // Engine A OBJ VRAM
                     addr &= 0x1FFFFF;
@@ -235,7 +286,7 @@ namespace OptimeGBA
                     {
                         val |= VramB[addr & 0x1FFFF];
                     }
-                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 1))
+                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 2))
                     {
                         val |= VramE[addr & 0xFFFF];
                     }
@@ -251,6 +302,15 @@ namespace OptimeGBA
                     }
                     break;
                 case 0x06600000: // Engine B OBJ VRAM
+                    addr &= 0x1FFFFF;
+                    if (addr < 0x20000 && EnabledAndSet(3, 4))
+                    {
+                        val |= VramD[addr & 0x1FFFF];
+                    }
+                    if (addr < 0x4000 && EnabledAndSet(8, 2))
+                    {
+                        val |= VramI[addr & 0x3FFF];
+                    }
                     break;
                 case 0x06800000: // LCDC VRAM
                     switch (addr & 0xFFFE0000)
@@ -330,10 +390,17 @@ namespace OptimeGBA
                     {
                         VramBgA[i] = ReadVram8(0x06000000 + i);
                     }
-
                     for (uint i = 0; i < 262144; i++)
                     {
                         VramObjA[i] = ReadVram8(0x06400000 + i);
+                    }
+                    for (uint i = 0; i < 131072; i++)
+                    {
+                        VramBgB[i] = ReadVram8(0x06200000 + i);
+                    }
+                    for (uint i = 0; i < 131072; i++)
+                    {
+                        VramObjB[i] = ReadVram8(0x06600000 + i);
                     }
                 }
             }
@@ -341,13 +408,8 @@ namespace OptimeGBA
 
         public long ScanlineStartCycles;
 
-        public uint DISPCNTValue;
-        public ushort WININValue;
-        public ushort WINOUTValue;
-        public ushort BLDCNTValue;
-        public uint BLDALPHAValue;
-        public byte MOSAICValueB0;
-        public byte MOSAICValueB1;
+        public uint DISPCNTAValue;
+        public uint DISPCNTBValue;
 
         // DISPSTAT        
         public bool VCounterMatch;
@@ -355,6 +417,9 @@ namespace OptimeGBA
         public bool HBlankIrqEnable;
         public bool VCounterIrqEnable;
         public byte VCountSetting;
+
+        // State
+        public uint VCount;
 
         public long GetScanlineCycles()
         {
@@ -366,137 +431,53 @@ namespace OptimeGBA
             byte val = 0;
             switch (addr)
             {
-                case 0x4000000: // DISPCNT B0
-                    return (byte)(DISPCNTValue >> 0);
-                case 0x4000001: // DISPCNT B1
-                    return (byte)(DISPCNTValue >> 8);
-                case 0x4000002: // DISPCNT B2
-                    return (byte)(DISPCNTValue >> 16);
-                case 0x4000003: // DISPCNT B3
-                    return (byte)(DISPCNTValue >> 24);
-
+                case 0x4000000: // DISPCNTA B0
+                    return (byte)(DISPCNTAValue >> 0);
+                case 0x4000001: // DISPCNTA B1
+                    return (byte)(DISPCNTAValue >> 8);
+                case 0x4000002: // DISPCNTA B2
+                    return (byte)(DISPCNTAValue >> 16);
+                case 0x4000003: // DISPCNTA B3
+                    return (byte)(DISPCNTAValue >> 24);
 
                 case 0x4000004: // DISPSTAT B0
                     // Vblank flag is set in scanlines 192-261, not including 262 for some reason
-                    if (Renderers[0].VCount >= 192 && Renderers[0].VCount <= 261) val = BitSet(val, 0);
+                    if (VCount >= 192 && VCount <= 261) val = BitSet(val, 0);
                     // Hblank flag is set at cycle 1606, not cycle 1536
                     if (GetScanlineCycles() >= 1606) val = BitSet(val, 1);
                     if (VCounterMatch) val = BitSet(val, 2);
                     if (VBlankIrqEnable) val = BitSet(val, 3);
                     if (HBlankIrqEnable) val = BitSet(val, 4);
                     if (VCounterIrqEnable) val = BitSet(val, 5);
-                    break;
+                    return val;
                 case 0x4000005: // DISPSTAT B1
                     val |= VCountSetting;
-                    break;
+                    return val;
 
                 case 0x4000006: // VCOUNT B0 - B1 only exists for Nintendo DS
-                    val |= (byte)Renderers[0].VCount;
-                    break;
+                    val |= (byte)VCount;
+                    return val;
                 case 0x4000007:
-                    val |= (byte)((Renderers[0].VCount >> 8) & 1);
-                    break;
+                    val |= (byte)((VCount >> 8) & 1);
+                    return val;
 
-                case 0x4000008: // BG0CNT B0
-                case 0x4000009: // BG0CNT B1
-                    return Renderers[0].Backgrounds[0].ReadBGCNT(addr - 0x4000008);
-                case 0x400000A: // BG1CNT B0
-                case 0x400000B: // BG1CNT B1
-                    return Renderers[0].Backgrounds[1].ReadBGCNT(addr - 0x400000A);
-                case 0x400000C: // BG2CNT B0
-                case 0x400000D: // BG2CNT B1
-                    return Renderers[0].Backgrounds[2].ReadBGCNT(addr - 0x400000C);
-                case 0x400000E: // BG3CNT B0
-                case 0x400000F: // BG3CNT B1
-                    return Renderers[0].Backgrounds[3].ReadBGCNT(addr - 0x400000E);
+                case 0x4001000: // DISPCNTB B0
+                    return (byte)(DISPCNTBValue >> 0);
+                case 0x4001001: // DISPCNTB B1
+                    return (byte)(DISPCNTBValue >> 8);
+                case 0x4001002: // DISPCNTB B2
+                    return (byte)(DISPCNTBValue >> 16);
+                case 0x4001003: // DISPCNTB B3
+                    return (byte)(DISPCNTBValue >> 24);
+            }
 
-                case 0x4000010: // BG0HOFS B0
-                case 0x4000011: // BG0HOFS B1
-                case 0x4000012: // BG0VOFS B0
-                case 0x4000013: // BG0VOFS B1
-                    return Renderers[0].Backgrounds[0].ReadBGOFS(addr - 0x4000010);
-                case 0x4000014: // BG1HOFS B0
-                case 0x4000015: // BG1HOFS B1
-                case 0x4000016: // BG1VOFS B0
-                case 0x4000017: // BG1VOFS B1
-                    return Renderers[0].Backgrounds[1].ReadBGOFS(addr - 0x4000014);
-                case 0x4000018: // BG2HOFS B0
-                case 0x4000019: // BG2HOFS B1
-                case 0x400001A: // BG2VOFS B0
-                case 0x400001B: // BG2VOFS B1
-                    return Renderers[0].Backgrounds[2].ReadBGOFS(addr - 0x4000018);
-                case 0x400001C: // BG3HOFS B0
-                case 0x400001D: // BG3HOFS B1
-                case 0x400001E: // BG3VOFS B0
-                case 0x400001F: // BG3VOFS B1
-                    return Renderers[0].Backgrounds[3].ReadBGOFS(addr - 0x400001C);
-
-                case 0x4000028: // BG2X B0
-                case 0x4000029: // BG2X B1
-                case 0x400002A: // BG2X B2
-                case 0x400002B: // BG2X B3
-                case 0x400002C: // BG2Y B0
-                case 0x400002D: // BG2Y B1
-                case 0x400002E: // BG2Y B2
-                case 0x400002F: // BG2Y B3
-                    return Renderers[0].Backgrounds[2].ReadBGXY(addr - 0x04000028);
-
-                case 0x4000038: // BG3X B0
-                case 0x4000039: // BG3X B1
-                case 0x400003A: // BG3X B2
-                case 0x400003B: // BG3X B3
-                case 0x400003C: // BG3Y B0
-                case 0x400003D: // BG3Y B1
-                case 0x400003E: // BG3Y B2
-                case 0x400003F: // BG3Y B3
-                    return Renderers[0].Backgrounds[3].ReadBGXY(addr - 0x04000038);
-
-                case 0x4000040: // WIN0H B0
-                    return Renderers[0].Win0HRight;
-                case 0x4000041: // WIN0H B1
-                    return Renderers[0].Win0HLeft;
-                case 0x4000042: // WIN1H B0
-                    return Renderers[0].Win1HRight;
-                case 0x4000043: // WIN1H B1
-                    return Renderers[0].Win1HLeft;
-
-                case 0x4000044: // WIN0V B0
-                    return Renderers[0].Win0VBottom;
-                case 0x4000045: // WIN0V B1
-                    return Renderers[0].Win0VTop;
-                case 0x4000046: // WIN1V B0
-                    return Renderers[0].Win1VBottom;
-                case 0x4000047: // WIN1V B1
-                    return Renderers[0].Win1VTop;
-
-                case 0x4000048: // WININ B0
-                    return (byte)((WININValue >> 0) & 0x3F);
-                case 0x4000049: // WININ B1
-                    return (byte)((WININValue >> 8) & 0x3F);
-
-                case 0x400004A: // WINOUT B0
-                    return (byte)((WINOUTValue >> 0) & 0x3F);
-                case 0x400004B: // WINOUT B1
-                    return (byte)((WINOUTValue >> 8) & 0x3F);
-
-                case 0x400004C: // MOSAIC B0
-                    return MOSAICValueB0;
-                case 0x400004D: // MOSAIC B1
-                    return MOSAICValueB1;
-
-                case 0x4000050: // BLDCNT B0
-                    return (byte)((BLDCNTValue >> 0) & 0xFF);
-                case 0x4000051: // BLDCNT B1
-                    return (byte)((BLDCNTValue >> 8) & 0x3F);
-
-                case 0x4000052: // BLDALPHA B0
-                    return (byte)(BLDALPHAValue >> 0);
-                case 0x4000053: // BLDALPHA B1
-                    return (byte)(BLDALPHAValue >> 8);
-
-                case 0x4000054: // BLDY
-                    return (byte)Renderers[0].BlendBrightness;
-
+            if (addr >= 0x4000000 && addr < 0x4000058)
+            {
+                return Renderers[0].ReadHwio8(addr & 0xFF);
+            }
+            if (addr >= 0x4001000 && addr < 0x4001058)
+            {
+                return Renderers[1].ReadHwio8(addr & 0xFF);
             }
 
             return val;
@@ -506,59 +487,74 @@ namespace OptimeGBA
         {
             switch (addr)
             {
+                // A lot of these DISPCNT values are shared between A/B.
                 case 0x4000000: // DISPCNT B0
-                    Renderers[0].BgMode = BitRange(val, 0, 2);
                     Renderers[0].Bg0Is3D = BitTest(val, 3);
-                    Renderers[0].ObjCharOneDimensional = BitTest(val, 4);
-                    Renderers[0].BitmapObjShape = BitTest(val, 5);
-                    Renderers[0].BitmapObjMapping = BitTest(val, 6);
-                    Renderers[0].ForcedBlank = BitTest(val, 7);
 
-                    DISPCNTValue &= 0xFFFFFF00;
-                    DISPCNTValue |= (uint)(val << 0);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        Renderers[i].BgMode = BitRange(val, 0, 2);
+                        Renderers[i].ObjCharOneDimensional = BitTest(val, 4);
+                        Renderers[i].BitmapObjShape = BitTest(val, 5);
+                        Renderers[i].BitmapObjMapping = BitTest(val, 6);
+                        Renderers[i].ForcedBlank = BitTest(val, 7);
 
-                    Renderers[0].BackgroundSettingsDirty = true;
+                        Renderers[i].BackgroundSettingsDirty = true;
+                    }
+
+                    DISPCNTAValue &= 0xFFFFFF00;
+                    DISPCNTAValue |= (uint)(val << 0);
+
                     break;
                 case 0x4000001: // DISPCNT B1
-                    Renderers[0].ScreenDisplayBg[0] = BitTest(val, 8 - 8);
-                    Renderers[0].ScreenDisplayBg[1] = BitTest(val, 9 - 8);
-                    Renderers[0].ScreenDisplayBg[2] = BitTest(val, 10 - 8);
-                    Renderers[0].ScreenDisplayBg[3] = BitTest(val, 11 - 8);
-                    Renderers[0].ScreenDisplayObj = BitTest(val, 12 - 8);
-                    Renderers[0].Window0DisplayFlag = BitTest(val, 13 - 8);
-                    Renderers[0].Window1DisplayFlag = BitTest(val, 14 - 8);
-                    Renderers[0].ObjWindowDisplayFlag = BitTest(val, 15 - 8);
-                    Renderers[0].AnyWindowEnabled = (val & 0b11100000) != 0;
+                    for (int i = 0; i < 2; i++)
+                    {
+                        Renderers[i].ScreenDisplayBg[0] = BitTest(val, 8 - 8);
+                        Renderers[i].ScreenDisplayBg[1] = BitTest(val, 9 - 8);
+                        Renderers[i].ScreenDisplayBg[2] = BitTest(val, 10 - 8);
+                        Renderers[i].ScreenDisplayBg[3] = BitTest(val, 11 - 8);
+                        Renderers[i].ScreenDisplayObj = BitTest(val, 12 - 8);
+                        Renderers[i].Window0DisplayFlag = BitTest(val, 13 - 8);
+                        Renderers[i].Window1DisplayFlag = BitTest(val, 14 - 8);
+                        Renderers[i].ObjWindowDisplayFlag = BitTest(val, 15 - 8);
+                        Renderers[i].AnyWindowEnabled = (val & 0b11100000) != 0;
 
-                    DISPCNTValue &= 0xFFFF00FF;
-                    DISPCNTValue |= (uint)(val << 8);
-
-                    Renderers[0].BackgroundSettingsDirty = true;
+                        Renderers[i].BackgroundSettingsDirty = true;
+                    }
+                    
+                    DISPCNTAValue &= 0xFFFF00FF;
+                    DISPCNTAValue |= (uint)(val << 8);
                     break;
                 case 0x4000002: // DISPCNT B2
-                    var oldDisplayMode = Renderers[0].DisplayMode;
-                    Renderers[0].DisplayMode = BitRange(val, 0, 1);
-                    if (Renderers[0].DisplayMode != oldDisplayMode) VramDirty = true;
                     Renderers[0].LcdcVramBlock = BitRange(val, 2, 3);
-                    Renderers[0].TileObj1DBoundary = BitRange(val, 4, 5);
                     Renderers[0].BitmapObj1DBoundary = BitTest(val, 6);
-                    Renderers[0].HBlankIntervalFree = BitTest(val, 7);
 
-                    DISPCNTValue &= 0xFF00FFFF;
-                    DISPCNTValue |= (uint)(val << 16);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        var oldDisplayMode = Renderers[i].DisplayMode;
+                        if (Renderers[i].DisplayMode != oldDisplayMode) VramDirty = true;
+                        Renderers[i].DisplayMode = BitRange(val, 0, 1);
+                        Renderers[i].TileObj1DBoundary = BitRange(val, 4, 5);
+                        Renderers[i].HBlankIntervalFree = BitTest(val, 7);
 
-                    Renderers[0].BackgroundSettingsDirty = true;
+                        Renderers[i].BackgroundSettingsDirty = true;
+                    }
+
+                    DISPCNTAValue &= 0xFF00FFFF;
+                    DISPCNTAValue |= (uint)(val << 16);
                     break;
                 case 0x4000003: // DISPCNT B3
                     Renderers[0].CharBaseBlockCoarse = BitRange(val, 0, 2);
                     Renderers[0].MapBaseBlockCoarse = BitRange(val, 3, 5);
-                    Renderers[0].BgExtendedPalettes = BitTest(val, 6);
-                    Renderers[0].ObjExtendedPalettes = BitTest(val, 7);
 
-                    DISPCNTValue &= 0x00FFFFFF;
-                    DISPCNTValue |= (uint)(val << 24);
+                    for (int i = 0; i < 2; i++)
+                    {
+                        Renderers[i].BgExtendedPalettes = BitTest(val, 6);
+                        Renderers[i].ObjExtendedPalettes = BitTest(val, 7);
+                    }
 
-                    Renderers[0].BackgroundSettingsDirty = true;
+                    DISPCNTAValue &= 0x00FFFFFF;
+                    DISPCNTAValue |= (uint)(val << 24);
                     break;
 
                 case 0x4000004: // DISPSTAT B0
@@ -570,172 +566,41 @@ namespace OptimeGBA
                     VCountSetting = val;
                     break;
 
-                case 0x4000008: // BG0CNT B0
-                case 0x4000009: // BG0CNT B1
-                    Renderers[0].Backgrounds[0].WriteBGCNT(addr - 0x4000008, val);
-                    Renderers[0].BackgroundSettingsDirty = true;
-                    break;
-                case 0x400000A: // BG1CNT B0
-                case 0x400000B: // BG1CNT B1
-                    Renderers[0].Backgrounds[1].WriteBGCNT(addr - 0x400000A, val);
-                    Renderers[0].BackgroundSettingsDirty = true;
-                    break;
-                case 0x400000C: // BG2CNT B0
-                case 0x400000D: // BG2CNT B1
-                    Renderers[0].Backgrounds[2].WriteBGCNT(addr - 0x400000C, val);
-                    Renderers[0].BackgroundSettingsDirty = true;
-                    break;
-                case 0x400000E: // BG3CNT B0
-                case 0x400000F: // BG3CNT B1
-                    Renderers[0].Backgrounds[3].WriteBGCNT(addr - 0x400000E, val);
-                    Renderers[0].BackgroundSettingsDirty = true;
+                case 0x4000006: // Vcount
+                case 0x4000007:
+                    // throw new NotImplementedException("NDS: write to vcount");
                     break;
 
-                case 0x4000010: // BG0HOFS B0
-                case 0x4000011: // BG0HOFS B1
-                case 0x4000012: // BG0VOFS B0
-                case 0x4000013: // BG0VOFS B1
-                    Renderers[0].Backgrounds[0].WriteBGOFS(addr - 0x4000010, val);
+                case 0x4001000: // DISPCNT B0
+                    DISPCNTAValue &= 0xFFFFFF00;
+                    DISPCNTAValue |= (uint)(val << 0);
                     break;
-                case 0x4000014: // BG1HOFS B0
-                case 0x4000015: // BG1HOFS B1
-                case 0x4000016: // BG1VOFS B0
-                case 0x4000017: // BG1VOFS B1
-                    Renderers[0].Backgrounds[1].WriteBGOFS(addr - 0x4000014, val);
+                case 0x4001001: // DISPCNT B1
+                    DISPCNTAValue &= 0xFFFF00FF;
+                    DISPCNTAValue |= (uint)(val << 8);
                     break;
-                case 0x4000018: // BG2HOFS B0
-                case 0x4000019: // BG2HOFS B1
-                case 0x400001A: // BG2VOFS B0
-                case 0x400001B: // BG2VOFS B1
-                    Renderers[0].Backgrounds[2].WriteBGOFS(addr - 0x4000018, val);
-                    break;
-                case 0x400001C: // BG3HOFS B0
-                case 0x400001D: // BG3HOFS B1
-                case 0x400001E: // BG3VOFS B0
-                case 0x400001F: // BG3VOFS B1
-                    Renderers[0].Backgrounds[3].WriteBGOFS(addr - 0x400001C, val);
-                    break;
+                case 0x4001002: // DISPCNT B2
+                    Renderers[1].BitmapObj1DBoundary = BitTest(val, 6);
 
-                case 0x4000028: // BG2X B0
-                case 0x4000029: // BG2X B1
-                case 0x400002A: // BG2X B2
-                case 0x400002B: // BG2X B3
-                case 0x400002C: // BG2Y B0
-                case 0x400002D: // BG2Y B1
-                case 0x400002E: // BG2Y B2
-                case 0x400002F: // BG2Y B3
-                    Renderers[0].Backgrounds[2].WriteBGXY(addr - 0x04000028, val);
+                    DISPCNTAValue &= 0xFF00FFFF;
+                    DISPCNTAValue |= (uint)(val << 16);
                     break;
+                case 0x4001003: // DISPCNT B3
+                    Renderers[1].CharBaseBlockCoarse = BitRange(val, 0, 2);
+                    Renderers[1].MapBaseBlockCoarse = BitRange(val, 3, 5);
 
-                case 0x4000038: // BG3X B0
-                case 0x4000039: // BG3X B1
-                case 0x400003A: // BG3X B2
-                case 0x400003B: // BG3X B3
-                case 0x400003C: // BG3Y B0
-                case 0x400003D: // BG3Y B1
-                case 0x400003E: // BG3Y B2
-                case 0x400003F: // BG3Y B3
-                    Renderers[0].Backgrounds[3].WriteBGXY(addr - 0x04000038, val);
+                    DISPCNTAValue &= 0x00FFFFFF;
+                    DISPCNTAValue |= (uint)(val << 24);
                     break;
+            }
 
-                case 0x4000040: // WIN0H B0
-                    Renderers[0].Win0HRight = val;
-                    break;
-                case 0x4000041: // WIN0H B1
-                    Renderers[0].Win0HLeft = val;
-                    break;
-                case 0x4000042: // WIN1H B0
-                    Renderers[0].Win1HRight = val;
-                    break;
-                case 0x4000043: // WIN1H B1
-                    Renderers[0].Win1HLeft = val;
-                    break;
-
-                case 0x4000044: // WIN0V B0
-                    Renderers[0].Win0VBottom = val;
-                    break;
-                case 0x4000045: // WIN0V B1
-                    Renderers[0].Win0VTop = val;
-                    break;
-                case 0x4000046: // WIN1V B0
-                    Renderers[0].Win1VBottom = val;
-                    break;
-                case 0x4000047: // WIN1V B1
-                    Renderers[0].Win1VTop = val;
-                    break;
-
-                case 0x4000048: // WININ B0
-                    Renderers[0].Win0InEnable = (byte)(val & 0b111111U);
-
-                    WININValue &= 0x7F00;
-                    WININValue |= (ushort)(val << 0);
-                    break;
-                case 0x4000049: // WININ B1
-                    Renderers[0].Win1InEnable = (byte)(val & 0b111111U);
-
-                    WININValue &= 0x007F;
-                    WININValue |= (ushort)(val << 8);
-                    break;
-
-                case 0x400004A: // WINOUT B0
-                    Renderers[0].WinOutEnable = (byte)(val & 0b111111U);
-
-                    WINOUTValue &= 0x7F00;
-                    WINOUTValue |= (ushort)(val << 0);
-                    break;
-                case 0x400004B: // WINOUT B1
-                    Renderers[0].WinObjEnable = (byte)(val & 0b111111U);
-
-                    WINOUTValue &= 0x007F;
-                    WINOUTValue |= (ushort)(val << 8);
-                    break;
-
-                case 0x400004C: // MOSAIC B0
-                    MOSAICValueB0 = val;
-
-                    Renderers[0].BgMosaicX = (byte)((val >> 0) & 0xF);
-                    Renderers[0].BgMosaicY = (byte)((val >> 4) & 0xF);
-                    break;
-                case 0x400004D: // MOSAIC B1
-                    MOSAICValueB1 = val;
-
-                    Renderers[0].ObjMosaicX = (byte)((val >> 0) & 0xF);
-                    Renderers[0].ObjMosaicY = (byte)((val >> 4) & 0xF);
-                    break;
-
-                case 0x4000050: // BLDCNT B0
-                    Renderers[0].Target1Flags = val & 0b111111U;
-
-                    Renderers[0].BlendEffect = (BlendEffect)((val >> 6) & 0b11U);
-
-                    BLDCNTValue &= 0x7F00;
-                    BLDCNTValue |= (ushort)(val << 0);
-                    break;
-                case 0x4000051: // BLDCNT B1
-                    Renderers[0].Target2Flags = val & 0b111111U;
-
-                    BLDCNTValue &= 0x00FF;
-                    BLDCNTValue |= (ushort)(val << 8);
-                    break;
-
-                case 0x4000052: // BLDALPHA B0
-                    Renderers[0].BlendACoeff = val & 0b11111U;
-                    if (Renderers[0].BlendACoeff == 31) Renderers[0].BlendACoeff = 0;
-
-                    BLDALPHAValue &= 0x7F00;
-                    BLDALPHAValue |= (ushort)(val << 0);
-                    break;
-                case 0x4000053: // BLDALPHA B1
-                    Renderers[0].BlendBCoeff = val & 0b11111U;
-                    if (Renderers[0].BlendBCoeff == 31) Renderers[0].BlendBCoeff = 0;
-
-                    BLDALPHAValue &= 0x00FF;
-                    BLDALPHAValue |= (ushort)(val << 8);
-                    break;
-
-                case 0x4000054: // BLDY
-                    Renderers[0].BlendBrightness = (byte)(val & 0b11111);
-                    break;
+            if (addr >= 0x4000000 && addr < 0x4000058)
+            {
+                Renderers[0].WriteHwio8(addr & 0xFF, val);
+            }
+            if (addr >= 0x4001000 && addr < 0x4001058)
+            {
+                Renderers[1].WriteHwio8(addr & 0xFF, val);
             }
         }
 
@@ -836,19 +701,18 @@ namespace OptimeGBA
             // Gba.HwControl.FlagInterrupt(InterruptGba.HBlank);
             // }
 
-            if (Renderers[0].DebugEnableRendering)
+            CompileVram();
+            if (Renderers[0].DisplayMode == 2) // LCDC MODE
             {
-                CompileVram();
-                if (Renderers[0].DisplayMode == 2) // LCDC MODE
-                {
-                    Renderers[0].RenderScanlineNds(VramLcdc, VramLcdc);
-                }
-                else
-                {
-                    Renderers[0].RenderScanlineNds(VramBgA, VramObjA);
-                }
+                Renderers[0].RenderScanlineNds(VCount, VramLcdc, VramLcdc);
+            }
+            else
+            {
+                if (Renderers[0].DebugEnableRendering) Renderers[0].RenderScanlineNds(VCount, VramBgA, VramObjA);
+                if (Renderers[1].DebugEnableRendering) Renderers[1].RenderScanlineNds(VCount, VramBgB, VramObjB);
             }
             Renderers[0].IncrementMosaicCounters();
+            Renderers[1].IncrementMosaicCounters();
 
             // Gba.Dma.RepeatHblank();
         }
@@ -867,15 +731,15 @@ namespace OptimeGBA
         {
             ScanlineStartCycles = Scheduler.CurrentTicks;
 
-            if (Renderers[0].VCount != 262)
+            if (VCount != 262)
             {
-                Renderers[0].VCount++;
+                VCount++;
 
-                if (Renderers[0].VCount > 191)
+                if (VCount > 191)
                 {
                     Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndVblankToHblank);
 
-                    if (Renderers[0].VCount == 192)
+                    if (VCount == 192)
                     {
                         // Nds.Dma.RepeatVblank();
 
@@ -889,6 +753,7 @@ namespace OptimeGBA
 
                         Renderers[0].TotalFrames++;
                         if (Renderers[0].DebugEnableRendering) Renderers[0].SwapBuffers();
+                        if (Renderers[1].DebugEnableRendering) Renderers[1].SwapBuffers();
 
                         Renderers[0].RenderingDone = true;
                     }
@@ -900,8 +765,8 @@ namespace OptimeGBA
             }
             else
             {
-                Renderers[0].VCount = 0;
-                VCounterMatch = Renderers[0].VCount == VCountSetting;
+                VCount = 0;
+                VCounterMatch = VCount == VCountSetting;
                 // if (VCounterMatch && VCounterIrqEnable)
                 // {
                 //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
@@ -909,13 +774,14 @@ namespace OptimeGBA
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
                 // Pre-render sprites for line zero
-                fixed (byte* vramObjA = VramObjA)
+                fixed (byte* vramObjA = VramObjA, vramObjB = VramObjB)
                 {
-                    if (Renderers[0].DebugEnableObj && Renderers[0].ScreenDisplayObj) Renderers[0].RenderObjs(vramObjA, 0);
+                    if (Renderers[0].DebugEnableObj && Renderers[0].ScreenDisplayObj) Renderers[0].RenderObjs(0, vramObjA);
+                    if (Renderers[1].DebugEnableObj && Renderers[1].ScreenDisplayObj) Renderers[1].RenderObjs(0, vramObjB);
                 }
             }
 
-            VCounterMatch = Renderers[0].VCount == VCountSetting;
+            VCounterMatch = VCount == VCountSetting;
 
             if (VCounterMatch && VCounterIrqEnable)
             {
