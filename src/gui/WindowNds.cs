@@ -24,8 +24,7 @@ namespace OptimeGBAEmulator
         GameWindow Window;
 
         int gbTexId;
-        int bgPalTexId;
-        int objPalTexId;
+        int[] palTexIds = new int[4];
         ImGuiController _controller;
         int VertexBufferObject;
         int VertexArrayObject;
@@ -81,9 +80,9 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public uint Arm9Breakpoint = 0x2005960;
-        public uint Arm7Breakpoint;
-        public bool EnableBreakpoints = false;
+        public uint Arm9Breakpoint = 0;
+        public uint Arm7Breakpoint = 0x37FAC9C;
+        public bool EnableBreakpoints = true;
 
         public void CheckBreakpoints()
         {
@@ -218,9 +217,8 @@ namespace OptimeGBAEmulator
 
         public void OnLoad()
         {
+            GL.GenTextures(4, palTexIds);
             gbTexId = GL.GenTexture();
-            bgPalTexId = GL.GenTexture();
-            objPalTexId = GL.GenTexture();
 
             Window.VSync = VSyncMode.Off;
             Window.UpdateFrequency = 59.7275;
@@ -792,20 +790,21 @@ namespace OptimeGBAEmulator
 
                 ImGui.NextColumn();
 
-                // ImGui.Text($"BG0 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[0].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[0].ScreenSize]}");
-                // ImGui.Text($"BG0 Scroll X: {Nds.Ppu.Backgrounds[0].HorizontalOffset}");
-                // ImGui.Text($"BG0 Scroll Y: {Nds.Ppu.Backgrounds[0].VerticalOffset}");
-                // ImGui.Text($"BG1 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[1].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[1].ScreenSize]}");
-                // ImGui.Text($"BG1 Scroll X: {Nds.Ppu.Backgrounds[1].HorizontalOffset}");
-                // ImGui.Text($"BG1 Scroll Y: {Nds.Ppu.Backgrounds[1].VerticalOffset}");
-                // ImGui.Text($"BG2 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[2].ScreenSize]}");
-                // ImGui.Text($"BG2 Affine Size: {Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[2].ScreenSize]}/{Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[2].ScreenSize]}");
-                // ImGui.Text($"BG2 Scroll X: {Nds.Ppu.Backgrounds[2].HorizontalOffset}");
-                // ImGui.Text($"BG2 Scroll Y: {Nds.Ppu.Backgrounds[2].VerticalOffset}");
-                // ImGui.Text($"BG3 Size X/Y: {Ppu.CharWidthTable[Nds.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.CharHeightTable[Nds.Ppu.Backgrounds[3].ScreenSize]}");
-                // ImGui.Text($"BG3 Affine Size: {Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[3].ScreenSize]}/{Ppu.AffineSizeTable[Nds.Ppu.Backgrounds[3].ScreenSize]}");
-                // ImGui.Text($"BG3 Scroll X: {Nds.Ppu.Backgrounds[3].HorizontalOffset}");
-                // ImGui.Text($"BG3 Scroll Y: {Nds.Ppu.Backgrounds[3].VerticalOffset}");
+                var rend = Nds.Ppu.Renderer;
+                ImGui.Text($"A BG0 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[0].ScreenSize]}");
+                ImGui.Text($"A BG0 Scroll X: {rend.Backgrounds[0].HorizontalOffset}");
+                ImGui.Text($"A BG0 Scroll Y: {rend.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"A BG1 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[1].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[1].ScreenSize]}");
+                ImGui.Text($"A BG1 Scroll X: {rend.Backgrounds[1].HorizontalOffset}");
+                ImGui.Text($"A BG1 Scroll Y: {rend.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"A BG2 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[2].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"A BG2 Affine Size: {PpuRenderer.AffineSizeTable[rend.Backgrounds[2].ScreenSize]}/{PpuRenderer.AffineSizeTable[rend.Backgrounds[2].ScreenSize]}");
+                ImGui.Text($"A BG2 Scroll X: {rend.Backgrounds[2].HorizontalOffset}");
+                ImGui.Text($"A BG2 Scroll Y: {rend.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"A BG3 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[3].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"A BG3 Affine Size: {PpuRenderer.AffineSizeTable[rend.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rend.Backgrounds[3].ScreenSize]}");
+                ImGui.Text($"A BG3 Scroll X: {rend.Backgrounds[3].HorizontalOffset}");
+                ImGui.Text($"A BG3 Scroll Y: {rend.Backgrounds[3].VerticalOffset}");
                 // ImGui.Checkbox("Debug BG0", ref Nds.Ppu.DebugEnableBg[0]);
                 // ImGui.Checkbox("Debug BG1", ref Nds.Ppu.DebugEnableBg[1]);
                 // ImGui.Checkbox("Debug BG2", ref Nds.Ppu.DebugEnableBg[2]);
@@ -834,7 +833,7 @@ namespace OptimeGBAEmulator
                         PaletteImageBuffer[p] = Nds.Ppu.Renderer.ProcessedPalettes[paletteBase + p];
                     }
 
-                    GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
+                    GL.BindTexture(TextureTarget.Texture2D, palTexIds[i]);
 
                     // TexParameter needed for something to display :)
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
@@ -854,7 +853,7 @@ namespace OptimeGBAEmulator
                     );
 
                     // ImGui.Text($"Pointer: {texId}");
-                    ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
+                    ImGui.Image((IntPtr)palTexIds[i], new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
                 }
 
                 ImGui.End();
@@ -906,7 +905,7 @@ namespace OptimeGBAEmulator
                         0,
                         PixelInternalFormat.Rgba,
                         256,
-                        192,
+                        384,
                         0,
                         PixelFormat.Rgba,
                         PixelType.UnsignedByte,
@@ -925,7 +924,7 @@ namespace OptimeGBAEmulator
                         0,
                         PixelInternalFormat.Rgba,
                         256,
-                        192,
+                        384,
                         0,
                         PixelFormat.Rgba,
                         PixelType.UnsignedByte,
@@ -938,7 +937,7 @@ namespace OptimeGBAEmulator
                 }
 
                 float height = BigScreen ? 256 * 5 : 256 * 2;
-                float width = BigScreen ? 192 * 5 : 192 * 2;
+                float width = BigScreen ? 384 * 5 : 384 * 2;
 
                 ImGui.Image((IntPtr)gbTexId, new System.Numerics.Vector2(height, width));
                 ImGui.SetWindowSize(new System.Numerics.Vector2(height + 16, width + 36));

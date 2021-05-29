@@ -63,7 +63,7 @@ namespace OptimeGBAEmulator
         const int GBA_HEIGHT = 160;
 
         const int NDS_WIDTH = 256;
-        const int NDS_HEIGHT = 192;
+        const int NDS_HEIGHT = 384;
 
         static bool Excepted = false;
         static string ExceptionMessage = "";

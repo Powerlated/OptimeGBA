@@ -16,7 +16,7 @@ namespace OptimeGBA
         {
             Nds = gba;
             Scheduler = scheduler;
-            Renderer = new PpuRenderer(true, 256, 192);
+            Renderer = new PpuRenderer(true, 256, 384);
 
             Scheduler.AddEventRelative(SchedulerId.Ppu, 1536, EndDrawingToHblank);
         }
@@ -31,6 +31,16 @@ namespace OptimeGBA
         public byte[] VramG = MemoryUtil.AllocateManagedArray(16384);
         public byte[] VramH = MemoryUtil.AllocateManagedArray(32768);
         public byte[] VramI = MemoryUtil.AllocateManagedArray(16384);
+
+        public byte VRAMCNT_A;
+        public byte VRAMCNT_B;
+        public byte VRAMCNT_C;
+        public byte VRAMCNT_D;
+        public byte VRAMCNT_E;
+        public byte VRAMCNT_F;
+        public byte VRAMCNT_G;
+        public byte VRAMCNT_H;
+        public byte VRAMCNT_I;
 
         // Built arrays (Passed to PpuRenderer for rendering)
         public byte[] VramLcdc = MemoryUtil.AllocateManagedArray(671744);
@@ -551,10 +561,11 @@ namespace OptimeGBA
                     {
                         // Nds.Dma.RepeatVblank();
 
-                        // if (VBlankIrqEnable)
-                        // {
-                        //     Nds.HwControl.FlagInterrupt(InterruptGba.VBlank);
-                        // }
+                        if (VBlankIrqEnable)
+                        {
+                            Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.VBlank);
+                            Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.VBlank);
+                        }
 
                         Renderer.RunVblankOperations();
 
@@ -588,10 +599,11 @@ namespace OptimeGBA
 
             VCounterMatch = Renderer.VCount == VCountSetting;
 
-            // if (VCounterMatch && VCounterIrqEnable)
-            // {
-            //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
-            // }
+            if (VCounterMatch && VCounterIrqEnable)
+            {
+                Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.VCounterMatch);
+                Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.VCounterMatch);
+            }
         }
     }
 }

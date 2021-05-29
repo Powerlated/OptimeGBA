@@ -20,11 +20,14 @@ namespace OptimeGBA
 
         public PpuNds Ppu;
 
+        public NdsAudio Audio;
+
+        public MemoryControlNds MemoryControl;
+
         public Keypad Keypad = new Keypad();
 
         public byte[] MainRam = new byte[4194304];
         public byte[] SharedRam = new byte[32768];
-        public byte SharedRamControl = 0;
 
         public int Arm9PendingTicks;
 
@@ -45,6 +48,10 @@ namespace OptimeGBA
 
             Ppu = new PpuNds(this, Scheduler);
             Ppu.Renderer.DisableColorCorrection();
+
+            Audio = new NdsAudio(this);
+
+            MemoryControl = new MemoryControlNds();
 
             Nds7 = new Nds7(this) { Scheduler = Scheduler };
             Nds9 = new Nds9(this) { Scheduler = Scheduler };
@@ -70,7 +77,7 @@ namespace OptimeGBA
                     uint arm7Size = GetUint(rom, 0x3C);
 
                     // Firmware init
-                    SharedRamControl = 3;
+                    MemoryControl.SharedRamControl = 3;
 
                     // ROM offset is aligned by 0x1000
                     Console.WriteLine("ARM7 ROM Offset: " + Hex(arm7RomOffset, 8));
@@ -111,7 +118,7 @@ namespace OptimeGBA
             
             Nds7.Cpu.Execute();
             Nds9.Cpu.Execute();
-            Scheduler.CurrentTicks += 8;
+            Scheduler.CurrentTicks += 2;
 
             // TODO: Proper NDS timings
             // uint ticks7 = Nds7.Cpu.Execute();

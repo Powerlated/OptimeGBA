@@ -17,6 +17,7 @@ namespace OptimeGBA
         Identification,
         ReceiveAddress,
         Reading,
+        Status,
     }
 
     public unsafe sealed class Spi
@@ -49,7 +50,7 @@ namespace OptimeGBA
         uint Address;
         byte AddressByteNum = 0;
 
-        byte InData;
+        byte OutData;
 
         public byte ReadHwio8(uint addr)
         {
@@ -70,7 +71,7 @@ namespace OptimeGBA
 
                 case 0x40001C2: // SPIDATA
                     // Console.WriteLine("SPI: Read! " + Hex(InData, 2));
-                    return InData;
+                    return OutData;
             }
 
             return val;
@@ -122,6 +123,13 @@ namespace OptimeGBA
                     case SpiDevice.Firmware:
                         TransferToSpiFlash(val);
                         break;
+                    case SpiDevice.Touchscreen:
+                        Console.WriteLine("Touchscreen access");
+                        break;
+                    case SpiDevice.PowerManager:
+                        Console.WriteLine("Power manager access");
+                        break;
+
                 }
             }
         }
@@ -149,6 +157,9 @@ namespace OptimeGBA
                             Address = 0;
                             AddressByteNum = 0;
                             break;
+                        case 0x05: // Identification
+                            OutData = 0x00;
+                            break;
                         case 0x00:
                             break;
                         default:
@@ -171,11 +182,11 @@ namespace OptimeGBA
                     // Nds7.Cpu.Error("SPI");
                     if (Address < 0x40000)
                     {
-                        InData = Firmware[Address];
+                        OutData = Firmware[Address];
                     }
                     else
                     {
-                        InData = 0;
+                        OutData = 0;
                     }
                     Address++;
                     Address &= 0xFFFFFF;

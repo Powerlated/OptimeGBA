@@ -271,12 +271,17 @@ namespace OptimeGBA
 
         public void ExecuteDma(DmaChannelNds c, uint ci)
         {
-            Console.WriteLine("NDS: Executing DMA");
+            
             DmaLock = true;
 
             // Least significant 28 (or 27????) bits
             c.DmaSource &= DmaSourceMask[ci];
             c.DmaDest &= DmaDestMask[ci];
+
+            // Console.WriteLine("NDS: Executing DMA");
+            // Console.WriteLine("Source: " + Util.Hex(c.DmaSource, 8));
+            // Console.WriteLine("Dest: " + Util.Hex(c.DmaDest, 8));
+            // Console.WriteLine("Length: " + c.DmaLength);
 
             if (ci == 3)
             {

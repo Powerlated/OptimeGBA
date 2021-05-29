@@ -62,7 +62,7 @@ namespace OptimeGBA
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
         {
-            switch (Nds7.Nds.SharedRamControl)
+            switch (Nds7.Nds.MemoryControl.SharedRamControl)
             {
                 case 0:
                 default:
@@ -223,18 +223,21 @@ namespace OptimeGBA
             {
                 return Nds7.HwControl.ReadHwio8(addr);
             }
+            else if (addr >= 0x4000240 && addr <= 0x4000241) // Memory Control
+            {
+                return Nds7.Nds.MemoryControl.ReadHwio8Nds7(addr);
+            }
+            else if (addr >= 0x4000400 && addr <= 0x400051D) // Sound
+            {
+                return Nds7.Nds.Audio.ReadHwio8(addr);
+            }
             else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
             {
                 return Nds7.Nds.Ipcs[0].ReadHwio8(addr);
             }
-            else if (addr >= 0x4100010 && addr <= 0x4100013)
-            { // Cartridge data read
+            else if (addr >= 0x4100010 && addr <= 0x4100013) // Cartridge data read
+            {
                 return Nds7.Nds.Cartridge.ReadHwio8(addr);
-            }
-
-            switch (addr) {
-                case 0x4000241:
-                    return Nds7.Nds.SharedRamControl;
             }
 
             return 0;
@@ -261,10 +264,6 @@ namespace OptimeGBA
             {
                 Nds7.Timers.WriteHwio8(addr, val);
             }
-            else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
-            {
-                Nds7.HwControl.WriteHwio8(addr, val);
-            }
             else if (addr >= 0x4000180 && addr <= 0x400018B) // FIFO
             {
                 Nds7.Nds.Ipcs[0].WriteHwio8(addr, val);
@@ -276,6 +275,14 @@ namespace OptimeGBA
             else if (addr >= 0x40001C0 && addr <= 0x40001C3) // SPI
             {
                 Nds7.Spi.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
+            {
+                Nds7.HwControl.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4000400 && addr <= 0x400051D) // Sound
+            {
+                Nds7.Nds.Audio.WriteHwio8(addr, val);
             }
         }
     }

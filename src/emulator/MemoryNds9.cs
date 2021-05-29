@@ -92,7 +92,7 @@ namespace OptimeGBA
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
         {
-            switch (Nds9.Nds.SharedRamControl)
+            switch (Nds9.Nds.MemoryControl.SharedRamControl)
             {
                 case 0:
                 default:
@@ -290,6 +290,10 @@ namespace OptimeGBA
             {
                 return Nds9.HwControl.ReadHwio8(addr);
             }
+            else if (addr >= 0x4000240 && addr <= 0x4000249) // Memory Control
+            {
+                return Nds9.Nds.MemoryControl.ReadHwio8Nds9(addr);
+            }
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 return Nds9.Math.ReadHwio8(addr);
@@ -301,12 +305,6 @@ namespace OptimeGBA
             else if (addr >= 0x4100010 && addr <= 0x4100013) // Cartridge data read
             {
                 return Nds9.Nds.Cartridge.ReadHwio8(addr);
-            }
-
-            switch (addr)
-            {
-                case 0x4000247:
-                    return Nds9.Nds.SharedRamControl;
             }
 
             return 0;
@@ -345,16 +343,13 @@ namespace OptimeGBA
             {
                 Nds9.HwControl.WriteHwio8(addr, val);
             }
+            else if (addr >= 0x4000240 && addr <= 0x4000249) // Memory Control
+            {
+                Nds9.Nds.MemoryControl.WriteHwio8Nds9(addr, val);
+            }
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 Nds9.Math.WriteHwio8(addr, val);
-            }
-
-            switch (addr)
-            {
-                case 0x4000247:
-                    Nds9.Nds.SharedRamControl = (byte)(val & 0b11);
-                    break;
             }
         }
     }

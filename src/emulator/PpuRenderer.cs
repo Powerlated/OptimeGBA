@@ -1157,6 +1157,7 @@ namespace OptimeGBA
 
             ushort data = (ushort)((b1 << 8) | b0);
 
+            // Console.WriteLine("update palette: " + Util.Hex(data, 4) + " " + pal);
             ProcessedPalettes[pal] = Rgb555to888(data, ColorCorrection);
         }
 
