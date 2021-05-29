@@ -47,13 +47,6 @@ namespace OptimeGBA
                         table[i] = Nds9.Nds.MainRam;
                         maskTable[i] = 0x003FFFFF;
                         break;
-                    case 0x5: // Palettes
-                        if (!write)
-                        {
-                            table[i] = Nds9.Nds.Ppu.Renderer.Palettes;
-                        }
-                        maskTable[i] = 0x000007FF;
-                        break;
                     case 0xFF: // BIOS
                         if (!write)
                         {
@@ -119,6 +112,8 @@ namespace OptimeGBA
                     return GetByte(array, offset);
                 case 0x4: // I/O Registers
                     return ReadHwio8(addr);
+                case 0x5: // PPU Palettes
+                    return Nds9.Nds.Ppu.ReadPalettes8(addr);
                 case 0x6: // VRAM
                     return 0; // TODO: IMPLEMENT VRAM READING
             }
@@ -140,6 +135,8 @@ namespace OptimeGBA
                     ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
                     return u16;
+                case 0x5: // PPU Palettes
+                    return Nds9.Nds.Ppu.ReadPalettes16(addr);
                 case 0x6: // VRAM
                     return 0; // TODO: IMPLEMENT VRAM READING
             }
@@ -163,6 +160,8 @@ namespace OptimeGBA
                     uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
                     return u32;
+                case 0x5: // PPU Palettes
+                    return Nds9.Nds.Ppu.ReadPalettes32(addr);
                 case 0x6: // VRAM
                     return 0; // TODO: IMPLEMENT VRAM READING
             }
@@ -182,12 +181,7 @@ namespace OptimeGBA
                     WriteHwio8(addr, val);
                     break;
                 case 0x5: // PPU Palettes
-                    addr &= 0x7FF;
-                    if (GetByte(Nds9.Nds.Ppu.Renderer.Palettes, addr) != val)
-                    {
-                        SetByte(Nds9.Nds.Ppu.Renderer.Palettes, addr, val);
-                        Nds9.Nds.Ppu.Renderer.UpdatePalette(addr / 2);
-                    }
+                    Nds9.Nds.Ppu.WritePalettes16(addr, val);
                     break;
                 case 0x6: // VRAM
                     Nds9.Nds.Ppu.WriteVram8(addr, val);
@@ -208,12 +202,7 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 8));
                     break;
                 case 0x5: // PPU Palettes
-                    addr &= 0x7FF;
-                    if (GetUshort(Nds9.Nds.Ppu.Renderer.Palettes, addr) != val)
-                    {
-                        SetUshort(Nds9.Nds.Ppu.Renderer.Palettes, addr, val);
-                        Nds9.Nds.Ppu.Renderer.UpdatePalette(addr / 2);
-                    }
+                    Nds9.Nds.Ppu.WritePalettes16(addr, val);
                     break;
                 case 0x6: // VRAM
                     Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 0));
@@ -237,12 +226,7 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 24));
                     break;
                 case 0x5: // PPU Palettes
-                    addr &= 0x7FF;
-                    if (GetUint(Nds9.Nds.Ppu.Renderer.Palettes, addr) != val)
-                    {
-                        SetUint(Nds9.Nds.Ppu.Renderer.Palettes, addr, val);
-                        Nds9.Nds.Ppu.Renderer.UpdatePalette(addr / 2);
-                    }
+                    Nds9.Nds.Ppu.WritePalettes32(addr, val);
                     break;
                 case 0x6: // VRAM
                     Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 0));

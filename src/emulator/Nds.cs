@@ -47,7 +47,8 @@ namespace OptimeGBA
             Cartridge = new CartridgeNds(this);
 
             Ppu = new PpuNds(this, Scheduler);
-            Ppu.Renderer.DisableColorCorrection();
+            Ppu.Renderers[0].DisableColorCorrection();
+            Ppu.Renderers[1].DisableColorCorrection();
 
             Audio = new NdsAudio(this);
 

@@ -63,7 +63,7 @@ namespace OptimeGBAEmulator
         const int GBA_HEIGHT = 160;
 
         const int NDS_WIDTH = 256;
-        const int NDS_HEIGHT = 384;
+        const int NDS_HEIGHT = 192;
 
         static bool Excepted = false;
         static string ExceptionMessage = "";
@@ -438,7 +438,7 @@ namespace OptimeGBAEmulator
                     }
 
 #if UNSAFE
-                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Nds.Ppu.Renderer.ScreenFront, NDS_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
+                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Nds.Ppu.Renderers[0].ScreenFront, NDS_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
 #else
                 fixed (uint* pixels = &Nds.Ppu.ScreenFront[0])
                 {

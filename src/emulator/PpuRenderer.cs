@@ -68,7 +68,7 @@ namespace OptimeGBA
 #if UNSAFE
         public uint* ScreenFront;
         public uint* ScreenBack;
-        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(1024);
+        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
 
         public byte* WinMasks;
 
@@ -90,7 +90,7 @@ namespace OptimeGBA
 #else
         public uint[] ScreenFront;
         public uint[] ScreenBack;
-        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(1024);
+        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
 
         public byte[] WinMasks;
 
@@ -102,7 +102,7 @@ namespace OptimeGBA
         public byte[] BgLoFlags;
 #endif
 
-        public byte[] Palettes = MemoryUtil.AllocateManagedArray(2048); // 1024 for GBA, 2048 for NDS A and B
+        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
         public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
 
         public ObjPixel[] ObjBuffer;
