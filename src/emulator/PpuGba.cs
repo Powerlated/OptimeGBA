@@ -226,7 +226,7 @@ namespace OptimeGBA
                     Renderer.CgbMode = BitTest(val, 3);
                     Renderer.DisplayFrameSelect = BitTest(val, 4);
                     Renderer.HBlankIntervalFree = BitTest(val, 5);
-                    Renderer.ObjCharacterVramMapping = BitTest(val, 6);
+                    Renderer.ObjCharOneDimensional = BitTest(val, 6);
                     Renderer.ForcedBlank = BitTest(val, 7);
 
                     DISPCNTValue &= 0xFF00;
@@ -460,7 +460,7 @@ namespace OptimeGBA
 
             if (Renderer.DebugEnableRendering)
             {
-                Renderer.RenderScanline(Vram);
+                Renderer.RenderScanlineGba(Vram);
             }
             Renderer.IncrementMosaicCounters();
 

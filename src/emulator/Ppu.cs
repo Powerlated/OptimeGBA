@@ -3,8 +3,24 @@ using System.Runtime.InteropServices;
 
 namespace OptimeGBA
 {
+    public enum BackgroundMode
+    {
+        Char,
+        Display3D,
+        Affine,
+        Extended,
+        Large
+    }
     public sealed class Background
     {
+        bool Nds;
+
+        public Background(bool nds, byte id)
+        {
+            Nds = nds;
+            Id = id;
+        }
+
         byte[] BGCNTValue = new byte[2];
 
         // BGCNT
@@ -34,12 +50,7 @@ namespace OptimeGBA
         public int AffinePosY;
 
         // Set by PrepareBackgroundAndWindow() and used by RenderBgModes()
-        public bool IsAffine;
-
-        public Background(byte id)
-        {
-            Id = id;
-        }
+        public BackgroundMode Mode;
 
         public byte ReadBGCNT(uint addr)
         {
@@ -59,7 +70,14 @@ namespace OptimeGBA
             {
                 case 0x00: // BGCNT B0
                     Priority = (byte)((val >> 0) & 0b11);
-                    CharBaseBlock = (uint)(val >> 2) & 0b11;
+                    if (!Nds)
+                    {
+                        CharBaseBlock = (uint)(val >> 2) & 0b11;
+                    }
+                    else
+                    {
+                        CharBaseBlock = (uint)(val >> 2) & 0b1111;
+                    }
                     EnableMosaic = BitTest(val, 6);
                     Use8BitColor = BitTest(val, 7);
 

@@ -115,7 +115,9 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     return Nds9.Nds.Ppu.ReadPalettes8(addr);
                 case 0x6: // VRAM
-                    return 0; // TODO: IMPLEMENT VRAM READING
+                    return Nds9.Nds.Ppu.ReadVram8(addr);
+                case 0x7: // PPU OAM
+                    return Nds9.Nds.Ppu.ReadOam8(addr);
             }
 
             return 0;
@@ -138,7 +140,12 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     return Nds9.Nds.Ppu.ReadPalettes16(addr);
                 case 0x6: // VRAM
-                    return 0; // TODO: IMPLEMENT VRAM READING
+                    return (ushort)(
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 0) << 0) |
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 1) << 8)
+                    );
+                case 0x7: // PPU OAM
+                    return Nds9.Nds.Ppu.ReadOam16(addr);
             }
 
             return 0;
@@ -152,10 +159,10 @@ namespace OptimeGBA
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     return GetUint(array, offset);
                 case 0x4: // I/O Registers
-                    byte f0 = Read8Unregistered(addr++);
-                    byte f1 = Read8Unregistered(addr++);
-                    byte f2 = Read8Unregistered(addr++);
-                    byte f3 = Read8Unregistered(addr++);
+                    byte f0 = Read8Unregistered(addr + 0);
+                    byte f1 = Read8Unregistered(addr + 1);
+                    byte f2 = Read8Unregistered(addr + 2);
+                    byte f3 = Read8Unregistered(addr + 3);
 
                     uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
@@ -163,7 +170,14 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     return Nds9.Nds.Ppu.ReadPalettes32(addr);
                 case 0x6: // VRAM
-                    return 0; // TODO: IMPLEMENT VRAM READING
+                    return (uint)(
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 0) << 0) |
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 1) << 8) |
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 2) << 16) |
+                        (Nds9.Nds.Ppu.ReadVram8(addr + 3) << 24)
+                    );
+                case 0x7: // PPU OAM
+                    return Nds9.Nds.Ppu.ReadOam32(addr);
             }
 
             return 0;
@@ -205,8 +219,11 @@ namespace OptimeGBA
                     Nds9.Nds.Ppu.WritePalettes16(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 8));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 0, (byte)(val >> 0));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 1, (byte)(val >> 8));
+                    break;
+                case 0x7: // PPU OAM
+                    Nds9.Nds.Ppu.WriteOam16(addr, val);
                     break;
             }
         }
@@ -229,10 +246,13 @@ namespace OptimeGBA
                     Nds9.Nds.Ppu.WritePalettes32(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 8));
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 16));
-                    Nds9.Nds.Ppu.WriteVram8(addr++, (byte)(val >> 24));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 0, (byte)(val >> 0));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 1, (byte)(val >> 8));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 2, (byte)(val >> 16));
+                    Nds9.Nds.Ppu.WriteVram8(addr + 3, (byte)(val >> 24));
+                    break;
+                case 0x7: // PPU OAM
+                    Nds9.Nds.Ppu.WriteOam32(addr, val);
                     break;
             }
         }

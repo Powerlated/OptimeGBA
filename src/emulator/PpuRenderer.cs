@@ -10,10 +10,19 @@ namespace OptimeGBA
     {
         public int Width;
         public int Height;
+        public bool Nds;
         public PpuRenderer(bool nds, int width, int height)
         {
             Width = width;
             Height = height;
+            Nds = nds;
+
+            Backgrounds = new Background[4] {
+                new Background(Nds, 0),
+                new Background(Nds, 1),
+                new Background(Nds, 2),
+                new Background(Nds, 3),
+            };
 
             Array.Fill(DebugEnableBg, true);
 
@@ -110,6 +119,7 @@ namespace OptimeGBA
 
         public uint TotalFrames;
 
+        const uint CoarseBlockSize = 65536;
         const uint CharBlockSize = 16384;
         const uint MapBlockSize = 2048;
 
@@ -123,19 +133,14 @@ namespace OptimeGBA
 
 
         // BGCNT
-        public Background[] Backgrounds = new Background[4] {
-            new Background(0),
-            new Background(1),
-            new Background(2),
-            new Background(3),
-        };
+        public Background[] Backgrounds;
 
         // DISPCNT
         public uint BgMode;
         public bool CgbMode;
         public bool DisplayFrameSelect;
         public bool HBlankIntervalFree;
-        public bool ObjCharacterVramMapping;
+        public bool ObjCharOneDimensional;
         public bool ForcedBlank;
         public bool[] ScreenDisplayBg = new bool[4];
         public bool ScreenDisplayObj;
@@ -202,57 +207,68 @@ namespace OptimeGBA
         public uint BgMosaicYCounter;
         public uint ObjMosaicYCounter;
 
-        public void RenderScanline(byte[] vramArr)
+        public void RenderScanlineGba(byte[] vramArr)
         {
-            fixed (byte* vram = vramArr)
+            if (!ForcedBlank)
             {
-                if (!ForcedBlank && DisplayMode != 0)
+                fixed (byte* vram = vramArr)
                 {
                     if (BgMode <= 2)
                     {
                         PrepareBackgroundAndWindow();
                     }
 
+                    switch (BgMode)
+                    {
+                        case 0:
+                        case 1:
+                        case 2:
+                            RenderBgModes(vram);
+                            break;
+                        case 3:
+                            RenderMode3(vram);
+                            break;
+                        case 4:
+                            RenderMode4(vram);
+                            break;
+                    }
+
+                    if (BgMode <= 2)
+                    {
+                        Composite();
+                        if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(vram, VCount + 1);
+                    }
+                }
+            }
+            else
+            {
+                RenderWhiteScanline();
+            }
+        }
+
+        public void RenderScanlineNds(byte[] bgVramArr, byte[] objVramArr)
+        {
+            if (!ForcedBlank)
+            {
+                fixed (byte* bgVram = bgVramArr, objVram = objVramArr)
+                {
                     switch (DisplayMode)
                     {
                         case 1: // Regular rendering
-                            switch (BgMode)
-                            {
-                                case 0:
-                                case 1:
-                                case 2:
-                                    RenderBgModes(vram);
-                                    break;
-                                case 3:
-                                    RenderMode3(vram);
-                                    break;
-                                case 4:
-                                    RenderMode4(vram);
-                                    break;
-                            }
-
-                            if (BgMode <= 2)
-                            {
-                                Composite();
-                                if (DebugEnableObj && ScreenDisplayObj && VCount != 159) RenderObjs(vram, VCount + 1);
-                            }
+                            PrepareBackgroundAndWindow();
+                            RenderBgModes(bgVram);
+                            Composite();
+                            if (DebugEnableObj && ScreenDisplayObj && VCount != 191) RenderObjs(objVram, VCount + 1);
                             break;
                         case 2: // LCDC Mode
-                            RenderMode3(vram);
+                            RenderMode3(bgVram);
                             break;
                     }
                 }
-                else
-                {
-                    // Render white
-                    uint screenBase = (uint)(VCount * Width);
-
-                    for (uint p = 0; p < Width; p++)
-                    {
-                        ScreenBack[screenBase] = White;
-                        screenBase++;
-                    }
-                }
+            }
+            else
+            {
+                RenderWhiteScanline();
             }
         }
 
@@ -330,24 +346,55 @@ namespace OptimeGBA
                     BgRefList[i] = Backgrounds[BgList[i]];
                 }
 
-                switch (BgMode)
+                Backgrounds[0].Mode = BackgroundMode.Char;
+                Backgrounds[1].Mode = BackgroundMode.Char;
+                Backgrounds[2].Mode = BackgroundMode.Char;
+                Backgrounds[3].Mode = BackgroundMode.Char;
+                if (!Nds)
                 {
-                    case 0:
-                        Backgrounds[0].IsAffine = false;
-                        Backgrounds[1].IsAffine = false;
-                        Backgrounds[2].IsAffine = false;
-                        Backgrounds[3].IsAffine = false;
-                        break;
-                    case 1:
-                        Backgrounds[0].IsAffine = false;
-                        Backgrounds[1].IsAffine = false;
-                        Backgrounds[2].IsAffine = true;
-                        break;
-                    case 2:
-                        Backgrounds[2].IsAffine = true;
-                        Backgrounds[3].IsAffine = true;
-                        break;
+                    switch (BgMode)
+                    {
+                        case 1:
+                            Backgrounds[2].Mode = BackgroundMode.Affine;
+                            break;
+                        case 2:
+                            Backgrounds[2].Mode = BackgroundMode.Affine;
+                            Backgrounds[3].Mode = BackgroundMode.Affine;
+                            break;
+                    }
+                }
+                else
+                {
+                    if (Bg0Is3D)
+                    {
+                        Backgrounds[0].Mode = BackgroundMode.Display3D;
+                    }
 
+                    switch (BgMode)
+                    {
+                        case 1:
+                            Backgrounds[3].Mode = BackgroundMode.Affine;
+                            break;
+                        case 2:
+                            Backgrounds[2].Mode = BackgroundMode.Affine;
+                            Backgrounds[3].Mode = BackgroundMode.Affine;
+                            break;
+                        case 3:
+                            Backgrounds[3].Mode = BackgroundMode.Extended;
+                            break;
+                        case 4:
+                            Backgrounds[2].Mode = BackgroundMode.Affine;
+                            Backgrounds[3].Mode = BackgroundMode.Extended;
+                            break;
+                        case 5:
+                            Backgrounds[2].Mode = BackgroundMode.Extended;
+                            Backgrounds[3].Mode = BackgroundMode.Extended;
+                            break;
+                        case 6:
+                            Backgrounds[0].Mode = BackgroundMode.Display3D;
+                            Backgrounds[2].Mode = BackgroundMode.Large;
+                            break;
+                    }
                 }
             }
 
@@ -429,8 +476,8 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
         private void _RenderCharBackground(byte* vram, Background bg, bool mosaicX)
         {
-            uint charBase = bg.CharBaseBlock * CharBlockSize;
-            uint mapBase = bg.MapBaseBlock * MapBlockSize;
+            uint charBase = bg.CharBaseBlock * CharBlockSize + CharBaseBlockCoarse * CoarseBlockSize;
+            uint mapBase = bg.MapBaseBlock * MapBlockSize + MapBaseBlockCoarse * CoarseBlockSize;
 
             uint pixelY = bg.VerticalOffset + VCount;
             if (bg.EnableMosaic)
@@ -678,7 +725,7 @@ namespace OptimeGBA
         {
             // OAM address for the last sprite
             uint oamBase = 0;
-            for (int s = 127; s >= 0; s--, oamBase += 8)
+            for (int s = 0; s < 128; s++, oamBase += 8)
             {
                 uint attr0 = (uint)(Oam[oamBase + 1] << 8 | Oam[oamBase + 0]);
                 uint attr1 = (uint)(Oam[oamBase + 3] << 8 | Oam[oamBase + 2]);
@@ -743,6 +790,7 @@ namespace OptimeGBA
                     objPixelY = (int)ySize - objPixelY - 1;
                 }
 
+
                 // Tile numbers are halved in 256-color mode
                 if (use8BitColor) tileNumber >>= 1;
 
@@ -759,7 +807,7 @@ namespace OptimeGBA
                                 objPixelX = (int)(xSize - objPixelX - 1);
                             }
 
-                            PlaceObjPixel(vram, objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
+                            RenderObjPixel(vram, objPixelX, objPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
                         }
                         screenLineBase = (screenLineBase + 1) % 512;
                     }
@@ -835,7 +883,7 @@ namespace OptimeGBA
 
                             if (lerpedObjPixelX < xSize && lerpedObjPixelY < ySize)
                             {
-                                PlaceObjPixel(vram, (int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
+                                RenderObjPixel(vram, (int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
                             }
                         }
                         objPixelXEdge0 += xPerPixel;
@@ -847,19 +895,24 @@ namespace OptimeGBA
             }
         }
 
+        public readonly ushort[] NdsCharObjBoundary = new ushort[] { 32, 64, 128, 256 };
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceObjPixel(byte* vram, int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority, ObjMode mode)
+        public void RenderObjPixel(byte* vram, int objX, int objY, uint tile, uint width, bool use8BitColor, uint x, uint palette, byte priority, ObjMode mode)
         {
             uint intraTileX = (uint)(objX & 7);
             uint intraTileY = (uint)(objY & 7);
 
+            uint tileX = (uint)(objX / 8);
             uint tileY = (uint)(objY / 8);
 
-            const uint charBase = 0x10000;
+            uint charBase = Nds ? 0U : 0x10000U;
 
-            uint effectiveTileNumber = (uint)(tile + objX / 8);
+            tile <<= (int)TileObj1DBoundary;
+            uint effectiveTileNumber = (uint)(tile + tileX);
 
-            if (ObjCharacterVramMapping)
+
+            if (ObjCharOneDimensional)
             {
                 effectiveTileNumber += tileY * (width / 8);
             }
@@ -885,28 +938,7 @@ namespace OptimeGBA
 
                 if (finalColor != 0)
                 {
-                    switch (mode)
-                    {
-                        case ObjMode.Normal:
-                            if (priority < ObjBuffer[x].Priority)
-                            {
-                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                            }
-                            break;
-                        case ObjMode.Translucent:
-                            if (priority < ObjBuffer[x].Priority)
-                            {
-                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                            }
-                            ObjBuffer[x].Priority = priority;
-                            break;
-                        default:
-                            if (ObjWindowDisplayFlag)
-                            {
-                                ObjWindowBuffer[x] = 1;
-                            }
-                            break;
-                    }
+                    PlaceObjPixel(x, finalColor, priority, mode);
                 }
             }
             else
@@ -920,29 +952,36 @@ namespace OptimeGBA
 
                 if (color != 0)
                 {
-                    switch (mode)
-                    {
-                        case ObjMode.Normal:
-                            if (priority < ObjBuffer[x].Priority)
-                            {
-                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                            }
-                            break;
-                        case ObjMode.Translucent:
-                            if (priority < ObjBuffer[x].Priority)
-                            {
-                                ObjBuffer[x] = new ObjPixel(finalColor, priority, mode);
-                            }
-                            ObjBuffer[x].Priority = priority;
-                            break;
-                        default:
-                            if (ObjWindowDisplayFlag)
-                            {
-                                ObjWindowBuffer[x] = 1;
-                            }
-                            break;
-                    }
+                    PlaceObjPixel(x, finalColor, priority, mode);
                 }
+
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PlaceObjPixel(uint x, byte color, byte priority, ObjMode mode)
+        {
+            switch (mode)
+            {
+                case ObjMode.Normal:
+                    if (priority < ObjBuffer[x].Priority)
+                    {
+                        ObjBuffer[x] = new ObjPixel(color, priority, mode);
+                    }
+                    break;
+                case ObjMode.Translucent:
+                    if (priority < ObjBuffer[x].Priority)
+                    {
+                        ObjBuffer[x] = new ObjPixel(color, priority, mode);
+                    }
+                    ObjBuffer[x].Priority = priority;
+                    break;
+                default:
+                    if (ObjWindowDisplayFlag)
+                    {
+                        ObjWindowBuffer[x] = 1;
+                    }
+                    break;
             }
         }
 
@@ -1052,17 +1091,22 @@ namespace OptimeGBA
 
         public bool BgIsEnabled(int id)
         {
-            switch (BgMode)
+            if (!Nds)
             {
-                case 0:
-                    break;
-                case 1:
-                    if (id == 3) return false;
-                    break;
-                case 2:
-                    if (id == 0) return false;
-                    if (id == 1) return false;
-                    break;
+                switch (BgMode)
+                {
+                    case 1:
+                        if (id == 3) return false;
+                        break;
+                    case 2:
+                        if (id == 0) return false;
+                        if (id == 1) return false;
+                        break;
+                }
+            }
+            else
+            {
+                if (BgMode == 6 && (id == 0 || id == 2)) return false;
             }
 
             return ScreenDisplayBg[id] && DebugEnableBg[id];
@@ -1073,13 +1117,14 @@ namespace OptimeGBA
             for (uint i = 0; i < BgCount; i++)
             {
                 var bg = BgRefList[i];
-                if (bg.IsAffine)
+                switch (bg.Mode)
                 {
-                    RenderAffineBackground(vram, bg);
-                }
-                else
-                {
-                    RenderCharBackground(vram, bg);
+                    case BackgroundMode.Char:
+                        RenderCharBackground(vram, bg);
+                        break;
+                    case BackgroundMode.Affine:
+                        RenderAffineBackground(vram, bg);
+                        break;
                 }
             }
         }
@@ -1116,6 +1161,18 @@ namespace OptimeGBA
 
                 screenBase++;
                 vramBase += 2;
+            }
+        }
+
+        public void RenderWhiteScanline()
+        {
+            // Render white
+            uint screenBase = (uint)(VCount * Width);
+
+            for (uint p = 0; p < Width; p++)
+            {
+                ScreenBack[screenBase] = White;
+                screenBase++;
             }
         }
 

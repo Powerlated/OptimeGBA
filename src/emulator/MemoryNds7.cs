@@ -90,6 +90,8 @@ namespace OptimeGBA
                     return GetByte(array, offset);
                 case 0x4: // I/O Registers
                     return ReadHwio8(addr);
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
 
             return 0;
@@ -109,6 +111,8 @@ namespace OptimeGBA
                     ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
                     return u16;
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
 
             return 0;
@@ -130,6 +134,8 @@ namespace OptimeGBA
                     uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
                     return u32;
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
 
             return 0;
@@ -146,6 +152,8 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     WriteHwio8(addr, val);
                     break;
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
         }
 
@@ -161,6 +169,8 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 0));
                     WriteHwio8(addr++, (byte)(val >> 8));
                     break;
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
         }
 
@@ -178,6 +188,8 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 16));
                     WriteHwio8(addr++, (byte)(val >> 24));
                     break;
+                case 0x6: // ARM7 VRAM
+                    throw new NotImplementedException("ARM7 VRAM");
             }
         }
 

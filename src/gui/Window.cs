@@ -147,6 +147,9 @@ namespace OptimeGBAEmulator
             VSync = VSyncMode.Off;
             UpdateFrequency = 59.7275;
 
+            WindowGba.OnLoad();
+            WindowNds.OnLoad(); 
+
             FileDrop += (FileDropEventArgs args) =>
             {
                 LoadRomFromPath(args.FileNames[0]);

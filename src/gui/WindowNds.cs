@@ -41,11 +41,13 @@ namespace OptimeGBAEmulator
         const uint AUDIO_SAMPLE_THRESHOLD = 1024;
         const uint AUDIO_SAMPLE_FULL_THRESHOLD = 1024;
         const int SAMPLES_PER_CALLBACK = 32;
+        const int CyclesPerFrameNds = 560190;
 
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
         static bool LogHwioAccesses;
+
 
         public int ThreadCyclesQueued;
         public void EmulationThreadHandler()
@@ -64,7 +66,7 @@ namespace OptimeGBAEmulator
             {
                 ThreadSync.WaitOne();
 
-                int cyclesLeft = 70224 * 4;
+                int cyclesLeft = CyclesPerFrameNds;
                 while (cyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
                 {
                     cyclesLeft -= (int)Nds.Step();
@@ -347,13 +349,19 @@ namespace OptimeGBAEmulator
                     "BIOS DTCM",
                     "Main Memory",
                     "Upper Main Memory",
+                    "Engine A BG VRAM",
+                    "Engine A OBJ VRAM",
+                    "OAM",
                 };
 
         static uint[] baseAddrs = {
                 0x00000000,
                 0x00800000,
                 0x02000000,
-                0x027FF800
+                0x027FF800,
+                0x06000000,
+                0x06400000,
+                0x07000000,
             };
 
         public void DrawMemoryViewer()
@@ -598,7 +606,7 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Debug"))
             {
-                ImGui.Columns(4);
+                ImGui.Columns(5);
                 ImGui.Text("ARM9");
                 drawCpuInfo(Nds.Nds9.Cpu);
                 var Ime9 = Nds.Nds9.HwControl.IME;
@@ -766,6 +774,11 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"1 Words: {Hex(Nds.Nds9.Dma.Ch[1].DmaLength, 4)}");
                 ImGui.Text($"2 Words: {Hex(Nds.Nds9.Dma.Ch[2].DmaLength, 4)}");
                 ImGui.Text($"3 Words: {Hex(Nds.Nds9.Dma.Ch[3].DmaLength, 4)}");
+                ImGui.Text($"0 Start: {Nds.Nds9.Dma.Ch[0].StartTiming.ToString()}");
+                ImGui.Text($"1 Start: {Nds.Nds9.Dma.Ch[1].StartTiming.ToString()}");
+                ImGui.Text($"2 Start: {Nds.Nds9.Dma.Ch[2].StartTiming.ToString()}");
+                ImGui.Text($"3 Start: {Nds.Nds9.Dma.Ch[3].StartTiming.ToString()}");
+
                 ImGui.Text("NDS7---------------");
                 ImGui.Text($"0 Src:   {Hex(Nds.Nds7.Dma.Ch[0].DmaSource, 8)}");
                 ImGui.Text($"1 Src:   {Hex(Nds.Nds7.Dma.Ch[1].DmaSource, 8)}");
@@ -779,6 +792,10 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"1 Words: {Hex(Nds.Nds7.Dma.Ch[1].DmaLength, 4)}");
                 ImGui.Text($"2 Words: {Hex(Nds.Nds7.Dma.Ch[2].DmaLength, 4)}");
                 ImGui.Text($"3 Words: {Hex(Nds.Nds7.Dma.Ch[3].DmaLength, 4)}");
+                ImGui.Text($"0 Start: {Nds.Nds7.Dma.Ch[0].StartTiming.ToString()}");
+                ImGui.Text($"1 Start: {Nds.Nds7.Dma.Ch[1].StartTiming.ToString()}");
+                ImGui.Text($"2 Start: {Nds.Nds7.Dma.Ch[2].StartTiming.ToString()}");
+                ImGui.Text($"3 Start: {Nds.Nds7.Dma.Ch[3].StartTiming.ToString()}");
 
                 ImGuiColumnSeparator();
 
@@ -849,6 +866,18 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Window 1 Right.: {Nds.Ppu.Win1HRight}");
                 // ImGui.Text($"Window 1 Top...: {Nds.Ppu.Win1VTop}");
                 // ImGui.Text($"Window 1 Bottom: {Nds.Ppu.Win1VBottom}");
+
+                ImGui.NextColumn();
+
+                ImGui.Text("VRAMCNT_A: " + Hex(Nds.MemoryControl.VRAMCNT[0], 2));
+                ImGui.Text("VRAMCNT_B: " + Hex(Nds.MemoryControl.VRAMCNT[1], 2));
+                ImGui.Text("VRAMCNT_C: " + Hex(Nds.MemoryControl.VRAMCNT[2], 2));
+                ImGui.Text("VRAMCNT_D: " + Hex(Nds.MemoryControl.VRAMCNT[3], 2));
+                ImGui.Text("VRAMCNT_E: " + Hex(Nds.MemoryControl.VRAMCNT[4], 2));
+                ImGui.Text("VRAMCNT_F: " + Hex(Nds.MemoryControl.VRAMCNT[5], 2));
+                ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
+                ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
+                ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
 
                 ImGui.Columns(1);
                 ImGui.Separator();

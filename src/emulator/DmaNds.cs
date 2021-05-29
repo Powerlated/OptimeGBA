@@ -8,7 +8,11 @@ namespace OptimeGBA
         Immediately = 0,
         VBlank = 1,
         HBlank = 2,
-        Special = 3,
+        UponRenderBegin = 3,
+        MainMemoryDisplay = 4,
+        Slot1 = 5,
+        Slot2 = 6,
+        GeometryCommandFifo = 7,
     }
 
     public sealed class DmaChannelNds
@@ -26,7 +30,6 @@ namespace OptimeGBA
         public DmaSrcAddrCtrl SrcAddrCtrl;
         public bool Repeat;
         public bool TransferType;
-        public bool GamePakDRQ;
         public DmaStartTimingNds StartTiming;
         public bool FinishedIRQ;
         public bool Enabled; // Don't directly set to false, use Disable()
@@ -135,8 +138,7 @@ namespace OptimeGBA
             SrcAddrCtrl = (DmaSrcAddrCtrl)BitRange(DMACNT_H, 7, 8);
             Repeat = BitTest(DMACNT_H, 9);
             TransferType = BitTest(DMACNT_H, 10);
-            GamePakDRQ = BitTest(DMACNT_H, 11);
-            StartTiming = (DmaStartTimingNds)BitRange(DMACNT_H, 12, 13);
+            StartTiming = (DmaStartTimingNds)BitRange(DMACNT_H, 11, 13);
             FinishedIRQ = BitTest(DMACNT_H, 14);
             if (BitTest(DMACNT_H, 15))
             {
@@ -155,8 +157,7 @@ namespace OptimeGBA
             val |= ((uint)SrcAddrCtrl & 0b11) << 7;
             if (Repeat) val = BitSet(val, 9);
             if (TransferType) val = BitSet(val, 10);
-            if (GamePakDRQ) val = BitSet(val, 11);
-            val |= ((uint)StartTiming & 0b11) << 12;
+            val |= ((uint)StartTiming & 0b111) << 11;
             if (FinishedIRQ) val = BitSet(val, 14);
             if (Enabled) val = BitSet(val, 15);
 

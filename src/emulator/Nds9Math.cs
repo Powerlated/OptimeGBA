@@ -42,7 +42,7 @@ namespace OptimeGBA
 
         public void WriteHwio8(uint addr, byte val)
         {
-            throw new NotImplementedException("Read from DS math");
+            throw new NotImplementedException("Write to DS math");
 
         }
     }
