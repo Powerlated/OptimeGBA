@@ -311,6 +311,13 @@ namespace OptimeGBA
                 return Nds9.Nds.Cartridge.ReadHwio8(addr);
             }
 
+            switch (addr)
+            {
+                case 0x4000300:
+                    Console.WriteLine("NDS9 POSTFLG read");
+                    return Nds9.POSTFLG;
+            }
+
             return 0;
         }
 
@@ -354,6 +361,14 @@ namespace OptimeGBA
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 Nds9.Math.WriteHwio8(addr, val);
+            }
+
+            switch (addr)
+            {
+                case 0x4000300:
+                    Console.WriteLine("NDS9 POSTFLG write");
+                    Nds9.POSTFLG = (byte)(val & 0b11);
+                    break;
             }
         }
     }

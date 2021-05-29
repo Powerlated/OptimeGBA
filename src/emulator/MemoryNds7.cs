@@ -252,6 +252,13 @@ namespace OptimeGBA
                 return Nds7.Nds.Cartridge.ReadHwio8(addr);
             }
 
+            switch (addr)
+            {
+                case 0x4000300:
+                    Console.WriteLine("NDS7 POSTFLG read");
+                    return Nds7.POSTFLG;
+            }
+
             return 0;
         }
 
@@ -295,6 +302,14 @@ namespace OptimeGBA
             else if (addr >= 0x4000400 && addr <= 0x400051D) // Sound
             {
                 Nds7.Nds.Audio.WriteHwio8(addr, val);
+            }
+
+            switch (addr)
+            {
+                case 0x4000300:
+                    Console.WriteLine("NDS7 POSTFLG write");
+                    Nds7.POSTFLG = (byte)(val & 1);
+                    break;
             }
         }
     }

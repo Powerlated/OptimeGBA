@@ -43,6 +43,8 @@ namespace OptimeGBA
             );
         }
 
+        public byte POSTFLG;
+
         public override void StateChange() { }
     }
 }

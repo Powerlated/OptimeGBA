@@ -84,21 +84,25 @@ namespace OptimeGBAEmulator
 
         public uint Arm9Breakpoint = 0;
         public uint Arm7Breakpoint = 0x37FAC9C;
-        public bool EnableBreakpoints = true;
+        // public uint Arm7Breakpoint = 0x03803FF4;
+        public bool EnableBreakpoints = false;
 
         public void CheckBreakpoints()
         {
             var arm9 = Nds.Nds9.Cpu;
             var arm7 = Nds.Nds7.Cpu;
 
+            uint addr9 = (uint)(arm9.R[15] - arm9.Pipeline * (Nds.Nds9.Cpu.ThumbState ? 2 : 4));
+            uint addr7 = (uint)(arm7.R[15] - arm7.Pipeline * (Nds.Nds7.Cpu.ThumbState ? 2 : 4));
+
             if (EnableBreakpoints)
             {
-                var sub9 = Nds.Nds9.Cpu.ThumbState ? 2 : 4;
-                var sub7 = Nds.Nds7.Cpu.ThumbState ? 2 : 4;
+                if (Arm9Breakpoint == addr9) arm9.Error("Breakpoint hit");
+                if (Arm7Breakpoint == addr7) arm7.Error("Breakpoint hit");
+            }
 
-                if (Arm9Breakpoint == arm9.R[15] - arm9.Pipeline * sub9) arm9.Error("Breakpoint hit");
-                if (Arm7Breakpoint == arm7.R[15] - arm7.Pipeline * sub7) arm7.Error("Breakpoint hit");
-
+            if (addr9 >= 0x10000000 && addr9 <= 0xF0000000) {
+                arm9.Error("wtf???");
             }
 
             // if (arm9.GetInstructionArm(arm9.LastIns) == Arm.SWI) arm9.Error("damn it");
@@ -622,6 +626,11 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text($"");
 
+                if (ImGui.Button("ARM7 R1=R0"))
+                {
+                    Nds.Nds7.Cpu.R[1] = Nds.Nds7.Cpu.R[0];
+                }
+
                 if (ImGui.Button("Reset"))
                 {
                     ResetNds();
@@ -878,6 +887,9 @@ namespace OptimeGBAEmulator
                 ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
                 ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
                 ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
+
+                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
+                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -1172,8 +1184,7 @@ namespace OptimeGBAEmulator
             uint[] dmaAddrs = { 0x40000BA, 0x40000C6, 0x40000D2, 0x40000DE };
             for (uint r = 0; r < 4; r++)
             {
-                Registers9.Add(
-                    new Register($"DMA{r}CNT_H - DMA {r} Control", dmaAddrs[r],
+                var reg = new Register($"DMA{r}CNT_H - DMA {r} Control", dmaAddrs[r],
                         new RegisterField("Dest Addr Control", 5, 6),
                         new RegisterField("Source Addr Control", 7, 8),
                         new RegisterField("DMA Repeat", 9),
@@ -1181,8 +1192,9 @@ namespace OptimeGBAEmulator
                         new RegisterField("Game Pak DRQ", 11),
                         new RegisterField("DMA Start Timing", 12, 13),
                         new RegisterField("IRQ on Word Count Drain", 14),
-                        new RegisterField("DMA Enable", 15)
-                ));
+                        new RegisterField("DMA Enable", 15));
+                Registers9.Add(reg);
+                Registers7.Add(reg);
             }
 
             uint[] timerAddrs = { 0x4000102, 0x4000106, 0x400010A, 0x400010E };
@@ -1209,6 +1221,16 @@ namespace OptimeGBAEmulator
                     new RegisterField("Down", 7),
                     new RegisterField("Button R", 8),
                     new RegisterField("Button L", 9)
+            ));
+
+            Registers7.Add(
+                new Register("SPICNT - SPI Bus Control/Status", 0x40001C0,
+                    new RegisterField("Baudrate", 0, 1),
+                    new RegisterField("Busy", 7),
+                    new RegisterField("Device", 8, 9),
+                    new RegisterField("Chip Select Hold", 11),
+                    new RegisterField("Enable IRQ", 14),
+                    new RegisterField("Enable", 15)
             ));
 
             var ipcSync = new Register("IPCSYNC", 0x4000180,

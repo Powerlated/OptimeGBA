@@ -132,7 +132,8 @@ namespace OptimeGBA
             }
 
             // TODO: Implement KEY1/KEY2 encryption
-            if (Key1Encryption) {
+            if (Key1Encryption)
+            {
                 Console.WriteLine("Key1 Command");
                 Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
             }

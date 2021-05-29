@@ -219,7 +219,7 @@ namespace OptimeGBAEmulator
 
         public static void drawDisassembly(Device dev)
         {
-            uint back = dev.Cpu.ThumbState ? 16U : 32U;
+            uint back = dev.Cpu.ThumbState ? 32U : 64U;
 
             int rows = 32;
             uint tempBase = dev.Cpu.R[15] - back;

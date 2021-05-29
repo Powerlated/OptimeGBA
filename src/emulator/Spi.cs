@@ -44,13 +44,13 @@ namespace OptimeGBA
         bool Busy;
 
         // Firmware flash state
-        SpiFlashState FlashState;
-        bool EnableWrite;
-        byte IdIndex;
-        uint Address;
-        byte AddressByteNum = 0;
+        public SpiFlashState FlashState;
+        public bool EnableWrite;
+        public byte IdIndex;
+        public uint Address;
+        public byte AddressByteNum = 0;
 
-        byte OutData;
+        public byte OutData;
 
         public byte ReadHwio8(uint addr)
         {
@@ -71,6 +71,7 @@ namespace OptimeGBA
 
                 case 0x40001C2: // SPIDATA
                     // Console.WriteLine("SPI: Read! " + Hex(InData, 2));
+                    if (!EnableSpi) return 0;
                     return OutData;
             }
 
@@ -96,16 +97,6 @@ namespace OptimeGBA
                     {
                         ChipSelHold = false;
                     }
-
-                    if (oldChipSelHold && !ChipSelHold)
-                    {
-                        Console.WriteLine("SPI: Transfer complete!");
-                        FlashState = SpiFlashState.Ready;
-                        if (EnableIrq)
-                        {
-                            Nds7.HwControl.FlagInterrupt((uint)InterruptNds.SpiBus);
-                        }
-                    }
                     break;
 
                 case 0x40001C2: // SPIDATA
@@ -124,13 +115,17 @@ namespace OptimeGBA
                         TransferToSpiFlash(val);
                         break;
                     case SpiDevice.Touchscreen:
-                        Console.WriteLine("Touchscreen access");
+                        // Console.WriteLine("Touchscreen access");
                         break;
                     case SpiDevice.PowerManager:
-                        Console.WriteLine("Power manager access");
+                        // Console.WriteLine("Power manager access");
                         break;
 
                 }
+            }
+
+            if (!ChipSelHold) {
+                FlashState = SpiFlashState.Ready;
             }
         }
 
@@ -140,6 +135,7 @@ namespace OptimeGBA
             {
                 case SpiFlashState.Ready:
                     Console.WriteLine("SPI: Receive command! " + Hex(val, 2));
+                    OutData = 0x00;
                     switch (val)
                     {
                         case 0x06:
@@ -158,6 +154,7 @@ namespace OptimeGBA
                             AddressByteNum = 0;
                             break;
                         case 0x05: // Identification
+                        Console.WriteLine("SPI ID");
                             OutData = 0x00;
                             break;
                         case 0x00:
