@@ -101,7 +101,8 @@ namespace OptimeGBAEmulator
                 if (Arm7Breakpoint == addr7) arm7.Error("Breakpoint hit");
             }
 
-            if (addr9 >= 0x10000000 && addr9 <= 0xF0000000) {
+            if (addr9 >= 0x10000000 && addr9 <= 0xF0000000)
+            {
                 arm9.Error("wtf???");
             }
 
@@ -844,6 +845,12 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG3 Affine Size: {PpuRenderer.AffineSizeTable[rendA.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendA.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {rendA.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {rendA.Backgrounds[3].VerticalOffset}");
+                ImGui.Text("Debug BG0123/OBJ");
+                ImGui.Checkbox("##rendAbg0", ref rendA.DebugEnableBg[0]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendAbg1", ref rendA.DebugEnableBg[1]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendAbg2", ref rendA.DebugEnableBg[2]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendAbg3", ref rendA.DebugEnableBg[3]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendAobj", ref rendA.DebugEnableObj);
 
                 ImGui.Text("B---------------");
                 var rendB = Nds.Ppu.Renderers[1];
@@ -861,11 +868,12 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"BG3 Affine Size: {PpuRenderer.AffineSizeTable[rendB.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendB.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Scroll X: {rendB.Backgrounds[3].HorizontalOffset}");
                 ImGui.Text($"BG3 Scroll Y: {rendB.Backgrounds[3].VerticalOffset}");
-                // ImGui.Checkbox("Debug BG0", ref Nds.Ppu.DebugEnableBg[0]);
-                // ImGui.Checkbox("Debug BG1", ref Nds.Ppu.DebugEnableBg[1]);
-                // ImGui.Checkbox("Debug BG2", ref Nds.Ppu.DebugEnableBg[2]);
-                // ImGui.Checkbox("Debug BG3", ref Nds.Ppu.DebugEnableBg[3]);
-                // ImGui.Checkbox("Debug OBJ", ref Nds.Ppu.DebugEnableObj);
+                ImGui.Text("Debug BG0123/OBJ");
+                ImGui.Checkbox("##rendBbg0", ref rendB.DebugEnableBg[0]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendBbg1", ref rendB.DebugEnableBg[1]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendBbg2", ref rendB.DebugEnableBg[2]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendBbg3", ref rendB.DebugEnableBg[3]);
+                ImGui.SameLine(); ImGui.Checkbox("##rendBobj", ref rendB.DebugEnableObj);
 
                 // ImGui.Text($"Window 0 Left..: {Nds.Ppu.Win0HLeft}");
                 // ImGui.Text($"Window 0 Right.: {Nds.Ppu.Win0HRight}");
@@ -887,6 +895,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
                 ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
                 ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
+                ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
 
                 ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
                 ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
@@ -907,7 +916,7 @@ namespace OptimeGBAEmulator
                             PaletteImageBuffer[p] = Nds.Ppu.Renderers[i].ProcessedPalettes[paletteBase + p];
                         }
 
-                        GL.BindTexture(TextureTarget.Texture2D, texIdIndex);
+                        GL.BindTexture(TextureTarget.Texture2D, palTexIds[texIdIndex]);
 
                         // TexParameter needed for something to display :)
                         GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
@@ -927,7 +936,7 @@ namespace OptimeGBAEmulator
                         );
 
                         // ImGui.Text($"Pointer: {texId}");
-                        ImGui.Image((IntPtr)texIdIndex, new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
+                        ImGui.Image((IntPtr)palTexIds[texIdIndex], new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
                         texIdIndex++;
                     }
                 }
@@ -1078,6 +1087,32 @@ namespace OptimeGBAEmulator
                     new RegisterField("Enable BG Extended Palettes", 30),
                     new RegisterField("Enable OBJ Extended Palettes", 31)
                 ));
+
+            Registers9.Add(
+                new Register("DISPCNTB - PPU Control B", 0x4001000,
+                    new RegisterField("BG Mode", 0, 2),
+                    new RegisterField("OBJ Character VRAM Mapping", 4),
+                    new RegisterField("OBJ Character Dimension", 5),
+                    new RegisterField("OBJ Bitmap VRAM Mapping", 6),
+                    new RegisterField("Forced Blank", 7),
+
+                    new RegisterField("Screen Display BG0", 8),
+                    new RegisterField("Screen Display BG1", 9),
+                    new RegisterField("Screen Display BG2", 10),
+                    new RegisterField("Screen Display BG3", 11),
+                    new RegisterField("Screen Display OBJ", 12),
+                    new RegisterField("Window 0 Display Flag", 13),
+                    new RegisterField("Window 1 Display Flag", 14),
+                    new RegisterField("OBJ Window Display Flag", 15),
+
+                    new RegisterField("Display Mode", 16, 17),
+                    new RegisterField("Tile OBJ 1D Boundary", 20, 21),
+                    new RegisterField("Disable H-Blank Rendering", 23),
+
+                    new RegisterField("Enable BG Extended Palettes", 30),
+                    new RegisterField("Enable OBJ Extended Palettes", 31)
+                ));
+
 
             Registers9.Add(
                 new Register("DISPSTAT - General PPU Status", 0x4000004,

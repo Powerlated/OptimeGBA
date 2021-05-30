@@ -43,6 +43,7 @@ namespace OptimeGBA
         public byte[] VramObjB = MemoryUtil.AllocateManagedArray(131072);
 
         public bool VramDirty;
+        public bool DebugDisableVramUpdates;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool EnabledAndSet(uint bank, uint mst)
@@ -74,7 +75,7 @@ namespace OptimeGBA
         public void WriteVram8(uint addr, byte val)
         {
             uint offs;
-            switch (addr & 0xFFF00000)
+            switch (addr & 0xFFE00000)
             {
                 case 0x06000000: // Engine A BG VRAM
                     addr &= 0x1FFFFF;
@@ -366,7 +367,7 @@ namespace OptimeGBA
         public void CompileVram()
         {
             // TODO: Optimize this 
-            if (VramDirty)
+            if (VramDirty && !DebugDisableVramUpdates)
             {
                 VramDirty = false;
 
@@ -385,6 +386,7 @@ namespace OptimeGBA
                 }
                 else
                 {
+                        Console.WriteLine("recompiling vram");
                     // TODO: Stop running this every scanline. This kills performance.
                     for (uint i = 0; i < 524288; i++)
                     {
@@ -489,69 +491,64 @@ namespace OptimeGBA
             {
                 // A lot of these DISPCNT values are shared between A/B.
                 case 0x4000000: // DISPCNT B0
+                    // A
                     Renderers[0].Bg0Is3D = BitTest(val, 3);
 
-                    for (int i = 0; i < 2; i++)
-                    {
-                        Renderers[i].BgMode = BitRange(val, 0, 2);
-                        Renderers[i].ObjCharOneDimensional = BitTest(val, 4);
-                        Renderers[i].BitmapObjShape = BitTest(val, 5);
-                        Renderers[i].BitmapObjMapping = BitTest(val, 6);
-                        Renderers[i].ForcedBlank = BitTest(val, 7);
+                    // A+B
+                    Renderers[0].BgMode = BitRange(val, 0, 2);
+                    Renderers[0].ObjCharOneDimensional = BitTest(val, 4);
+                    Renderers[0].BitmapObjShape = BitTest(val, 5);
+                    Renderers[0].BitmapObjMapping = BitTest(val, 6);
+                    Renderers[0].ForcedBlank = BitTest(val, 7);
 
-                        Renderers[i].BackgroundSettingsDirty = true;
-                    }
+                    Renderers[0].BackgroundSettingsDirty = true;
 
                     DISPCNTAValue &= 0xFFFFFF00;
                     DISPCNTAValue |= (uint)(val << 0);
 
                     break;
                 case 0x4000001: // DISPCNT B1
-                    for (int i = 0; i < 2; i++)
-                    {
-                        Renderers[i].ScreenDisplayBg[0] = BitTest(val, 8 - 8);
-                        Renderers[i].ScreenDisplayBg[1] = BitTest(val, 9 - 8);
-                        Renderers[i].ScreenDisplayBg[2] = BitTest(val, 10 - 8);
-                        Renderers[i].ScreenDisplayBg[3] = BitTest(val, 11 - 8);
-                        Renderers[i].ScreenDisplayObj = BitTest(val, 12 - 8);
-                        Renderers[i].Window0DisplayFlag = BitTest(val, 13 - 8);
-                        Renderers[i].Window1DisplayFlag = BitTest(val, 14 - 8);
-                        Renderers[i].ObjWindowDisplayFlag = BitTest(val, 15 - 8);
-                        Renderers[i].AnyWindowEnabled = (val & 0b11100000) != 0;
+                    // A+B
+                    Renderers[0].ScreenDisplayBg[0] = BitTest(val, 8 - 8);
+                    Renderers[0].ScreenDisplayBg[1] = BitTest(val, 9 - 8);
+                    Renderers[0].ScreenDisplayBg[2] = BitTest(val, 10 - 8);
+                    Renderers[0].ScreenDisplayBg[3] = BitTest(val, 11 - 8);
+                    Renderers[0].ScreenDisplayObj = BitTest(val, 12 - 8);
+                    Renderers[0].Window0DisplayFlag = BitTest(val, 13 - 8);
+                    Renderers[0].Window1DisplayFlag = BitTest(val, 14 - 8);
+                    Renderers[0].ObjWindowDisplayFlag = BitTest(val, 15 - 8);
+                    Renderers[0].AnyWindowEnabled = (val & 0b11100000) != 0;
 
-                        Renderers[i].BackgroundSettingsDirty = true;
-                    }
-                    
+                    Renderers[0].BackgroundSettingsDirty = true;
+
                     DISPCNTAValue &= 0xFFFF00FF;
                     DISPCNTAValue |= (uint)(val << 8);
                     break;
                 case 0x4000002: // DISPCNT B2
+                    // A
                     Renderers[0].LcdcVramBlock = BitRange(val, 2, 3);
                     Renderers[0].BitmapObj1DBoundary = BitTest(val, 6);
 
-                    for (int i = 0; i < 2; i++)
-                    {
-                        var oldDisplayMode = Renderers[i].DisplayMode;
-                        if (Renderers[i].DisplayMode != oldDisplayMode) VramDirty = true;
-                        Renderers[i].DisplayMode = BitRange(val, 0, 1);
-                        Renderers[i].TileObj1DBoundary = BitRange(val, 4, 5);
-                        Renderers[i].HBlankIntervalFree = BitTest(val, 7);
+                    // A+B
+                    // var oldDisplayMode = Renderers[0].DisplayMode;
+                    // if (Renderers[0].DisplayMode != oldDisplayMode) VramDirty = true;
+                    Renderers[0].DisplayMode = BitRange(val, 0, 1);
+                    Renderers[0].TileObj1DBoundary = BitRange(val, 4, 5);
+                    Renderers[0].HBlankIntervalFree = BitTest(val, 7);
 
-                        Renderers[i].BackgroundSettingsDirty = true;
-                    }
+                    Renderers[0].BackgroundSettingsDirty = true;
 
                     DISPCNTAValue &= 0xFF00FFFF;
                     DISPCNTAValue |= (uint)(val << 16);
                     break;
                 case 0x4000003: // DISPCNT B3
+                    // A 
                     Renderers[0].CharBaseBlockCoarse = BitRange(val, 0, 2);
                     Renderers[0].MapBaseBlockCoarse = BitRange(val, 3, 5);
 
-                    for (int i = 0; i < 2; i++)
-                    {
-                        Renderers[i].BgExtendedPalettes = BitTest(val, 6);
-                        Renderers[i].ObjExtendedPalettes = BitTest(val, 7);
-                    }
+                    // A+B
+                    Renderers[0].BgExtendedPalettes = BitTest(val, 6);
+                    Renderers[0].ObjExtendedPalettes = BitTest(val, 7);
 
                     DISPCNTAValue &= 0x00FFFFFF;
                     DISPCNTAValue |= (uint)(val << 24);
@@ -571,26 +568,57 @@ namespace OptimeGBA
                     // throw new NotImplementedException("NDS: write to vcount");
                     break;
 
-                case 0x4001000: // DISPCNT B0
-                    DISPCNTAValue &= 0xFFFFFF00;
-                    DISPCNTAValue |= (uint)(val << 0);
-                    break;
-                case 0x4001001: // DISPCNT B1
-                    DISPCNTAValue &= 0xFFFF00FF;
-                    DISPCNTAValue |= (uint)(val << 8);
-                    break;
-                case 0x4001002: // DISPCNT B2
-                    Renderers[1].BitmapObj1DBoundary = BitTest(val, 6);
+                case 0x4001000: // DISPCNTB B0
+                    // A+B
+                    Renderers[1].BgMode = BitRange(val, 0, 2);
+                    Renderers[1].ObjCharOneDimensional = BitTest(val, 4);
+                    Renderers[1].BitmapObjShape = BitTest(val, 5);
+                    Renderers[1].BitmapObjMapping = BitTest(val, 6);
+                    Renderers[1].ForcedBlank = BitTest(val, 7);
 
-                    DISPCNTAValue &= 0xFF00FFFF;
-                    DISPCNTAValue |= (uint)(val << 16);
-                    break;
-                case 0x4001003: // DISPCNT B3
-                    Renderers[1].CharBaseBlockCoarse = BitRange(val, 0, 2);
-                    Renderers[1].MapBaseBlockCoarse = BitRange(val, 3, 5);
+                    Renderers[1].BackgroundSettingsDirty = true;
 
-                    DISPCNTAValue &= 0x00FFFFFF;
-                    DISPCNTAValue |= (uint)(val << 24);
+                    DISPCNTBValue &= 0xFFFFFF00;
+                    DISPCNTBValue |= (uint)(val << 0);
+
+                    break;
+                case 0x4001001: // DISPCNTB B1
+                    // A+B
+                    Renderers[1].ScreenDisplayBg[0] = BitTest(val, 8 - 8);
+                    Renderers[1].ScreenDisplayBg[1] = BitTest(val, 9 - 8);
+                    Renderers[1].ScreenDisplayBg[2] = BitTest(val, 10 - 8);
+                    Renderers[1].ScreenDisplayBg[3] = BitTest(val, 11 - 8);
+                    Renderers[1].ScreenDisplayObj = BitTest(val, 12 - 8);
+                    Renderers[1].Window0DisplayFlag = BitTest(val, 13 - 8);
+                    Renderers[1].Window1DisplayFlag = BitTest(val, 14 - 8);
+                    Renderers[1].ObjWindowDisplayFlag = BitTest(val, 15 - 8);
+                    Renderers[1].AnyWindowEnabled = (val & 0b11100000) != 0;
+
+                    Renderers[1].BackgroundSettingsDirty = true;
+
+                    DISPCNTBValue &= 0xFFFF00FF;
+                    DISPCNTBValue |= (uint)(val << 8);
+                    break;
+                case 0x4001002: // DISPCNTB B2
+                    // A+B
+                    // var oldDisplayModeB = Renderers[1].DisplayMode;
+                    // if (Renderers[1].DisplayMode != oldDisplayModeB) VramDirty = true;
+                    Renderers[1].DisplayMode = BitRange(val, 0, 1);
+                    Renderers[1].TileObj1DBoundary = BitRange(val, 4, 5);
+                    Renderers[1].HBlankIntervalFree = BitTest(val, 7);
+
+                    Renderers[1].BackgroundSettingsDirty = true;
+
+                    DISPCNTBValue &= 0xFF00FFFF;
+                    DISPCNTBValue |= (uint)(val << 16);
+                    break;
+                case 0x4001003: // DISPCNTB B3
+                    // A+B
+                    Renderers[1].BgExtendedPalettes = BitTest(val, 6);
+                    Renderers[1].ObjExtendedPalettes = BitTest(val, 7);
+
+                    DISPCNTBValue &= 0x00FFFFFF;
+                    DISPCNTBValue |= (uint)(val << 24);
                     break;
             }
 

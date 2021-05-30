@@ -26,6 +26,8 @@ namespace OptimeGBA
 
         public Keypad Keypad = new Keypad();
 
+        public RtcNds Rtc;
+
         public byte[] MainRam = new byte[4194304];
         public byte[] SharedRam = new byte[32768];
 
@@ -53,6 +55,8 @@ namespace OptimeGBA
             Audio = new NdsAudio(this);
 
             MemoryControl = new MemoryControlNds();
+
+            Rtc = new RtcNds();
 
             Nds7 = new Nds7(this) { Scheduler = Scheduler };
             Nds9 = new Nds9(this) { Scheduler = Scheduler };
@@ -117,17 +121,19 @@ namespace OptimeGBA
         {
             long beforeTicks = Scheduler.CurrentTicks;
             
-            // Nds7.Cpu.Execute();
-            // Nds9.Cpu.Execute();
-            // Scheduler.CurrentTicks += 4;
+            Nds7.Cpu.Execute();
+            Nds9.Cpu.Execute();
+            Nds9.Cpu.Execute();
+            Scheduler.CurrentTicks += 1;
 
             // TODO: Proper NDS timings
-            uint ticks7 = Nds7.Cpu.Execute();
-            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            while (Arm9PendingTicks > 0) {
-                Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
-            }
-            Scheduler.CurrentTicks += ticks7;
+            // uint ticks7 = 0;
+            // ticks7 += Nds7.Cpu.Execute();
+            // Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+            // while (Arm9PendingTicks > 0) {
+            //     Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+            // }
+            // Scheduler.CurrentTicks += ticks7;
 
             while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
             {

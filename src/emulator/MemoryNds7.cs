@@ -254,6 +254,8 @@ namespace OptimeGBA
 
             switch (addr)
             {
+                case 0x4000138:
+                    return Nds7.Nds.Rtc.ReadHwio8(addr);
                 case 0x4000300:
                     Console.WriteLine("NDS7 POSTFLG read");
                     return Nds7.POSTFLG;
@@ -306,6 +308,9 @@ namespace OptimeGBA
 
             switch (addr)
             {
+                case 0x4000138:
+                    Nds7.Nds.Rtc.WriteHwio8(addr, val);
+                    break;
                 case 0x4000300:
                     Console.WriteLine("NDS7 POSTFLG write");
                     Nds7.POSTFLG = (byte)(val & 1);

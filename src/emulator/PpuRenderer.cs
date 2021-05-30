@@ -286,6 +286,10 @@ namespace OptimeGBA
 
             BgMosaicYCounter = BgMosaicY;
             ObjMosaicYCounter = ObjMosaicY;
+
+#if OPENTK_DEBUGGER
+            PrepareBackground();
+#endif
         }
 
         public void IncrementMosaicCounters()
@@ -317,92 +321,7 @@ namespace OptimeGBA
         {
             if (BackgroundSettingsDirty)
             {
-                BgCount = 0;
-                for (int bg = 0; bg < 4; bg++)
-                {
-                    // -1 means disabled
-                    // Look up backgrounds in reverse order to ensure backgrounds are in correct order
-                    // (backgrounds carry a specific render order even if they are the same priority)
-                    int invBg = 3 - bg;
-                    BgList[bg] = -1;
-                    BgList[BgCount] = invBg;
-                    if (BgIsEnabled(invBg))
-                    {
-                        BgCount++;
-                    }
-                }
-
-                // Insertion sort backgrounds according to priority
-                int key;
-                int j;
-                for (int i = 1; i < BgCount; i++)
-                {
-                    key = (int)Backgrounds[BgList[i]].Priority;
-                    j = i - 1;
-
-                    while (j >= 0 && Backgrounds[BgList[j]].Priority < key)
-                    {
-                        Swap(ref BgList[j + 1], ref BgList[j]);
-                        j--;
-                    }
-                }
-
-                // Look up references for each background
-                for (int i = 0; i < BgCount; i++)
-                {
-                    BgRefList[i] = Backgrounds[BgList[i]];
-                }
-
-                Backgrounds[0].Mode = BackgroundMode.Char;
-                Backgrounds[1].Mode = BackgroundMode.Char;
-                Backgrounds[2].Mode = BackgroundMode.Char;
-                Backgrounds[3].Mode = BackgroundMode.Char;
-                if (!Nds)
-                {
-                    switch (BgMode)
-                    {
-                        case 1:
-                            Backgrounds[2].Mode = BackgroundMode.Affine;
-                            break;
-                        case 2:
-                            Backgrounds[2].Mode = BackgroundMode.Affine;
-                            Backgrounds[3].Mode = BackgroundMode.Affine;
-                            break;
-                    }
-                }
-                else
-                {
-                    if (Bg0Is3D)
-                    {
-                        Backgrounds[0].Mode = BackgroundMode.Display3D;
-                    }
-
-                    switch (BgMode)
-                    {
-                        case 1:
-                            Backgrounds[3].Mode = BackgroundMode.Affine;
-                            break;
-                        case 2:
-                            Backgrounds[2].Mode = BackgroundMode.Affine;
-                            Backgrounds[3].Mode = BackgroundMode.Affine;
-                            break;
-                        case 3:
-                            Backgrounds[3].Mode = BackgroundMode.Extended;
-                            break;
-                        case 4:
-                            Backgrounds[2].Mode = BackgroundMode.Affine;
-                            Backgrounds[3].Mode = BackgroundMode.Extended;
-                            break;
-                        case 5:
-                            Backgrounds[2].Mode = BackgroundMode.Extended;
-                            Backgrounds[3].Mode = BackgroundMode.Extended;
-                            break;
-                        case 6:
-                            Backgrounds[0].Mode = BackgroundMode.Display3D;
-                            Backgrounds[2].Mode = BackgroundMode.Large;
-                            break;
-                    }
-                }
+                PrepareBackground();
             }
 
             bool win0InsideY = (byte)(vcount - Win0VTop) < (byte)(Win0VBottom - Win0VTop) && Window0DisplayFlag;
@@ -447,6 +366,96 @@ namespace OptimeGBA
                     BgHiColor[i] = 0;
                     BgHiPrio[i] = 4;
                     BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                }
+            }
+        }
+
+        public void PrepareBackground()
+        {
+            BgCount = 0;
+            for (int bg = 0; bg < 4; bg++)
+            {
+                // -1 means disabled
+                // Look up backgrounds in reverse order to ensure backgrounds are in correct order
+                // (backgrounds carry a specific render order even if they are the same priority)
+                int invBg = 3 - bg;
+                BgList[bg] = -1;
+                BgList[BgCount] = invBg;
+                if (BgIsEnabled(invBg))
+                {
+                    BgCount++;
+                }
+            }
+
+            // Insertion sort backgrounds according to priority
+            int key;
+            int j;
+            for (int i = 1; i < BgCount; i++)
+            {
+                key = (int)Backgrounds[BgList[i]].Priority;
+                j = i - 1;
+
+                while (j >= 0 && Backgrounds[BgList[j]].Priority < key)
+                {
+                    Swap(ref BgList[j + 1], ref BgList[j]);
+                    j--;
+                }
+            }
+
+            // Look up references for each background
+            for (int i = 0; i < BgCount; i++)
+            {
+                BgRefList[i] = Backgrounds[BgList[i]];
+            }
+
+            Backgrounds[0].Mode = BackgroundMode.Char;
+            Backgrounds[1].Mode = BackgroundMode.Char;
+            Backgrounds[2].Mode = BackgroundMode.Char;
+            Backgrounds[3].Mode = BackgroundMode.Char;
+            if (!Nds)
+            {
+                switch (BgMode)
+                {
+                    case 1:
+                        Backgrounds[2].Mode = BackgroundMode.Affine;
+                        break;
+                    case 2:
+                        Backgrounds[2].Mode = BackgroundMode.Affine;
+                        Backgrounds[3].Mode = BackgroundMode.Affine;
+                        break;
+                }
+            }
+            else
+            {
+                if (Bg0Is3D)
+                {
+                    Backgrounds[0].Mode = BackgroundMode.Display3D;
+                }
+
+                switch (BgMode)
+                {
+                    case 1:
+                        Backgrounds[3].Mode = BackgroundMode.Affine;
+                        break;
+                    case 2:
+                        Backgrounds[2].Mode = BackgroundMode.Affine;
+                        Backgrounds[3].Mode = BackgroundMode.Affine;
+                        break;
+                    case 3:
+                        Backgrounds[3].Mode = BackgroundMode.Extended;
+                        break;
+                    case 4:
+                        Backgrounds[2].Mode = BackgroundMode.Affine;
+                        Backgrounds[3].Mode = BackgroundMode.Extended;
+                        break;
+                    case 5:
+                        Backgrounds[2].Mode = BackgroundMode.Extended;
+                        Backgrounds[3].Mode = BackgroundMode.Extended;
+                        break;
+                    case 6:
+                        Backgrounds[0].Mode = BackgroundMode.Display3D;
+                        Backgrounds[2].Mode = BackgroundMode.Large;
+                        break;
                 }
             }
         }

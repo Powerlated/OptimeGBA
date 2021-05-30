@@ -302,6 +302,10 @@ namespace OptimeGBA
             {
                 return Nds9.Math.ReadHwio8(addr);
             }
+            else if (addr >= 0x4001000 && addr <= 0x400106C) // PPU B
+            {
+                return Nds9.Nds.Ppu.ReadHwio8(addr);
+            }
             else if (addr >= 0x4100000 && addr <= 0x4100003) // IPCFIFORECV
             {
                 return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
@@ -361,6 +365,10 @@ namespace OptimeGBA
             else if (addr >= 0x4000280 && addr <= 0x40002BF) // ARM9 Math
             {
                 Nds9.Math.WriteHwio8(addr, val);
+            }
+            else if (addr >= 0x4001000 && addr <= 0x400106C) // PPU B
+            {
+                Nds9.Nds.Ppu.WriteHwio8(addr, val);
             }
 
             switch (addr)

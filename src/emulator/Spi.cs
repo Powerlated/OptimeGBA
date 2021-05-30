@@ -124,7 +124,8 @@ namespace OptimeGBA
                 }
             }
 
-            if (!ChipSelHold) {
+            if (!ChipSelHold)
+            {
                 FlashState = SpiFlashState.Ready;
             }
         }
@@ -134,7 +135,7 @@ namespace OptimeGBA
             switch (FlashState)
             {
                 case SpiFlashState.Ready:
-                    Console.WriteLine("SPI: Receive command! " + Hex(val, 2));
+                    // Console.WriteLine("SPI: Receive command! " + Hex(val, 2));
                     OutData = 0x00;
                     switch (val)
                     {
@@ -154,7 +155,7 @@ namespace OptimeGBA
                             AddressByteNum = 0;
                             break;
                         case 0x05: // Identification
-                        Console.WriteLine("SPI ID");
+                            // Console.WriteLine("SPI ID");
                             OutData = 0x00;
                             break;
                         case 0x00:
@@ -164,14 +165,14 @@ namespace OptimeGBA
                     }
                     break;
                 case SpiFlashState.ReceiveAddress:
-                    Console.WriteLine("SPI: Address byte write: " + Hex(val, 2));
+                    // Console.WriteLine("SPI: Address byte write: " + Hex(val, 2));
                     Address |= (uint)(val << ((2 - AddressByteNum) * 8));
                     AddressByteNum++;
                     if (AddressByteNum > 2)
                     {
                         AddressByteNum = 0;
                         FlashState = SpiFlashState.Reading;
-                        Console.WriteLine("SPI: Address written: " + Hex(Address, 6));
+                        // Console.WriteLine("SPI: Address written: " + Hex(Address, 6));
                     }
                     break;
                 case SpiFlashState.Reading:
