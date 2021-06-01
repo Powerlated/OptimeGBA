@@ -131,6 +131,20 @@ namespace OptimeGBA
         {
             Available = (IE & IF & 0xFFFFFFFF) != 0;
             Device.Cpu.FlagInterrupt = Available && IME;
+            if (Arm9)
+            {
+                if (Available && IME)
+                {
+                    Device.Cpu.Halted = false;
+                }
+            }
+            else
+            {
+                if (Available)
+                {
+                    Device.Cpu.Halted = false;
+                }
+            }
         }
     }
 }

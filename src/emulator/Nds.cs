@@ -118,7 +118,7 @@ namespace OptimeGBA
                     Cp15.TransferTo(0, 0x0005707D, 1, 0, 0); // CP15 Control
                     Cp15.TransferTo(0, 0x0300000A, 9, 1, 0); // Data TCM base/size
                     Cp15.TransferTo(0, 0x00000020, 9, 1, 1); // Instruction TCM size
-                    Nds9.Mem.Write8(0x4000247,   0x03); // WRAMCNT
+                    Nds9.Mem.Write8(0x4000247, 0x03); // WRAMCNT
                     Nds9.Mem.Write16(0x4000304, 0x0001); // POWCNT1
                     Nds9.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
 
@@ -131,6 +131,11 @@ namespace OptimeGBA
                     Nds9.Mem.Write32(0x027FFC04, 0x1FC2); // Copy of chip ID 2
                     Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
                     Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
+
+                    for (uint i = 0; i < 0x170; i++)
+                    {
+                        Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
+                    }
                 }
             }
         }
@@ -141,30 +146,43 @@ namespace OptimeGBA
 
             // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
             // so don't do that when not debugging simple test ROMs
-            Nds7.Cpu.Execute();
-            Nds9.Cpu.Execute();
-            Scheduler.CurrentTicks += 1;
-
+            // Nds7.Cpu.Execute();
+            // Nds9.Cpu.Execute();
+            // Nds9.Cpu.Execute();
+            // Scheduler.CurrentTicks += 1;
 
             // TODO: Proper NDS timings
-            // uint ticks7 = 0;
-            // ticks7 += Nds7.Cpu.Execute(); // Don't really need to tightly
-            // ticks7 += Nds7.Cpu.Execute(); // synchronize, run a few ARM7
-            // ticks7 += Nds7.Cpu.Execute(); // instructions and then run the
-            // ticks7 += Nds7.Cpu.Execute(); // ARM9. 
-            // Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            // while (Arm9PendingTicks > 0)
-            // {
-            //     Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
-            // }
-            // Scheduler.CurrentTicks += ticks7;
+            // TODO: Figure out a better way to implement halting
+            uint ticks7 = 0;
+            if (!Nds7.Cpu.Halted)
+            {
+                ticks7 += Nds7.Cpu.Execute();
+            }
+            else
+            {
+                ticks7 += 1;
+            }
 
-            // while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
-            // {
-            //     long current = Scheduler.CurrentTicks;
-            //     long next = Scheduler.NextEventTicks;
-            //     Scheduler.PopFirstEvent().Callback(current - next);
-            // }
+            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+            while (Arm9PendingTicks > 0)
+            {
+                if (!Nds9.Cpu.Halted)
+                {
+                    Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+                }
+                else
+                {
+                    Arm9PendingTicks -= 2;
+                }
+            }
+            Scheduler.CurrentTicks += ticks7;
+
+            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
+            {
+                long current = Scheduler.CurrentTicks;
+                long next = Scheduler.NextEventTicks;
+                Scheduler.PopFirstEvent().Callback(current - next);
+            }
 
             return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }

@@ -12,22 +12,6 @@ namespace OptimeGBA
 
         public byte ReadHwio8Nds9(uint addr)
         {
-            switch (addr)
-            {
-                case 0x4000240: return VRAMCNT[0];
-                case 0x4000241: return VRAMCNT[1];
-                case 0x4000242: return VRAMCNT[2];
-                case 0x4000243: return VRAMCNT[3];
-                case 0x4000244: return VRAMCNT[4];
-                case 0x4000245: return VRAMCNT[5];
-                case 0x4000246: return VRAMCNT[6];
-                case 0x4000248: return VRAMCNT[7];
-                case 0x4000249: return VRAMCNT[8];
-
-                case 0x4000247: // Weirdo. Why you gotta place yourself in the middle of VRAMCNT?
-                    return SharedRamControl;
-            }
-
             return 0;
         }
 

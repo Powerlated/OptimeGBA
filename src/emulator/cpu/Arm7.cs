@@ -137,6 +137,8 @@ namespace OptimeGBA
         public long InstructionsRan = 0;
         public long InstructionsRanInterrupt = 0;
 
+        public bool Halted;
+
         // DEBUG INFO
         public uint LastIns;
         public uint LastLastIns;

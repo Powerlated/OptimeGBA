@@ -19,8 +19,6 @@ namespace OptimeGBA
 
         public void TransferTo(uint opcode1, uint rdVal, uint cRn, uint cRm, uint opcode2)
         {
-            // Console.WriteLine($"TO CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(rdVal, 8)}");
-
             uint reg = ((cRn & 0xF) << 8) | ((cRm & 0xF) << 4) | (opcode2 & 0x7);
 
             switch (reg)
@@ -30,6 +28,12 @@ namespace OptimeGBA
                     ControlRegister |= 0b00000000000000000000000001111000;
                     ControlRegister &= 0b00000000000011111111000010000101;
                     break;
+
+                case 0x704:
+                case 0x782:
+                    Nds.Nds9.Cpu.Halted = true;
+                    break;
+
                 case 0x910:
                     DataTcmSettings = rdVal;
                     Nds.Nds9.Mem.UpdateTcmSettings();
@@ -38,6 +42,11 @@ namespace OptimeGBA
                     InstTcmSettings = rdVal;
                     Nds.Nds9.Mem.UpdateTcmSettings();
                     break;
+
+                default:
+                    // Console.WriteLine($"UNIMPLEMENTED TO CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(rdVal, 8)}");
+                    break;
+
             }
         }
 
@@ -51,6 +60,9 @@ namespace OptimeGBA
                 case 0x000: // ID register
                     val = 0x41059461;
                     break;
+                case 0x000001:
+                    val = 0x0F0D2112;
+                    break;
                 case 0x100:
                     val = ControlRegister;
                     break;
@@ -60,9 +72,12 @@ namespace OptimeGBA
                 case 0x911:
                     val = InstTcmSettings;
                     break;
+
+                default:
+                    Console.WriteLine($"(UNIMPLEMENTED FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}");
+                    break;
             }
 
-            // Console.WriteLine($"FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}: {HexN(val, 8)}");
 
             return val;
         }

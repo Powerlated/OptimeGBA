@@ -79,10 +79,10 @@ namespace OptimeGBA
         public uint TransferLength;
         public uint PendingDummyWrites;
 
-        public bool Ready;
+        public bool ReadyBit23;
         public byte BlockSize;
         public bool SlowTransferClock;
-        public bool Busy;
+        public bool BusyBit31;
 
         // AUXSPICNT
         byte SpiBaudRate;
@@ -95,6 +95,7 @@ namespace OptimeGBA
         // ROMCTRL
         byte ROMCTRLB0;
         byte ROMCTRLB1;
+        bool ReleaseReset;
 
         public byte ReadHwio8(uint addr)
         {
@@ -117,12 +118,13 @@ namespace OptimeGBA
                 case 0x40001A5: // ROMCTRL B1
                     return ROMCTRLB1;
                 case 0x40001A6: // ROMCTRL B2
-                    if (Ready) val = BitSet(val, 7);
+                    if (ReleaseReset) val = BitSet(val, 5);
+                    if (ReadyBit23) val = BitSet(val, 7);
                     break;
                 case 0x40001A7: // ROMCTRL B3
                     val |= BlockSize;
                     if (SlowTransferClock) val = BitSet(val, 3);
-                    if (Busy) val = BitSet(val, 7);
+                    if (BusyBit31) val = BitSet(val, 7);
                     break;
 
                 case 0x4100010: // From cartridge
@@ -157,12 +159,15 @@ namespace OptimeGBA
                     ROMCTRLB1 = val;
                     break;
                 case 0x40001A6: // ROMCTRL B2
+                    if (BitTest(val, 5)) ReleaseReset = true;
                     break;
                 case 0x40001A7: // ROMCTRL B3
                     BlockSize = (byte)(val & 0b111);
                     SlowTransferClock = BitTest(val, 3);
 
-                    if (BitTest(val, 7) && !Busy)
+                    var oldBusy = BusyBit31;
+                    BusyBit31 = BitTest(val, 7);
+                    if (BusyBit31 && !oldBusy)
                     {
                         ProcessCommand();
                     }
@@ -196,7 +201,7 @@ namespace OptimeGBA
 
             if (Key1Encryption)
             {
-                Console.WriteLine("Decrypting command: " + Hex(cmd, 16));
+                // Console.WriteLine("Decrypting command: " + Hex(cmd, 16));
                 cmd = Decrypt64(EncLutKeycodeLevel2, cmd);
             }
 
@@ -211,12 +216,16 @@ namespace OptimeGBA
             else
             {
                 TransferLength = 0x100U << BlockSize;
+
             }
 
-            Console.WriteLine("Transfer length: " + TransferLength);
-            Busy = true;
-            DataPos = 0;
-            BytesTransferred = 0;
+            if (TransferLength != 0)
+            {
+                DataPos = 0;
+                BytesTransferred = 0;
+            }
+
+            // Console.WriteLine("Transfer length: " + TransferLength);
 
             Console.WriteLine("Slot 1 Command: " + Hex(cmd, 16));
 
@@ -226,39 +235,39 @@ namespace OptimeGBA
             }
             else if (cmd == 0x0000000000000000)
             {
-                Console.WriteLine("Slot 1: Putting up cartridge header");
+                // Console.WriteLine("Slot 1: Putting up cartridge header");
                 State = CartridgeState.ReadCartridgeHeader;
             }
             else if (cmd == 0x9000000000000000)
             {
-                Console.WriteLine("Slot 1: Putting up ROM chip ID 1");
+                // Console.WriteLine("Slot 1: Putting up ROM chip ID 1");
                 State = CartridgeState.ReadRomChipId1;
             }
             else if ((cmd & 0xFF00000000000000) == 0x3C00000000000000)
             {
-                Console.WriteLine("Slot 1: Enabled KEY1 encryption");
+                // Console.WriteLine("Slot 1: Enabled KEY1 encryption");
                 State = CartridgeState.Dummy2;
                 Key1Encryption = true;
             }
             else if ((cmd & 0xF000000000000000) == 0x2000000000000000)
             {
-                Console.WriteLine("Slot 1: Get Secure Area Block");
+                // Console.WriteLine("Slot 1: Get Secure Area Block");
                 State = CartridgeState.SecureAreaRead;
                 DataPos = (uint)(((cmd >> 44) & 0xFFFF) * 0x1000);
             }
             else if ((cmd & 0xF000000000000000) == 0x4000000000000000)
             {
-                Console.WriteLine("Slot 1: Enable KEY2");
+                // Console.WriteLine("Slot 1: Enable KEY2");
                 State = CartridgeState.Dummy2;
             }
             else if ((cmd & 0xF000000000000000) == 0x1000000000000000)
             {
-                Console.WriteLine("Slot 1: Putting up ROM chip ID 2");
+                // Console.WriteLine("Slot 1: Putting up ROM chip ID 2");
                 State = CartridgeState.ReadRomChipId2;
             }
             else if ((cmd & 0xF000000000000000) == 0xA000000000000000)
             {
-                Console.WriteLine("Slot 1: Enter main data mode");
+                // Console.WriteLine("Slot 1: Enter main data mode");
                 State = CartridgeState.Dummy2;
                 Key1Encryption = false;
             }
@@ -269,11 +278,11 @@ namespace OptimeGBA
                 // Plus, DS ROM dumps are usually KEY2 decrypted, so in most cases 
                 // there's actually no need to actually handle KEY2 encryption in
                 // an emulator.
-                Console.WriteLine("KEY2 data read");
+                // Console.WriteLine("KEY2 data read");
                 State = CartridgeState.Key2DataRead;
 
                 DataPos = (uint)((cmd >> 24) & 0xFFFFFFFF);
-                Console.WriteLine("Addr: " + Hex(DataPos, 8));
+                // Console.WriteLine("Addr: " + Hex(DataPos, 8));
             }
             else
             {
@@ -289,7 +298,7 @@ namespace OptimeGBA
             }
             else
             {
-                Ready = true;
+                ReadyBit23 = true;
             }
         }
 
@@ -297,7 +306,7 @@ namespace OptimeGBA
         // what is going on????????????
         public byte ReadData()
         {
-            if (!Ready)
+            if (!ReadyBit23)
             {
                 return 0xFF;
             }
@@ -311,11 +320,11 @@ namespace OptimeGBA
                 case CartridgeState.ReadCartridgeHeader:
                     // Repeatedly returns first 0x1000 bytes, with first 0x200 bytes filled
                     val = Rom[DataPos & 0xFFF];
-                    Console.WriteLine("Read header byte " + DataPos);
+                    // Console.WriteLine("Read header byte " + DataPos);
                     break;
                 case CartridgeState.ReadRomChipId1:
                     val = RomChipId[DataPos & 3];
-                    Console.WriteLine("Read ROM chip id 1 byte " + DataPos);
+                    // Console.WriteLine("Read ROM chip id 1 byte " + DataPos);
                     break;
                 case CartridgeState.Dummy2:
                     val = 0xFF;
@@ -326,14 +335,14 @@ namespace OptimeGBA
                     break;
                 case CartridgeState.ReadRomChipId2:
                     val = RomChipId[DataPos & 3];
-                    Console.WriteLine("Read ROM chip id 2 byte " + DataPos);
+                    // Console.WriteLine("Read ROM chip id 2 byte " + DataPos);
                     break;
                 case CartridgeState.SecureAreaRead:
                     val = Rom[DataPos];
                     break;
             }
 
-            if (Busy)
+            if (BusyBit31)
             {
                 DataPos++;
                 BytesTransferred++;
@@ -352,9 +361,9 @@ namespace OptimeGBA
 
         public void EndTransfer()
         {
-            Console.WriteLine("Transfer complete");
-            Busy = false;
-            Ready = false;
+            // Console.WriteLine("Transfer complete");
+            BusyBit31 = false;
+            ReadyBit23 = false;
 
             if (TransferReadyIrq)
             {

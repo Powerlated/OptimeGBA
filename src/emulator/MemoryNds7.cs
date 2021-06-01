@@ -315,6 +315,12 @@ namespace OptimeGBA
                     Console.WriteLine("NDS7 POSTFLG write");
                     Nds7.POSTFLG = (byte)(val & 1);
                     break;
+                case 0x4000301:
+                    if (val == 0xF0)
+                    {
+                        Nds7.Cpu.Halted = true;
+                    }
+                    break;
             }
         }
     }
