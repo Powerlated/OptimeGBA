@@ -7,10 +7,13 @@ namespace OptimeGBA
     {
         Nds Nds;
 
-        public Cp15(Nds nds) {
+        public Cp15(Nds nds)
+        {
             Nds = nds;
         }
-        
+
+        public uint ControlRegister;
+
         public uint DataTcmSettings;
         public uint InstTcmSettings;
 
@@ -22,6 +25,11 @@ namespace OptimeGBA
 
             switch (reg)
             {
+                case 0x100:
+                    ControlRegister = rdVal;
+                    ControlRegister |= 0b00000000000000000000000001111000;
+                    ControlRegister &= 0b00000000000011111111000010000101;
+                    break;
                 case 0x910:
                     DataTcmSettings = rdVal;
                     Nds.Nds9.Mem.UpdateTcmSettings();
@@ -42,6 +50,9 @@ namespace OptimeGBA
             {
                 case 0x000: // ID register
                     val = 0x41059461;
+                    break;
+                case 0x100:
+                    val = ControlRegister;
                     break;
                 case 0x910:
                     val = DataTcmSettings;

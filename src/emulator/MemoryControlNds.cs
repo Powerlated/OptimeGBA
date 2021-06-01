@@ -1,4 +1,6 @@
 using System;
+using static OptimeGBA.Bits;
+using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
@@ -47,6 +49,11 @@ namespace OptimeGBA
                     SharedRamControl = (byte)(val & 0b11);
                     break;
             }
+
+            if (VramEnabledAndSet(2, 2) || VramEnabledAndSet(3, 2))
+            {
+                throw new NotImplementedException("Implement mapping VRAM banks C and D to ARM7");
+            }
         }
 
         public byte ReadHwio8Nds7(uint addr)
@@ -66,6 +73,21 @@ namespace OptimeGBA
         public void WriteHwio8Nds7(uint addr)
         {
             return;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool VramEnabledAndSet(uint bank, uint mst)
+        {
+            uint vramcntMst = VRAMCNT[bank] & 0b111U;
+            bool vramcntEnable = BitTest(VRAMCNT[bank], 7);
+
+            return vramcntEnable && vramcntMst == mst;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public uint GetOffset(uint bank)
+        {
+            return (uint)(VRAMCNT[bank] >> 3) & 0b11U;
         }
     }
 }

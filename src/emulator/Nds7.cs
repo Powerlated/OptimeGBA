@@ -17,7 +17,7 @@ namespace OptimeGBA
             Spi = new Spi(this);
 
             Cpu = new Arm7(this, Mem, false, false, null);
-            Dma = new DmaNds(this, Mem);
+            Dma = new DmaNds(this, false, Mem);
 
             Timers = new Timers(this, Nds.Scheduler, true);
 

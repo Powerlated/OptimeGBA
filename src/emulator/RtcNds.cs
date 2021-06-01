@@ -85,7 +85,7 @@ namespace OptimeGBA
                                     case 0: // Status 1
                                         if (BitsWritten >= 1 && BitsWritten <= 3)
                                         {
-                                            Console.WriteLine("status 1 write ");
+                                            // Console.WriteLine("status 1 write ");
                                             Status1 &= (byte)(~(1 << BitsWritten));
                                             Status1 |= (byte)(bit << BitsWritten);
                                         }

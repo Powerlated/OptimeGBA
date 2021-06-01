@@ -3,7 +3,7 @@ using System;
 
 namespace OptimeGBA
 {
-    public enum DmaStartTimingNds
+    public enum DmaStartTimingNds9 : byte
     {
         Immediately = 0,
         VBlank = 1,
@@ -15,8 +15,23 @@ namespace OptimeGBA
         GeometryCommandFifo = 7,
     }
 
+    public enum DmaStartTimingNds7 : byte
+    {
+        Immediately = 0,
+        VBlank = 1,
+        Slot1 = 2,
+        Misc = 3,
+    }
+
     public sealed class DmaChannelNds
     {
+        public bool Nds9;
+
+        public DmaChannelNds(bool nds9)
+        {
+            Nds9 = nds9;
+        }
+
         public uint DMASAD;
         public uint DMADAD;
         public uint DMACNT_L;
@@ -30,7 +45,7 @@ namespace OptimeGBA
         public DmaSrcAddrCtrl SrcAddrCtrl;
         public bool Repeat;
         public bool TransferType;
-        public DmaStartTimingNds StartTiming;
+        public byte StartTiming;
         public bool FinishedIRQ;
         public bool Enabled; // Don't directly set to false, use Disable()
 
@@ -138,7 +153,14 @@ namespace OptimeGBA
             SrcAddrCtrl = (DmaSrcAddrCtrl)BitRange(DMACNT_H, 7, 8);
             Repeat = BitTest(DMACNT_H, 9);
             TransferType = BitTest(DMACNT_H, 10);
-            StartTiming = (DmaStartTimingNds)BitRange(DMACNT_H, 11, 13);
+            if (Nds9)
+            {
+                StartTiming = (byte)BitRange(DMACNT_H, 11, 13);
+            }
+            else
+            {
+                StartTiming = (byte)BitRange(DMACNT_H, 12, 13);
+            }
             FinishedIRQ = BitTest(DMACNT_H, 14);
             if (BitTest(DMACNT_H, 15))
             {
@@ -189,15 +211,10 @@ namespace OptimeGBA
     public unsafe sealed class DmaNds
     {
         DeviceNds Device;
+        bool Nds9;
         Memory Mem;
 
-        public DmaChannelNds[] Ch = new DmaChannelNds[4] {
-            new DmaChannelNds(),
-            new DmaChannelNds(),
-            new DmaChannelNds(),
-            new DmaChannelNds(),
-        };
-
+        public DmaChannelNds[] Ch;
         static readonly uint[] DmaSourceMask = { 0x07FFFFFF, 0x0FFFFFFF, 0x0FFFFFFF, 0x0FFFFFFF };
         static readonly uint[] DmaDestMask = { 0x07FFFFFF, 0x07FFFFFF, 0x07FFFFFF, 0x0FFFFFFFF };
 
@@ -205,10 +222,18 @@ namespace OptimeGBA
 
         public bool DmaLock;
 
-        public DmaNds(DeviceNds deviceNds, Memory mem)
+        public DmaNds(DeviceNds deviceNds, bool nds9, Memory mem)
         {
             Device = deviceNds;
+            Nds9 = nds9;
             Mem = mem;
+
+            Ch = new DmaChannelNds[4] {
+                new DmaChannelNds(Nds9),
+                new DmaChannelNds(Nds9),
+                new DmaChannelNds(Nds9),
+                new DmaChannelNds(Nds9),
+            };
         }
 
         public byte ReadHwio8(uint addr)
@@ -272,7 +297,7 @@ namespace OptimeGBA
 
         public void ExecuteDma(DmaChannelNds c, uint ci)
         {
-            
+
             DmaLock = true;
 
             // Least significant 28 (or 27????) bits
@@ -369,13 +394,12 @@ namespace OptimeGBA
 
             if (c.DestAddrCtrl == DmaDestAddrCtrl.IncrementReload)
             {
-                c.DmaLength = origLength;
-
                 if (c.Repeat)
                 {
                     c.DmaDest = c.DMADAD;
                 }
             }
+
 
             if (c.FinishedIRQ)
             {
@@ -389,7 +413,7 @@ namespace OptimeGBA
         {
             DmaChannelNds c = Ch[ci];
 
-            if (c.Enabled && c.StartTiming == DmaStartTimingNds.Immediately)
+            if (c.Enabled && c.StartTiming == (byte)DmaStartTimingNds9.Immediately)
             {
                 c.Disable();
 
@@ -397,30 +421,14 @@ namespace OptimeGBA
             }
         }
 
-        public void RepeatHblank()
+        public void Repeat(byte val)
         {
             if (!DmaLock)
             {
                 for (uint ci = 0; ci < 4; ci++)
                 {
                     DmaChannelNds c = Ch[ci];
-                    if (c.StartTiming == DmaStartTimingNds.HBlank)
-                    {
-                        c.DmaLength = c.DMACNT_L;
-                        ExecuteDma(c, ci);
-                    }
-                }
-            }
-        }
-
-        public void RepeatVblank()
-        {
-            if (!DmaLock)
-            {
-                for (uint ci = 0; ci < 4; ci++)
-                {
-                    DmaChannelNds c = Ch[ci];
-                    if (c.StartTiming == DmaStartTimingNds.VBlank)
+                    if (c.StartTiming == val)
                     {
                         c.DmaLength = c.DMACNT_L;
                         ExecuteDma(c, ci);

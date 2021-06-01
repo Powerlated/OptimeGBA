@@ -34,12 +34,16 @@ namespace OptimeGBA
         public uint DtcmBase = 0;
         public uint ItcmVirtualSize = 0;
         public uint DtcmVirtualSize = 0;
+        public bool ItcmLoadMode = false;
+        public bool DtcmLoadMode = false;
 
         public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
         {
             // 12 bits shaved off already, shave off another 12 to get 24
             for (uint i = 0; i < 1048576; i++)
             {
+                table[i] = null; // Clear everything out first, since on ARM9 things can move around
+
                 uint addr = (uint)(i << 12);
                 switch (i >> 12)
                 {
@@ -56,27 +60,47 @@ namespace OptimeGBA
                         break;
                 }
 
-                // ITCM is immovable
-                if (addr < ItcmVirtualSize)
-                {
-                    table[i] = Itcm;
-                    maskTable[i] = 0x00007FFF;
-                }
-
                 if (addr >= DtcmBase && addr < DtcmBase + DtcmVirtualSize)
                 {
-                    table[i] = Dtcm;
+                    if (!(DtcmLoadMode && !write))
+                    {
+                        // Console.WriteLine("DTCM page set at " + Util.Hex(addr, 8));
+                        table[i] = Dtcm;
+                    }
+                    else
+                    {
+                        table[i] = EmptyPage;
+                    }
                     maskTable[i] = 0x00003FFF;
+                }
+
+                // ITCM is immovable
+                // ITCM has higher priority so write pages in after DTCM
+                if (addr < ItcmVirtualSize)
+                {
+                    if (!(ItcmLoadMode && !write))
+                    {
+                        table[i] = Itcm;
+                    }
+                    else
+                    {
+                        table[i] = EmptyPage;
+                    }
+                    maskTable[i] = 0x00007FFF;
                 }
             }
         }
 
         public void UpdateTcmSettings()
         {
+            // Console.WriteLine("Data TCM Settings: " + Util.Hex(Nds9.Nds.Cp15.DataTcmSettings, 8));
             ItcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.InstTcmSettings >> 1) & 0x1F);
             DtcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.DataTcmSettings >> 1) & 0x1F);
 
             DtcmBase = (uint)(Nds9.Nds.Cp15.DataTcmSettings & 0xFFFFF000);
+
+            ItcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 19);
+            DtcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 17);
 
             Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
 
@@ -318,7 +342,7 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000300:
-                    Console.WriteLine("NDS9 POSTFLG read");
+                    // Console.WriteLine("NDS9 POSTFLG read");
                     return Nds9.POSTFLG;
             }
 

@@ -257,7 +257,7 @@ namespace OptimeGBA
                 case 0x4000138:
                     return Nds7.Nds.Rtc.ReadHwio8(addr);
                 case 0x4000300:
-                    Console.WriteLine("NDS7 POSTFLG read");
+                    // Console.WriteLine("NDS7 POSTFLG read");
                     return Nds7.POSTFLG;
             }
 

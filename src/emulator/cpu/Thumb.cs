@@ -1327,7 +1327,7 @@ namespace OptimeGBA
 
         public static void Invalid(Arm7 arm7, ushort ins)
         {
-            arm7.Error($"Invalid THUMB Instruction: {Hex(ins, 4)}");
+            arm7.Error($"Invalid THUMB Instruction: {Hex(ins, 4)} @ {HexN(arm7.R[15], 8)}");
         }
     }
 }

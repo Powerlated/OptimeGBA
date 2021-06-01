@@ -16,7 +16,7 @@ namespace OptimeGBA
             Mem = new MemoryNds9(this, nds.Provider);
 
             Cpu = new Arm7(this, Mem, true, true, Nds.Cp15);
-            Dma = new DmaNds(this, Mem);
+            Dma = new DmaNds(this, true, Mem);
 
             Timers = new Timers(this, Nds.Scheduler, true);
 

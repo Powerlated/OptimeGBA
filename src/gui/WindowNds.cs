@@ -82,9 +82,8 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public uint Arm9Breakpoint = 0;
-        public uint Arm7Breakpoint = 0x37FAC9C;
-        // public uint Arm7Breakpoint = 0x03803FF4;
+        public uint Arm9Breakpoint = 0x2005ae0;
+        public uint Arm7Breakpoint = 0x42384023;
         public bool EnableBreakpoints = false;
 
         public void CheckBreakpoints()
@@ -194,7 +193,7 @@ namespace OptimeGBAEmulator
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
             byte[] bios9 = System.IO.File.ReadAllBytes("bios9.bin");
             byte[] firmware = System.IO.File.ReadAllBytes("firmware.bin");
-            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, new byte[0], "", AudioReady));
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, new byte[0], "", AudioReady) { DirectBoot = false });
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -236,7 +235,7 @@ namespace OptimeGBAEmulator
             var bios7 = Nds.Provider.Bios7;
             var bios9 = Nds.Provider.Bios9;
             var firmware = Nds.Provider.Firmware;
-            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady));
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady) { DirectBoot = false });
             // Nds.Mem.SaveProvider.LoadSave(sav);
         }
 
@@ -354,6 +353,7 @@ namespace OptimeGBAEmulator
                     "BIOS DTCM",
                     "Main Memory",
                     "Upper Main Memory",
+                    "Shared Memory",
                     "Engine A BG VRAM",
                     "Engine A OBJ VRAM",
                     "OAM",
@@ -364,6 +364,7 @@ namespace OptimeGBAEmulator
                 0x00800000,
                 0x02000000,
                 0x027FF800,
+                0x03000000,
                 0x06000000,
                 0x06400000,
                 0x07000000,
@@ -627,9 +628,9 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text($"");
 
-                if (ImGui.Button("ARM7 R1=R0"))
+                if (ImGui.Button("Flag ARM7 slot 1 transfer complete IRQ"))
                 {
-                    Nds.Nds7.Cpu.R[1] = Nds.Nds7.Cpu.R[0];
+                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
                 }
 
                 if (ImGui.Button("Reset"))
@@ -899,6 +900,9 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
                 ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
+                ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
+                ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
+                ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
 
                 ImGui.Columns(1);
                 ImGui.Separator();

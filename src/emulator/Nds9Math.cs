@@ -24,7 +24,11 @@ namespace OptimeGBA
         // DIVCNT
         public uint DivisionMode;
         public bool DividedByZero;
-        public bool Busy;
+        public bool DivideBusy;
+
+        // SQRTCNT 
+        public bool SqrtUse64BitInput;
+        public bool SqrtBusy;
 
         public byte ReadHwio8(uint addr)
         {
@@ -36,7 +40,10 @@ namespace OptimeGBA
                     break;
                 case 0x4000281: // DIVCNT B1
                     if (DividedByZero) val = BitSet(val, 6);
-                    if (Busy) val = BitSet(val, 7);
+                    if (DivideBusy) val = BitSet(val, 7);
+                    break;
+                case 0x4000282: // DIVCNT B2
+                case 0x4000283: // DIVCNT B3
                     break;
 
                 case 0x4000290: // DIV_NUMER B0
@@ -76,6 +83,11 @@ namespace OptimeGBA
                 case 0x40002AF: // DIVREM_RESULT B7
                     return (byte)(DIVREM_RESULT >> (int)((addr & 7) * 8));
 
+                case 0x40002B0: // SQRTCNT B0
+                    SqrtUse64BitInput = BitTest(val, 0);
+                    break;
+                case 0x40002B1: // SQRTCNT B0
+                    break;
 
                 case 0x40002B4: // SQRT_RESULT B0
                 case 0x40002B5: // SQRT_RESULT B1
@@ -104,9 +116,10 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000280: // DIVCNT B0
-                    DivisionMode = (byte)(val & 0b11);
+                    if (SqrtUse64BitInput) val = BitSet(val, 0);
                     break;
                 case 0x4000281: // DIVCNT B1
+                    if (SqrtBusy) val = BitSet(val, 7);
                     break;
 
                 case 0x4000290: // DIV_NUMER B0
@@ -133,6 +146,25 @@ namespace OptimeGBA
                     DIV_DENOM |= (long)val << (int)((addr & 7) * 8);
                     Divide();
                     break;
+
+                case 0x40002B0: // SQRTCNT B0
+                    SqrtUse64BitInput = BitTest(val, 0);
+                    break;
+                case 0x40002B1: // SQRTCNT B0
+                    break;
+
+                case 0x40002B8: // SQRT_PARAM B0
+                case 0x40002B9: // SQRT_PARAM B1
+                case 0x40002BA: // SQRT_PARAM B2
+                case 0x40002BB: // SQRT_PARAM B3
+                case 0x40002BC: // SQRT_PARAM B4
+                case 0x40002BD: // SQRT_PARAM B5
+                case 0x40002BE: // SQRT_PARAM B6
+                case 0x40002BF: // SQRT_PARAM B7
+                    SQRT_PARAM &= (ulong)(~(0xFFU << (int)((addr & 7) * 8)));
+                    SQRT_PARAM |= (ulong)val << (int)((addr & 7) * 8);
+                    TakeSquareRoot();
+                    return;
 
                 default:
                     throw new NotImplementedException("Write to DS math @ " + Util.Hex(addr, 8));
@@ -166,6 +198,18 @@ namespace OptimeGBA
                     DIV_RESULT = DIV_NUMER / DIV_DENOM;
                     DIVREM_RESULT = DIV_NUMER % DIV_DENOM;
                     break;
+            }
+        }
+
+        public void TakeSquareRoot()
+        {
+            if (SqrtUse64BitInput)
+            {
+                SQRT_RESULT = (uint)Math.Sqrt(SQRT_PARAM);
+            }
+            else
+            {
+                SQRT_RESULT = (uint)Math.Sqrt((uint)SQRT_PARAM);
             }
         }
     }

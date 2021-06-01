@@ -42,33 +42,18 @@ namespace OptimeGBA
         public byte[] VramBgB = MemoryUtil.AllocateManagedArray(131072);
         public byte[] VramObjB = MemoryUtil.AllocateManagedArray(131072);
 
-        public bool VramDirty;
+        public bool[] VramDirty = new bool[5]; // In order of: BG A, OBJ A, BG B, OBJ B, LCDC
         public bool DebugDisableVramUpdates;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool EnabledAndSet(uint bank, uint mst)
-        {
-            uint vramcntMst = Nds.MemoryControl.VRAMCNT[bank] & 0b111U;
-            bool vramcntEnable = BitTest(Nds.MemoryControl.VRAMCNT[bank], 7);
-
-            return vramcntEnable && vramcntMst == mst;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint GetOffset(uint bank)
-        {
-            return (uint)(Nds.MemoryControl.VRAMCNT[bank] >> 3) & 0b11U;
-        }
 
         // Needed since some games write to VRAM over and over again with the
         // same values.
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetVram(byte[] arr, uint offs, byte val)
+        public void SetVram(byte[] arr, uint offs, byte val, byte block)
         {
             if (arr[offs] != val)
             {
                 arr[offs] = val;
-                VramDirty = true;
+                VramDirty[block] = true;
             }
         }
 
@@ -79,137 +64,137 @@ namespace OptimeGBA
             {
                 case 0x06000000: // Engine A BG VRAM
                     addr &= 0x1FFFFF;
-                    offs = GetOffset(0) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 1))
+                    offs = Nds.MemoryControl.GetOffset(0) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(0, 1))
                     {
-                        SetVram(VramA, addr & 0x1FFFF, val);
+                        SetVram(VramA, addr & 0x1FFFF, val, 0);
                     }
-                    offs = GetOffset(1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 1))
+                    offs = Nds.MemoryControl.GetOffset(1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(1, 1))
                     {
-                        SetVram(VramB, addr & 0x1FFFF, val);
+                        SetVram(VramB, addr & 0x1FFFF, val, 0);
                     }
-                    offs = GetOffset(2) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(2, 1))
+                    offs = Nds.MemoryControl.GetOffset(2) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(2, 1))
                     {
-                        SetVram(VramC, addr & 0x1FFFF, val);
+                        SetVram(VramC, addr & 0x1FFFF, val, 0);
                     }
-                    offs = GetOffset(3) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(3, 1))
+                    offs = Nds.MemoryControl.GetOffset(3) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(3, 1))
                     {
-                        SetVram(VramD, addr & 0x1FFFF, val);
+                        SetVram(VramD, addr & 0x1FFFF, val, 0);
                     }
-                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 1))
+                    if (addr >= 0 && addr < 0x10000 && Nds.MemoryControl.VramEnabledAndSet(4, 1))
                     {
-                        SetVram(VramE, addr & 0xFFFF, val);
+                        SetVram(VramE, addr & 0xFFFF, val, 0);
                     }
-                    offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 1))
+                    offs = (Nds.MemoryControl.GetOffset(5) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(5) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(5, 1))
                     {
-                        SetVram(VramF, addr & 0x3FFF, val);
+                        SetVram(VramF, addr & 0x3FFF, val, 0);
                     }
-                    offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 1))
+                    offs = (Nds.MemoryControl.GetOffset(6) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(6) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(6, 1))
                     {
-                        SetVram(VramG, addr & 0x3FFF, val);
+                        SetVram(VramG, addr & 0x3FFF, val, 0);
                     }
                     break;
                 case 0x06200000: // Engine B BG VRAM
                     addr &= 0x1FFFFF;
-                    if (addr < 0x20000 && EnabledAndSet(2, 4))
+                    if (addr < 0x20000 && Nds.MemoryControl.VramEnabledAndSet(2, 4))
                     {
-                        SetVram(VramC, addr & 0x1FFFF, val);
+                        SetVram(VramC, addr & 0x1FFFF, val, 2);
                     }
-                    if (addr < 0x8000 && EnabledAndSet(7, 1))
+                    if (addr < 0x8000 && Nds.MemoryControl.VramEnabledAndSet(7, 1))
                     {
-                        SetVram(VramH, addr & 0x7FFF, val);
+                        SetVram(VramH, addr & 0x7FFF, val, 2);
                     }
-                    if (addr >= 0x8000 && addr < 0xC000 && EnabledAndSet(8, 1))
+                    if (addr >= 0x8000 && addr < 0xC000 && Nds.MemoryControl.VramEnabledAndSet(8, 1))
                     {
-                        SetVram(VramI, addr & 0x3FFF, val);
+                        SetVram(VramI, addr & 0x3FFF, val, 2);
                     }
                     break;
                 case 0x06400000: // Engine A OBJ VRAM
                     addr &= 0x1FFFFF;
-                    offs = (GetOffset(0) & 1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 2))
+                    offs = (Nds.MemoryControl.GetOffset(0) & 1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(0, 2))
                     {
-                        SetVram(VramA, addr & 0x1FFFF, val);
+                        SetVram(VramA, addr & 0x1FFFF, val, 1);
                     }
-                    offs = (GetOffset(1) & 1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 2))
+                    offs = (Nds.MemoryControl.GetOffset(1) & 1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(1, 2))
                     {
-                        SetVram(VramB, addr & 0x1FFFF, val);
+                        SetVram(VramB, addr & 0x1FFFF, val, 1);
                     }
-                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 2))
+                    if (addr >= 0 && addr < 0x10000 && Nds.MemoryControl.VramEnabledAndSet(4, 2))
                     {
-                        SetVram(VramE, addr & 0xFFFF, val);
+                        SetVram(VramE, addr & 0xFFFF, val, 1);
                     }
-                    offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 2))
+                    offs = (Nds.MemoryControl.GetOffset(5) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(5) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(5, 2))
                     {
-                        SetVram(VramF, addr & 0x3FFF, val);
+                        SetVram(VramF, addr & 0x3FFF, val, 1);
                     }
-                    offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 2))
+                    offs = (Nds.MemoryControl.GetOffset(6) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(6) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(6, 2))
                     {
-                        SetVram(VramG, addr & 0x3FFF, val);
+                        SetVram(VramG, addr & 0x3FFF, val, 1);
                     }
                     break;
                 case 0x06600000: // Engine B OBJ VRAM
                     addr &= 0x1FFFFF;
-                    if (addr < 0x20000 && EnabledAndSet(3, 4))
+                    if (addr < 0x20000 && Nds.MemoryControl.VramEnabledAndSet(3, 4))
                     {
-                        SetVram(VramD, addr & 0x1FFFF, val);
+                        SetVram(VramD, addr & 0x1FFFF, val, 3);
                     }
-                    if (addr < 0x4000 && EnabledAndSet(8, 2))
+                    if (addr < 0x4000 && Nds.MemoryControl.VramEnabledAndSet(8, 2))
                     {
-                        SetVram(VramI, addr & 0x3FFF, val);
+                        SetVram(VramI, addr & 0x3FFF, val, 3);
                     }
                     break;
                 case 0x06800000: // LCDC VRAM
                     switch (addr & 0xFFFE0000)
                     {
                         case 0x06800000: // A
-                            if (EnabledAndSet(0, 0))
-                                SetVram(VramA, addr & 0x1FFFF, val);
+                            if (Nds.MemoryControl.VramEnabledAndSet(0, 0))
+                                SetVram(VramA, addr & 0x1FFFF, val, 4);
                             break;
                         case 0x06820000: // B
-                            if (EnabledAndSet(1, 0))
-                                SetVram(VramB, addr & 0x1FFFF, val);
+                            if (Nds.MemoryControl.VramEnabledAndSet(1, 0))
+                                SetVram(VramB, addr & 0x1FFFF, val, 4);
                             break;
                         case 0x06840000: // C
-                            if (EnabledAndSet(2, 0))
-                                SetVram(VramC, addr & 0x1FFFF, val);
+                            if (Nds.MemoryControl.VramEnabledAndSet(2, 0))
+                                SetVram(VramC, addr & 0x1FFFF, val, 4);
                             break;
                         case 0x06860000: // D
-                            if (EnabledAndSet(3, 0))
-                                SetVram(VramD, addr & 0x1FFFF, val);
+                            if (Nds.MemoryControl.VramEnabledAndSet(3, 0))
+                                SetVram(VramD, addr & 0x1FFFF, val, 4);
                             break;
                         case 0x06880000: // E, F, G, H
                             switch (addr & 0xFFFFF000)
                             {
                                 case 0x68800000:
-                                    if (EnabledAndSet(4, 0))
-                                        SetVram(VramE, addr & 0xFFFF, val);
+                                    if (Nds.MemoryControl.VramEnabledAndSet(4, 0))
+                                        SetVram(VramE, addr & 0xFFFF, val, 4);
                                     break;
                                 case 0x06890000: // F
-                                    if (EnabledAndSet(5, 0))
-                                        SetVram(VramF, addr & 0x3FFF, val);
+                                    if (Nds.MemoryControl.VramEnabledAndSet(5, 0))
+                                        SetVram(VramF, addr & 0x3FFF, val, 4);
                                     break;
                                 case 0x06894000: // G
-                                    if (EnabledAndSet(6, 0))
-                                        SetVram(VramG, addr & 0x3FFF, val);
+                                    if (Nds.MemoryControl.VramEnabledAndSet(6, 0))
+                                        SetVram(VramG, addr & 0x3FFF, val, 4);
                                     break;
                                 case 0x06898000: // H
-                                    if (EnabledAndSet(7, 0))
-                                        SetVram(VramH, addr & 0x7FFF, val);
+                                    if (Nds.MemoryControl.VramEnabledAndSet(7, 0))
+                                        SetVram(VramH, addr & 0x7FFF, val, 4);
                                     break;
                             }
                             break;
                         case 0x068A0000: // I
-                            if (EnabledAndSet(8, 0))
-                                SetVram(VramI, addr & 0x3FFF, val);
+                            if (Nds.MemoryControl.VramEnabledAndSet(8, 0))
+                                SetVram(VramI, addr & 0x3FFF, val, 4);
                             break;
                     }
                     break;
@@ -225,90 +210,90 @@ namespace OptimeGBA
             {
                 case 0x06000000: // Engine A BG VRAM
                     addr &= 0x1FFFFF;
-                    offs = GetOffset(0) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 1))
+                    offs = Nds.MemoryControl.GetOffset(0) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(0, 1))
                     {
                         val |= VramA[addr & 0x1FFFF];
                     }
-                    offs = GetOffset(1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 1))
+                    offs = Nds.MemoryControl.GetOffset(1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(1, 1))
                     {
                         val |= VramB[addr & 0x1FFFF];
                     }
-                    offs = GetOffset(2) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(2, 1))
+                    offs = Nds.MemoryControl.GetOffset(2) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(2, 1))
                     {
                         val |= VramC[addr & 0x1FFFF];
                     }
-                    offs = GetOffset(3) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(3, 1))
+                    offs = Nds.MemoryControl.GetOffset(3) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(3, 1))
                     {
                         val |= VramD[addr & 0x1FFFF];
                     }
-                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 1))
+                    if (addr >= 0 && addr < 0x10000 && Nds.MemoryControl.VramEnabledAndSet(4, 1))
                     {
                         val |= VramE[addr & 0xFFFF];
                     }
-                    offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 1))
+                    offs = (Nds.MemoryControl.GetOffset(5) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(5) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(5, 1))
                     {
                         val |= VramF[addr & 0x3FFF];
                     }
-                    offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 1))
+                    offs = (Nds.MemoryControl.GetOffset(6) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(6) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(6, 1))
                     {
                         val |= VramG[addr & 0x3FFF];
                     }
                     break;
                 case 0x06200000: // Engine B BG VRAM
                     addr &= 0x1FFFFF;
-                    if (addr < 0x20000 && EnabledAndSet(2, 4))
+                    if (addr < 0x20000 && Nds.MemoryControl.VramEnabledAndSet(2, 4))
                     {
                         val |= VramC[addr & 0x1FFFF];
                     }
-                    if (addr < 0x8000 && EnabledAndSet(7, 1))
+                    if (addr < 0x8000 && Nds.MemoryControl.VramEnabledAndSet(7, 1))
                     {
                         val |= VramH[addr & 0x7FFF];
                     }
-                    if (addr >= 0x8000 && addr < 0xC000 && EnabledAndSet(8, 1))
+                    if (addr >= 0x8000 && addr < 0xC000 && Nds.MemoryControl.VramEnabledAndSet(8, 1))
                     {
                         val |= VramI[addr & 0x3FFF];
                     }
                     break;
                 case 0x06400000: // Engine A OBJ VRAM
                     addr &= 0x1FFFFF;
-                    offs = (GetOffset(0) & 1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(0, 2))
+                    offs = (Nds.MemoryControl.GetOffset(0) & 1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(0, 2))
                     {
                         val |= VramA[addr & 0x1FFFF];
                     }
-                    offs = (GetOffset(1) & 1) * 0x20000;
-                    if (addr >= offs && addr < 0x20000 + offs && EnabledAndSet(1, 2))
+                    offs = (Nds.MemoryControl.GetOffset(1) & 1) * 0x20000;
+                    if (addr >= offs && addr < 0x20000 + offs && Nds.MemoryControl.VramEnabledAndSet(1, 2))
                     {
                         val |= VramB[addr & 0x1FFFF];
                     }
-                    if (addr >= 0 && addr < 0x10000 && EnabledAndSet(4, 2))
+                    if (addr >= 0 && addr < 0x10000 && Nds.MemoryControl.VramEnabledAndSet(4, 2))
                     {
                         val |= VramE[addr & 0xFFFF];
                     }
-                    offs = (GetOffset(5) & 1) * 0x4000 + ((GetOffset(5) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(5, 2))
+                    offs = (Nds.MemoryControl.GetOffset(5) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(5) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(5, 2))
                     {
                         val |= VramF[addr & 0x3FFF];
                     }
-                    offs = (GetOffset(6) & 1) * 0x4000 + ((GetOffset(6) >> 1) & 1) * 0x10000;
-                    if (addr >= offs && addr < 0x4000 + offs && EnabledAndSet(6, 2))
+                    offs = (Nds.MemoryControl.GetOffset(6) & 1) * 0x4000 + ((Nds.MemoryControl.GetOffset(6) >> 1) & 1) * 0x10000;
+                    if (addr >= offs && addr < 0x4000 + offs && Nds.MemoryControl.VramEnabledAndSet(6, 2))
                     {
                         val |= VramG[addr & 0x3FFF];
                     }
                     break;
                 case 0x06600000: // Engine B OBJ VRAM
                     addr &= 0x1FFFFF;
-                    if (addr < 0x20000 && EnabledAndSet(3, 4))
+                    if (addr < 0x20000 && Nds.MemoryControl.VramEnabledAndSet(3, 4))
                     {
                         val |= VramD[addr & 0x1FFFF];
                     }
-                    if (addr < 0x4000 && EnabledAndSet(8, 2))
+                    if (addr < 0x4000 && Nds.MemoryControl.VramEnabledAndSet(8, 2))
                     {
                         val |= VramI[addr & 0x3FFF];
                     }
@@ -317,44 +302,44 @@ namespace OptimeGBA
                     switch (addr & 0xFFFE0000)
                     {
                         case 0x06800000: // A
-                            if (EnabledAndSet(0, 0))
+                            if (Nds.MemoryControl.VramEnabledAndSet(0, 0))
                                 val = VramA[addr & 0x1FFFF];
                             break;
                         case 0x06820000: // B
-                            if (EnabledAndSet(1, 0))
+                            if (Nds.MemoryControl.VramEnabledAndSet(1, 0))
                                 val = VramB[addr & 0x1FFFF];
                             break;
                         case 0x06840000: // C
-                            if (EnabledAndSet(2, 0))
+                            if (Nds.MemoryControl.VramEnabledAndSet(2, 0))
                                 val = VramC[addr & 0x1FFFF];
                             break;
                         case 0x06860000: // D
-                            if (EnabledAndSet(3, 0))
+                            if (Nds.MemoryControl.VramEnabledAndSet(3, 0))
                                 val = VramD[addr & 0x1FFFF];
                             break;
                         case 0x06880000: // E, F, G, H
                             switch (addr & 0xFFFFF000)
                             {
                                 case 0x68800000:
-                                    if (EnabledAndSet(4, 0))
+                                    if (Nds.MemoryControl.VramEnabledAndSet(4, 0))
                                         val = VramE[addr & 0xFFFF];
                                     break;
                                 case 0x06890000: // F
-                                    if (EnabledAndSet(5, 0))
+                                    if (Nds.MemoryControl.VramEnabledAndSet(5, 0))
                                         val = VramF[addr & 0x3FFF];
                                     break;
                                 case 0x06894000: // G
-                                    if (EnabledAndSet(6, 0))
+                                    if (Nds.MemoryControl.VramEnabledAndSet(6, 0))
                                         val = VramG[addr & 0x3FFF];
                                     break;
                                 case 0x06898000: // H
-                                    if (EnabledAndSet(7, 0))
+                                    if (Nds.MemoryControl.VramEnabledAndSet(7, 0))
                                         val = VramH[addr & 0x7FFF];
                                     break;
                             }
                             break;
                         case 0x068A0000: // I
-                            if (EnabledAndSet(8, 0))
+                            if (Nds.MemoryControl.VramEnabledAndSet(8, 0))
                                 val = VramI[addr & 0x3FFF];
                             break;
                     }
@@ -367,42 +352,58 @@ namespace OptimeGBA
         public void CompileVram()
         {
             // TODO: Optimize this 
-            if (VramDirty && !DebugDisableVramUpdates)
+            if (!DebugDisableVramUpdates)
             {
-                VramDirty = false;
-
                 if (Renderers[0].DisplayMode == 2) // LCDC MODE
                 {
-                    uint index = 0;
-                    VramA.CopyTo(VramLcdc, index); index += 131072;
-                    VramB.CopyTo(VramLcdc, index); index += 131072;
-                    VramC.CopyTo(VramLcdc, index); index += 131072;
-                    VramD.CopyTo(VramLcdc, index); index += 131072;
-                    VramE.CopyTo(VramLcdc, index); index += 65536;
-                    VramF.CopyTo(VramLcdc, index); index += 16384;
-                    VramG.CopyTo(VramLcdc, index); index += 16384;
-                    VramH.CopyTo(VramLcdc, index); index += 32768;
-                    VramI.CopyTo(VramLcdc, index); index += 16384;
+                    if (VramDirty[4])
+                    {
+                        uint index = 0;
+                        VramA.CopyTo(VramLcdc, index); index += 131072;
+                        VramB.CopyTo(VramLcdc, index); index += 131072;
+                        VramC.CopyTo(VramLcdc, index); index += 131072;
+                        VramD.CopyTo(VramLcdc, index); index += 131072;
+                        VramE.CopyTo(VramLcdc, index); index += 65536;
+                        VramF.CopyTo(VramLcdc, index); index += 16384;
+                        VramG.CopyTo(VramLcdc, index); index += 16384;
+                        VramH.CopyTo(VramLcdc, index); index += 32768;
+                        VramI.CopyTo(VramLcdc, index); index += 16384;
+                    }
                 }
                 else
                 {
-                        Console.WriteLine("recompiling vram");
                     // TODO: Stop running this every scanline. This kills performance.
-                    for (uint i = 0; i < 524288; i++)
+                    if (VramDirty[0])
                     {
-                        VramBgA[i] = ReadVram8(0x06000000 + i);
+                        // Console.WriteLine("recompiling vram BG A");
+                        for (uint i = 0; i < 524288; i++)
+                        {
+                            VramBgA[i] = ReadVram8(0x06000000 + i);
+                        }
                     }
-                    for (uint i = 0; i < 262144; i++)
+                    if (VramDirty[1])
                     {
-                        VramObjA[i] = ReadVram8(0x06400000 + i);
+                        // Console.WriteLine("recompiling vram OBJ A");
+                        for (uint i = 0; i < 262144; i++)
+                        {
+                            VramObjA[i] = ReadVram8(0x06400000 + i);
+                        }
                     }
-                    for (uint i = 0; i < 131072; i++)
+                    if (VramDirty[2])
                     {
-                        VramBgB[i] = ReadVram8(0x06200000 + i);
+                        // Console.WriteLine("recompiling vram BG B");
+                        for (uint i = 0; i < 131072; i++)
+                        {
+                            VramBgB[i] = ReadVram8(0x06200000 + i);
+                        }
                     }
-                    for (uint i = 0; i < 131072; i++)
+                    if (VramDirty[3])
                     {
-                        VramObjB[i] = ReadVram8(0x06600000 + i);
+                        // Console.WriteLine("recompiling vram OBJ B");
+                        for (uint i = 0; i < 131072; i++)
+                        {
+                            VramObjB[i] = ReadVram8(0x06600000 + i);
+                        }
                     }
                 }
             }
@@ -729,7 +730,6 @@ namespace OptimeGBA
             // Gba.HwControl.FlagInterrupt(InterruptGba.HBlank);
             // }
 
-            CompileVram();
             if (Renderers[0].DisplayMode == 2) // LCDC MODE
             {
                 Renderers[0].RenderScanlineNds(VCount, VramLcdc, VramLcdc);
@@ -800,6 +800,8 @@ namespace OptimeGBA
                 //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
                 // }
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
+
+                CompileVram();
 
                 // Pre-render sprites for line zero
                 fixed (byte* vramObjA = VramObjA, vramObjB = VramObjB)

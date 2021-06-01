@@ -69,8 +69,13 @@ namespace OptimeGBA
 
             if (provider.DirectBoot)
             {
+                // Firmware init
+                MemoryControl.SharedRamControl = 3;
+                Nds7.POSTFLG = 1;
+                Nds9.POSTFLG = 1;
+
                 var rom = provider.Rom;
-                if (rom.Length >= 0x200)
+                if (rom.Length >= 0x20)
                 {
                     uint arm9RomOffset = GetUint(rom, 0x20);
                     uint arm9EntryAddr = GetUint(rom, 0x24);
@@ -80,9 +85,6 @@ namespace OptimeGBA
                     uint arm7EntryAddr = GetUint(rom, 0x34);
                     uint arm7RamAddr = GetUint(rom, 0x38);
                     uint arm7Size = GetUint(rom, 0x3C);
-
-                    // Firmware init
-                    MemoryControl.SharedRamControl = 3;
 
                     // ROM offset is aligned by 0x1000
                     Console.WriteLine("ARM7 ROM Offset: " + Hex(arm7RomOffset, 8));
@@ -113,6 +115,22 @@ namespace OptimeGBA
                     Nds9.Cpu.R[15] = arm9EntryAddr;
                     Nds9.Cpu.FlushPipeline();
 
+                    Cp15.TransferTo(0, 0x0005707D, 1, 0, 0); // CP15 Control
+                    Cp15.TransferTo(0, 0x0300000A, 9, 1, 0); // Data TCM base/size
+                    Cp15.TransferTo(0, 0x00000020, 9, 1, 1); // Instruction TCM size
+                    Nds9.Mem.Write8(0x4000247,   0x03); // WRAMCNT
+                    Nds9.Mem.Write16(0x4000304, 0x0001); // POWCNT1
+                    Nds9.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
+
+                    Nds9.Mem.Write32(0x027FF800, 0x1FC2); // Chip ID 1
+                    Nds9.Mem.Write32(0x027FF804, 0x1FC2); // Chip ID 2
+                    Nds9.Mem.Write16(0x027FF850, 0x5835); // ARM7 BIOS CRC
+                    Nds9.Mem.Write16(0x027FF880, 0x0007); // Message from ARM9 to ARM7
+                    Nds9.Mem.Write16(0x027FF884, 0x0006); // ARM7 boot task
+                    Nds9.Mem.Write32(0x027FFC00, 0x1FC2); // Copy of chip ID 1
+                    Nds9.Mem.Write32(0x027FFC04, 0x1FC2); // Copy of chip ID 2
+                    Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
+                    Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
                 }
             }
         }
@@ -120,27 +138,33 @@ namespace OptimeGBA
         public uint Step()
         {
             long beforeTicks = Scheduler.CurrentTicks;
-            
+
+            // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
+            // so don't do that when not debugging simple test ROMs
             Nds7.Cpu.Execute();
-            Nds9.Cpu.Execute();
             Nds9.Cpu.Execute();
             Scheduler.CurrentTicks += 1;
 
+
             // TODO: Proper NDS timings
             // uint ticks7 = 0;
-            // ticks7 += Nds7.Cpu.Execute();
+            // ticks7 += Nds7.Cpu.Execute(); // Don't really need to tightly
+            // ticks7 += Nds7.Cpu.Execute(); // synchronize, run a few ARM7
+            // ticks7 += Nds7.Cpu.Execute(); // instructions and then run the
+            // ticks7 += Nds7.Cpu.Execute(); // ARM9. 
             // Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            // while (Arm9PendingTicks > 0) {
+            // while (Arm9PendingTicks > 0)
+            // {
             //     Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
             // }
             // Scheduler.CurrentTicks += ticks7;
 
-            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
-            {
-                long current = Scheduler.CurrentTicks;
-                long next = Scheduler.NextEventTicks;
-                Scheduler.PopFirstEvent().Callback(current - next);
-            }
+            // while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
+            // {
+            //     long current = Scheduler.CurrentTicks;
+            //     long next = Scheduler.NextEventTicks;
+            //     Scheduler.PopFirstEvent().Callback(current - next);
+            // }
 
             return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }
@@ -159,6 +183,6 @@ namespace OptimeGBA
 
         public void HaltSkip(long cyclesOffset) { }
     }
-    
-    
+
+
 }
