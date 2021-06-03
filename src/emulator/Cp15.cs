@@ -60,7 +60,7 @@ namespace OptimeGBA
                 case 0x000: // ID register
                     val = 0x41059461;
                     break;
-                case 0x000001:
+                case 0x001:
                     val = 0x0F0D2112;
                     break;
                 case 0x100:
@@ -74,7 +74,7 @@ namespace OptimeGBA
                     break;
 
                 default:
-                    Console.WriteLine($"(UNIMPLEMENTED FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}");
+                    Console.WriteLine($"UNIMPLEMENTED FROM CP15 {opcode1},C{cRn},C{cRm},{opcode2}");
                     break;
             }
 

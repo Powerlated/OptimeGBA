@@ -421,8 +421,9 @@ namespace OptimeGBA
             }
         }
 
-        public void Repeat(byte val)
+        public bool Repeat(byte val)
         {
+            bool executed = false;
             if (!DmaLock)
             {
                 for (uint ci = 0; ci < 4; ci++)
@@ -430,11 +431,13 @@ namespace OptimeGBA
                     DmaChannelNds c = Ch[ci];
                     if (c.StartTiming == val)
                     {
+                        executed = true;
                         c.DmaLength = c.DMACNT_L;
                         ExecuteDma(c, ci);
                     }
                 }
             }
+            return executed;
         }
     }
 }

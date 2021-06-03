@@ -89,6 +89,7 @@ namespace OptimeGBA
                     // ROM offset is aligned by 0x1000
                     Console.WriteLine("ARM7 ROM Offset: " + Hex(arm7RomOffset, 8));
                     Console.WriteLine("ARM7 RAM Address: " + Hex(arm7RamAddr, 8));
+                    Console.WriteLine("ARM7 Entry: " + Hex(arm7EntryAddr, 8));
                     for (uint i = 0; i < arm7Size; i++)
                     {
                         Nds7.Mem.Write8(arm7RamAddr + i, rom[arm7RomOffset + i]);
@@ -103,6 +104,7 @@ namespace OptimeGBA
 
                     Console.WriteLine("ARM9 ROM Offset: " + Hex(arm9RomOffset, 8));
                     Console.WriteLine("ARM9 RAM Address: " + Hex(arm9RamAddr, 8));
+                    Console.WriteLine("ARM9 Entry: " + Hex(arm9EntryAddr, 8));
                     for (uint i = 0; i < arm9Size; i++)
                     {
                         Nds9.Mem.Write8(arm9RamAddr + i, rom[arm9RomOffset + i]);

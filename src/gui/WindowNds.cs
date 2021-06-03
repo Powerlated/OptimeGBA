@@ -615,22 +615,20 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(5);
                 ImGui.Text("ARM9");
                 drawCpuInfo(Nds.Nds9.Cpu);
-                var Ime9 = Nds.Nds9.HwControl.IME;
-                ImGui.Checkbox("IME", ref Ime9);
+                displayCheckbox("IRQ Disable", Nds.Nds9.Cpu.IRQDisable);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
                 drawCpuInfo(Nds.Nds7.Cpu);
-                var Ime7 = Nds.Nds7.HwControl.IME;
-                ImGui.Checkbox("IME", ref Ime7);
+                displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
 
                 ImGui.Text($"");
 
-                if (ImGui.Button("Flag ARM7 slot 1 transfer complete IRQ"))
+                if (ImGui.Button("ARM7 disable irq disable"))
                 {
-                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                    Nds.Nds7.Cpu.IRQDisable = false;
                 }
 
                 if (ImGui.Button("Reset"))
@@ -810,24 +808,6 @@ namespace OptimeGBAEmulator
 
                 ImGuiColumnSeparator();
 
-                // ImGui.Text($"Timer 0 Counter: {Hex(Nds.Timers.T[0].CalculateCounter(), 4)}");
-                // ImGui.Text($"Timer 1 Counter: {Hex(Nds.Timers.T[1].CalculateCounter(), 4)}");
-                // ImGui.Text($"Timer 2 Counter: {Hex(Nds.Timers.T[2].CalculateCounter(), 4)}");
-                // ImGui.Text($"Timer 3 Counter: {Hex(Nds.Timers.T[3].CalculateCounter(), 4)}");
-                // ImGui.Text("");
-                // ImGui.Text($"Timer 0 Reload: {Hex(Nds.Timers.T[0].ReloadVal, 4)}");
-                // ImGui.Text($"Timer 1 Reload: {Hex(Nds.Timers.T[1].ReloadVal, 4)}");
-                // ImGui.Text($"Timer 2 Reload: {Hex(Nds.Timers.T[2].ReloadVal, 4)}");
-                // ImGui.Text($"Timer 3 Reload: {Hex(Nds.Timers.T[3].ReloadVal, 4)}");
-                // ImGui.Text("");
-
-                // String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
-
-                // ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Timers.T[0].PrescalerSel]}");
-                // ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Timers.T[1].PrescalerSel]}");
-                // ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Timers.T[2].PrescalerSel]}");
-                // ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Timers.T[3].PrescalerSel]}");
-
                 ImGui.NextColumn();
 
                 ImGui.Text("A---------------");
@@ -887,22 +867,56 @@ namespace OptimeGBAEmulator
 
                 ImGui.NextColumn();
 
-                ImGui.Text("VRAMCNT_A: " + Hex(Nds.MemoryControl.VRAMCNT[0], 2));
-                ImGui.Text("VRAMCNT_B: " + Hex(Nds.MemoryControl.VRAMCNT[1], 2));
-                ImGui.Text("VRAMCNT_C: " + Hex(Nds.MemoryControl.VRAMCNT[2], 2));
-                ImGui.Text("VRAMCNT_D: " + Hex(Nds.MemoryControl.VRAMCNT[3], 2));
-                ImGui.Text("VRAMCNT_E: " + Hex(Nds.MemoryControl.VRAMCNT[4], 2));
-                ImGui.Text("VRAMCNT_F: " + Hex(Nds.MemoryControl.VRAMCNT[5], 2));
-                ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
-                ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
-                ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
-                ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
+                // ImGui.Text("VRAMCNT_A: " + Hex(Nds.MemoryControl.VRAMCNT[0], 2));
+                // ImGui.Text("VRAMCNT_B: " + Hex(Nds.MemoryControl.VRAMCNT[1], 2));
+                // ImGui.Text("VRAMCNT_C: " + Hex(Nds.MemoryControl.VRAMCNT[2], 2));
+                // ImGui.Text("VRAMCNT_D: " + Hex(Nds.MemoryControl.VRAMCNT[3], 2));
+                // ImGui.Text("VRAMCNT_E: " + Hex(Nds.MemoryControl.VRAMCNT[4], 2));
+                // ImGui.Text("VRAMCNT_F: " + Hex(Nds.MemoryControl.VRAMCNT[5], 2));
+                // ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
+                // ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
+                // ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
+                // ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
 
-                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
-                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
-                ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
-                ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
-                ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
+                // ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
+                // ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
+                // ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
+                // ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
+                // ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
+
+                String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
+
+                ImGui.Text("NDS9---------------");
+                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Nds9.Timers.T[0].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds9.Timers.T[1].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds9.Timers.T[2].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds9.Timers.T[3].CalculateCounter(), 4)}");
+                ImGui.Text("");
+                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds9.Timers.T[0].ReloadVal, 4)}");
+                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds9.Timers.T[1].ReloadVal, 4)}");
+                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds9.Timers.T[2].ReloadVal, 4)}");
+                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds9.Timers.T[3].ReloadVal, 4)}");
+                ImGui.Text("");
+                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[0].PrescalerSel]}");
+                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[1].PrescalerSel]}");
+                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[2].PrescalerSel]}");
+                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[3].PrescalerSel]}");
+                ImGui.Text("NDS7---------------");
+                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Nds7.Timers.T[0].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds7.Timers.T[1].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds7.Timers.T[2].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds7.Timers.T[3].CalculateCounter(), 4)}");
+                ImGui.Text("");
+                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds7.Timers.T[0].ReloadVal, 4)}");
+                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds7.Timers.T[1].ReloadVal, 4)}");
+                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds7.Timers.T[2].ReloadVal, 4)}");
+                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds7.Timers.T[3].ReloadVal, 4)}");
+                ImGui.Text("");
+                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[0].PrescalerSel]}");
+                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[1].PrescalerSel]}");
+                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[2].PrescalerSel]}");
+                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[3].PrescalerSel]}");
+
 
                 ImGui.Columns(1);
                 ImGui.Separator();

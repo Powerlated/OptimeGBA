@@ -215,7 +215,7 @@ namespace OptimeGBA
             {
                 return Nds7.Timers.ReadHwio8(addr);
             }
-            else if (addr >= 0x4000130 && addr <= 0x4000132) // Keypad
+            else if (addr >= 0x4000130 && addr <= 0x4000136) // Keypad
             {
                 return Nds7.Nds.Keypad.ReadHwio8(addr);
             }

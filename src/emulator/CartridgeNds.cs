@@ -13,6 +13,7 @@ namespace OptimeGBA
         ReadRomChipId2,
         Key2DataRead,
         SecureAreaRead,
+        ReadRomChipId3,
     }
 
     public class CartridgeNds
@@ -29,7 +30,8 @@ namespace OptimeGBA
         public CartridgeNds(Nds nds)
         {
             Nds = nds;
-            Rom = Nds.Provider.Rom;
+            Rom = new byte[Nds.Provider.Rom.Length];
+            Nds.Provider.Rom.CopyTo(Rom, 0);
 
             for (uint i = 0; i < 0x412; i++)
             {
@@ -51,6 +53,7 @@ namespace OptimeGBA
 
             if (!Nds.Provider.DirectBoot && Rom.Length >= 0x8000)
             {
+                Console.WriteLine("Encrypting first 2KB of secure area");
                 SetUlong(Rom, 0x4000, 0x6A624F7972636E65); // Write in "encryObj"
 
                 // Encrypt first 2K of the secure area with KEY1
@@ -67,7 +70,7 @@ namespace OptimeGBA
 
         // some GBATek example
         // TODO: Replace this with something more realistic, maybe from a game DB
-        public byte[] RomChipId = new byte[] { 0x1F, 0xC2, 0x00, 0x00 };
+        public uint RomChipId = 0x00001FC2;
 
         // State
         public CartridgeState State;
@@ -96,6 +99,9 @@ namespace OptimeGBA
         byte ROMCTRLB0;
         byte ROMCTRLB1;
         bool ReleaseReset;
+
+        // cart input
+        uint InData;
 
         public byte ReadHwio8(uint addr)
         {
@@ -128,10 +134,14 @@ namespace OptimeGBA
                     break;
 
                 case 0x4100010: // From cartridge
+                    InData = ReadData();
+                    return (byte)(InData >> 0);
                 case 0x4100011:
+                    return (byte)(InData >> 8);
                 case 0x4100012:
+                    return (byte)(InData >> 16);
                 case 0x4100013:
-                    return ReadData();
+                    return (byte)(InData >> 24);
             }
 
             return val;
@@ -165,9 +175,7 @@ namespace OptimeGBA
                     BlockSize = (byte)(val & 0b111);
                     SlowTransferClock = BitTest(val, 3);
 
-                    var oldBusy = BusyBit31;
-                    BusyBit31 = BitTest(val, 7);
-                    if (BusyBit31 && !oldBusy)
+                    if (BitTest(val, 7) && !BusyBit31)
                     {
                         ProcessCommand();
                     }
@@ -225,8 +233,14 @@ namespace OptimeGBA
                 BytesTransferred = 0;
             }
 
+            BusyBit31 = true;
+
             // Console.WriteLine("Transfer length: " + TransferLength);
 
+            unsafe
+            {
+                Console.WriteLine("ARM7 R15: " + Hex(Nds.Nds7.Cpu.R[15], 8));
+            }
             Console.WriteLine("Slot 1 Command: " + Hex(cmd, 16));
 
             if (cmd == 0x9F00000000000000)
@@ -284,6 +298,11 @@ namespace OptimeGBA
                 DataPos = (uint)((cmd >> 24) & 0xFFFFFFFF);
                 // Console.WriteLine("Addr: " + Hex(DataPos, 8));
             }
+            else if (cmd == 0xB800000000000000)
+            {
+                // Console.WriteLine("Slot 1: Putting up ROM chip ID 3");
+                State = CartridgeState.ReadRomChipId3;
+            }
             else
             {
                 throw new NotImplementedException("Slot 1: unimplemented command " + Hex(cmd, 16));
@@ -299,53 +318,66 @@ namespace OptimeGBA
             else
             {
                 ReadyBit23 = true;
+
+                // bool dma = false;
+                // while (Nds.Nds7.Dma.Repeat((byte)DmaStartTimingNds7.Slot1)) {
+                //     dma = true;
+                // }
+
+                // if (dma) {
+                //     EndTransfer();
+                // }
             }
         }
 
         // TODO: The BIOS isn't sending the command to read the secure area,
         // what is going on????????????
-        public byte ReadData()
+        public uint ReadData()
         {
             if (!ReadyBit23)
             {
-                return 0xFF;
+                return 0xFFFFFFFF;
             }
 
-            byte val = 0;
+            uint val = 0;
             switch (State)
             {
                 case CartridgeState.Dummy:
-                    val = 0xFF;
+                    val = 0xFFFFFFFF;
                     break;
                 case CartridgeState.ReadCartridgeHeader:
                     // Repeatedly returns first 0x1000 bytes, with first 0x200 bytes filled
-                    val = Rom[DataPos & 0xFFF];
+                    val = GetUint(Rom, DataPos & 0xFFF);
                     // Console.WriteLine("Read header byte " + DataPos);
                     break;
                 case CartridgeState.ReadRomChipId1:
-                    val = RomChipId[DataPos & 3];
+                    val = RomChipId;
                     // Console.WriteLine("Read ROM chip id 1 byte " + DataPos);
                     break;
                 case CartridgeState.Dummy2:
-                    val = 0xFF;
+                    val = 0xFFFFFFFF;
                     break;
                 case CartridgeState.Key2DataRead:
                     // Console.WriteLine("Key2 data read");
-                    val = Rom[DataPos];
+                    val = GetUint(Rom, DataPos);
                     break;
                 case CartridgeState.ReadRomChipId2:
-                    val = RomChipId[DataPos & 3];
+                    val = RomChipId;
                     // Console.WriteLine("Read ROM chip id 2 byte " + DataPos);
                     break;
+                case CartridgeState.ReadRomChipId3:
+                    val = RomChipId;
+                    // Console.WriteLine("Read ROM chip id 3 byte " + DataPos);
+                    break;
                 case CartridgeState.SecureAreaRead:
-                    val = Rom[DataPos];
+                    val = GetUint(Rom, DataPos);
                     break;
             }
 
             if (BusyBit31)
             {
-                DataPos++;
-                BytesTransferred++;
+                DataPos += 4;
+                BytesTransferred += 4;
                 if (BytesTransferred >= TransferLength)
                 {
                     EndTransfer();
@@ -353,7 +385,7 @@ namespace OptimeGBA
             }
             else
             {
-                return 0xFF;
+                return 0xFFFFFFFF;
             }
 
             return val;
