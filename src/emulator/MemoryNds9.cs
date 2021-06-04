@@ -62,14 +62,11 @@ namespace OptimeGBA
 
                 if (addr >= DtcmBase && addr < DtcmBase + DtcmVirtualSize)
                 {
-                    if (!(DtcmLoadMode && !write))
+
+                    if (write || !DtcmLoadMode)
                     {
                         // Console.WriteLine("DTCM page set at " + Util.Hex(addr, 8));
                         table[i] = Dtcm;
-                    }
-                    else
-                    {
-                        table[i] = EmptyPage;
                     }
                     maskTable[i] = 0x00003FFF;
                 }
@@ -78,13 +75,9 @@ namespace OptimeGBA
                 // ITCM has higher priority so write pages in after DTCM
                 if (addr < ItcmVirtualSize)
                 {
-                    if (!(ItcmLoadMode && !write))
+                    if (write || !ItcmLoadMode)
                     {
                         table[i] = Itcm;
-                    }
-                    else
-                    {
-                        table[i] = EmptyPage;
                     }
                     maskTable[i] = 0x00007FFF;
                 }
@@ -102,7 +95,7 @@ namespace OptimeGBA
             ItcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 19);
             DtcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 17);
 
-            Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
+            // Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
 
             InitPageTables();
         }
@@ -312,7 +305,11 @@ namespace OptimeGBA
             }
             else if (addr >= 0x40001A0 && addr <= 0x40001AF) // Cartridge control
             {
-                return Nds9.Nds.Cartridge.ReadHwio8(addr);
+                return Nds9.Nds.Cartridge.ReadHwio8(false, addr);
+            }
+            else if (addr >= 0x4000204 && addr <= 0x4000205) // External Memory Control
+            {
+                return Nds9.Nds.MemoryControl.ReadHwio8Nds9(addr);
             }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {
@@ -336,7 +333,7 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4100010 && addr <= 0x4100013) // Cartridge data read
             {
-                return Nds9.Nds.Cartridge.ReadHwio8(addr);
+                return Nds9.Nds.Cartridge.ReadHwio8(false, addr);
             }
 
             switch (addr)
@@ -376,7 +373,11 @@ namespace OptimeGBA
             }
             else if (addr >= 0x40001A0 && addr <= 0x40001AF) // Cartridge control
             {
-                Nds9.Nds.Cartridge.WriteHwio8(addr, val);
+                Nds9.Nds.Cartridge.WriteHwio8(false, addr, val);
+            }
+            else if (addr >= 0x4000204 && addr <= 0x4000205) // External Memory Control
+            {
+                Nds9.Nds.MemoryControl.WriteHwio8Nds9(addr, val);
             }
             else if (addr >= 0x4000208 && addr <= 0x4000217) // Interrupts
             {

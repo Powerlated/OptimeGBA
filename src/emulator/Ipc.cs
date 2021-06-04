@@ -51,13 +51,13 @@ namespace OptimeGBA
                     if (GetRemote().RecvFifo.Entries == 0) val = BitSet(val, 0); // Send FIFO empty
                     if (GetRemote().RecvFifo.Entries == 16) val = BitSet(val, 1); // Send FIFO full
                     if (EnableSendFifoEmptyIrq) val = BitSet(val, 2);
-                    CheckSendFifoEmptyIrq();
+                    CheckSendFifoEmptyIrq("IPCFIFOCNT bit enable");
                     break;
                 case 0x4000185: // IPCFIFOCNT B1
                     if (RecvFifo.Entries == 0) val = BitSet(val, 0); // Receive FIFO empty
                     if (RecvFifo.Entries == 16) val = BitSet(val, 1); // Receive FIFO full
                     if (EnableRecvFifoPendingIrq) val = BitSet(val, 2);
-                    CheckRecvFifoPendingIrq();
+                    CheckRecvFifoPendingIrq("IPCFIFOCNT bit enable");
 
                     if (FifoError) val = BitSet(val, 6);
                     if (EnableFifos) val = BitSet(val, 7);
@@ -69,7 +69,7 @@ namespace OptimeGBA
                         if (EnableFifos)
                         {
                             LastRecvValue = RecvFifo.Pop();
-                            GetRemote().CheckSendFifoEmptyIrq();
+                            GetRemote().CheckSendFifoEmptyIrq("remote pop");
                         }
                     }
                     else
@@ -154,7 +154,9 @@ namespace OptimeGBA
                     if (EnableFifos)
                     {
                         GetRemote().RecvFifo.Insert(LastSendValue);
-                        GetRemote().CheckRecvFifoPendingIrq();
+                        unsafe {
+                        GetRemote().CheckRecvFifoPendingIrq("remote insert R15: " + Util.Hex(Nds.Nds7.Cpu.R[15], 8));
+                        } 
                     }
                     break;
             }
@@ -165,22 +167,24 @@ namespace OptimeGBA
             return Nds.Ipcs[Id ^ 1];
         }
 
-        public void CheckSendFifoEmptyIrq()
+        public void CheckSendFifoEmptyIrq(string from)
         {
             var prev = SendFifoEmptyIrqLevel;
             SendFifoEmptyIrqLevel = GetRemote().RecvFifo.Entries == 0 && EnableSendFifoEmptyIrq;
             if (!prev && SendFifoEmptyIrqLevel)
             {
+                // Console.WriteLine($"Flagging ARM{(Id == 0 ? 7 : 9)} IPC Send FIFO Empty IRQ from " + from);
                 FlagSourceInterrupt(InterruptNds.IpcSendFifoEmpty);
             }
         }
 
-        public void CheckRecvFifoPendingIrq()
+        public void CheckRecvFifoPendingIrq(string from)
         {
             var prev = RecvFifoPendingIrqLevel;
             RecvFifoPendingIrqLevel = RecvFifo.Entries > 0 && EnableRecvFifoPendingIrq;
             if (!prev && RecvFifoPendingIrqLevel)
             {
+                // Console.WriteLine($"Flagging ARM{(Id == 0 ? 7 : 9)} IPC Recv FIFO Pending Irq from " + from);
                 FlagSourceInterrupt(InterruptNds.IpcRecvFifoPending);
             }
         }

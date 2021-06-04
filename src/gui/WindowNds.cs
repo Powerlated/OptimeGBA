@@ -82,8 +82,8 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public uint Arm9Breakpoint = 0x2005ae0;
-        public uint Arm7Breakpoint = 0x42384023;
+        public uint Arm9Breakpoint = 234324324;
+        public uint Arm7Breakpoint = 0x3800590;
         public bool EnableBreakpoints = false;
 
         public void CheckBreakpoints()
@@ -455,24 +455,22 @@ namespace OptimeGBAEmulator
 
         public String BuildLogText()
         {
-            String logText;
-            try
+            if (LogIndex < Log.Length)
             {
-                if (LogIndex < Log.Length)
+                if (Log[LogIndex].Length > 154)
                 {
-                    logText = Log[LogIndex].Substring(0, 135) + Log[LogIndex].Substring(144, 14) + $" {LogIndex + 1}";
+                    return Log[LogIndex].Substring(0, 135) + Log[LogIndex].Substring(144, 14) + $" {LogIndex + 1}";
                 }
                 else
                 {
-                    logText = "<log past end>";
+                    return "<bad log>";
                 }
             }
-            catch
+            else
             {
-                logText = "<log exception>";
+                return "<log past end>";
             }
 
-            return logText;
         }
 
         public String BuildEmuText()
@@ -867,23 +865,6 @@ namespace OptimeGBAEmulator
 
                 ImGui.NextColumn();
 
-                // ImGui.Text("VRAMCNT_A: " + Hex(Nds.MemoryControl.VRAMCNT[0], 2));
-                // ImGui.Text("VRAMCNT_B: " + Hex(Nds.MemoryControl.VRAMCNT[1], 2));
-                // ImGui.Text("VRAMCNT_C: " + Hex(Nds.MemoryControl.VRAMCNT[2], 2));
-                // ImGui.Text("VRAMCNT_D: " + Hex(Nds.MemoryControl.VRAMCNT[3], 2));
-                // ImGui.Text("VRAMCNT_E: " + Hex(Nds.MemoryControl.VRAMCNT[4], 2));
-                // ImGui.Text("VRAMCNT_F: " + Hex(Nds.MemoryControl.VRAMCNT[5], 2));
-                // ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
-                // ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
-                // ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
-                // ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
-
-                // ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
-                // ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
-                // ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
-                // ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
-                // ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
-
                 String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
 
                 ImGui.Text("NDS9---------------");
@@ -917,6 +898,25 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[2].PrescalerSel]}");
                 ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[3].PrescalerSel]}");
 
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text("VRAMCNT_A: " + Hex(Nds.MemoryControl.VRAMCNT[0], 2));
+                ImGui.Text("VRAMCNT_B: " + Hex(Nds.MemoryControl.VRAMCNT[1], 2));
+                ImGui.Text("VRAMCNT_C: " + Hex(Nds.MemoryControl.VRAMCNT[2], 2));
+                ImGui.Text("VRAMCNT_D: " + Hex(Nds.MemoryControl.VRAMCNT[3], 2));
+                ImGui.Text("VRAMCNT_E: " + Hex(Nds.MemoryControl.VRAMCNT[4], 2));
+                ImGui.Text("VRAMCNT_F: " + Hex(Nds.MemoryControl.VRAMCNT[5], 2));
+                ImGui.Text("VRAMCNT_G: " + Hex(Nds.MemoryControl.VRAMCNT[6], 2));
+                ImGui.Text("VRAMCNT_H: " + Hex(Nds.MemoryControl.VRAMCNT[7], 2));
+                ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
+                ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
+
+                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
+                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
+                ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
+                ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
+                ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -1295,6 +1295,7 @@ namespace OptimeGBAEmulator
             var ipcFifoCnt = new Register("IPCFIFOCNT", 0x4000184,
                 new RegisterField("Send FIFO is Empty", 0),
                 new RegisterField("Send FIFO is Full", 1),
+                new RegisterField("Enable Send FIFO Pending IRQ", 2),
                 new RegisterField("Receive FIFO is Empty", 8),
                 new RegisterField("Receive FIFO is Full", 9),
                 new RegisterField("Enable Receive FIFO Pending IRQ", 10),

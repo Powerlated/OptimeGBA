@@ -69,18 +69,11 @@ namespace OptimeGBA
 
             if (provider.DirectBoot)
             {
-                // Firmware init
-                MemoryControl.SharedRamControl = 3;
-                Nds7.POSTFLG = 1;
-                Nds9.POSTFLG = 1;
+
 
                 var rom = provider.Rom;
                 if (rom.Length >= 0x20)
                 {
-                    uint arm9RomOffset = GetUint(rom, 0x20);
-                    uint arm9EntryAddr = GetUint(rom, 0x24);
-                    uint arm9RamAddr = GetUint(rom, 0x28);
-                    uint arm9Size = GetUint(rom, 0x2C);
                     uint arm7RomOffset = GetUint(rom, 0x30);
                     uint arm7EntryAddr = GetUint(rom, 0x34);
                     uint arm7RamAddr = GetUint(rom, 0x38);
@@ -102,6 +95,11 @@ namespace OptimeGBA
                     Nds7.Cpu.R[15] = arm7EntryAddr;
                     Nds7.Cpu.FlushPipeline();
 
+                    uint arm9RomOffset = GetUint(rom, 0x20);
+                    uint arm9EntryAddr = GetUint(rom, 0x24);
+                    uint arm9RamAddr = GetUint(rom, 0x28);
+                    uint arm9Size = GetUint(rom, 0x2C);
+
                     Console.WriteLine("ARM9 ROM Offset: " + Hex(arm9RomOffset, 8));
                     Console.WriteLine("ARM9 RAM Address: " + Hex(arm9RamAddr, 8));
                     Console.WriteLine("ARM9 Entry: " + Hex(arm9EntryAddr, 8));
@@ -117,12 +115,23 @@ namespace OptimeGBA
                     Nds9.Cpu.R[15] = arm9EntryAddr;
                     Nds9.Cpu.FlushPipeline();
 
+                    // Firmware init
+                    MemoryControl.SharedRamControl = 3;
+                    Nds7.POSTFLG = 1;
+                    Nds9.POSTFLG = 1;
+
+                    Nds9.Cpu.IRQDisable = true;
+                    Nds9.Cpu.FIQDisable = true;
+
+                    Nds7.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT7
+                    Nds9.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT9
+
                     Cp15.TransferTo(0, 0x0005707D, 1, 0, 0); // CP15 Control
                     Cp15.TransferTo(0, 0x0300000A, 9, 1, 0); // Data TCM base/size
                     Cp15.TransferTo(0, 0x00000020, 9, 1, 1); // Instruction TCM size
                     Nds9.Mem.Write8(0x4000247, 0x03); // WRAMCNT
                     Nds9.Mem.Write16(0x4000304, 0x0001); // POWCNT1
-                    Nds9.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
+                    Nds7.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
 
                     Nds9.Mem.Write32(0x027FF800, 0x1FC2); // Chip ID 1
                     Nds9.Mem.Write32(0x027FF804, 0x1FC2); // Chip ID 2
@@ -134,9 +143,23 @@ namespace OptimeGBA
                     Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
                     Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
 
-                    for (uint i = 0; i < 0x170; i++)
+                    Nds9.Mem.Write32(0x027FF864, 0);
+                    Nds9.Mem.Write32(0x027FF868, (uint)(GetUshort(Provider.Firmware, 0x20) << 3));
+
+                    Nds9.Mem.Write16(0x027FF874, GetUshort(Provider.Firmware, 0x26));
+                    Nds9.Mem.Write16(0x027FF876, GetUshort(Provider.Firmware, 0x04));
+
+                    // for (u32 i = 0; i < 0x70; i += 4)
+                    //     Nds9.Mem.Write32(0x027FFC80 + i, GetUint(Firmware, UserSettings + i));
+
+                    // MemoryControl.Slot1AccessRights = true;
+
+                    if (rom.Length >= 0x170)
                     {
-                        Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
+                        for (uint i = 0; i < 0x170; i++)
+                        {
+                            Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
+                        }
                     }
                 }
             }
@@ -149,7 +172,6 @@ namespace OptimeGBA
             // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
             // so don't do that when not debugging simple test ROMs
             // Nds7.Cpu.Execute();
-            // Nds9.Cpu.Execute();
             // Nds9.Cpu.Execute();
             // Scheduler.CurrentTicks += 1;
 

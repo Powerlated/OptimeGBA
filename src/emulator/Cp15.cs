@@ -27,6 +27,7 @@ namespace OptimeGBA
                     ControlRegister = rdVal;
                     ControlRegister |= 0b00000000000000000000000001111000;
                     ControlRegister &= 0b00000000000011111111000010000101;
+                    Nds.Nds9.Mem.UpdateTcmSettings();
                     break;
 
                 case 0x704:

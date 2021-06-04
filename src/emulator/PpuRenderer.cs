@@ -31,24 +31,24 @@ namespace OptimeGBA
             ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
 
-            WinMasks = MemoryUtil.AllocateUnmanagedArray(Width);
-            BgLoColor = MemoryUtil.AllocateUnmanagedArray(width);
-            BgHiColor = MemoryUtil.AllocateUnmanagedArray(width);
-            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width);
-            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width);
-            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width);
-            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width);
+            WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 8);
+            BgLoColor = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgHiColor = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
 #else 
             ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
 
-            WinMasks = MemoryUtil.AllocateManagedArray(Width);
-            BgLoColor = MemoryUtil.AllocateManagedArray(width);
-            BgHiColor = MemoryUtil.AllocateManagedArray(width);
-            BgHiPrio = MemoryUtil.AllocateManagedArray(width);
-            BgLoPrio = MemoryUtil.AllocateManagedArray(width);
-            BgHiFlags = MemoryUtil.AllocateManagedArray(width);
-            BgLoFlags = MemoryUtil.AllocateManagedArray(width);
+            WinMasks = MemoryUtil.AllocateManagedArray(width + 8);
+            BgLoColor = MemoryUtil.AllocateManagedArray(width + 8);
+            BgHiColor = MemoryUtil.AllocateManagedArray(width + 8);
+            BgHiPrio = MemoryUtil.AllocateManagedArray(width + 8);
+            BgLoPrio = MemoryUtil.AllocateManagedArray(width + 8);
+            BgHiFlags = MemoryUtil.AllocateManagedArray(width + 8);
+            BgLoFlags = MemoryUtil.AllocateManagedArray(width + 8);
 #endif
             ObjBuffer = new ObjPixel[Width];
             ObjWindowBuffer = new byte[Width];

@@ -103,115 +103,120 @@ namespace OptimeGBA
         // cart input
         uint InData;
 
-        public byte ReadHwio8(uint addr)
+        public byte ReadHwio8(bool fromArm7, uint addr)
         {
             byte val = 0;
-            switch (addr)
+            if (fromArm7 == Nds.MemoryControl.Slot1AccessRights)
             {
-                case 0x40001A0: // AUXSPICNT B0
-                    val |= SpiBaudRate;
-                    if (SpiHoldChipSel) val = BitSet(val, 6);
-                    if (SpiBusy) val = BitSet(val, 7);
-                    break;
-                case 0x40001A1: // AUXSPICNT B0
-                    if (Slot1SpiMode) val = BitSet(val, 5);
-                    if (TransferReadyIrq) val = BitSet(val, 6);
-                    if (Slot1Enable) val = BitSet(val, 7);
-                    break;
+                switch (addr)
+                {
+                    case 0x40001A0: // AUXSPICNT B0
+                        val |= SpiBaudRate;
+                        if (SpiHoldChipSel) val = BitSet(val, 6);
+                        if (SpiBusy) val = BitSet(val, 7);
+                        break;
+                    case 0x40001A1: // AUXSPICNT B0
+                        if (Slot1SpiMode) val = BitSet(val, 5);
+                        if (TransferReadyIrq) val = BitSet(val, 6);
+                        if (Slot1Enable) val = BitSet(val, 7);
+                        break;
 
-                case 0x40001A4: // ROMCTRL B0
-                    return ROMCTRLB0;
-                case 0x40001A5: // ROMCTRL B1
-                    return ROMCTRLB1;
-                case 0x40001A6: // ROMCTRL B2
-                    if (ReleaseReset) val = BitSet(val, 5);
-                    if (ReadyBit23) val = BitSet(val, 7);
-                    break;
-                case 0x40001A7: // ROMCTRL B3
-                    val |= BlockSize;
-                    if (SlowTransferClock) val = BitSet(val, 3);
-                    if (BusyBit31) val = BitSet(val, 7);
-                    break;
+                    case 0x40001A4: // ROMCTRL B0
+                        return ROMCTRLB0;
+                    case 0x40001A5: // ROMCTRL B1
+                        return ROMCTRLB1;
+                    case 0x40001A6: // ROMCTRL B2
+                        if (ReleaseReset) val = BitSet(val, 5);
+                        if (ReadyBit23) val = BitSet(val, 7);
+                        break;
+                    case 0x40001A7: // ROMCTRL B3
+                        val |= BlockSize;
+                        if (SlowTransferClock) val = BitSet(val, 3);
+                        if (BusyBit31) val = BitSet(val, 7);
+                        break;
 
-                case 0x4100010: // From cartridge
-                    InData = ReadData();
-                    return (byte)(InData >> 0);
-                case 0x4100011:
-                    return (byte)(InData >> 8);
-                case 0x4100012:
-                    return (byte)(InData >> 16);
-                case 0x4100013:
-                    return (byte)(InData >> 24);
+                    case 0x4100010: // From cartridge
+                        ReadData(fromArm7);
+                        return (byte)(InData >> 0);
+                    case 0x4100011:
+                        return (byte)(InData >> 8);
+                    case 0x4100012:
+                        return (byte)(InData >> 16);
+                    case 0x4100013:
+                        return (byte)(InData >> 24);
+                }
             }
 
             return val;
         }
 
-        public void WriteHwio8(uint addr, byte val)
+        public void WriteHwio8(bool fromArm7, uint addr, byte val)
         {
-            switch (addr)
-            {
-                case 0x40001A0: // AUXSPICNT B0
-                    SpiBaudRate = (byte)(val & 0b11);
-                    SpiHoldChipSel = BitTest(val, 6);
-                    SpiBusy = BitTest(val, 7);
-                    return;
-                case 0x40001A1: // AUXSPICNT B0
-                    Slot1SpiMode = BitTest(val, 5);
-                    TransferReadyIrq = BitTest(val, 6);
-                    Slot1Enable = BitTest(val, 7);
-                    return;
-
-                case 0x40001A4: // ROMCTRL B0
-                    ROMCTRLB0 = val;
-                    break;
-                case 0x40001A5: // ROMCTRL B1
-                    ROMCTRLB1 = val;
-                    break;
-                case 0x40001A6: // ROMCTRL B2
-                    if (BitTest(val, 5)) ReleaseReset = true;
-                    break;
-                case 0x40001A7: // ROMCTRL B3
-                    BlockSize = (byte)(val & 0b111);
-                    SlowTransferClock = BitTest(val, 3);
-
-                    if (BitTest(val, 7) && !BusyBit31)
-                    {
-                        ProcessCommand();
-                    }
-                    break;
-            }
-
-            if (Slot1Enable)
+            if (fromArm7 == Nds.MemoryControl.Slot1AccessRights)
             {
                 switch (addr)
                 {
-                    case 0x40001A8: // Slot 1 Command out
-                    case 0x40001A9:
-                    case 0x40001AA:
-                    case 0x40001AB:
-                    case 0x40001AC:
-                    case 0x40001AD:
-                    case 0x40001AE:
-                    case 0x40001AF:
-                        int shiftBy = (int)((7 - (addr & 7)) * 8);
-                        PendingCommand &= (ulong)(~(0xFFUL << shiftBy));
-                        PendingCommand |= (ulong)val << shiftBy;
+                    case 0x40001A0: // AUXSPICNT B0
+                        SpiBaudRate = (byte)(val & 0b11);
+                        SpiHoldChipSel = BitTest(val, 6);
+                        SpiBusy = BitTest(val, 7);
                         return;
+                    case 0x40001A1: // AUXSPICNT B0
+                        Slot1SpiMode = BitTest(val, 5);
+                        TransferReadyIrq = BitTest(val, 6);
+                        Slot1Enable = BitTest(val, 7);
+                        return;
+
+                    case 0x40001A4: // ROMCTRL B0
+                        ROMCTRLB0 = val;
+                        break;
+                    case 0x40001A5: // ROMCTRL B1
+                        ROMCTRLB1 = val;
+                        break;
+                    case 0x40001A6: // ROMCTRL B2
+                        if (BitTest(val, 5)) ReleaseReset = true;
+                        break;
+                    case 0x40001A7: // ROMCTRL B3
+                        BlockSize = (byte)(val & 0b111);
+                        SlowTransferClock = BitTest(val, 3);
+
+                        if (BitTest(val, 7) && !BusyBit31)
+                        {
+                            ProcessCommand(fromArm7);
+                        }
+                        break;
+                }
+
+                if (Slot1Enable)
+                {
+                    switch (addr)
+                    {
+                        case 0x40001A8: // Slot 1 Command out
+                        case 0x40001A9:
+                        case 0x40001AA:
+                        case 0x40001AB:
+                        case 0x40001AC:
+                        case 0x40001AD:
+                        case 0x40001AE:
+                        case 0x40001AF:
+                            int shiftBy = (int)((7 - (addr & 7)) * 8);
+                            PendingCommand &= (ulong)(~(0xFFUL << shiftBy));
+                            PendingCommand |= (ulong)val << shiftBy;
+                            return;
+                    }
                 }
             }
         }
 
-        public void ProcessCommand()
+        public void ProcessCommand(bool fromArm7)
         {
-            // TODO: Implement more commands
-            var cmd = PendingCommand;
-
+            ulong cmd = PendingCommand;
             if (Key1Encryption)
             {
-                // Console.WriteLine("Decrypting command: " + Hex(cmd, 16));
                 cmd = Decrypt64(EncLutKeycodeLevel2, cmd);
             }
+
+            Console.WriteLine("Slot 1 CMD: " + Hex(cmd, 16));
 
             if (BlockSize == 0)
             {
@@ -224,7 +229,6 @@ namespace OptimeGBA
             else
             {
                 TransferLength = 0x100U << BlockSize;
-
             }
 
             if (TransferLength != 0)
@@ -234,14 +238,6 @@ namespace OptimeGBA
             }
 
             BusyBit31 = true;
-
-            // Console.WriteLine("Transfer length: " + TransferLength);
-
-            unsafe
-            {
-                Console.WriteLine("ARM7 R15: " + Hex(Nds.Nds7.Cpu.R[15], 8));
-            }
-            Console.WriteLine("Slot 1 Command: " + Hex(cmd, 16));
 
             if (cmd == 0x9F00000000000000)
             {
@@ -307,100 +303,83 @@ namespace OptimeGBA
             {
                 throw new NotImplementedException("Slot 1: unimplemented command " + Hex(cmd, 16));
             }
-
-
-
             // If block size is zero, no transfer will take place, signal end.
             if (TransferLength == 0)
             {
-                EndTransfer();
+                FinishTransfer();
             }
             else
             {
                 ReadyBit23 = true;
-
-                // bool dma = false;
-                // while (Nds.Nds7.Dma.Repeat((byte)DmaStartTimingNds7.Slot1)) {
-                //     dma = true;
-                // }
-
-                // if (dma) {
-                //     EndTransfer();
-                // }
             }
         }
 
-        // TODO: The BIOS isn't sending the command to read the secure area,
-        // what is going on????????????
-        public uint ReadData()
+        public void ReadData(bool fromArm7)
         {
             if (!ReadyBit23)
             {
-                return 0xFFFFFFFF;
+                InData = 0;
+                return;
             }
 
-            uint val = 0;
+            uint val = 0xFFFFFFFF;
+
             switch (State)
             {
-                case CartridgeState.Dummy:
-                    val = 0xFFFFFFFF;
+                case CartridgeState.Dummy: // returns all 1s
                     break;
                 case CartridgeState.ReadCartridgeHeader:
-                    // Repeatedly returns first 0x1000 bytes, with first 0x200 bytes filled
                     val = GetUint(Rom, DataPos & 0xFFF);
-                    // Console.WriteLine("Read header byte " + DataPos);
                     break;
                 case CartridgeState.ReadRomChipId1:
+                case CartridgeState.ReadRomChipId2:
+                case CartridgeState.ReadRomChipId3:
                     val = RomChipId;
-                    // Console.WriteLine("Read ROM chip id 1 byte " + DataPos);
-                    break;
-                case CartridgeState.Dummy2:
-                    val = 0xFFFFFFFF;
                     break;
                 case CartridgeState.Key2DataRead:
                     // Console.WriteLine("Key2 data read");
-                    val = GetUint(Rom, DataPos);
+                    if (DataPos < Rom.Length)
+                    {
+                        if (DataPos < 0x8000) {
+                            DataPos = 0x8000 + (DataPos & 0x1FF);
+                        }
+                        val = GetUint(Rom, DataPos);
+                    } 
                     break;
-                case CartridgeState.ReadRomChipId2:
-                    val = RomChipId;
-                    // Console.WriteLine("Read ROM chip id 2 byte " + DataPos);
-                    break;
-                case CartridgeState.ReadRomChipId3:
-                    val = RomChipId;
-                    // Console.WriteLine("Read ROM chip id 3 byte " + DataPos);
-                    break;
-                case CartridgeState.SecureAreaRead:
-                    val = GetUint(Rom, DataPos);
-                    break;
+
+                default:
+                    throw new NotImplementedException("Slot 1: bad state");
             }
 
-            if (BusyBit31)
+
+            DataPos += 4;
+            BytesTransferred += 4;
+            if (BytesTransferred >= TransferLength)
             {
-                DataPos += 4;
-                BytesTransferred += 4;
-                if (BytesTransferred >= TransferLength)
-                {
-                    EndTransfer();
-                }
+                FinishTransfer();
             }
             else
             {
-                return 0xFFFFFFFF;
+                // TODO: Slot 1 DMA transfers
             }
 
-            return val;
+            InData = val;
         }
 
-        public void EndTransfer()
+        public void FinishTransfer()
         {
-            // Console.WriteLine("Transfer complete");
-            BusyBit31 = false;
             ReadyBit23 = false;
+            BusyBit31 = false;
 
             if (TransferReadyIrq)
             {
-                Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                Nds.Scheduler.AddEventRelative(SchedulerId.None, 15, FlagNds7Slot1Interrupt);
             }
+        }
+
+        public void FlagNds7Slot1Interrupt(long cyclesLate)
+        {
+            Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
         }
 
         // From the Key1 Encryption section of GBATek.
