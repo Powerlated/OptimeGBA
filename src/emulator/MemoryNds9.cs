@@ -132,7 +132,7 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     return Nds9.Nds.Ppu.ReadPalettes8(addr);
                 case 0x6: // VRAM
-                    return Nds9.Nds.Ppu.ReadVram8(addr);
+                    return Nds9.Nds.Ppu.ReadVram8Arm9(addr);
                 case 0x7: // PPU OAM
                     return Nds9.Nds.Ppu.ReadOam8(addr);
             }
@@ -158,8 +158,8 @@ namespace OptimeGBA
                     return Nds9.Nds.Ppu.ReadPalettes16(addr);
                 case 0x6: // VRAM
                     return (ushort)(
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 0) << 0) |
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 1) << 8)
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 1) << 8)
                     );
                 case 0x7: // PPU OAM
                     return Nds9.Nds.Ppu.ReadOam16(addr);
@@ -188,10 +188,10 @@ namespace OptimeGBA
                     return Nds9.Nds.Ppu.ReadPalettes32(addr);
                 case 0x6: // VRAM
                     return (uint)(
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 0) << 0) |
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 1) << 8) |
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 2) << 16) |
-                        (Nds9.Nds.Ppu.ReadVram8(addr + 3) << 24)
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 1) << 8) |
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 2) << 16) |
+                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 3) << 24)
                     );
                 case 0x7: // PPU OAM
                     return Nds9.Nds.Ppu.ReadOam32(addr);
@@ -214,8 +214,7 @@ namespace OptimeGBA
                 case 0x5: // PPU Palettes
                     Nds9.Nds.Ppu.WritePalettes16(addr, val);
                     break;
-                case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8(addr, val);
+                case 0x6: // VRAM - no 8-bit accesses
                     break;
             }
         }
@@ -236,8 +235,8 @@ namespace OptimeGBA
                     Nds9.Nds.Ppu.WritePalettes16(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8(addr + 0, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8(addr + 1, (byte)(val >> 8));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
                     break;
                 case 0x7: // PPU OAM
                     Nds9.Nds.Ppu.WriteOam16(addr, val);
@@ -263,10 +262,10 @@ namespace OptimeGBA
                     Nds9.Nds.Ppu.WritePalettes32(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8(addr + 0, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8(addr + 1, (byte)(val >> 8));
-                    Nds9.Nds.Ppu.WriteVram8(addr + 2, (byte)(val >> 16));
-                    Nds9.Nds.Ppu.WriteVram8(addr + 3, (byte)(val >> 24));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 2, (byte)(val >> 16));
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 3, (byte)(val >> 24));
                     break;
                 case 0x7: // PPU OAM
                     Nds9.Nds.Ppu.WriteOam32(addr, val);

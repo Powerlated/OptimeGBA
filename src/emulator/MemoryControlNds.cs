@@ -84,10 +84,10 @@ namespace OptimeGBA
                     break;
             }
 
-            if (VramEnabledAndSet(2, 2) || VramEnabledAndSet(3, 2))
-            {
-                throw new NotImplementedException("Implement mapping VRAM banks C and D to ARM7");
-            }
+            // if (VramEnabledAndSet(2, 2) || VramEnabledAndSet(3, 2))
+            // {
+            //     throw new NotImplementedException("Implement mapping VRAM banks C and D to ARM7");
+            // }
         }
 
         public byte ReadHwio8Nds7(uint addr)

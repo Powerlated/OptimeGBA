@@ -91,7 +91,7 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     return ReadHwio8(addr);
                 case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                    return Nds7.Nds.Ppu.ReadVram8Arm7(addr);
             }
 
             return 0;
@@ -111,8 +111,11 @@ namespace OptimeGBA
                     ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
                     return u16;
-                case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                case 0x6: // VRAM
+                    return (ushort)(
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 0) << 0) |
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 1) << 8)
+                    );
             }
 
             return 0;
@@ -134,8 +137,13 @@ namespace OptimeGBA
                     uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
                     return u32;
-                case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                case 0x6: // VRAM
+                    return (uint)(
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 0) << 0) |
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 1) << 8) |
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 2) << 16) |
+                        (Nds7.Nds.Ppu.ReadVram8Arm7(addr + 3) << 24)
+                    );
             }
 
             return 0;
@@ -153,7 +161,8 @@ namespace OptimeGBA
                     WriteHwio8(addr, val);
                     break;
                 case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr, val);
+                    break;
             }
         }
 
@@ -170,7 +179,9 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 8));
                     break;
                 case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 0, (byte)(val >> 0));
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 1, (byte)(val >> 8));
+                    break;
             }
         }
 
@@ -189,7 +200,11 @@ namespace OptimeGBA
                     WriteHwio8(addr++, (byte)(val >> 24));
                     break;
                 case 0x6: // ARM7 VRAM
-                    throw new NotImplementedException("ARM7 VRAM");
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 0, (byte)(val >> 0));
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 1, (byte)(val >> 8));
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 2, (byte)(val >> 16));
+                    Nds7.Nds.Ppu.WriteVram8Arm7(addr + 3, (byte)(val >> 24));
+                    break;
             }
         }
 
