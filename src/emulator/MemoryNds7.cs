@@ -53,8 +53,8 @@ namespace OptimeGBA
                         if (addr >= 0x03800000)
                         {
                             table[i] = Arm7Wram;
+                            maskTable[i] = 0x0000FFFF;
                         }
-                        maskTable[i] = 0x0000FFFF;
                         break;
                 }
             }
@@ -278,6 +278,11 @@ namespace OptimeGBA
                 case 0x4000300:
                     // Console.WriteLine("NDS7 POSTFLG read");
                     return Nds7.POSTFLG;
+                case 0x4000304: // POWCNT1
+                case 0x4000305:
+                case 0x4000306:
+                case 0x4000307:
+                    return Nds7.ReadHwio8(addr);
             }
 
             return 0;
@@ -343,6 +348,12 @@ namespace OptimeGBA
                     {
                         Nds7.Cpu.Halted = true;
                     }
+                    break;
+                case 0x4000304: // POWCNT1
+                case 0x4000305:
+                case 0x4000306:
+                case 0x4000307:
+                    Nds7.WriteHwio8(addr, val);
                     break;
             }
         }

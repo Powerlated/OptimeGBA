@@ -120,6 +120,8 @@ namespace OptimeGBA
                     Divide();
                     break;
                 case 0x4000281: // DIVCNT B1
+                case 0x4000282: // DIVCNT B2
+                case 0x4000283: // DIVCNT B3
                     break;
 
                 case 0x4000290: // DIV_NUMER B0
@@ -167,8 +169,8 @@ namespace OptimeGBA
                     TakeSquareRoot();
                     return;
 
-                default:
-                    throw new NotImplementedException("Write to DS math @ " + Util.Hex(addr, 8));
+                // default:
+                //     throw new NotImplementedException("Write to DS math @ " + Util.Hex(addr, 8));
             }
         }
 

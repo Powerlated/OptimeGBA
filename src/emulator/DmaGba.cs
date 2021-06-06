@@ -241,26 +241,30 @@ namespace OptimeGBA
         {
             if (addr >= 0x40000B0 && addr <= 0x40000BB)
             {
+                bool oldEnabled = Ch[0].Enabled;  
                 Ch[0].WriteHwio8(addr - 0x40000B0, val);
-                ExecuteImmediate(0);
+                if (!oldEnabled && Ch[0].Enabled) ExecuteImmediate(0);
                 return;
             }
             else if (addr >= 0x40000BC && addr <= 0x40000C7)
             {
+                bool oldEnabled = Ch[1].Enabled;  
                 Ch[1].WriteHwio8(addr - 0x40000BC, val);
-                ExecuteImmediate(1);
+                if (!oldEnabled && Ch[1].Enabled) ExecuteImmediate(1);
                 return;
             }
             else if (addr >= 0x40000C8 && addr <= 0x40000D3)
             {
+                bool oldEnabled = Ch[2].Enabled;  
                 Ch[2].WriteHwio8(addr - 0x40000C8, val);
-                ExecuteImmediate(2);
+                if (!oldEnabled && Ch[2].Enabled) ExecuteImmediate(2);
                 return;
             }
             else if (addr >= 0x40000D4 && addr <= 0x40000DF)
             {
+                bool oldEnabled = Ch[3].Enabled;  
                 Ch[3].WriteHwio8(addr - 0x40000D4, val);
-                ExecuteImmediate(3);
+                if (!oldEnabled && Ch[3].Enabled) ExecuteImmediate(3);
                 return;
             }
             throw new Exception("This shouldn't happen.");

@@ -998,6 +998,9 @@ namespace OptimeGBA
             // String regs = "";
             uint addr = arm7.R[13];
 
+            uint registerCount = (uint)BitOperations.PopCount(ins & 0x1FFU);
+            arm7.R[13] = addr + registerCount * 4;
+
             if (BitTest(ins, 0)) { /* regs += "R0 "; */ arm7.R[0] = arm7.Read32(addr & ~3u); addr += 4; }
             if (BitTest(ins, 1)) { /* regs += "R1 "; */ arm7.R[1] = arm7.Read32(addr & ~3u); addr += 4; }
             if (BitTest(ins, 2)) { /* regs += "R2 "; */ arm7.R[2] = arm7.Read32(addr & ~3u); addr += 4; }
@@ -1020,7 +1023,6 @@ namespace OptimeGBA
                 addr += 4;
             }
 
-            arm7.R[13] = addr;
 
             // Handle empty rlist
             if ((ins & 0x1FF) == 0)
@@ -1154,6 +1156,8 @@ namespace OptimeGBA
             uint registerCount = (uint)BitOperations.PopCount(registerList);
             uint writebackVal = arm7.R[rn] + registerCount * 4;
 
+            arm7.R[rn] = writebackVal;
+
             uint register = 0;
             for (; registerList != 0; registerList >>= 1)
             {
@@ -1161,7 +1165,6 @@ namespace OptimeGBA
                 {
                     arm7.R[register] = arm7.Read32(addr & ~3u);
                     addr += 4;
-                    arm7.R[rn] = writebackVal;
                 }
                 register++;
             }
@@ -1204,9 +1207,17 @@ namespace OptimeGBA
                 {
                     arm7.Write32(addr & ~3u, arm7.R[register]);
                     addr += 4;
-                    arm7.R[rn] = writebackVal;
+                    if (!arm7.Armv5)
+                    {
+                        arm7.R[rn] = writebackVal;
+                    }
                 }
                 register++;
+            }
+
+            if (arm7.Armv5)
+            {
+                arm7.R[rn] = writebackVal;
             }
 
             // Handle empty rlist

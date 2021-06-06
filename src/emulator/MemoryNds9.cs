@@ -95,7 +95,7 @@ namespace OptimeGBA
             ItcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 19);
             DtcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 17);
 
-            // Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
+            Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
 
             InitPageTables();
         }
@@ -116,6 +116,7 @@ namespace OptimeGBA
                     addr &= 0x3FFF; // 1st half of Shared RAM
                     return (Nds9.Nds.SharedRam, addr);
                 case 3:
+                    throw new NotImplementedException("Implement unmapping Shared RAM from ARM9 without EmptyPage, since some game can possibly try to write to the EmptyPage");
                     return (EmptyPage, 0); // Unmapped
             }
         }
@@ -211,10 +212,14 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     WriteHwio8(addr, val);
                     break;
-                case 0x5: // PPU Palettes
-                    Nds9.Nds.Ppu.WritePalettes16(addr, val);
+                case 0x5: // PPU Palettes - duplicated across upper-lower in 8-bit??
+                    Console.WriteLine("NDS: 8-bit write to palettes");
+                    // Nds9.Nds.Ppu.WritePalettes8(addr + 0, val);
+                    // Nds9.Nds.Ppu.WritePalettes8(addr + 1, val);
                     break;
-                case 0x6: // VRAM - no 8-bit accesses
+                case 0x6: // VRAM - duplicated across upper-lower in 8-bit
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, val);
+                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, val);
                     break;
             }
         }
@@ -340,6 +345,11 @@ namespace OptimeGBA
                 case 0x4000300:
                     // Console.WriteLine("NDS9 POSTFLG read");
                     return Nds9.POSTFLG;
+                case 0x4000304: // POWCNT1
+                case 0x4000305:
+                case 0x4000306:
+                case 0x4000307:
+                    return Nds9.ReadHwio8(addr);
             }
 
             return 0;
@@ -400,6 +410,12 @@ namespace OptimeGBA
                 case 0x4000300:
                     Console.WriteLine("NDS9 POSTFLG write");
                     Nds9.POSTFLG = (byte)(val & 0b11);
+                    break;
+                case 0x4000304: // POWCNT1
+                case 0x4000305:
+                case 0x4000306:
+                case 0x4000307:
+                    Nds9.WriteHwio8(addr, val);
                     break;
             }
         }

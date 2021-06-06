@@ -460,29 +460,29 @@ namespace OptimeGBAEmulator
 
         public String BuildEmuFullText()
         {
-            String disasm = Gba.Cpu.ThumbState ? disasmThumb((ushort)Gba.Cpu.LastIns) : disasmArm(Gba.Cpu.LastIns);
+            String disasm = Gba.Cpu.ThumbState ? disasmThumb((ushort)Gba.Cpu.Decode) : disasmArm(Gba.Cpu.Decode);
 
-            StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(Gba.Cpu.R[0], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[1], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[2], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[3], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[4], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[5], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[6], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[7], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[8], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[9], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[10], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[11], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[12], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[13], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[14], 8)} ");
-            builder.Append($"{HexN(Gba.Cpu.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} | ");
-            builder.Append($"{(Gba.Cpu.ThumbState ? "    " + HexN(Gba.Cpu.LastIns, 4) : HexN(Gba.Cpu.LastIns, 8))}: {disasm}");
+            var text = 
+            $"{HexN(Gba.Cpu.R[0], 8)} " +
+            $"{HexN(Gba.Cpu.R[1], 8)} " +
+            $"{HexN(Gba.Cpu.R[2], 8)} " +
+            $"{HexN(Gba.Cpu.R[3], 8)} " +
+            $"{HexN(Gba.Cpu.R[4], 8)} " +
+            $"{HexN(Gba.Cpu.R[5], 8)} " +
+            $"{HexN(Gba.Cpu.R[6], 8)} " +
+            $"{HexN(Gba.Cpu.R[7], 8)} " +
+            $"{HexN(Gba.Cpu.R[8], 8)} " +
+            $"{HexN(Gba.Cpu.R[9], 8)} " +
+            $"{HexN(Gba.Cpu.R[10], 8)} " +
+            $"{HexN(Gba.Cpu.R[11], 8)} " +
+            $"{HexN(Gba.Cpu.R[12], 8)} " +
+            $"{HexN(Gba.Cpu.R[13], 8)} " +
+            $"{HexN(Gba.Cpu.R[14], 8)} " +
+            $"{HexN(Gba.Cpu.R[15], 8)} " +
+            $"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} | " +
+            $"{(Gba.Cpu.ThumbState ? "    " + HexN(Gba.Cpu.Decode, 4) : HexN(Gba.Cpu.Decode, 8))}: {disasm}";
             // text += $"> {LogIndex + 1}";
-            return builder.ToString();
+            return text;
         }
 
 

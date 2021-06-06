@@ -1,4 +1,5 @@
 using System;
+using static OptimeGBA.Bits;
 
 namespace OptimeGBA
 {
@@ -43,8 +44,37 @@ namespace OptimeGBA
             );
         }
 
+        // POWCNT2
+        public bool EnableSpeakers;
+        public bool EnableWifi;
+
+        // POSTFLG
         public byte POSTFLG;
 
         public override void StateChange() { }
+
+        public byte ReadHwio8(uint addr)
+        {
+            byte val = 0;
+            switch (addr)
+            {
+                case 0x4000304:
+                    if (EnableSpeakers) val = BitSet(val, 0);
+                    if (EnableWifi) val = BitSet(val, 1);
+                    break;
+            }
+            return val;
+        }
+
+        public void WriteHwio8(uint addr, byte val)
+        {
+            switch (addr)
+            {
+                case 0x4000304:
+                    EnableSpeakers = BitTest(val, 0);
+                    EnableWifi = BitTest(val, 1);
+                    break;
+            }
+        }
     }
 }

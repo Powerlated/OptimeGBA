@@ -143,6 +143,7 @@ namespace OptimeGBA
         public uint LastIns;
         public uint LastLastIns;
         public bool LastThumbState;
+        public bool LastLastThumbState;
 
         public bool FlagInterrupt;
 
@@ -313,6 +314,7 @@ namespace OptimeGBA
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
+            LastLastThumbState = LastThumbState;
             LastThumbState = ThumbState;
 #endif
 
@@ -353,6 +355,7 @@ namespace OptimeGBA
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
+            LastLastThumbState = LastThumbState;
             LastThumbState = ThumbState;
             ThumbExecutorProfile[decodeBits]++;
 #endif

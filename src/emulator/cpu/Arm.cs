@@ -283,14 +283,7 @@ namespace OptimeGBA
                 }
             }
 
-            if (L)
-            {
-                if (W)
-                {
-                    arm7.R[rn] = writebackValue;
-                }
-            }
-            else
+            if (!L)
             {
                 arm7.FetchPipelineArm();
             }
@@ -352,10 +345,15 @@ namespace OptimeGBA
                         }
 
                         if (!P) addr += 4;
-
-                        arm7.R[rn] = writebackValue;
                     }
                 }
+            }
+
+            // ARMv5: When Rn is in Rlist, writeback happens if Rn is the only register, or not the last
+            // I can't figure out the order of operations so I'll just hack the only register case 
+            if (!L || bitsSet == 1)
+            {
+                arm7.R[rn] = writebackValue;
             }
 
             bool emptyRlist = (ins & 0xFFFF) == 0;
@@ -831,8 +829,10 @@ namespace OptimeGBA
                 // the writeback value would be overwritten by Rd.
                 arm7.R[rd] = loadVal;
 
-                if (rd == 15) {
-                    if (arm7.Armv5) {
+                if (rd == 15)
+                {
+                    if (arm7.Armv5)
+                    {
                         arm7.ThumbState = BitTest(loadVal, 0);
                     }
                     arm7.FlushPipeline();
@@ -972,15 +972,22 @@ namespace OptimeGBA
             {
                 if (S)
                 {
-                    if (H)
+                    if (arm7.Armv5)
                     {
-                        arm7.LineDebug("Store doubleword");
-                        arm7.Error("UNIMPLEMENTED");
+                        if (H)
+                        {
+                            arm7.LineDebug("Store doubleword");
+                            arm7.Error($"UNIMPLEMENTED R15:{Hex(arm7.R[15], 8)} OPCODE:{Hex(ins, 8)} STRD");
+                        }
+                        else
+                        {
+                            arm7.LineDebug("Load doubleword");
+                            arm7.Error($"UNIMPLEMENTED R15:{Hex(arm7.R[15], 8)} OPCODE:{Hex(ins, 8)} LDRD");
+                        }
                     }
                     else
                     {
-                        arm7.LineDebug("Load doubleword");
-                        arm7.Error("UNIMPLEMENTED");
+                        return;
                     }
                 }
                 else

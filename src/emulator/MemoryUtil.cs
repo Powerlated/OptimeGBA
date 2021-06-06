@@ -12,16 +12,15 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ulong GetUlong(byte[] arr, uint addr)
         {
-            return (ulong)(
-                    (arr[addr + 0] << 0) |
-                    (arr[addr + 1] << 8) |
-                    (arr[addr + 2] << 16) |
-                    (arr[addr + 3] << 24) |
-                    (arr[addr + 4] << 32) |
-                    (arr[addr + 5] << 40) |
-                    (arr[addr + 6] << 48) |
-                    (arr[addr + 7] << 56)
-                );
+            return
+                ((ulong)arr[addr + 0] << 0) |
+                ((ulong)arr[addr + 1] << 8) |
+                ((ulong)arr[addr + 2] << 16) |
+                ((ulong)arr[addr + 3] << 24) |
+                ((ulong)arr[addr + 4] << 32) |
+                ((ulong)arr[addr + 5] << 40) |
+                ((ulong)arr[addr + 6] << 48) |
+                ((ulong)arr[addr + 7] << 56);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

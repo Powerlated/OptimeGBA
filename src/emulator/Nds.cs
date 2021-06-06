@@ -1,5 +1,6 @@
 using System;
 using static OptimeGBA.MemoryUtil;
+using static OptimeGBA.Bits;
 using static Util;
 
 namespace OptimeGBA
@@ -69,9 +70,60 @@ namespace OptimeGBA
 
             if (provider.DirectBoot)
             {
-
-
                 var rom = provider.Rom;
+
+                // Firmware init
+                MemoryControl.SharedRamControl = 3;
+                Nds7.POSTFLG = 1;
+                Nds9.POSTFLG = 1;
+
+                Nds9.Cpu.IRQDisable = true;
+                Nds9.Cpu.FIQDisable = true;
+
+                Nds7.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT7
+                Nds9.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT9
+
+                Cp15.TransferTo(0, 0x0005707D, 1, 0, 0); // CP15 Control
+                Cp15.TransferTo(0, 0x0300000A, 9, 1, 0); // Data TCM base/size
+                Cp15.TransferTo(0, 0x00000020, 9, 1, 1); // Instruction TCM size
+                Nds9.Mem.Write8(0x4000247, 0x03); // WRAMCNT
+                Nds9.Mem.Write16(0x4000304, 0x0001); // POWCNT1
+                Nds7.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
+
+                Nds9.Mem.Write32(0x027FF800, 0x1FC2); // Chip ID 1
+                Nds9.Mem.Write32(0x027FF804, 0x1FC2); // Chip ID 2
+                Nds9.Mem.Write16(0x027FF850, 0x5835); // ARM7 BIOS CRC
+                Nds9.Mem.Write16(0x027FF880, 0x0007); // Message from ARM9 to ARM7
+                Nds9.Mem.Write16(0x027FF884, 0x0006); // ARM7 boot task
+                Nds9.Mem.Write32(0x027FFC00, 0x1FC2); // Copy of chip ID 1
+                Nds9.Mem.Write32(0x027FFC04, 0x1FC2); // Copy of chip ID 2
+                Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
+                Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
+
+                Nds9.Mem.Write32(0x027FF864, 0);
+                Nds9.Mem.Write32(0x027FF868, (uint)(GetUshort(Provider.Firmware, 0x20) << 3));
+
+                Nds9.Mem.Write16(0x027FF874, GetUshort(Provider.Firmware, 0x26));
+                Nds9.Mem.Write16(0x027FF876, GetUshort(Provider.Firmware, 0x04));
+
+                // for (u32 i = 0; i < 0x70; i += 4)
+                //     Nds9.Mem.Write32(0x027FFC80 + i, GetUint(Firmware, UserSettings + i));
+
+                // MemoryControl.Slot1AccessRights = true;
+
+                if (rom.Length >= 0x170)
+                {
+                    for (uint i = 0; i < 0x170; i++)
+                    {
+                        Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
+                    }
+                }
+
+                for (uint i = 0; i < 0x70; i++)
+                {
+                    Nds9.Mem.Write8(0x27FFC80 + i, Provider.Firmware[0x3FF00 + i]);
+                }
+
                 if (rom.Length >= 0x20)
                 {
                     uint arm7RomOffset = GetUint(rom, 0x30);
@@ -83,6 +135,7 @@ namespace OptimeGBA
                     Console.WriteLine("ARM7 ROM Offset: " + Hex(arm7RomOffset, 8));
                     Console.WriteLine("ARM7 RAM Address: " + Hex(arm7RamAddr, 8));
                     Console.WriteLine("ARM7 Entry: " + Hex(arm7EntryAddr, 8));
+                    Console.WriteLine("ARM7 Size: " + arm7Size);
                     for (uint i = 0; i < arm7Size; i++)
                     {
                         Nds7.Mem.Write8(arm7RamAddr + i, rom[arm7RomOffset + i]);
@@ -103,6 +156,7 @@ namespace OptimeGBA
                     Console.WriteLine("ARM9 ROM Offset: " + Hex(arm9RomOffset, 8));
                     Console.WriteLine("ARM9 RAM Address: " + Hex(arm9RamAddr, 8));
                     Console.WriteLine("ARM9 Entry: " + Hex(arm9EntryAddr, 8));
+                    Console.WriteLine("ARM9 Size: " + arm9Size);
                     for (uint i = 0; i < arm9Size; i++)
                     {
                         Nds9.Mem.Write8(arm9RamAddr + i, rom[arm9RomOffset + i]);
@@ -114,53 +168,6 @@ namespace OptimeGBA
                     Nds9.Cpu.R[14] = arm9EntryAddr;
                     Nds9.Cpu.R[15] = arm9EntryAddr;
                     Nds9.Cpu.FlushPipeline();
-
-                    // Firmware init
-                    MemoryControl.SharedRamControl = 3;
-                    Nds7.POSTFLG = 1;
-                    Nds9.POSTFLG = 1;
-
-                    Nds9.Cpu.IRQDisable = true;
-                    Nds9.Cpu.FIQDisable = true;
-
-                    Nds7.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT7
-                    Nds9.Mem.Write16(0x4000184, 0x8501); // IPCFIFOCNT9
-
-                    Cp15.TransferTo(0, 0x0005707D, 1, 0, 0); // CP15 Control
-                    Cp15.TransferTo(0, 0x0300000A, 9, 1, 0); // Data TCM base/size
-                    Cp15.TransferTo(0, 0x00000020, 9, 1, 1); // Instruction TCM size
-                    Nds9.Mem.Write8(0x4000247, 0x03); // WRAMCNT
-                    Nds9.Mem.Write16(0x4000304, 0x0001); // POWCNT1
-                    Nds7.Mem.Write16(0x4000504, 0x0200); // SOUNDBIAS
-
-                    Nds9.Mem.Write32(0x027FF800, 0x1FC2); // Chip ID 1
-                    Nds9.Mem.Write32(0x027FF804, 0x1FC2); // Chip ID 2
-                    Nds9.Mem.Write16(0x027FF850, 0x5835); // ARM7 BIOS CRC
-                    Nds9.Mem.Write16(0x027FF880, 0x0007); // Message from ARM9 to ARM7
-                    Nds9.Mem.Write16(0x027FF884, 0x0006); // ARM7 boot task
-                    Nds9.Mem.Write32(0x027FFC00, 0x1FC2); // Copy of chip ID 1
-                    Nds9.Mem.Write32(0x027FFC04, 0x1FC2); // Copy of chip ID 2
-                    Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
-                    Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
-
-                    Nds9.Mem.Write32(0x027FF864, 0);
-                    Nds9.Mem.Write32(0x027FF868, (uint)(GetUshort(Provider.Firmware, 0x20) << 3));
-
-                    Nds9.Mem.Write16(0x027FF874, GetUshort(Provider.Firmware, 0x26));
-                    Nds9.Mem.Write16(0x027FF876, GetUshort(Provider.Firmware, 0x04));
-
-                    // for (u32 i = 0; i < 0x70; i += 4)
-                    //     Nds9.Mem.Write32(0x027FFC80 + i, GetUint(Firmware, UserSettings + i));
-
-                    // MemoryControl.Slot1AccessRights = true;
-
-                    if (rom.Length >= 0x170)
-                    {
-                        for (uint i = 0; i < 0x170; i++)
-                        {
-                            Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
-                        }
-                    }
                 }
             }
         }
@@ -225,6 +232,4 @@ namespace OptimeGBA
 
         public void HaltSkip(long cyclesOffset) { }
     }
-
-
 }

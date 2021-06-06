@@ -51,7 +51,7 @@ namespace OptimeGBA
             InitKeycode(EncLutKeycodeLevel2, 2);
             InitKeycode(EncLutKeycodeLevel3, 3);
 
-            if (!Nds.Provider.DirectBoot && Rom.Length >= 0x8000)
+            if (!Nds.Provider.DirectBoot && Rom.Length >= 0x8000 && GetUint(Rom, 0x4000) == 0xE7FFDEFF)
             {
                 Console.WriteLine("Encrypting first 2KB of secure area");
                 SetUlong(Rom, 0x4000, 0x6A624F7972636E65); // Write in "encryObj"
@@ -59,10 +59,18 @@ namespace OptimeGBA
                 // Encrypt first 2K of the secure area with KEY1
                 for (uint i = 0x4000; i < 0x4800; i += 8)
                 {
-                    SetUlong(Rom, i, Encrypt64(EncLutKeycodeLevel3, GetUlong(Rom, i)));
+                    // Console.WriteLine("Encrypted ulong at " + Hex(i, 16));
+                    ulong raw = GetUlong(Rom, i);
+                    ulong encrypted = Encrypt64(EncLutKeycodeLevel3, raw);
+                    SetUlong(Rom, i, encrypted);
+                    // Console.WriteLine("Before:" + Hex(raw, 16));
+                    // Console.WriteLine("After :" + Hex(encrypted, 16));
                 }
 
-                SetUlong(Rom, 0x4000, Encrypt64(EncLutKeycodeLevel3, GetUlong(Rom, 0x4000)));
+                Console.WriteLine(Hex(GetUint(Rom, 0x4010), 8));
+
+                // Double-encrypt KEY1
+                SetUlong(Rom, 0x4000, Encrypt64(EncLutKeycodeLevel2, GetUlong(Rom, 0x4000)));
             }
         }
 
@@ -136,7 +144,10 @@ namespace OptimeGBA
                         break;
 
                     case 0x4100010: // From cartridge
-                        ReadData(fromArm7);
+                        if (Slot1Enable)
+                        {
+                            ReadData(fromArm7);
+                        }
                         return (byte)(InData >> 0);
                     case 0x4100011:
                         return (byte)(InData >> 8);
@@ -180,7 +191,7 @@ namespace OptimeGBA
                         BlockSize = (byte)(val & 0b111);
                         SlowTransferClock = BitTest(val, 3);
 
-                        if (BitTest(val, 7) && !BusyBit31)
+                        if (BitTest(val, 7) && !BusyBit31 && Slot1Enable)
                         {
                             ProcessCommand(fromArm7);
                         }
@@ -199,9 +210,12 @@ namespace OptimeGBA
                         case 0x40001AD:
                         case 0x40001AE:
                         case 0x40001AF:
-                            int shiftBy = (int)((7 - (addr & 7)) * 8);
-                            PendingCommand &= (ulong)(~(0xFFUL << shiftBy));
-                            PendingCommand |= (ulong)val << shiftBy;
+                            if (Slot1Enable)
+                            {
+                                int shiftBy = (int)((7 - (addr & 7)) * 8);
+                                PendingCommand &= (ulong)(~(0xFFUL << shiftBy));
+                                PendingCommand |= (ulong)val << shiftBy;
+                            }
                             return;
                     }
                 }
@@ -216,7 +230,7 @@ namespace OptimeGBA
                 cmd = Decrypt64(EncLutKeycodeLevel2, cmd);
             }
 
-            Console.WriteLine("Slot 1 CMD: " + Hex(cmd, 16));
+            // Console.WriteLine("Slot 1 CMD: " + Hex(cmd, 16));
 
             if (BlockSize == 0)
             {
@@ -264,6 +278,7 @@ namespace OptimeGBA
                 // Console.WriteLine("Slot 1: Get Secure Area Block");
                 State = CartridgeState.SecureAreaRead;
                 DataPos = (uint)(((cmd >> 44) & 0xFFFF) * 0x1000);
+                // Console.WriteLine("Secure area read pos: " + Hex(DataPos, 8));
             }
             else if ((cmd & 0xF000000000000000) == 0x4000000000000000)
             {
@@ -311,6 +326,10 @@ namespace OptimeGBA
             else
             {
                 ReadyBit23 = true;
+
+                // Trigger Slot 1 DMA
+                Nds.Scheduler.AddEventRelative(SchedulerId.None, 0, RepeatCartridgeTransfer);
+                // Console.WriteLine("Trigger slot 1 DMA, Dest: " + Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
             }
         }
 
@@ -340,11 +359,16 @@ namespace OptimeGBA
                     // Console.WriteLine("Key2 data read");
                     if (DataPos < Rom.Length)
                     {
-                        if (DataPos < 0x8000) {
+                        if (DataPos < 0x8000)
+                        {
                             DataPos = 0x8000 + (DataPos & 0x1FF);
                         }
                         val = GetUint(Rom, DataPos);
-                    } 
+                    }
+                    break;
+                case CartridgeState.SecureAreaRead:
+                    val = GetUint(Rom, DataPos);
+                    // Console.WriteLine("Secure area read: Pos: " + Hex(DataPos, 8) + " Val: " + Hex(val, 4));
                     break;
 
                 default:
@@ -361,9 +385,22 @@ namespace OptimeGBA
             else
             {
                 // TODO: Slot 1 DMA transfers
+                Nds.Scheduler.AddEventRelative(SchedulerId.None, 0, RepeatCartridgeTransfer);
             }
 
             InData = val;
+        }
+
+        public bool DisableSlot1Dmas;
+        public long BytesTransferredDma = 0;
+        public void RepeatCartridgeTransfer(long cyclesLate)
+        {
+            if (!DisableSlot1Dmas)
+            {
+                // Console.WriteLine(Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
+                Nds.Nds7.Dma.Repeat((byte)DmaStartTimingNds7.Slot1);
+                Nds.Nds9.Dma.Repeat((byte)DmaStartTimingNds9.Slot1);
+            }
         }
 
         public void FinishTransfer()
@@ -373,7 +410,7 @@ namespace OptimeGBA
 
             if (TransferReadyIrq)
             {
-                Nds.Scheduler.AddEventRelative(SchedulerId.None, 15, FlagNds7Slot1Interrupt);
+                Nds.Scheduler.AddEventRelative(SchedulerId.None, 128, FlagNds7Slot1Interrupt);
             }
         }
 

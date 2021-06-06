@@ -1,5 +1,7 @@
 using static OptimeGBA.Bits;
+using static Util;
 using System;
+
 
 namespace OptimeGBA
 {
@@ -265,26 +267,30 @@ namespace OptimeGBA
         {
             if (addr >= 0x40000B0 && addr <= 0x40000BB)
             {
+                bool oldEnabled = Ch[0].Enabled;
                 Ch[0].WriteHwio8(addr - 0x40000B0, val);
-                ExecuteImmediate(0);
+                if (!oldEnabled && Ch[0].Enabled) ExecuteImmediate(0);
                 return;
             }
             else if (addr >= 0x40000BC && addr <= 0x40000C7)
             {
+                bool oldEnabled = Ch[1].Enabled;
                 Ch[1].WriteHwio8(addr - 0x40000BC, val);
-                ExecuteImmediate(1);
+                if (!oldEnabled && Ch[1].Enabled) ExecuteImmediate(1);
                 return;
             }
             else if (addr >= 0x40000C8 && addr <= 0x40000D3)
             {
+                bool oldEnabled = Ch[2].Enabled;
                 Ch[2].WriteHwio8(addr - 0x40000C8, val);
-                ExecuteImmediate(2);
+                if (!oldEnabled && Ch[2].Enabled) ExecuteImmediate(2);
                 return;
             }
             else if (addr >= 0x40000D4 && addr <= 0x40000DF)
             {
+                bool oldEnabled = Ch[3].Enabled;
                 Ch[3].WriteHwio8(addr - 0x40000D4, val);
-                ExecuteImmediate(3);
+                if (!oldEnabled && Ch[3].Enabled) ExecuteImmediate(3);
                 return;
             }
             else if (addr >= 0x40000E0 && addr <= 0x40000EF)
@@ -300,31 +306,50 @@ namespace OptimeGBA
 
             DmaLock = true;
 
-            // Least significant 28 (or 27????) bits
-            c.DmaSource &= DmaSourceMask[ci];
-            c.DmaDest &= DmaDestMask[ci];
-
             // Console.WriteLine("NDS: Executing DMA");
             // Console.WriteLine("Source: " + Util.Hex(c.DmaSource, 8));
             // Console.WriteLine("Dest: " + Util.Hex(c.DmaDest, 8));
             // Console.WriteLine("Length: " + c.DmaLength);
 
-            if (ci == 3)
+            if (Nds9)
             {
-                // DMA 3 is 16-bit length
-                c.DmaLength &= 0b1111111111111111;
+                c.DmaSource &= 0x0FFFFFFF;
+                c.DmaDest &= 0x0FFFFFFF;
+
+                // All NDS9 DMAs use 21-bit length
+                c.DmaLength &= 0x1FFFFF;
                 // Value of zero is treated as maximum length
-                if (c.DmaLength == 0) c.DmaLength = 0x10000;
+                if (c.DmaLength == 0) c.DmaLength = 0x200000;
             }
             else
             {
-                // DMA 0-2 are 14-bit length
-                c.DmaLength &= 0b11111111111111;
-                // Value of zero is treated as maximum length
-                if (c.DmaLength == 0) c.DmaLength = 0x4000;
+                // Least significant 28 (or 27????) bits
+                c.DmaSource &= DmaSourceMask[ci];
+                c.DmaDest &= DmaDestMask[ci];
+
+                if (ci == 3)
+                {
+                    // DMA 3 is 16-bit length
+                    c.DmaLength &= 0xFFFF;
+                    // Value of zero is treated as maximum length
+                    if (c.DmaLength == 0) c.DmaLength = 0x10000;
+                }
+                else
+                {
+                    // DMA 0-2 are 14-bit length
+                    c.DmaLength &= 0x3FFF;
+                    // Value of zero is treated as maximum length
+                    if (c.DmaLength == 0) c.DmaLength = 0x4000;
+                }
             }
 
-            // Console.WriteLine($"Starting DMA {ci}");
+            // if (c.DmaLength != 1 && ci == 3)
+            // {
+            //     Console.WriteLine(((DmaStartTimingNds7)c.StartTiming).ToString());
+            //     Console.WriteLine("DMA length " + c.DmaLength);
+            // }
+
+            // Console.WriteLine($"Starting DMA {ci}"); 
             // Console.WriteLine($"SRC: {Util.HexN(srcAddr, 7)}");
             // Console.WriteLine($"DEST: {Util.HexN(destAddr, 7)}");
             // Console.WriteLine($"LENGTH: {Util.HexN(c.DmaLength, 4)}");
@@ -412,6 +437,7 @@ namespace OptimeGBA
         public void ExecuteImmediate(uint ci)
         {
             DmaChannelNds c = Ch[ci];
+            Console.WriteLine($"NDS{(Nds9 ? "9" : "7")}: Ch{ci} immediate DMA from:{Hex(c.DMASAD, 8)} to:{Hex(c.DMADAD, 8)}");
 
             if (c.Enabled && c.StartTiming == (byte)DmaStartTimingNds9.Immediately)
             {

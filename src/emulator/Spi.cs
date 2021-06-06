@@ -186,8 +186,13 @@ namespace OptimeGBA
                     {
                         OutData = 0;
                     }
-                    Address++;
+                    Address += TransferSize ? 2U : 1U;
                     Address &= 0xFFFFFF;
+                    break;
+                case SpiFlashState.Identification:
+                    OutData = Id[IdIndex];
+                    IdIndex++;
+                    IdIndex %= 3;
                     break;
             }
         }
