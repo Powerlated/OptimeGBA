@@ -168,13 +168,13 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override byte Read8Unregistered(uint addr)
+        public override byte Read8Unregistered(bool debug, uint addr)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
-                    return ReadHwio8(addr);
+                    return ReadHwio8(debug, addr);
                 case 0xA: // ROM / EEPROM
                 case 0xB: // ROM / EEPROM
                 case 0xC: // ROM / EEPROM
@@ -195,13 +195,13 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override ushort Read16Unregistered(uint addr)
+        public override ushort Read16Unregistered(bool debug, uint addr)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
-                    byte f0 = Read8Unregistered(addr++);
-                    byte f1 = Read8Unregistered(addr++);
+                    byte f0 = Read8Unregistered(debug, addr++);
+                    byte f1 = Read8Unregistered(debug, addr++);
 
                     ushort u16 = (ushort)((f1 << 8) | (f0 << 0));
 
@@ -223,15 +223,15 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override uint Read32Unregistered(uint addr)
+        public override uint Read32Unregistered(bool debug, uint addr)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
-                    byte f0 = Read8Unregistered(addr++);
-                    byte f1 = Read8Unregistered(addr++);
-                    byte f2 = Read8Unregistered(addr++);
-                    byte f3 = Read8Unregistered(addr++);
+                    byte f0 = ReadHwio8(debug, addr++);
+                    byte f1 = ReadHwio8(debug, addr++);
+                    byte f2 = ReadHwio8(debug, addr++);
+                    byte f3 = ReadHwio8(debug, addr++);
 
                     uint u32 = (uint)((f3 << 24) | (f2 << 16) | (f1 << 8) | (f0 << 0));
 
@@ -242,13 +242,13 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Write8Unregistered(uint addr, byte val)
+        public override void Write8Unregistered(bool debug, uint addr, byte val)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
                     // addr &= 0x400FFFF;
-                    WriteHwio8(addr, val);
+                    WriteHwio8(debug, addr, val);
                     break;
                 case 0xA: // ROM / EEPROM
                 case 0xB: // ROM / EEPROM
@@ -268,13 +268,13 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Write16Unregistered(uint addr, ushort val)
+        public override void Write16Unregistered(bool debug, uint addr, ushort val)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
-                    WriteHwio8(addr++, (byte)(val >> 0));
-                    WriteHwio8(addr++, (byte)(val >> 8));
+                    WriteHwio8(debug, addr++, (byte)(val >> 0));
+                    WriteHwio8(debug, addr++, (byte)(val >> 8));
                     break;
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
@@ -298,15 +298,15 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override void Write32Unregistered(uint addr, uint val)
+        public override void Write32Unregistered(bool debug, uint addr, uint val)
         {
             switch (addr >> 24)
             {
                 case 0x4: // I/O Registers
-                    WriteHwio8(addr++, (byte)(val >> 0));
-                    WriteHwio8(addr++, (byte)(val >> 8));
-                    WriteHwio8(addr++, (byte)(val >> 16));
-                    WriteHwio8(addr++, (byte)(val >> 24));
+                    WriteHwio8(debug, addr++, (byte)(val >> 0));
+                    WriteHwio8(debug, addr++, (byte)(val >> 8));
+                    WriteHwio8(debug, addr++, (byte)(val >> 16));
+                    WriteHwio8(debug, addr++, (byte)(val >> 24));
                     break;
                 case 0x5: // PPU Palettes
                     addr &= 0x3FF;
@@ -328,9 +328,9 @@ namespace OptimeGBA
 
         }
 
-        public byte ReadHwio8(uint addr)
+        public byte ReadHwio8(bool debug, uint addr)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0)
+            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
             {
                 uint count;
                 HwioWriteLog.TryGetValue(addr, out count);
@@ -372,9 +372,9 @@ namespace OptimeGBA
             return 0;
         }
 
-        public void WriteHwio8(uint addr, byte val)
+        public void WriteHwio8(bool debug, uint addr, byte val)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0)
+            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
             {
                 uint count;
                 HwioReadLog.TryGetValue(addr, out count);

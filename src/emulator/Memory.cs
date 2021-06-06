@@ -31,12 +31,12 @@ namespace OptimeGBA
         public byte[][] PageTableRead = new byte[1048576][];
         public byte[][] PageTableWrite = new byte[1048576][];
 
-        public abstract byte Read8Unregistered(uint addr);
-        public abstract void Write8Unregistered(uint addr, byte val);
-        public abstract ushort Read16Unregistered(uint addr);
-        public abstract void Write16Unregistered(uint addr, ushort val);
-        public abstract uint Read32Unregistered(uint addr);
-        public abstract void Write32Unregistered(uint addr, uint val);
+        public abstract byte Read8Unregistered(bool debug, uint addr);
+        public abstract void Write8Unregistered(bool debug, uint addr, byte val);
+        public abstract ushort Read16Unregistered(bool debug, uint addr);
+        public abstract void Write16Unregistered(bool debug, uint addr, ushort val);
+        public abstract uint Read32Unregistered(bool debug, uint addr);
+        public abstract void Write32Unregistered(bool debug, uint addr, uint val);
 
         public void InitPageTables()
         {
@@ -70,7 +70,7 @@ namespace OptimeGBA
                 return GetByte(page, MaskAddress(addr));
             }
 
-            return Read8Unregistered(addr);
+            return Read8Unregistered(false, addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,7 +89,7 @@ namespace OptimeGBA
                 return GetUshort(page, MaskAddress(addr));
             }
 
-            return Read16Unregistered(addr);
+            return Read16Unregistered(false, addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -101,7 +101,7 @@ namespace OptimeGBA
                 return GetUshort(page, MaskAddress(addr));
             }
 
-            return Read16Unregistered(addr);
+            return Read16Unregistered(true, addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -121,7 +121,7 @@ namespace OptimeGBA
                 return GetUint(page, maskedAddr);
             }
 
-            return Read32Unregistered(addr);
+            return Read32Unregistered(false, addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -134,7 +134,7 @@ namespace OptimeGBA
                 return GetUint(page, maskedAddr);
             }
 
-            return Read32Unregistered(addr);
+            return Read32Unregistered(true, addr);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -148,7 +148,7 @@ namespace OptimeGBA
                 return;
             }
 
-            Write8Unregistered(addr, val);
+            Write8Unregistered(false, addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -169,7 +169,7 @@ namespace OptimeGBA
                 return;
             }
 
-            Write16Unregistered(addr, val);
+            Write16Unregistered(false, addr, val);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -190,7 +190,7 @@ namespace OptimeGBA
                 return;
             }
 
-            Write32Unregistered(addr, val);
+            Write32Unregistered(false, addr, val);
         }
     }
 }

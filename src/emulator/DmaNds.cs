@@ -437,7 +437,7 @@ namespace OptimeGBA
         public void ExecuteImmediate(uint ci)
         {
             DmaChannelNds c = Ch[ci];
-            Console.WriteLine($"NDS{(Nds9 ? "9" : "7")}: Ch{ci} immediate DMA from:{Hex(c.DMASAD, 8)} to:{Hex(c.DMADAD, 8)}");
+            // Console.WriteLine($"NDS{(Nds9 ? "9" : "7")}: Ch{ci} immediate DMA from:{Hex(c.DMASAD, 8)} to:{Hex(c.DMADAD, 8)}");
 
             if (c.Enabled && c.StartTiming == (byte)DmaStartTimingNds9.Immediately)
             {
