@@ -477,55 +477,6 @@ void main()
         public readonly int MipmapLevels;
         public readonly SizedInternalFormat InternalFormat;
 
-        public Texture(string name, Bitmap image, bool generateMipmaps, bool srgb)
-        {
-            Name = name;
-            Width = image.Width;
-            Height = image.Height;
-            InternalFormat = srgb ? Srgb8Alpha8 : SizedInternalFormat.Rgba8;
-
-            if (generateMipmaps)
-            {
-                // Calculate how many levels to generate for this texture
-                MipmapLevels = (int)Math.Floor(Math.Log(Math.Max(Width, Height), 2));
-            }
-            else
-            {
-                // There is only one level
-                MipmapLevels = 1;
-            }
-
-            Util.CheckGLError("Clear");
-
-            Util.CreateTexture(TextureTarget.Texture2D, Name, out GLTexture);
-            GL.TextureStorage2D(GLTexture, MipmapLevels, InternalFormat, Width, Height);
-            Util.CheckGLError("Storage2d");
-
-            BitmapData data = image.LockBits(new Rectangle(0, 0, Width, Height),
-                ImageLockMode.ReadOnly, global::System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            GL.TextureSubImage2D(GLTexture, 0, 0, 0, Width, Height, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
-            Util.CheckGLError("SubImage");
-
-            image.UnlockBits(data);
-
-            if (generateMipmaps) GL.GenerateTextureMipmap(GLTexture);
-
-            GL.TextureParameter(GLTexture, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            Util.CheckGLError("WrapS");
-            GL.TextureParameter(GLTexture, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            Util.CheckGLError("WrapT");
-
-            GL.TextureParameter(GLTexture, TextureParameterName.TextureMinFilter, (int)(generateMipmaps ? TextureMinFilter.Nearest : TextureMinFilter.Nearest));
-            GL.TextureParameter(GLTexture, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
-            Util.CheckGLError("Filtering");
-
-            GL.TextureParameter(GLTexture, TextureParameterName.TextureMaxLevel, MipmapLevels - 1);
-
-            // This is a bit weird to do here
-            image.Dispose();
-        }
-
         public Texture(string name, int GLTex, int width, int height, int mipmaplevels, SizedInternalFormat internalFormat)
         {
             Name = name;

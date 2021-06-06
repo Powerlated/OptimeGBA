@@ -27,6 +27,12 @@
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-*" />
     <PackageReference Include="ppy.SDL2-CS" Version="1.0.53" />
     <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
+
+    <PackageReference Include="Imgui.net" Version="1.75.0" />
+    <PackageReference Include="Gee.External.Capstone" Version="2.0.2" />
+    <PackageReference Include="OpenGL.Net" Version="0.8.4" />
+    <PackageReference Include="OpenTK" Version="4.6.3" />
+
     <Compile Remove="src/gui/**" />
     <Compile Remove="src/MainOpenTK.cs" />
   </ItemGroup>
