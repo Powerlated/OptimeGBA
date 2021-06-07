@@ -436,6 +436,16 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1111100100000000000010010000) == 0b0001000000000000000010000000) // ARMv5 signed multiply
             {
+                uint id = ((ins >> 20) & 0b11111111);
+                if (id == 0b00010100)
+                {
+                    return Arm.SMLALxy;
+                }
+                else if (id == 0b00010110)
+                {
+                    return Arm.SMULxy;
+                }
+
                 return Arm.Invalid;
             }
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
@@ -993,8 +1003,8 @@ namespace OptimeGBA
 
             return false;
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        
+ [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public uint GetUserReg(uint reg)
         {
             if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)

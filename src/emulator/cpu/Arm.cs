@@ -22,7 +22,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+               [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _LDMSTM(Arm7 arm7, uint ins, bool L)
         {
             arm7.LineDebug("LDM/STM");
@@ -216,7 +216,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+               [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _LDMSTM_V5(Arm7 arm7, uint ins, bool L)
         {
             arm7.LineDebug("LDM/STM ARMv5");
@@ -472,7 +472,7 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-        public static void MSR(Arm7 arm7, uint ins)
+  public static void MSR(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("MSR");
             // MSR
@@ -1636,6 +1636,65 @@ namespace OptimeGBA
             }
 
             arm7.R[rd] = (uint)result;
+        }
+
+        public static void SMLALxy(Arm7 arm7, uint ins)
+        {
+            bool x = BitTest(ins, 5);
+            bool y = BitTest(ins, 6);
+
+            uint rm = (ins >> 0) & 0xFU;
+            uint rs = (ins >> 8) & 0xFU;
+            uint rmVal = arm7.R[rm];
+            uint rsVal = arm7.R[rs];
+
+            uint rdLo = (ins >> 12) & 0xFU;
+            uint rdHi = (ins >> 16) & 0xFU;
+            uint rdLoVal = arm7.R[rdLo];
+            uint rdHiVal = arm7.R[rdHi];
+
+            short op1;
+            if (!x)
+                op1 = (short)rmVal;
+            else
+                op1 = (short)(rmVal >> 16);
+
+            short op2;
+            if (!y)
+                op2 = (short)rsVal;
+            else
+                op2 = (short)(rsVal >> 16);
+
+            long finalVal = (((long)rdHiVal << 32) | rdLoVal) + op1 * op2;
+            arm7.R[rdLo] = (uint)finalVal;
+            arm7.R[rdHi] = (uint)(finalVal >> 32);
+        }
+
+        public static void SMULxy(Arm7 arm7, uint ins)
+        {
+            bool x = BitTest(ins, 5);
+            bool y = BitTest(ins, 6);
+
+            uint rm = (ins >> 0) & 0xFU;
+            uint rs = (ins >> 8) & 0xFU;
+            uint rmVal = arm7.R[rm];
+            uint rsVal = arm7.R[rs];
+
+            uint rd = (ins >> 16) & 0xFU;
+
+            short op1;
+            if (!x)
+                op1 = (short)rmVal;
+            else
+                op1 = (short)(rmVal >> 16);
+
+            short op2;
+            if (!y)
+                op2 = (short)rsVal;
+            else
+                op2 = (short)(rsVal >> 16);
+
+            arm7.R[rd] = (uint)(op1 * op2);
         }
 
         public static void Invalid(Arm7 arm7, uint ins)
