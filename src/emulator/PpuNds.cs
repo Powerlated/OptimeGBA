@@ -745,7 +745,6 @@ namespace OptimeGBA
             if (GetUshort(Renderers[id].Palettes, addr) != val)
             {
                 SetUshort(Renderers[id].Palettes, addr, val);
-                Renderers[id].UpdatePalette(addr / 2);
             }
         }
 
@@ -757,8 +756,6 @@ namespace OptimeGBA
             if (GetUint(Renderers[id].Palettes, addr) != val)
             {
                 SetUint(Renderers[id].Palettes, addr, val);
-                Renderers[id].UpdatePalette(addr / 2);
-                Renderers[id].UpdatePalette(addr / 2 + 1);
             }
         }
 

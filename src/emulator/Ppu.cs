@@ -9,7 +9,12 @@ namespace OptimeGBA
         Display3D,
         Affine,
         Extended,
-        Large
+        Large,
+
+        // Extended
+        Affine16BitBgMapEntries,
+        Affine256ColorBitmap,
+        AffineFullColorBitmap,
     }
     public sealed class Background
     {
@@ -31,6 +36,10 @@ namespace OptimeGBA
         public uint MapBaseBlock = 0;
         public bool OverflowWrap = false;
         public uint ScreenSize = 0;
+
+        // BGCNT NDS
+        public bool AffineBitmap;
+        public bool AffineBitmapFullColor;
 
         // BGH/VOFS
         public uint HorizontalOffset;
@@ -70,6 +79,12 @@ namespace OptimeGBA
             {
                 case 0x00: // BGCNT B0
                     Priority = (byte)((val >> 0) & 0b11);
+
+                    // These bits overlay other bits on NDS
+                    AffineBitmap = BitTest(val, 7);
+                    AffineBitmapFullColor = BitTest(val, 2);
+
+                    EnableMosaic = BitTest(val, 6);
                     if (!Nds)
                     {
                         CharBaseBlock = (uint)(val >> 2) & 0b11;
@@ -242,30 +257,17 @@ namespace OptimeGBA
     }
 
     [StructLayout(LayoutKind.Sequential, Size = 4)]
-    public struct BgPixel
-    {
-        public byte Color;
-        public byte Priority;
-        public byte Flags;
-
-        public BgPixel(byte color, byte priority, byte flags)
-        {
-            Color = color;
-            Priority = priority;
-            Flags = flags;
-        }
-    }
-
-    [StructLayout(LayoutKind.Sequential, Size = 4)]
     public struct ObjPixel
     {
-        public byte Color;
+        public ushort Color;
+        public byte PaletteIndex;
         public byte Priority;
         public ObjMode Mode;
 
-        public ObjPixel(byte color, byte priority, ObjMode transparent)
+        public ObjPixel(ushort color, byte paletteIndex, byte priority, ObjMode transparent)
         {
             Color = color;
+            PaletteIndex = paletteIndex;
             Priority = priority;
             Mode = transparent;
         }

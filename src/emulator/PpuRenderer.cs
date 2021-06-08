@@ -32,8 +32,8 @@ namespace OptimeGBA
             ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
 
             WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 8);
-            BgLoColor = MemoryUtil.AllocateUnmanagedArray(width + 8);
-            BgHiColor = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            BgLoColor = MemoryUtil.AllocateUnmanagedArray16(width + 8);
+            BgHiColor = MemoryUtil.AllocateUnmanagedArray16(width + 8);
             BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
             BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
             BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
@@ -43,8 +43,8 @@ namespace OptimeGBA
             ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
 
             WinMasks = MemoryUtil.AllocateManagedArray(width + 8);
-            BgLoColor = MemoryUtil.AllocateManagedArray(width + 8);
-            BgHiColor = MemoryUtil.AllocateManagedArray(width + 8);
+            BgLoColor = MemoryUtil.AllocateManagedArray16(width + 8);
+            BgHiColor = MemoryUtil.AllocateManagedArray16(width + 8);
             BgHiPrio = MemoryUtil.AllocateManagedArray(width + 8);
             BgLoPrio = MemoryUtil.AllocateManagedArray(width + 8);
             BgHiFlags = MemoryUtil.AllocateManagedArray(width + 8);
@@ -58,8 +58,6 @@ namespace OptimeGBA
                 ScreenFront[i] = 0xFFFFFFFF;
                 ScreenBack[i] = 0xFFFFFFFF;
             }
-
-            RefreshPalettes();
 
             if (!nds)
             {
@@ -76,12 +74,11 @@ namespace OptimeGBA
 #if UNSAFE
         public uint* ScreenFront;
         public uint* ScreenBack;
-        public uint* ProcessedPalettes = MemoryUtil.AllocateUnmanagedArray32(512);
 
         public byte* WinMasks;
 
-        public byte* BgLoColor;
-        public byte* BgHiColor;
+        public ushort* BgLoColor;
+        public ushort* BgHiColor;
         public byte* BgHiPrio;
         public byte* BgLoPrio;
         public byte* BgHiFlags;
@@ -91,19 +88,17 @@ namespace OptimeGBA
         {
             MemoryUtil.FreeUnmanagedArray(ScreenFront);
             MemoryUtil.FreeUnmanagedArray(ScreenBack);
-            MemoryUtil.FreeUnmanagedArray(ProcessedPalettes);
             
             MemoryUtil.FreeUnmanagedArray(WinMasks);
         }
 #else
         public uint[] ScreenFront;
         public uint[] ScreenBack;
-        public uint[] ProcessedPalettes = MemoryUtil.AllocateManagedArray32(512);
 
         public byte[] WinMasks;
 
-        public byte[] BgLoColor;
-        public byte[] BgHiColor;
+        public ushort[] BgLoColor;
+        public ushort[] BgHiColor;
         public byte[] BgHiPrio;
         public byte[] BgLoPrio;
         public byte[] BgHiFlags;
@@ -121,10 +116,9 @@ namespace OptimeGBA
         const uint CoarseBlockSize = 65536;
         const uint CharBlockSize = 16384;
         const uint MapBlockSize = 2048;
+        const uint MapBlockSizeAffineNds = 16384;
 
-        public bool ColorCorrection = true;
-
-        public uint White = Rgb555to888(0xFFFF, true);
+        public uint White = Rgb555To888(0xFFFF);
 
         public bool[] DebugEnableBg = new bool[4];
         public bool DebugEnableObj = true;
@@ -330,6 +324,7 @@ namespace OptimeGBA
             byte win0ThresholdX = (byte)(Win0HRight - Win0HLeft);
             byte win1ThresholdX = (byte)(Win1HRight - Win1HLeft);
 
+            ushort backdropCol = LookupPalette(0);
             if (AnyWindowEnabled)
             {
                 for (uint i = 0; i < Width; i++)
@@ -352,7 +347,7 @@ namespace OptimeGBA
                     WinMasks[i] = val;
 
                     // Also prepare backgrounds arrays in this loop
-                    BgHiColor[i] = 0;
+                    BgHiColor[i] = backdropCol;
                     BgHiPrio[i] = 4;
                     BgHiFlags[i] = (byte)BlendFlag.Backdrop;
                 }
@@ -363,7 +358,7 @@ namespace OptimeGBA
                 {
                     WinMasks[i] = 0b111111;
 
-                    BgHiColor[i] = 0;
+                    BgHiColor[i] = backdropCol;
                     BgHiPrio[i] = 4;
                     BgHiFlags[i] = (byte)BlendFlag.Backdrop;
                 }
@@ -458,6 +453,36 @@ namespace OptimeGBA
                         break;
                 }
             }
+
+            // Extended mode backgrounds have extra options
+            for (int i = 2; i < 4; i++)
+            {
+                var bg = Backgrounds[i];
+                if (bg.Mode == BackgroundMode.Extended)
+                {
+                    if (bg.AffineBitmap)
+                    {
+                        if (bg.AffineBitmapFullColor)
+                        {
+                            bg.Mode = BackgroundMode.AffineFullColorBitmap;
+                        }
+                        else
+                        {
+                            bg.Mode = BackgroundMode.Affine256ColorBitmap;
+                        }
+                    }
+                    else
+                    {
+                        // TODO: implement affine BGs with 16-bit BG map entries
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ushort LookupPalette(uint index)
+        {
+            return GetUshort(Palettes, index * 2);
         }
 
         public readonly static uint[] CharBlockHeightTable = {
@@ -570,7 +595,7 @@ namespace OptimeGBA
 
                             if (finalColor != 0)
                             {
-                                PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
+                                PlaceBgPixel(lineIndex, LookupPalette(finalColor), bg.Priority, flag);
                             }
 
                             lineIndex++;
@@ -620,7 +645,7 @@ namespace OptimeGBA
 
                             if ((finalColor & 0xF) != 0)
                             {
-                                PlaceBgPixel(lineIndex, finalColor, bg.Priority, flag);
+                                PlaceBgPixel(lineIndex, LookupPalette(finalColor), bg.Priority, flag);
                             }
 
                             lineIndex++;
@@ -696,7 +721,7 @@ namespace OptimeGBA
 
                 if (vramValue != 0)
                 {
-                    PlaceBgPixel(p, vramValue, bg.Priority, flag);
+                    PlaceBgPixel(p, LookupPalette(vramValue), bg.Priority, flag);
                 }
             }
 
@@ -705,7 +730,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceBgPixel(uint lineIndex, byte color, byte priority, byte flag)
+        public void PlaceBgPixel(uint lineIndex, ushort color, byte priority, byte flag)
         {
             if ((WinMasks[lineIndex] & flag) != 0)
             {
@@ -954,7 +979,7 @@ namespace OptimeGBA
 
                 if (finalColor != 0)
                 {
-                    PlaceObjPixel(x, finalColor, priority, mode);
+                    PlaceObjPixel(x, LookupPalette(finalColor), finalColor, priority, mode);
                 }
             }
             else
@@ -968,27 +993,27 @@ namespace OptimeGBA
 
                 if (color != 0)
                 {
-                    PlaceObjPixel(x, finalColor, priority, mode);
+                    PlaceObjPixel(x, LookupPalette(finalColor), finalColor, priority, mode);
                 }
 
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceObjPixel(uint x, byte color, byte priority, ObjMode mode)
+        public void PlaceObjPixel(uint x, ushort color, byte paletteIndex, byte priority, ObjMode mode)
         {
             switch (mode)
             {
                 case ObjMode.Normal:
                     if (priority < ObjBuffer[x].Priority)
                     {
-                        ObjBuffer[x] = new ObjPixel(color, priority, mode);
+                        ObjBuffer[x] = new ObjPixel(color, paletteIndex, priority, mode);
                     }
                     break;
                 case ObjMode.Translucent:
                     if (priority < ObjBuffer[x].Priority)
                     {
-                        ObjBuffer[x] = new ObjPixel(color, priority, mode);
+                        ObjBuffer[x] = new ObjPixel(color, paletteIndex, priority, mode);
                     }
                     ObjBuffer[x].Priority = priority;
                     break;
@@ -1008,16 +1033,15 @@ namespace OptimeGBA
             for (int i = 0; i < Width; i++)
             {
                 uint winMask = WinMasks[i];
-                var objPixel = ObjBuffer[i];
+                ObjPixel objPixel = ObjBuffer[i];
 
-                uint hiPaletteIndex = BgHiColor[i];
-                uint loPaletteIndex = BgLoColor[i];
-                // Make sure sprites always draw over backdrop
+                ushort hiColor = BgHiColor[i];
+                ushort loColor = BgLoColor[i];
                 uint hiPrio = BgHiPrio[i];
                 uint loPrio = BgLoPrio[i];
                 BlendFlag hiPixelFlag = (BlendFlag)BgHiFlags[i];
                 BlendFlag loPixelFlag = (BlendFlag)BgLoFlags[i];
-                uint objPaletteIndex = objPixel.Color + 256U;
+                uint objPaletteIndex = objPixel.PaletteIndex + 256U;
 
                 uint effectiveTarget1Flags = Target1Flags;
                 BlendEffect effectiveBlendEffect = BlendEffect;
@@ -1026,15 +1050,15 @@ namespace OptimeGBA
                 {
                     if (objPixel.Priority <= hiPrio)
                     {
-                        loPaletteIndex = hiPaletteIndex;
+                        loColor = hiColor;
                         loPixelFlag = hiPixelFlag;
 
-                        hiPaletteIndex = objPaletteIndex;
+                        hiColor = LookupPalette(objPaletteIndex);
                         hiPixelFlag = BlendFlag.Obj;
                     }
                     else if (objPixel.Priority <= loPrio)
                     {
-                        loPaletteIndex = objPaletteIndex;
+                        loColor = LookupPalette(objPaletteIndex);
                         loPixelFlag = BlendFlag.Obj;
                     }
 
@@ -1046,17 +1070,15 @@ namespace OptimeGBA
                     }
                 }
 
-                uint colorOut;
                 if (
                     effectiveBlendEffect != BlendEffect.None &&
                     (effectiveTarget1Flags & (uint)hiPixelFlag) != 0 &&
                     (winMask & (uint)WindowFlag.ColorMath) != 0
                 )
                 {
-                    uint color1 = ProcessedPalettes[hiPaletteIndex];
-                    byte r1 = (byte)(color1 >> 0);
-                    byte g1 = (byte)(color1 >> 8);
-                    byte b1 = (byte)(color1 >> 16);
+                    byte r1 = (byte)((hiColor >> 0) & 0x1F);
+                    byte g1 = (byte)((hiColor >> 5) & 0x1F);
+                    byte b1 = (byte)((hiColor >> 10) & 0x1F);
 
                     byte fr = r1;
                     byte fg = g1;
@@ -1066,40 +1088,39 @@ namespace OptimeGBA
                         case BlendEffect.Blend:
                             if ((Target2Flags & (uint)loPixelFlag) != 0)
                             {
-                                uint color2 = ProcessedPalettes[loPaletteIndex];
-                                byte r2 = (byte)(color2 >> 0);
-                                byte g2 = (byte)(color2 >> 8);
-                                byte b2 = (byte)(color2 >> 16);
+                                byte r2 = (byte)((loColor >> 0) & 0x1F);
+                                byte g2 = (byte)((loColor >> 5) & 0x1F);
+                                byte b2 = (byte)((loColor >> 10) & 0x1F);
 
-                                fr = (byte)(Math.Min(4095U, r1 * BlendACoeff + r2 * BlendBCoeff) >> 4);
-                                fg = (byte)(Math.Min(4095U, g1 * BlendACoeff + g2 * BlendBCoeff) >> 4);
-                                fb = (byte)(Math.Min(4095U, b1 * BlendACoeff + b2 * BlendBCoeff) >> 4);
+                                fr = (byte)((Math.Min(511U, r1 * BlendACoeff + r2 * BlendBCoeff) >> 4) & 0x1FU);
+                                fg = (byte)((Math.Min(511U, g1 * BlendACoeff + g2 * BlendBCoeff) >> 4) & 0x1FU);
+                                fb = (byte)((Math.Min(511U, b1 * BlendACoeff + b2 * BlendBCoeff) >> 4) & 0x1FU);
                             }
                             break;
                         case BlendEffect.Lighten:
-                            fr = (byte)(r1 + (((255 - r1) * BlendBrightness) >> 4));
-                            fg = (byte)(g1 + (((255 - g1) * BlendBrightness) >> 4));
-                            fb = (byte)(b1 + (((255 - b1) * BlendBrightness) >> 4));
+                            fr = (byte)((r1 + (((31 - r1) * BlendBrightness) >> 4)) & 0x1FU);
+                            fg = (byte)((g1 + (((31 - g1) * BlendBrightness) >> 4)) & 0x1FU);
+                            fb = (byte)((b1 + (((31 - b1) * BlendBrightness) >> 4)) & 0x1FU);
                             break;
                         case BlendEffect.Darken:
-                            fr = (byte)(r1 - ((r1 * BlendBrightness) >> 4));
-                            fg = (byte)(g1 - ((g1 * BlendBrightness) >> 4));
-                            fb = (byte)(b1 - ((b1 * BlendBrightness) >> 4));
+                            fr = (byte)((r1 - ((r1 * BlendBrightness) >> 4)) & 0x1FU);
+                            fg = (byte)((g1 - ((g1 * BlendBrightness) >> 4)) & 0x1FU);
+                            fb = (byte)((b1 - ((b1 * BlendBrightness) >> 4)) & 0x1FU);
                             break;
-
                     }
 
-                    colorOut = (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+                    ScreenBack[screenBase++] = Rgb555SeparateTo888(fr, fg, fb);
                 }
                 else
                 {
-                    colorOut = ProcessedPalettes[hiPaletteIndex];
+                    ScreenBack[screenBase++] = Rgb555To888(hiColor);
                 }
 
-                ScreenBack[screenBase++] = colorOut;
+                // TODO: re-implement color correction
 
                 // Use this loop as an opportunity to clear the sprite buffer
                 ObjBuffer[i].Color = 0;
+                ObjBuffer[i].PaletteIndex = 0;
                 ObjBuffer[i].Priority = 4;
                 ObjWindowBuffer[i] = 0;
             }
@@ -1141,7 +1162,34 @@ namespace OptimeGBA
                     case BackgroundMode.Affine:
                         RenderAffineBackground(vcount, vram, bg);
                         break;
+                    case BackgroundMode.AffineFullColorBitmap:
+                        RenderAffineBitmapBackground(vcount, vram, bg, true);
+                        break;
+                    case BackgroundMode.Affine256ColorBitmap:
+                        RenderAffineBitmapBackground(vcount, vram, bg, false);
+                        break;
                 }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void RenderAffineBitmapBackground(uint vcount, byte* vram, Background bg, bool fullColor)
+        {
+            // TODO: actually implement rendering affine here
+            // TODO: implement 256-color mode (no fullColor)
+            uint screenBase = (uint)(vcount * Width);
+            uint vramBase = (uint)(vcount * Width * 2) + bg.MapBaseBlock * MapBlockSizeAffineNds;
+
+            byte flag = (byte)(1 << bg.Id);
+
+            for (uint p = 0; p < Width; p++)
+            {
+                ushort data = GetUshort(vram, vramBase);
+
+                PlaceBgPixel(p, data, bg.Priority, flag);
+
+                screenBase++;
+                vramBase += 2;
             }
         }
 
@@ -1154,7 +1202,7 @@ namespace OptimeGBA
             {
                 uint vramVal = vram[vramBase];
 
-                ScreenBack[screenBase] = ProcessedPalettes[vramVal];
+                ScreenBack[screenBase] = Rgb555To888(LookupPalette(vramVal));
 
                 vramBase++;
                 screenBase++;
@@ -1173,7 +1221,7 @@ namespace OptimeGBA
 
                 ushort data = (ushort)((b1 << 8) | b0);
 
-                ScreenBack[screenBase] = Rgb555to888(data, ColorCorrection);
+                ScreenBack[screenBase] = Rgb555To888(data);
 
                 screenBase++;
                 vramBase += 2;
@@ -1192,68 +1240,30 @@ namespace OptimeGBA
             }
         }
 
-        public static uint Rgb555to888(uint data, bool colorCorrection)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Rgb555To888(uint data)
         {
             byte r = (byte)((data >> 0) & 0b11111);
             byte g = (byte)((data >> 5) & 0b11111);
             byte b = (byte)((data >> 10) & 0b11111);
 
-            if (colorCorrection)
-            {
-                // byuu color correction, customized for my tastes
-                double ppuGamma = 4.0, outGamma = 3.0;
-
-                double lb = Math.Pow(b / 31.0, ppuGamma);
-                double lg = Math.Pow(g / 31.0, ppuGamma);
-                double lr = Math.Pow(r / 31.0, ppuGamma);
-
-                byte fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
-                byte fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
-                byte fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
-
-                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
-            }
-            else
-            {
-                byte fr = (byte)((255 / 31) * r);
-                byte fg = (byte)((255 / 31) * g);
-                byte fb = (byte)((255 / 31) * b);
-
-                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
-            }
+            return (uint)(
+                    (0xFF << 24) |
+                    (((b << 3) | (b >> 2)) << 16) |
+                    (((g << 3) | (g >> 2)) << 8) |
+                    (((r << 3) | (r >> 2)) << 0)
+                );
         }
 
-        public void UpdatePalette(uint pal)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Rgb555SeparateTo888(byte r, byte g, byte b)
         {
-            byte b0 = Palettes[(pal * 2) + 0];
-            byte b1 = Palettes[(pal * 2) + 1];
-
-            ushort data = (ushort)((b1 << 8) | b0);
-
-            // Console.WriteLine("update palette: " + Util.Hex(data, 4) + " " + pal);
-            ProcessedPalettes[pal] = Rgb555to888(data, ColorCorrection);
-        }
-
-        public void RefreshPalettes()
-        {
-            for (uint i = 0; i < 512; i++)
-            {
-                UpdatePalette(i);
-            }
-
-            White = Rgb555to888(0xFFFF, ColorCorrection);
-        }
-
-        public void EnableColorCorrection()
-        {
-            ColorCorrection = true;
-            RefreshPalettes();
-        }
-
-        public void DisableColorCorrection()
-        {
-            ColorCorrection = false;
-            RefreshPalettes();
+            return (uint)(
+                    (0xFF << 24) |
+                    (((b << 3) | (b >> 2)) << 16) |
+                    (((g << 3) | (g >> 2)) << 8) |
+                    (((r << 3) | (r >> 2)) << 0)
+                );
         }
 
         public byte ReadHwio8(uint addr)
@@ -1557,15 +1567,11 @@ namespace OptimeGBA
 
                 case 0x52: // BLDALPHA B0
                     BlendACoeff = val & 0b11111U;
-                    if (BlendACoeff == 31) BlendACoeff = 0;
-
                     BLDALPHAValue &= 0x7F00;
                     BLDALPHAValue |= (ushort)(val << 0);
                     break;
                 case 0x53: // BLDALPHA B1
                     BlendBCoeff = val & 0b11111U;
-                    if (BlendBCoeff == 31) BlendBCoeff = 0;
-
                     BLDALPHAValue &= 0x00FF;
                     BLDALPHAValue |= (ushort)(val << 8);
                     break;

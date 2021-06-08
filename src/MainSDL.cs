@@ -803,16 +803,17 @@ namespace OptimeGBAEmulator
                 {
                     switch (kb.keysym.sym)
                     {
-                        case SDL_Keycode.SDLK_F1:
-                            if (Gba.Ppu.Renderer.ColorCorrection)
-                            {
-                                Gba.Ppu.Renderer.DisableColorCorrection();
-                            }
-                            else
-                            {
-                                Gba.Ppu.Renderer.EnableColorCorrection();
-                            }
-                            break;
+                        // TODO: re-implement this once re-implementing color correction
+                        // case SDL_Keycode.SDLK_F1:
+                        //     if (Gba.Ppu.Renderer.ColorCorrection)
+                        //     {
+                        //         Gba.Ppu.Renderer.DisableColorCorrection();
+                        //     }
+                        //     else
+                        //     {
+                        //         Gba.Ppu.Renderer.EnableColorCorrection();
+                        //     }
+                        //     break;
 
                         case SDL_Keycode.SDLK_F2:
                             Gba.Ppu.Renderer.DebugEnableRendering = !Gba.Ppu.Renderer.DebugEnableRendering;

@@ -360,9 +360,9 @@ namespace OptimeGBAEmulator
                     "Upper Main Memory",
                     "Shared Memory",
                     "Engine A BG VRAM",
+                    "Engine A BG VRAM 0x6018000",
                     "Engine A OBJ VRAM",
                     "OAM",
-                    "Something's happening here"
                 };
 
         static uint[] baseAddrs = {
@@ -372,9 +372,9 @@ namespace OptimeGBAEmulator
                 0x027FF800,
                 0x03000000,
                 0x06000000,
+                0x06018000,
                 0x06400000,
                 0x07000000,
-                0x02324860,
             };
 
         public void DrawMemoryViewer()
@@ -676,6 +676,13 @@ namespace OptimeGBAEmulator
                     Nds.Step();
                     LogIndex++;
                 }
+                if (ImGui.Button("Step until ARM9 unhalted"))
+                {
+                    while (Nds.Nds9.Cpu.Halted)
+                    {
+                        Nds.Step();
+                    }
+                }
                 // if (ImGui.Button("Step Until Error"))
                 // {
                 //     bool exit = false;
@@ -946,14 +953,14 @@ namespace OptimeGBAEmulator
                 ImGui.Text("Palettes");
 
                 int texIdIndex = 0;
-                for (int i = 0; i < 2; i++)
+                for (uint i = 0; i < 2; i++)
                 {
-                    for (int j = 0; j < 2; j++)
+                    for (uint j = 0; j < 2; j++)
                     {
-                        int paletteBase = j * 256;
-                        for (int p = 0; p < 256; p++)
+                        uint paletteBase = j * 256;
+                        for (uint p = 0; p < 256; p++)
                         {
-                            PaletteImageBuffer[p] = Nds.Ppu.Renderers[i].ProcessedPalettes[paletteBase + p];
+                            PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Nds.Ppu.Renderers[i].LookupPalette(paletteBase + p));
                         }
 
                         GL.BindTexture(TextureTarget.Texture2D, palTexIds[texIdIndex]);

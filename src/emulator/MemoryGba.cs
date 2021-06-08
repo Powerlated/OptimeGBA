@@ -281,7 +281,6 @@ namespace OptimeGBA
                     if (GetUshort(Gba.Ppu.Renderer.Palettes, addr) != val)
                     {
                         SetUshort(Gba.Ppu.Renderer.Palettes, addr, val);
-                        Gba.Ppu.Renderer.UpdatePalette((addr & ~1u) / 2);
                     }
                     break;
                 case 0xA: // ROM / EEPROM
@@ -313,8 +312,6 @@ namespace OptimeGBA
                     if (GetUint(Gba.Ppu.Renderer.Palettes, addr) != val)
                     {
                         SetUint(Gba.Ppu.Renderer.Palettes, addr, val);
-                        Gba.Ppu.Renderer.UpdatePalette((addr & ~3u) / 2 + 0);
-                        Gba.Ppu.Renderer.UpdatePalette((addr & ~3u) / 2 + 1);
                     }
                     return;
                 case 0x6: // PPU VRAM

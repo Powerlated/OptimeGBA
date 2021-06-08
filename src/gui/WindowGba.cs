@@ -462,7 +462,7 @@ namespace OptimeGBAEmulator
         {
             String disasm = Gba.Cpu.ThumbState ? disasmThumb((ushort)Gba.Cpu.Decode) : disasmArm(Gba.Cpu.Decode);
 
-            var text = 
+            var text =
             $"{HexN(Gba.Cpu.R[0], 8)} " +
             $"{HexN(Gba.Cpu.R[1], 8)} " +
             $"{HexN(Gba.Cpu.R[2], 8)} " +
@@ -848,9 +848,9 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text("Palettes");
 
-                for (int p = 0; p < 256; p++)
+                for (uint p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Ppu.Renderer.ProcessedPalettes[p];
+                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p));
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
@@ -875,9 +875,9 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Pointer: {texId}");
                 ImGui.Image((IntPtr)bgPalTexId, new System.Numerics.Vector2(16 * 8, 16 * 8));
 
-                for (int p = 0; p < 256; p++)
+                for (uint p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = Gba.Ppu.Renderer.ProcessedPalettes[p + 256];
+                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p + 256));
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
