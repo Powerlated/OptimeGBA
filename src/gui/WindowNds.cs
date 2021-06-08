@@ -960,7 +960,7 @@ namespace OptimeGBAEmulator
                         uint paletteBase = j * 256;
                         for (uint p = 0; p < 256; p++)
                         {
-                            PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Nds.Ppu.Renderers[i].LookupPalette(paletteBase + p));
+                            PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Nds.Ppu.Renderers[i].LookupPalette(paletteBase + p), false);
                         }
 
                         GL.BindTexture(TextureTarget.Texture2D, palTexIds[texIdIndex]);
@@ -973,7 +973,7 @@ namespace OptimeGBAEmulator
                         GL.TexImage2D(
                             TextureTarget.Texture2D,
                             0,
-                            PixelInternalFormat.Rgb,
+                            PixelInternalFormat.Rgba,
                             16,
                             16,
                             0,
@@ -1020,6 +1020,8 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public uint[] DisplayBuffer = new uint[256 * 192];
+
         public bool BigScreen = false;
         public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
@@ -1039,7 +1041,11 @@ namespace OptimeGBAEmulator
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
                     var renderer = Nds.Ppu.Renderers[i];
 
-                    var buffer = ShowBackBuf ? renderer.ScreenBack : renderer.ScreenFront;
+                    var buf = ShowBackBuf ? renderer.ScreenBack : renderer.ScreenFront;
+                    for (uint j = 0; j < 256 * 192; j++)
+                    {
+                        DisplayBuffer[j] = PpuRenderer.ColorLut[buf[j] & 0x7FFF];
+                    }
 
                     GL.TexImage2D(
                         TextureTarget.Texture2D,
@@ -1050,11 +1056,7 @@ namespace OptimeGBAEmulator
                         0,
                         PixelFormat.Rgba,
                         PixelType.UnsignedByte,
-#if UNSAFE
-                        (IntPtr)buffer
-#else
-                        buffer
-#endif
+                        DisplayBuffer
                     );
 
                     ImGui.Image((IntPtr)screenTexIds[i], new System.Numerics.Vector2(width, height));

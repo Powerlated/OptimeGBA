@@ -71,6 +71,9 @@ namespace OptimeGBAEmulator
         static Thread EmulationThread;
         static AutoResetEvent ThreadSync = new AutoResetEvent(false);
 
+        static uint[] DisplayBuf = new uint[NDS_WIDTH * NDS_HEIGHT];
+        static bool ColorCorrection = true;
+
         public static void Main(string[] args)
         {
             // Parse No-Intro database
@@ -437,13 +440,13 @@ namespace OptimeGBAEmulator
                         fpsEvalTimer += 1;
                     }
 
-#if UNSAFE
-                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Nds.Ppu.Renderers[0].ScreenFront, NDS_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
-#else
-                fixed (uint* pixels = &Nds.Ppu.ScreenFront[0])
-                {
-                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, NDS_WIDTH * Ppu.BYTES_PER_PIXEL);
-#endif
+                    if (Nds.Ppu.Renderers[0].RenderingDone)
+                    {
+                        Nds.Ppu.Renderers[0].RenderingDone = false;
+                        CopyPixels(Nds.Ppu.Renderers[0].ScreenFront, DisplayBuf, NDS_WIDTH * NDS_HEIGHT, false);
+                        fixed (void* ptr = DisplayBuf)
+                            SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)ptr, NDS_WIDTH * 4);
+                    }
 
                     SDL_Rect dest = new SDL_Rect();
                     SDL_GetWindowSize(Window, out int w, out int h);
@@ -548,13 +551,13 @@ namespace OptimeGBAEmulator
                         fpsEvalTimer += 1;
                     }
 
-#if UNSAFE
-                    SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)Gba.Ppu.Renderer.ScreenFront, GBA_WIDTH * PpuRenderer.BYTES_PER_PIXEL);
-#else
-                fixed (uint* pixels = &Gba.Ppu.ScreenFront[0])
-                {
-                    SDL_UpdateTexture(texture, IntPtr.Zero, (IntPtr)pixels, GBA_WIDTH * Ppu.BYTES_PER_PIXEL);GBA_HEIGHT
-#endif
+                    if (Gba.Ppu.Renderer.RenderingDone)
+                    {
+                        Gba.Ppu.Renderer.RenderingDone = false;
+                        CopyPixels(Gba.Ppu.Renderer.ScreenFront, DisplayBuf, GBA_WIDTH * GBA_HEIGHT, ColorCorrection);
+                        fixed (void* ptr = DisplayBuf)
+                            SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)ptr, GBA_WIDTH * 4);
+                    }
 
                     SDL_Rect dest = new SDL_Rect();
                     SDL_GetWindowSize(Window, out int w, out int h);
@@ -617,6 +620,26 @@ namespace OptimeGBAEmulator
             SDL_VideoQuit();
             SDL_Quit();
             Cleanup();
+        }
+
+        public static void CopyPixels(ushort[] src, uint[] dest, uint pixels, bool colorCorrection)
+        {
+            var lut = colorCorrection ? PpuRenderer.ColorLutCorrected : PpuRenderer.ColorLut;
+
+            for (uint i = 0; i < pixels; i++)
+            {
+                DisplayBuf[i] = lut[src[i] & 0x7FFF];
+            }
+        }
+
+        public static void CopyPixels(ushort* src, uint[] dest, uint pixels, bool colorCorrection)
+        {
+            var lut = colorCorrection ? PpuRenderer.ColorLutCorrected : PpuRenderer.ColorLut;
+
+            for (uint i = 0; i < pixels; i++)
+            {
+                DisplayBuf[i] = lut[src[i] & 0x7FFF];
+            }
         }
 
         public static void UpdatePlayingRpc()
@@ -803,17 +826,9 @@ namespace OptimeGBAEmulator
                 {
                     switch (kb.keysym.sym)
                     {
-                        // TODO: re-implement this once re-implementing color correction
-                        // case SDL_Keycode.SDLK_F1:
-                        //     if (Gba.Ppu.Renderer.ColorCorrection)
-                        //     {
-                        //         Gba.Ppu.Renderer.DisableColorCorrection();
-                        //     }
-                        //     else
-                        //     {
-                        //         Gba.Ppu.Renderer.EnableColorCorrection();
-                        //     }
-                        //     break;
+                        case SDL_Keycode.SDLK_F1:
+                            ColorCorrection = !ColorCorrection;
+                            break;
 
                         case SDL_Keycode.SDLK_F2:
                             Gba.Ppu.Renderer.DebugEnableRendering = !Gba.Ppu.Renderer.DebugEnableRendering;

@@ -79,6 +79,11 @@ namespace OptimeGBA
 
         ~Arm7() {
             MemoryUtil.FreeUnmanagedArray(R);
+
+            MemoryUtil.FreeUnmanagedArray(Timing8And16);
+            MemoryUtil.FreeUnmanagedArray(Timing32);
+            MemoryUtil.FreeUnmanagedArray(Timing8And16InstrFetch);
+            MemoryUtil.FreeUnmanagedArray(Timing32InstrFetch);
         }
 #else
         public uint[] R = new uint[16];

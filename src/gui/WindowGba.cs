@@ -850,7 +850,7 @@ namespace OptimeGBAEmulator
 
                 for (uint p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p));
+                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p), false);
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, bgPalTexId);
@@ -877,7 +877,7 @@ namespace OptimeGBAEmulator
 
                 for (uint p = 0; p < 256; p++)
                 {
-                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p + 256));
+                    PaletteImageBuffer[p] = PpuRenderer.Rgb555To888(Gba.Ppu.Renderer.LookupPalette(p + 256), false);
                 }
 
                 GL.BindTexture(TextureTarget.Texture2D, objPalTexId);
@@ -925,6 +925,8 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public uint[] DisplayBuffer = new uint[240 * 160];
+
         public bool BigScreen = false;
         public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
@@ -933,11 +935,15 @@ namespace OptimeGBAEmulator
             {
                 gbTexId = 0;
 
+                var buf = ShowBackBuf ? Gba.Ppu.Renderer.ScreenBack : Gba.Ppu.Renderer.ScreenFront;
+                for (uint i = 0; i < 240 * 160; i++)
+                {
+                    DisplayBuffer[i] = PpuRenderer.ColorLutCorrected[buf[i] & 0x7FFF];
+                }
+
                 // GL.ActiveTexture(TextureUnit.Texture0);
                 GL.BindTexture(TextureTarget.Texture2D, gbTexId);
-                if (!ShowBackBuf)
-                {
-                    GL.TexImage2D(
+                GL.TexImage2D(
                     TextureTarget.Texture2D,
                     0,
                     PixelInternalFormat.Rgba,
@@ -946,32 +952,8 @@ namespace OptimeGBAEmulator
                     0,
                     PixelFormat.Rgba,
                     PixelType.UnsignedByte,
-#if UNSAFE
-                    (IntPtr)Gba.Ppu.Renderer.ScreenFront
-#else
-                    Gba.Ppu.Renderer.ScreenFront
-#endif
+                    DisplayBuffer
                 );
-
-                }
-                else
-                {
-                    GL.TexImage2D(
-                    TextureTarget.Texture2D,
-                    0,
-                    PixelInternalFormat.Rgba,
-                    240,
-                    160,
-                    0,
-                    PixelFormat.Rgba,
-                    PixelType.UnsignedByte,
-#if UNSAFE
-                    (IntPtr)Gba.Ppu.Renderer.ScreenBack
-#else
-                    Gba.Ppu.Renderer.ScreenBack
-#endif
-                    );
-                }
 
                 float height = BigScreen ? 240 * 5 : 240 * 2;
                 float width = BigScreen ? 160 * 5 : 160 * 2;

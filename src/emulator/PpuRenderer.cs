@@ -28,8 +28,8 @@ namespace OptimeGBA
 
             int ScreenBufferSize = Width * Height;
 #if UNSAFE
-            ScreenFront = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
-            ScreenBack = MemoryUtil.AllocateUnmanagedArray32(ScreenBufferSize);
+            ScreenFront = MemoryUtil.AllocateUnmanagedArray16(ScreenBufferSize);
+            ScreenBack = MemoryUtil.AllocateUnmanagedArray16(ScreenBufferSize);
 
             WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 8);
             BgLoColor = MemoryUtil.AllocateUnmanagedArray16(width + 8);
@@ -39,8 +39,8 @@ namespace OptimeGBA
             BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
             BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
 #else 
-            ScreenFront = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
-            ScreenBack = MemoryUtil.AllocateManagedArray32(ScreenBufferSize);
+            ScreenFront = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
+            ScreenBack = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
 
             WinMasks = MemoryUtil.AllocateManagedArray(width + 8);
             BgLoColor = MemoryUtil.AllocateManagedArray16(width + 8);
@@ -55,8 +55,8 @@ namespace OptimeGBA
 
             for (uint i = 0; i < ScreenBufferSize; i++)
             {
-                ScreenFront[i] = 0xFFFFFFFF;
-                ScreenBack[i] = 0xFFFFFFFF;
+                ScreenFront[i] = 0x7FFF;
+                ScreenBack[i] = 0x7FFF;
             }
 
             if (!nds)
@@ -72,8 +72,8 @@ namespace OptimeGBA
 
         // RGB, 24-bit
 #if UNSAFE
-        public uint* ScreenFront;
-        public uint* ScreenBack;
+        public ushort* ScreenFront;
+        public ushort* ScreenBack;
 
         public byte* WinMasks;
 
@@ -90,10 +90,16 @@ namespace OptimeGBA
             MemoryUtil.FreeUnmanagedArray(ScreenBack);
             
             MemoryUtil.FreeUnmanagedArray(WinMasks);
+            MemoryUtil.FreeUnmanagedArray(BgLoColor);
+            MemoryUtil.FreeUnmanagedArray(BgHiColor);
+            MemoryUtil.FreeUnmanagedArray(BgHiPrio);
+            MemoryUtil.FreeUnmanagedArray(BgLoPrio);
+            MemoryUtil.FreeUnmanagedArray(BgHiFlags);
+            MemoryUtil.FreeUnmanagedArray(BgLoFlags);
         }
 #else
-        public uint[] ScreenFront;
-        public uint[] ScreenBack;
+        public ushort[] ScreenFront;
+        public ushort[] ScreenBack;
 
         public byte[] WinMasks;
 
@@ -118,11 +124,54 @@ namespace OptimeGBA
         const uint MapBlockSize = 2048;
         const uint MapBlockSizeAffineNds = 16384;
 
-        public uint White = Rgb555To888(0xFFFF);
-
         public bool[] DebugEnableBg = new bool[4];
         public bool DebugEnableObj = true;
         public bool DebugEnableRendering = true;
+
+        public static uint[] ColorLut = GenerateRgb555To888Lut(false);
+        public static uint[] ColorLutCorrected = GenerateRgb555To888Lut(true);
+
+        public static uint[] GenerateRgb555To888Lut(bool colorCorrection)
+        {
+            uint[] lut = new uint[32768];
+            for (uint i = 0; i < 32768; i++)
+            {
+                lut[i] = Rgb555To888(i, colorCorrection);
+            }
+            return lut;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint Rgb555To888(uint data, bool colorCorrection)
+        {
+            byte r = (byte)((data >> 0) & 0b11111);
+            byte g = (byte)((data >> 5) & 0b11111);
+            byte b = (byte)((data >> 10) & 0b11111);
+
+            if (colorCorrection)
+            {
+                // byuu color correction, customized for my tastes
+                double ppuGamma = 4.0, outGamma = 3.0;
+
+                double lb = Math.Pow(b / 31.0, ppuGamma);
+                double lg = Math.Pow(g / 31.0, ppuGamma);
+                double lr = Math.Pow(r / 31.0, ppuGamma);
+
+                byte fr = (byte)(Math.Pow((0 * lb + 10 * lg + 245 * lr) / 255, 1 / outGamma) * 0xFF);
+                byte fg = (byte)(Math.Pow((20 * lb + 230 * lg + 5 * lr) / 255, 1 / outGamma) * 0xFF);
+                byte fb = (byte)(Math.Pow((230 * lb + 5 * lg + 20 * lr) / 255, 1 / outGamma) * 0xFF);
+
+                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+            }
+            else
+            {
+                byte fr = (byte)((255 / 31) * r);
+                byte fg = (byte)((255 / 31) * g);
+                byte fb = (byte)((255 / 31) * b);
+
+                return (uint)((0xFF << 24) | (fb << 16) | (fg << 8) | (fr << 0));
+            }
+        }
 
 
         // BGCNT
@@ -1109,14 +1158,14 @@ namespace OptimeGBA
                             break;
                     }
 
-                    ScreenBack[screenBase++] = Rgb555SeparateTo888(fr, fg, fb);
+                    ScreenBack[screenBase++] = (ushort)((fb << 10) | (fg << 5) | fr);
                 }
                 else
                 {
-                    ScreenBack[screenBase++] = Rgb555To888(hiColor);
+                    ScreenBack[screenBase++] = hiColor;
                 }
 
-                // TODO: re-implement color correction
+                // It's the frontend's responsibility to convert rgb555 to rgb888
 
                 // Use this loop as an opportunity to clear the sprite buffer
                 ObjBuffer[i].Color = 0;
@@ -1202,7 +1251,7 @@ namespace OptimeGBA
             {
                 uint vramVal = vram[vramBase];
 
-                ScreenBack[screenBase] = Rgb555To888(LookupPalette(vramVal));
+                ScreenBack[screenBase] = LookupPalette(vramVal);
 
                 vramBase++;
                 screenBase++;
@@ -1221,7 +1270,7 @@ namespace OptimeGBA
 
                 ushort data = (ushort)((b1 << 8) | b0);
 
-                ScreenBack[screenBase] = Rgb555To888(data);
+                ScreenBack[screenBase] = data;
 
                 screenBase++;
                 vramBase += 2;
@@ -1235,35 +1284,9 @@ namespace OptimeGBA
 
             for (uint p = 0; p < Width; p++)
             {
-                ScreenBack[screenBase] = White;
+                ScreenBack[screenBase] = 0x7FFF;
                 screenBase++;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Rgb555To888(uint data)
-        {
-            byte r = (byte)((data >> 0) & 0b11111);
-            byte g = (byte)((data >> 5) & 0b11111);
-            byte b = (byte)((data >> 10) & 0b11111);
-
-            return (uint)(
-                    (0xFF << 24) |
-                    (((b << 3) | (b >> 2)) << 16) |
-                    (((g << 3) | (g >> 2)) << 8) |
-                    (((r << 3) | (r >> 2)) << 0)
-                );
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static uint Rgb555SeparateTo888(byte r, byte g, byte b)
-        {
-            return (uint)(
-                    (0xFF << 24) |
-                    (((b << 3) | (b >> 2)) << 16) |
-                    (((g << 3) | (g >> 2)) << 8) |
-                    (((r << 3) | (r >> 2)) << 0)
-                );
         }
 
         public byte ReadHwio8(uint addr)
