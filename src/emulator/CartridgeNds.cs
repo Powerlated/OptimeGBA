@@ -96,12 +96,12 @@ namespace OptimeGBA
         public bool BusyBit31;
 
         // AUXSPICNT
-        byte SpiBaudRate;
-        bool SpiHoldChipSel = false;
-        bool SpiBusy = false;
-        bool Slot1SpiMode = false;
-        bool TransferReadyIrq = false;
-        bool Slot1Enable = false;
+        public byte SpiBaudRate;
+        public bool SpiHoldChipSel = false;
+        public bool SpiBusy = false;
+        public bool Slot1SpiMode = false;
+        public bool TransferReadyIrq = false;
+        public bool Slot1Enable = false;
 
         // ROMCTRL
         byte ROMCTRLB0;
@@ -122,8 +122,9 @@ namespace OptimeGBA
                         val |= SpiBaudRate;
                         if (SpiHoldChipSel) val = BitSet(val, 6);
                         if (SpiBusy) val = BitSet(val, 7);
+                        // Console.WriteLine("AUXSPICNT B0 read");
                         break;
-                    case 0x40001A1: // AUXSPICNT B0
+                    case 0x40001A1: // AUXSPICNT B1
                         if (Slot1SpiMode) val = BitSet(val, 5);
                         if (TransferReadyIrq) val = BitSet(val, 6);
                         if (Slot1Enable) val = BitSet(val, 7);
@@ -157,6 +158,10 @@ namespace OptimeGBA
                         return (byte)(InData >> 24);
                 }
             }
+            else
+            {
+                Console.WriteLine((fromArm7 ? "ARM7" : "ARM9") + " tried to read from Slot 1 @ " + Hex(addr, 8));
+            }
 
             return val;
         }
@@ -172,7 +177,7 @@ namespace OptimeGBA
                         SpiHoldChipSel = BitTest(val, 6);
                         SpiBusy = BitTest(val, 7);
                         return;
-                    case 0x40001A1: // AUXSPICNT B0
+                    case 0x40001A1: // AUXSPICNT B1
                         Slot1SpiMode = BitTest(val, 5);
                         TransferReadyIrq = BitTest(val, 6);
                         Slot1Enable = BitTest(val, 7);
@@ -219,6 +224,10 @@ namespace OptimeGBA
                             return;
                     }
                 }
+            }
+            else
+            {
+                Console.WriteLine((fromArm7 ? "ARM7" : "ARM9") + " tried to read from Slot 1 @ " + Hex(addr, 8));
             }
         }
 
@@ -316,7 +325,7 @@ namespace OptimeGBA
             }
             else
             {
-                throw new NotImplementedException("Slot 1: unimplemented command " + Hex(cmd, 16));
+                // throw new NotImplementedException("Slot 1: unimplemented command " + Hex(cmd, 16));
             }
             // If block size is zero, no transfer will take place, signal end.
             if (TransferLength == 0)
@@ -391,14 +400,15 @@ namespace OptimeGBA
             InData = val;
         }
 
-        public bool DisableSlot1Dmas;
-        public long BytesTransferredDma = 0;
         public void RepeatCartridgeTransfer(long cyclesLate)
         {
-            if (!DisableSlot1Dmas)
+            // Console.WriteLine(Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
+            if (Nds.MemoryControl.Slot1AccessRights)
             {
-                // Console.WriteLine(Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
                 Nds.Nds7.Dma.Repeat((byte)DmaStartTimingNds7.Slot1);
+            }
+            else
+            {
                 Nds.Nds9.Dma.Repeat((byte)DmaStartTimingNds9.Slot1);
             }
         }
@@ -410,13 +420,16 @@ namespace OptimeGBA
 
             if (TransferReadyIrq)
             {
-                Nds.Scheduler.AddEventRelative(SchedulerId.None, 128, FlagNds7Slot1Interrupt);
-            }
-        }
+                if (Nds.MemoryControl.Slot1AccessRights)
+                {
+                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                }
+                else
+                {
+                    Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
 
-        public void FlagNds7Slot1Interrupt(long cyclesLate)
-        {
-            Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                }
+            }
         }
 
         // From the Key1 Encryption section of GBATek.

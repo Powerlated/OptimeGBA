@@ -20,7 +20,7 @@ namespace OptimeGBA
             Cpu = new Arm7(this, Mem, false, false, null);
             Dma = new DmaNds(this, false, Mem);
 
-            Timers = new Timers(this, Nds.Scheduler, true);
+            Timers = new Timers(this, Nds.Scheduler, true, true);
 
             Mem.InitPageTables();
             Cpu.FillPipelineArm();

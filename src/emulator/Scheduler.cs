@@ -10,11 +10,15 @@ namespace OptimeGBA
         RootNode = 254,
         Ppu = 0,
         ApuSample = 1,
-        Timer0 = 2,
-        Timer1 = 3,
-        Timer2 = 4,
-        Timer3 = 5,
         HaltSkip = 6,
+        Timer90 = 7,
+        Timer91 = 8,
+        Timer92 = 9,
+        Timer93 = 10,
+        Timer70 = 11,
+        Timer71 = 12,
+        Timer72 = 13,
+        Timer73 = 14,
     }
 
     public class SchedulerEvent
@@ -81,10 +85,14 @@ namespace OptimeGBA
                 case SchedulerId.None: return "None";
                 case SchedulerId.Ppu: return "PPU Event";
                 case SchedulerId.ApuSample: return "APU Sample";
-                case SchedulerId.Timer0: return "Timer 0 Overflow";
-                case SchedulerId.Timer1: return "Timer 1 Overflow";
-                case SchedulerId.Timer2: return "Timer 2 Overflow";
-                case SchedulerId.Timer3: return "Timer 3 Overflow";
+                case SchedulerId.Timer70: return "Timer7 0 Overflow";
+                case SchedulerId.Timer71: return "Timer7 1 Overflow";
+                case SchedulerId.Timer72: return "Timer7 2 Overflow";
+                case SchedulerId.Timer73: return "Timer7 3 Overflow";
+                case SchedulerId.Timer90: return "Timer9 0 Overflow";
+                case SchedulerId.Timer91: return "Timer9 1 Overflow";
+                case SchedulerId.Timer92: return "Timer9 2 Overflow";
+                case SchedulerId.Timer93: return "Timer9 3 Overflow";
                 case SchedulerId.RootNode: return "<root node>";
                 default:
                     return "<SchedulerId not found>";
@@ -105,14 +113,16 @@ namespace OptimeGBA
             // Traverse linked list and splice at correct location
             while (prevEvt.NextEvent != null)
             {
-                if (ticks >= prevEvt.Ticks && ticks <= prevEvt.NextEvent?.Ticks) {
+                if (ticks >= prevEvt.Ticks && ticks <= prevEvt.NextEvent?.Ticks)
+                {
                     break;
                 }
                 prevEvt = prevEvt.NextEvent;
             }
 
             var nextEvt = prevEvt.NextEvent;
-            if (nextEvt != null) {
+            if (nextEvt != null)
+            {
                 nextEvt.PrevEvent = newEvt;
             }
             prevEvt.NextEvent = newEvt;
@@ -158,7 +168,8 @@ namespace OptimeGBA
 
         public void RemoveEvent(SchedulerEvent schedulerEvent)
         {
-            if (schedulerEvent == RootEvent) {
+            if (schedulerEvent == RootEvent)
+            {
                 throw new Exception("Cannot remove root event!");
             }
             var prev = schedulerEvent.PrevEvent;

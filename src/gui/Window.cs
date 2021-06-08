@@ -148,7 +148,7 @@ namespace OptimeGBAEmulator
             UpdateFrequency = 59.7275;
 
             WindowGba.OnLoad();
-            WindowNds.OnLoad(); 
+            WindowNds.OnLoad();
 
             FileDrop += (FileDropEventArgs args) =>
             {
@@ -164,12 +164,15 @@ namespace OptimeGBAEmulator
 
         protected override void OnKeyDown(KeyboardKeyEventArgs args)
         {
-            ImGui.GetIO().KeysDown[(int)args.Key] = true;
+            // keycode can be negative sometimes, so filter out by casting to uint
+            if ((uint)args.Key < 512)
+                ImGui.GetIO().KeysDown[(int)args.Key] = true;
         }
 
         protected override void OnKeyUp(KeyboardKeyEventArgs args)
         {
-            ImGui.GetIO().KeysDown[(int)args.Key] = false;
+            if ((uint)args.Key < 512)
+                ImGui.GetIO().KeysDown[(int)args.Key] = false;
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
@@ -302,7 +305,8 @@ namespace OptimeGBAEmulator
             return disasm;
         }
 
-        public static void displayCheckbox(string label, bool v) {
+        public static void displayCheckbox(string label, bool v)
+        {
             ImGui.Checkbox(label, ref v);
         }
     }

@@ -96,6 +96,7 @@ namespace OptimeGBA
             ItcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 19);
             DtcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 17);
 
+            Console.WriteLine("ITCM set to: " + Util.Hex(0, 8) + " - " + Util.Hex(ItcmVirtualSize - 1, 8));
             Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
 
             InitPageTables();
@@ -117,7 +118,8 @@ namespace OptimeGBA
                     addr &= 0x3FFF; // 1st half of Shared RAM
                     return (Nds9.Nds.SharedRam, addr);
                 case 3:
-                    throw new NotImplementedException("Implement unmapping Shared RAM from ARM9 without EmptyPage, since some game can possibly try to write to the EmptyPage");
+                    // throw new NotImplementedException("Implement unmapping Shared RAM from ARM9 without EmptyPage, since some game can possibly try to write to the EmptyPage");
+                    EmptyPage[0] = 0;
                     return (EmptyPage, 0); // Unmapped
             }
         }
@@ -281,11 +283,13 @@ namespace OptimeGBA
 
         public byte ReadHwio8(bool debug, uint addr)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
-            {
-                uint count;
-                HwioReadLog.TryGetValue(addr, out count);
-                HwioReadLog[addr] = count + 1;
+            lock (HwioReadLog) {
+                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                {
+                    uint count;
+                    HwioReadLog.TryGetValue(addr, out count);
+                    HwioReadLog[addr] = count + 1;
+                }
             }
 
             switch (addr)
@@ -421,18 +425,20 @@ namespace OptimeGBA
                     return Nds9.ReadHwio8(addr);
             }
 
-            Console.WriteLine($"NDS9: Unmapped MMIO read addr:{Hex(addr, 8)}");
+            // Console.WriteLine($"NDS9: Unmapped MMIO read addr:{Hex(addr, 8)}");
 
             return 0;
         }
 
         public void WriteHwio8(bool debug, uint addr, byte val)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
-            {
-                uint count;
-                HwioWriteLog.TryGetValue(addr, out count);
-                HwioWriteLog[addr] = count + 1;
+            lock (HwioWriteLog) {
+                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                {
+                    uint count;
+                    HwioWriteLog.TryGetValue(addr, out count);
+                    HwioWriteLog[addr] = count + 1;
+                }
             }
 
             switch (addr)
@@ -570,11 +576,9 @@ namespace OptimeGBA
                 case 0x4000304: case 0x4000305: case 0x4000306: case 0x4000307:// POWCNT1
                     Nds9.WriteHwio8(addr, val);
                     return;
-
-
             }
 
-            Console.WriteLine($"NDS9: Unmapped MMIO write addr:{Hex(addr, 8)} val:{Hex(val, 2)}");
+            // Console.WriteLine($"NDS9: Unmapped MMIO write addr:{Hex(addr, 8)} val:{Hex(val, 2)}");
         }
     }
 }

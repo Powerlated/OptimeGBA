@@ -454,7 +454,7 @@ namespace OptimeGBA
         public bool VBlankIrqEnable;
         public bool HBlankIrqEnable;
         public bool VCounterIrqEnable;
-        public byte VCountSetting;
+        public uint VCountSetting;
 
         // State
         public uint VCount;
@@ -487,9 +487,10 @@ namespace OptimeGBA
                     if (VBlankIrqEnable) val = BitSet(val, 3);
                     if (HBlankIrqEnable) val = BitSet(val, 4);
                     if (VCounterIrqEnable) val = BitSet(val, 5);
+                    val |= (byte)((VCountSetting >> 1) & 0x80);
                     return val;
                 case 0x4000005: // DISPSTAT B1
-                    val |= VCountSetting;
+                    val |= (byte)VCountSetting;
                     return val;
 
                 case 0x4000006: // VCOUNT B0 - B1 only exists for Nintendo DS
@@ -594,9 +595,13 @@ namespace OptimeGBA
                     VBlankIrqEnable = BitTest(val, 3);
                     HBlankIrqEnable = BitTest(val, 4);
                     VCounterIrqEnable = BitTest(val, 5);
+
+                    VCountSetting &= 0x0FFU;
+                    VCountSetting |= (uint)((val & 0x80) << 1);
                     break;
                 case 0x4000005: // DISPSTAT B1
-                    VCountSetting = val;
+                    VCountSetting &= 0x100U;
+                    VCountSetting |= val;
                     break;
 
                 case 0x4000006: // Vcount
@@ -753,6 +758,7 @@ namespace OptimeGBA
             {
                 SetUint(Renderers[id].Palettes, addr, val);
                 Renderers[id].UpdatePalette(addr / 2);
+                Renderers[id].UpdatePalette(addr / 2 + 1);
             }
         }
 
@@ -777,7 +783,7 @@ namespace OptimeGBA
             Renderers[0].IncrementMosaicCounters();
             Renderers[1].IncrementMosaicCounters();
 
-            // Gba.Dma.RepeatHblank();
+            Nds.Nds9.Dma.Repeat((byte)DmaStartTimingNds9.HBlank);
         }
 
         public void EndVblankToHblank(long cyclesLate)
@@ -829,11 +835,6 @@ namespace OptimeGBA
             else
             {
                 VCount = 0;
-                VCounterMatch = VCount == VCountSetting;
-                // if (VCounterMatch && VCounterIrqEnable)
-                // {
-                //     Nds.HwControl.FlagInterrupt(InterruptGba.VCounterMatch);
-                // }
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
                 CompileVram();

@@ -250,7 +250,7 @@ namespace OptimeGBAEmulator
             DrawSchedulerInfo();
             DrawDebug();
             DrawInstrViewer();
-            // DrawInstrInfo();
+            DrawInstrInfo();
             DrawRegViewer();
             DrawMemoryViewer();
             DrawHwioLog();

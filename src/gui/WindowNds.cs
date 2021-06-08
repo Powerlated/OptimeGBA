@@ -91,8 +91,8 @@ namespace OptimeGBAEmulator
             var arm9 = Nds.Nds9.Cpu;
             var arm7 = Nds.Nds7.Cpu;
 
-            uint addr9 = (uint)(arm9.R[15] - arm9.Pipeline * (Nds.Nds9.Cpu.ThumbState ? 2 : 4));
-            uint addr7 = (uint)(arm7.R[15] - arm7.Pipeline * (Nds.Nds7.Cpu.ThumbState ? 2 : 4));
+            uint addr9 = GetCurrentInstrAddr(arm9);
+            uint addr7 = GetCurrentInstrAddr(arm7);
 
             if (EnableBreakpoints)
             {
@@ -106,6 +106,11 @@ namespace OptimeGBAEmulator
             }
 
             // if (arm9.GetInstructionArm(arm9.LastIns) == Arm.SWI) arm9.Error("damn it");
+        }
+
+        public uint GetCurrentInstrAddr(Arm7 cpu)
+        {
+            return (uint)(cpu.R[15] - cpu.Pipeline * (cpu.ThumbState ? 2 : 4));
         }
 
         static bool FrameNow = false;
@@ -499,31 +504,32 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
+        StringBuilder b = new StringBuilder(1000);
         public String BuildEmuFullText(Arm7 arm7)
         {
             String disasm = arm7.ThumbState ? disasmThumb((ushort)arm7.Decode) : disasmArm(arm7.Decode);
+            b.Clear();
 
-            StringBuilder builder = new StringBuilder();
-            builder.Append($"{HexN(arm7.R[0], 8)} ");
-            builder.Append($"{HexN(arm7.R[1], 8)} ");
-            builder.Append($"{HexN(arm7.R[2], 8)} ");
-            builder.Append($"{HexN(arm7.R[3], 8)} ");
-            builder.Append($"{HexN(arm7.R[4], 8)} ");
-            builder.Append($"{HexN(arm7.R[5], 8)} ");
-            builder.Append($"{HexN(arm7.R[6], 8)} ");
-            builder.Append($"{HexN(arm7.R[9], 8)} ");
-            builder.Append($"{HexN(arm7.R[8], 8)} ");
-            builder.Append($"{HexN(arm7.R[9], 8)} ");
-            builder.Append($"{HexN(arm7.R[10], 8)} ");
-            builder.Append($"{HexN(arm7.R[11], 8)} ");
-            builder.Append($"{HexN(arm7.R[12], 8)} ");
-            builder.Append($"{HexN(arm7.R[13], 8)} ");
-            builder.Append($"{HexN(arm7.R[14], 8)} ");
-            builder.Append($"{HexN(arm7.R[15], 8)} ");
-            builder.Append($"cpsr: {HexN(arm7.GetCPSR(), 8)} | ");
-            builder.Append($"{(arm7.ThumbState ? "    " + HexN(arm7.Decode, 4) : HexN(arm7.Decode, 8))}: {disasm}");
-            // text += $"> {LogIndex + 1}";
-            return builder.ToString();
+            for (int i = 0; i < 15; i++)
+            {
+                b.Append(HexN(arm7.R[i], 8)).Append(" ");
+            }
+            b.Append(HexN(GetCurrentInstrAddr(arm7), 8)).Append(" ");
+            b.Append("cpsr: ");
+            b.Append(HexN(arm7.GetCPSR(), 8));
+            b.Append(" | ");
+
+            if (arm7.ThumbState)
+            {
+                b.Append("    ");
+                b.Append(HexN(arm7.Decode, 4));
+            }
+            else
+            {
+                b.Append(HexN(arm7.Decode, 8));
+            }
+            b.Append(": ").Append(disasm);
+            return b.ToString();
         }
 
 
@@ -620,6 +626,7 @@ namespace OptimeGBAEmulator
                 ImGui.Text("ARM7");
                 drawCpuInfo(Nds.Nds7.Cpu);
                 displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
+                ImGui.Text($"Total Steps: " + Nds.Steps);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
@@ -696,17 +703,28 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                if (ImGui.Button("Step 250000"))
+                var times = 5000000;
+                if (ImGui.Button("Step " + times))
                 {
                     using (StreamWriter file7 = new StreamWriter("log7.txt"))
                     {
                         using (StreamWriter file9 = new StreamWriter("log9.txt"))
                         {
-                            int num = 250000;
-                            while (num > 0 && !Nds.Nds9.Cpu.Errored)
+                            int num = times;
+                            while (num > 0 && !Nds.Nds9.Cpu.Errored && !Nds.Nds7.Cpu.Errored)
                             {
                                 file7.WriteLine(BuildEmuFullText(Nds.Nds7.Cpu));
+                                if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
+                                {
+                                    file7.WriteLine("---------------- INTERRUPT ----------------");
+                                }
+
                                 file9.WriteLine(BuildEmuFullText(Nds.Nds9.Cpu));
+                                if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
+                                {
+                                    file9.WriteLine("---------------- INTERRUPT ----------------");
+                                }
+
                                 Nds.Step();
 
                                 // if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
@@ -916,10 +934,11 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
                 ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
-                ImGui.Text("Cartridge State: " + Nds.Cartridge.State.ToString());
-                ImGui.Text("Cartridge Addr: " + Hex(Nds.Cartridge.DataPos, 8));
-                ImGui.Text("Cartridge Tx. So Far: " + Nds.Cartridge.BytesTransferred + " bytes");
-                ImGui.Text("Cartridge Tx. Length: " + Nds.Cartridge.TransferLength);
+                ImGui.Text("Slot 1 Access: " + (Nds.MemoryControl.Slot1AccessRights ? "ARM7" : "ARM9"));
+                ImGui.Text("Slot 1 State: " + Nds.Cartridge.State.ToString());
+                ImGui.Text("Slot 1 Addr: " + Hex(Nds.Cartridge.DataPos, 8));
+                ImGui.Text("Slot 1 Tx. So Far: " + Nds.Cartridge.BytesTransferred + " bytes");
+                ImGui.Text("Slot 1 Tx. Length: " + Nds.Cartridge.TransferLength);
 
                 ImGui.Columns(1);
                 ImGui.Separator();
@@ -1464,30 +1483,85 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("HWIO Log"))
             {
+                if (ImGui.Button("Dump"))
+                {
+                    using (StreamWriter file9 = new StreamWriter("hwio9.txt"))
+                    {
+                        file9.WriteLine("ARM9");
+                        lock (Nds.Nds9.Mem.HwioReadLog)
+                        {
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
+                            {
+                                file9.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                            }
+                        }
+                        file9.WriteLine("---------");
+                        lock (Nds.Nds9.Mem.HwioWriteLog)
+                        {
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                            {
+                                file9.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                            }
+                        }
+                    }
+
+                    using (StreamWriter file7 = new StreamWriter("hwio7.txt"))
+                    {
+                        file7.WriteLine("ARM7");
+                        lock (Nds.Nds7.Mem.HwioReadLog)
+                        {
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                            {
+                                file7.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                            }
+                        }
+                        file7.WriteLine("---------");
+                        lock (Nds.Nds7.Mem.HwioWriteLog)
+                        {
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                            {
+                                file7.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                            }
+                        }
+                    }
+                }
+
                 ImGui.Columns(2);
 
                 ImGui.Text("ARM9");
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
+                lock (Nds.Nds9.Mem.HwioReadLog)
                 {
-                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
+                    {
+                        ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                    }
                 }
                 ImGui.Text("---------");
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                lock (Nds.Nds9.Mem.HwioWriteLog)
                 {
-                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                    {
+                        ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                    }
                 }
 
                 ImGui.NextColumn();
 
                 ImGui.Text("ARM7");
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                lock (Nds.Nds7.Mem.HwioReadLog)
                 {
-                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                    {
+                        ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
+                    }
                 }
                 ImGui.Text("---------");
-                foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                lock (Nds.Nds7.Mem.HwioWriteLog)
                 {
-                    ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                    {
+                        ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
+                    }
                 }
 
                 ImGui.End();

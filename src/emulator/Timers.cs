@@ -89,12 +89,19 @@ namespace OptimeGBA
             }
         }
 
+        public SchedulerId GetSchedulerId() {
+            uint id = (uint)SchedulerId.Timer90 + Id;
+            if (Timers.IsNds7) id += 4;
+
+            return (SchedulerId)id;
+        }
+
         public void Enable()
         {
             if (!Enabled)
             {
                 Reload();
-                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
+                Timers.Scheduler.AddEventRelative(GetSchedulerId(), CalculateOverflowCycles(), TimerOverflow);
                 EnableCycles = CalculateAlignedCurrentTicks();
                 // Console.WriteLine($"[Timer] {Id} Enable");
             }
@@ -124,8 +131,8 @@ namespace OptimeGBA
                 CounterVal = ReloadVal;
                 EnableCycles = CalculateAlignedCurrentTicks();
 
-                Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
-                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles(), TimerOverflow);
+                Timers.Scheduler.CancelEventsById(GetSchedulerId());
+                Timers.Scheduler.AddEventRelative(GetSchedulerId(), CalculateOverflowCycles(), TimerOverflow);
             }
         }
 
@@ -167,7 +174,7 @@ namespace OptimeGBA
                 CounterVal = CalculateCounter();
                 Enabled = false;
 
-                Timers.Scheduler.CancelEventsById((SchedulerId)((uint)SchedulerId.Timer0 + Id));
+                Timers.Scheduler.CancelEventsById(GetSchedulerId());
             }
         }
 
@@ -210,7 +217,7 @@ namespace OptimeGBA
 
             if (!CountUpTiming)
             {
-                Timers.Scheduler.AddEventRelative((SchedulerId)((uint)SchedulerId.Timer0 + Id), CalculateOverflowCycles() - cyclesLate, TimerOverflow);
+                Timers.Scheduler.AddEventRelative(GetSchedulerId(), CalculateOverflowCycles() - cyclesLate, TimerOverflow);
             }
 
             EnableCycles = CalculateAlignedCurrentTicks() - cyclesLate;
@@ -231,13 +238,16 @@ namespace OptimeGBA
     {
         public Device Device;
         public bool NdsMode;
+        public bool IsNds7;
         public Scheduler Scheduler;
 
-        public Timers(Device device, Scheduler scheduler, bool ndsMode)
+
+        public Timers(Device device, Scheduler scheduler, bool ndsMode, bool isNds7)
         {
             Device = device;
-            Scheduler = scheduler;
             NdsMode = ndsMode;
+            IsNds7 = isNds7;
+            Scheduler = scheduler;
 
             T = new Timer[4] {
                 new Timer(this, 0),

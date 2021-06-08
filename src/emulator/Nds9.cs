@@ -19,7 +19,7 @@ namespace OptimeGBA
             Cpu = new Arm7(this, Mem, true, true, Nds.Cp15);
             Dma = new DmaNds(this, true, Mem);
 
-            Timers = new Timers(this, Nds.Scheduler, true);
+            Timers = new Timers(this, Nds.Scheduler, true, false);
 
             Math = new Nds9Math(this);
 

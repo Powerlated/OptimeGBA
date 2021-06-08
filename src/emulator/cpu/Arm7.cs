@@ -445,6 +445,10 @@ namespace OptimeGBA
                 {
                     return Arm.SMULxy;
                 }
+                else if (id == 0b00010000)
+                {
+                    return Arm.SMLALxy;
+                } 
 
                 return Arm.Invalid;
             }
@@ -1003,73 +1007,6 @@ namespace OptimeGBA
 
             return false;
         }
-        
- [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public uint GetUserReg(uint reg)
-        {
-            if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)
-            {
-                throw new Exception("GetUserReg() called in User or System mode");
-            }
-
-            switch (reg)
-            {
-                case 0x0: return R[0];
-                case 0x1: return R[1];
-                case 0x2: return R[2];
-                case 0x3: return R[3];
-                case 0x4: return R[4];
-                case 0x5: return R[5];
-                case 0x6: return R[6];
-                case 0x7: return R[7];
-                case 0x8: return R8usr;
-                case 0x9: return R9usr;
-                case 0xA: return R10usr;
-                case 0xB: return R11usr;
-                case 0xC: return R12usr;
-                case 0xD: return R13usr;
-                case 0xE: return R14usr;
-                case 0xF: return R[15];
-
-                default:
-                    Error($"Invalid R: {reg}");
-                    return 0;
-            }
-
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetUserReg(uint reg, uint val)
-        {
-            if (Mode == Arm7Mode.User && Mode == Arm7Mode.OldUser && Mode == Arm7Mode.System)
-            {
-                throw new Exception("SetUserReg() called in User or System mode");
-            }
-
-            switch (reg)
-            {
-                case 0x0: R[0] = val; break;
-                case 0x1: R[1] = val; break;
-                case 0x2: R[2] = val; break;
-                case 0x3: R[3] = val; break;
-                case 0x4: R[4] = val; break;
-                case 0x5: R[5] = val; break;
-                case 0x6: R[6] = val; break;
-                case 0x7: R[7] = val; break;
-                case 0x8: R8usr = val; break;
-                case 0x9: R9usr = val; break;
-                case 0xA: R10usr = val; break;
-                case 0xB: R11usr = val; break;
-                case 0xC: R12usr = val; break;
-                case 0xD: R13usr = val; break;
-                case 0xE: R14usr = val; break;
-                case 0xF: R[15] = val; PipelineDirty = true; break;
-
-                default:
-                    Error($"Invalid R: {reg}");
-                    return;
-            }
-        }
 
         public uint GetCPSR()
         {
@@ -1244,60 +1181,17 @@ namespace OptimeGBA
 
             switch (mode)
             {
-                case 0x00:
-                    Mode = Arm7Mode.OldUser;
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13usr = R[13];
-                    R14usr = R[14];
-                    LineDebug($"Mode Switch: OldUser");
-                    break;
-                case 0x01:
-                    Mode = Arm7Mode.OldFIQ;
-                    R[8] = R8fiq;
-                    R[9] = R9fiq;
-                    R[10] = R10fiq;
-                    R[11] = R11fiq;
-                    R[12] = R12fiq;
-                    R[13] = R13fiq;
-                    R[14] = R14fiq;
-                    LineDebug($"Mode Switch: OldFIQ");
-                    break;
-                case 0x02:
-                    Mode = Arm7Mode.OldIRQ;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13irq;
-                    R[14] = R14irq;
-                    LineDebug($"Mode Switch: OldIRQ");
-                    break;
-                case 0x03:
-                    Mode = Arm7Mode.OldSupervisor;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13svc;
-                    R[14] = R14svc;
-                    LineDebug($"Mode Switch: OldSupervisor");
-                    break;
+
 
                 case 0x10:
                     Mode = Arm7Mode.User;
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13usr = R[13];
-                    R14usr = R[14];
+                    R[8] = R8usr;
+                    R[9] = R9usr;
+                    R[10] = R10usr;
+                    R[11] = R11usr;
+                    R[12] = R12usr;
+                    R[13] = R13usr;
+                    R[14] = R14usr;
                     LineDebug($"Mode Switch: User");
                     break;
                 case 0x11:

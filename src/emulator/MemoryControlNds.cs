@@ -97,7 +97,7 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000204:
-                    Console.WriteLine("read from exmemstat b0");
+                    // Console.WriteLine("read from exmemstat b0");
                     val |= (byte)((Slot2SramWaitArm7 & 0b11) << 0);
                     val |= (byte)((Slot2Rom0WaitArm7 & 0b11) << 2);
                     val |= (byte)((Slot2Rom1WaitArm7 & 0b1) << 4);
@@ -105,7 +105,7 @@ namespace OptimeGBA
                     if (Slot2AccessRights) val = BitSet(val, 7);
                     break;
                 case 0x4000205:
-                    Console.WriteLine("read from exmemstat b1");
+                    // Console.WriteLine("read from exmemstat b1");
                     if (Slot1AccessRights) val = BitSet(val, 3);
                     if (MainMemoryAccessPriority) val = BitSet(val, 7);
                     val = BitSet(val, 6);
@@ -127,7 +127,7 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000204:
-                    Console.WriteLine("write to exmemstat b0");
+                    // Console.WriteLine("write to exmemstat b0");
                     Slot2SramWaitArm7 = (byte)BitRange(val, 0, 1);
                     Slot2Rom0WaitArm7 = (byte)BitRange(val, 2, 3);
                     Slot2Rom1WaitArm7 = (byte)BitRange(val, 4, 4);

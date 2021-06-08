@@ -31,6 +31,8 @@ namespace OptimeGBA
         public byte[] Arm7Bios = MemoryUtil.AllocateManagedArray(Arm7BiosSize);
         public byte[] Arm7Wram = MemoryUtil.AllocateManagedArray(Arm7WramSize);
 
+        public byte RCNT;
+
         public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
         {
             // 12 bits shaved off already, shave off another 12 to get 24
@@ -212,11 +214,14 @@ namespace OptimeGBA
 
         public byte ReadHwio8(bool debug, uint addr)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+            lock (HwioReadLog)
             {
-                uint count;
-                HwioReadLog.TryGetValue(addr, out count);
-                HwioReadLog[addr] = count + 1;
+                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                {
+                    uint count;
+                    HwioReadLog.TryGetValue(addr, out count);
+                    HwioReadLog[addr] = count + 1;
+                }
             }
 
             switch (addr)
@@ -267,7 +272,7 @@ namespace OptimeGBA
 
                 case 0x4000130: case 0x4000131: // KEYINPUT 
                 case 0x4000136: case 0x4000137: // EXTKEYIN
-                    return Nds7.Nds.Keypad.ReadHwio8(addr); 
+                    return Nds7.Nds.Keypad.ReadHwio8(addr);
 
                 case 0x4000204: case 0x4000205: // EXMEMSTAT
                     return Nds7.Nds.MemoryControl.ReadHwio8Nds7(addr);
@@ -276,8 +281,10 @@ namespace OptimeGBA
                 case 0x4000210: case 0x4000211: case 0x4000212: case 0x4000213: // IE
                 case 0x4000214: case 0x4000215: case 0x4000216: case 0x4000217: // IF
                     return Nds7.HwControl.ReadHwio8(addr);
-                
-                case 0x4000134: case 0x4000135: // Stubbed RCNT
+
+                case 0x4000134:
+                    return 0x80;
+                case 0x4000135: // Stubbed RCNT
                     return 0;
 
                 case 0x4000138: case 0x4000139: // RTC
@@ -286,7 +293,9 @@ namespace OptimeGBA
                 case 0x4000240: case 0x4000241: // Memory Control Status
                     return Nds7.Nds.MemoryControl.ReadHwio8Nds7(addr);
 
+                case 0x4000500: case 0x4000501: // SOUNDCNT
                 case 0x4000504: case 0x4000505: // SOUNDBIAS
+                case 0x4000508: case 0x4000509: // SNDCAPCNT
                     return Nds7.Nds.Audio.ReadHwio8(addr);
 
                 case 0x4000300:
@@ -297,18 +306,21 @@ namespace OptimeGBA
                     return Nds7.ReadHwio8(addr);
             }
 
-            Console.WriteLine($"NDS7: Unmapped MMIO read addr:{Hex(addr, 8)}");
+            // Console.WriteLine($"NDS7: Unmapped MMIO read addr:{Hex(addr, 8)}");
 
             return 0;
         }
 
         public void WriteHwio8(bool debug, uint addr, byte val)
         {
-            if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+            lock (HwioWriteLog)
             {
-                uint count;
-                HwioWriteLog.TryGetValue(addr, out count);
-                HwioWriteLog[addr] = count + 1;
+                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                {
+                    uint count;
+                    HwioWriteLog.TryGetValue(addr, out count);
+                    HwioWriteLog[addr] = count + 1;
+                }
             }
 
             switch (addr)
@@ -354,10 +366,10 @@ namespace OptimeGBA
                     Nds7.Nds.Cartridge.WriteHwio8(true, addr, val); return;
 
                 case 0x40001B0: case 0x40001B1: case 0x40001B2: case 0x40001B3: // Slot 1 KEY2 encryption seed
-                case 0x40001B4: case 0x40001B5: case 0x40001B6: case 0x40001B7: 
-                case 0x40001B8: case 0x40001B9: case 0x40001BA: case 0x40001BB: 
+                case 0x40001B4: case 0x40001B5: case 0x40001B6: case 0x40001B7:
+                case 0x40001B8: case 0x40001B9: case 0x40001BA: case 0x40001BB:
                     return;
-                    
+
                 case 0x40001C0: case 0x40001C1: // SPICNT
                 case 0x40001C2: case 0x40001C3: // SPIDATA
                     Nds7.Spi.WriteHwio8(addr, val); return;
@@ -376,7 +388,9 @@ namespace OptimeGBA
                 case 0x4000138: case 0x4000139: // RTC
                     Nds7.Nds.Rtc.WriteHwio8(addr, val); return;
 
+                case 0x4000500: case 0x4000501: // SOUNDCNT
                 case 0x4000504: case 0x4000505: // SOUNDBIAS
+                case 0x4000508: case 0x4000509: // SNDCAPCNT
                     Nds7.Nds.Audio.WriteHwio8(addr, val); return;
 
                 case 0x4000300:
@@ -384,9 +398,8 @@ namespace OptimeGBA
                     Nds7.POSTFLG = (byte)(val & 1);
                     return;
 
-
                 case 0x4000301:
-                    if (val == 0xF0)
+                    if ((val & 0b11000000) == 0b10000000)
                     {
                         Nds7.Cpu.Halted = true;
                     }
@@ -397,7 +410,7 @@ namespace OptimeGBA
                     return;
             }
 
-            Console.WriteLine($"NDS7: Unmapped MMIO write addr:{Hex(addr, 8)} val:{Hex(val, 2)}");
+            // Console.WriteLine($"NDS7: Unmapped MMIO write addr:{Hex(addr, 8)} val:{Hex(val, 2)}");
         }
     }
 }

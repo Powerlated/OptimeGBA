@@ -34,6 +34,8 @@ namespace OptimeGBA
 
         public int Arm9PendingTicks;
 
+        public ulong Steps;
+
         public Nds(ProviderNds provider)
         {
             Provider = provider;
@@ -77,6 +79,8 @@ namespace OptimeGBA
                 Nds7.POSTFLG = 1;
                 Nds9.POSTFLG = 1;
 
+                Cartridge.Slot1Enable = true;
+
                 Nds9.Cpu.IRQDisable = true;
                 Nds9.Cpu.FIQDisable = true;
 
@@ -100,29 +104,18 @@ namespace OptimeGBA
                 Nds9.Mem.Write16(0x027FFC10, 0x5835); // Copy of ARM7 BIOS CRC
                 Nds9.Mem.Write16(0x027FFC40, 0x0001); // Boot indicator
 
-                Nds9.Mem.Write32(0x027FF864, 0);
-                Nds9.Mem.Write32(0x027FF868, (uint)(GetUshort(Provider.Firmware, 0x20) << 3));
-
-                Nds9.Mem.Write16(0x027FF874, GetUshort(Provider.Firmware, 0x26));
-                Nds9.Mem.Write16(0x027FF876, GetUshort(Provider.Firmware, 0x04));
-
-                // for (u32 i = 0; i < 0x70; i += 4)
-                //     Nds9.Mem.Write32(0x027FFC80 + i, GetUint(Firmware, UserSettings + i));
-
-                // MemoryControl.Slot1AccessRights = true;
-
-                if (rom.Length >= 0x170)
+                // Copy header in
+                for (uint i = 0; i < 0x170; i++)
                 {
-                    for (uint i = 0; i < 0x170; i++)
-                    {
-                        Nds9.Mem.Write8(0x027FFE00 + i, rom[i]);
-                    }
+                    Nds9.Mem.Write8(0x27FFE00 + i, rom[i]);
                 }
 
-                for (uint i = 0; i < 0x70; i++)
-                {
-                    Nds9.Mem.Write8(0x27FFC80 + i, Provider.Firmware[0x3FF00 + i]);
-                }
+                // Nds9.Mem.Write32(0x027FF864, 0);
+                // Nds9.Mem.Write32(0x027FF868, (uint)(GetUshort(Provider.Firmware, 0x20) << 3));
+
+                // Nds9.Mem.Write16(0x027FF874, GetUshort(Provider.Firmware, 0x26));
+                // Nds9.Mem.Write16(0x027FF876, GetUshort(Provider.Firmware, 0x04));
+
 
                 if (rom.Length >= 0x20)
                 {
@@ -174,6 +167,8 @@ namespace OptimeGBA
 
         public uint Step()
         {
+            Steps++;
+
             long beforeTicks = Scheduler.CurrentTicks;
 
             // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,

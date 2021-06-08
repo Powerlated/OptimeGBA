@@ -22,7 +22,7 @@ namespace OptimeGBA
             arm7.FlushPipeline();
         }
 
-               [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _LDMSTM(Arm7 arm7, uint ins, bool L)
         {
             arm7.LineDebug("LDM/STM");
@@ -33,15 +33,12 @@ namespace OptimeGBA
             bool W = BitTest(ins, 21);
 
             bool loadsPc = BitTest(ins, 15);
-            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != Arm7.Arm7Mode.User && arm7.Mode != Arm7.Arm7Mode.OldUser);
 
-            if (S)
+            uint oldMode = 0;
+            if (S && (!L || !loadsPc))
             {
-                if (L && loadsPc)
-                {
-                    arm7.LineDebug("Load CPSR from SPSR");
-                    arm7.SetCPSR(arm7.GetSPSR());
-                }
+                oldMode = arm7.GetMode();
+                arm7.SetMode((uint)Arm7.Arm7Mode.User);
             }
 
             // if (U && P && W) Error("U & P & W");
@@ -109,29 +106,14 @@ namespace OptimeGBA
                     {
                         if (P) addr += 4;
 
-                        if (!useUserModeRegs)
+                        if (r != 15)
                         {
-                            if (r != 15)
-                            {
-                                arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
                         }
                         else
                         {
-                            if (r != 15)
-                            {
-                                arm7.SetUserReg(r, arm7.Read32(addr & 0xFFFFFFFC));
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            arm7.FlushPipeline();
                         }
 
                         if (!P) addr += 4;
@@ -141,14 +123,7 @@ namespace OptimeGBA
 
                         if (P) addr += 4;
 
-                        if (!useUserModeRegs)
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
-                        }
-                        else
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
-                        }
+                        arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
 
                         if (!P) addr += 4;
 
@@ -156,7 +131,6 @@ namespace OptimeGBA
                     }
                 }
             }
-
 
             bool emptyRlist = (ins & 0xFFFF) == 0;
             if (emptyRlist)
@@ -211,12 +185,24 @@ namespace OptimeGBA
                 }
             }
 
+            if (S)
+            {
+                if (L && loadsPc)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                }
+                else
+                {
+                    arm7.SetMode(oldMode);
+                }
+            }
+
             // arm7.LineDebug(regs);
 
             arm7.ICycle();
         }
 
-               [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _LDMSTM_V5(Arm7 arm7, uint ins, bool L)
         {
             arm7.LineDebug("LDM/STM ARMv5");
@@ -227,15 +213,12 @@ namespace OptimeGBA
             bool W = BitTest(ins, 21);
 
             bool loadsPc = BitTest(ins, 15);
-            bool useUserModeRegs = S && (!L || !loadsPc) && (arm7.Mode != Arm7.Arm7Mode.User && arm7.Mode != Arm7.Arm7Mode.OldUser);
 
-            if (S)
+            uint oldMode = 0;
+            if (S && (!L || !loadsPc))
             {
-                if (L && loadsPc)
-                {
-                    arm7.LineDebug("Load CPSR from SPSR");
-                    arm7.SetCPSR(arm7.GetSPSR());
-                }
+                oldMode = arm7.GetMode();
+                arm7.SetMode((uint)Arm7.Arm7Mode.User);
             }
 
             // if (U && P && W) Error("U & P & W");
@@ -301,31 +284,15 @@ namespace OptimeGBA
 
                         if (P) addr += 4;
 
-                        if (!useUserModeRegs)
+                        if (r != 15)
                         {
-                            if (r != 15)
-                            {
-                                arm7.R[r] = arm7.Read32(addr & ~3U);
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & ~3U);
-                                arm7.ThumbState = BitTest(arm7.R[15], 0);
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[r] = arm7.Read32(addr & ~3U);
                         }
                         else
                         {
-                            if (r != 15)
-                            {
-                                arm7.SetUserReg(r, arm7.Read32(addr & ~3U));
-                            }
-                            else
-                            {
-                                arm7.R[15] = arm7.Read32(addr & ~3U);
-                                arm7.ThumbState = BitTest(arm7.R[15], 0);
-                                arm7.FlushPipeline();
-                            }
+                            arm7.R[15] = arm7.Read32(addr & ~3U);
+                            arm7.ThumbState = BitTest(arm7.R[15], 0);
+                            arm7.FlushPipeline();
                         }
 
                         if (!P) addr += 4;
@@ -335,14 +302,7 @@ namespace OptimeGBA
 
                         if (P) addr += 4;
 
-                        if (!useUserModeRegs)
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
-                        }
-                        else
-                        {
-                            arm7.Write32(addr & 0xFFFFFFFC, arm7.GetUserReg(r));
-                        }
+                        arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
 
                         if (!P) addr += 4;
                     }
@@ -366,6 +326,18 @@ namespace OptimeGBA
                 else
                 {
                     arm7.R[rn] -= 0x40;
+                }
+            }
+
+            if (S)
+            {
+                if (L && loadsPc)
+                {
+                    arm7.SetCPSR(arm7.GetSPSR());
+                }
+                else
+                {
+                    arm7.SetMode(oldMode);
                 }
             }
 
@@ -472,17 +444,12 @@ namespace OptimeGBA
             arm7.ICycle();
         }
 
-  public static void MSR(Arm7 arm7, uint ins)
+        public static void MSR(Arm7 arm7, uint ins)
         {
             arm7.LineDebug("MSR");
             // MSR
 
             bool useSPSR = BitTest(ins, 22);
-
-            // uint UnallocMask = 0x0FFFFF00;
-            uint UserMask = 0xFFFFFFFF;
-            uint PrivMask = 0xFFFFFFFF;
-            uint StateMask = 0xFFFFFFFF;
 
             bool setControl = BitTest(ins, 16);
             bool setExtension = BitTest(ins, 17);
@@ -516,31 +483,21 @@ namespace OptimeGBA
             arm7.LineDebug($"Set Status: {setStatus}");
             arm7.LineDebug($"Set Flags: {setFlags}");
 
-            uint mask;
-
             if (!useSPSR)
             {
                 // TODO: Fix privileged mode functionality in CPSR MSR
-                if (arm7.Mode != Arm7.Arm7Mode.User)
+                if (arm7.Mode == Arm7.Arm7Mode.User)
                 {
                     // Privileged
                     arm7.LineDebug("Privileged");
-                    mask = byteMask & (UserMask | PrivMask);
+                    byteMask &= 0xFF000000;
                 }
-                else
-                {
-                    // Unprivileged
-                    arm7.LineDebug("Unprivileged");
-                    mask = byteMask & UserMask;
-                }
-                uint set = (arm7.GetCPSR() & ~mask) | (operand & mask);
-                arm7.SetCPSR(set);
+                arm7.SetCPSR((arm7.GetCPSR() & ~byteMask) | (operand & byteMask));
             }
             else
             {
                 // TODO: Add SPSR functionality to MSR
-                mask = byteMask & (UserMask | PrivMask | StateMask);
-                arm7.SetSPSR((arm7.GetSPSR() & ~mask) | (operand & mask));
+                arm7.SetSPSR((arm7.GetSPSR() & ~byteMask) | (operand & byteMask));
             }
         }
 
@@ -1696,6 +1653,38 @@ namespace OptimeGBA
 
             arm7.R[rd] = (uint)(op1 * op2);
         }
+
+        public static void SMLAxy(Arm7 arm7, uint ins)
+        {
+            bool x = BitTest(ins, 5);
+            bool y = BitTest(ins, 6);
+
+            uint rm = (ins >> 0) & 0xFU;
+            uint rs = (ins >> 8) & 0xFU;
+            uint rn = (ins >> 12) & 0xFU;        
+            uint rmVal = arm7.R[rm];
+            uint rsVal = arm7.R[rs];
+            uint rnVal = arm7.R[rn];      
+
+            uint rd = (ins >> 16) & 0xFU;
+
+            short op1;
+            if (!x)
+                op1 = (short)rmVal;
+            else
+                op1 = (short)(rmVal >> 16);
+
+            short op2;
+            if (!y)
+                op2 = (short)rsVal;
+            else
+                op2 = (short)(rsVal >> 16);
+
+            long finalVal = (long)(op1 * op2) + rnVal;
+            if ((finalVal & 0xFFFFFFFF) != 0) arm7.Sticky = true;
+            arm7.R[rd] = (uint)finalVal;
+        }
+
 
         public static void Invalid(Arm7 arm7, uint ins)
         {
