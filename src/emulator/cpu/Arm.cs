@@ -1661,10 +1661,10 @@ namespace OptimeGBA
 
             uint rm = (ins >> 0) & 0xFU;
             uint rs = (ins >> 8) & 0xFU;
-            uint rn = (ins >> 12) & 0xFU;        
+            uint rn = (ins >> 12) & 0xFU;
             uint rmVal = arm7.R[rm];
             uint rsVal = arm7.R[rs];
-            uint rnVal = arm7.R[rn];      
+            uint rnVal = arm7.R[rn];
 
             uint rd = (ins >> 16) & 0xFU;
 
@@ -1680,9 +1680,13 @@ namespace OptimeGBA
             else
                 op2 = (short)(rsVal >> 16);
 
-            long finalVal = (long)(op1 * op2) + rnVal;
-            if ((finalVal & 0xFFFFFFFF) != 0) arm7.Sticky = true;
-            arm7.R[rd] = (uint)finalVal;
+            uint mulVal = (uint)(op1 * op2);
+            uint finalVal = mulVal + rnVal;
+            arm7.R[rd] = finalVal;
+
+            if (Arm7.CheckOverflowAdd(mulVal, rnVal, finalVal)) arm7.Sticky = true;
+
+            // arm7.Error("test");
         }
 
 

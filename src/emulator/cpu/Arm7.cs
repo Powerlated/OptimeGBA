@@ -72,6 +72,8 @@ namespace OptimeGBA
         public Device Device;
         public Memory Mem;
 
+        public Action PreExecutionCallback;
+
         public bool Armv5;
 
 #if UNSAFE
@@ -137,18 +139,17 @@ namespace OptimeGBA
         public uint Decode;
         public uint Pipeline; // 0 for empty, 1 for Fetch filled, 2 for Decode filled, 3 for Execute filled (full)
 
-        public bool PipelineDirty = false;
-
-        public long InstructionsRan = 0;
-        public long InstructionsRanInterrupt = 0;
 
         public bool Halted;
+        public bool PipelineDirty = false;
 
         // DEBUG INFO
+        public long InstructionsRan = 0;
         public uint LastIns;
         public uint LastLastIns;
         public bool LastThumbState;
         public bool LastLastThumbState;
+        public bool InterruptServiced;
 
         public bool FlagInterrupt;
 
@@ -315,13 +316,16 @@ namespace OptimeGBA
             LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
             uint ins = Decode;
-            Pipeline--;
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
             LastLastThumbState = LastThumbState;
             LastThumbState = ThumbState;
+
+            if (PreExecutionCallback != null)
+                PreExecutionCallback();
 #endif
+            Pipeline--;
 
             LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
             LineDebug($"Cond: ${ins >> 28:X}");
@@ -356,14 +360,17 @@ namespace OptimeGBA
             ushort ins = (ushort)Decode;
             int decodeBits = ins >> 6;
 
-            Pipeline--;
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
             LastLastThumbState = LastThumbState;
             LastThumbState = ThumbState;
             ThumbExecutorProfile[decodeBits]++;
+
+            if (PreExecutionCallback != null)
+                PreExecutionCallback();
 #endif
+            Pipeline--;
             LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
             ThumbDispatch[decodeBits](this, ins);
@@ -388,7 +395,7 @@ namespace OptimeGBA
         {
             // Error("sdfkjadfdjsjklfads interupt lol");
 #if OPENTK_DEBUGGER
-            InstructionsRanInterrupt = InstructionsRan;
+            InterruptServiced = true;
 #endif
 
             SPSR_irq = GetCPSR();
@@ -441,19 +448,22 @@ namespace OptimeGBA
             // id mask      0b1111111100000000000011110000     0b1111111100000000000011110000
             else if ((ins & 0b1111100100000000000010010000) == 0b0001000000000000000010000000) // ARMv5 signed multiply
             {
-                uint id = ((ins >> 20) & 0b11111111);
-                if (id == 0b00010100)
+                if (Armv5)
                 {
-                    return Arm.SMLALxy;
+                    uint id = ((ins >> 20) & 0b11111111);
+                    if (id == 0b00010100)
+                    {
+                        return Arm.SMLALxy;
+                    }
+                    else if (id == 0b00010110)
+                    {
+                        return Arm.SMULxy;
+                    }
+                    else if (id == 0b00010000)
+                    {
+                        return Arm.SMLAxy;
+                    }
                 }
-                else if (id == 0b00010110)
-                {
-                    return Arm.SMULxy;
-                }
-                else if (id == 0b00010000)
-                {
-                    return Arm.SMLALxy;
-                } 
 
                 return Arm.Invalid;
             }

@@ -108,11 +108,6 @@ namespace OptimeGBAEmulator
             // if (arm9.GetInstructionArm(arm9.LastIns) == Arm.SWI) arm9.Error("damn it");
         }
 
-        public uint GetCurrentInstrAddr(Arm7 cpu)
-        {
-            return (uint)(cpu.R[15] - cpu.Pipeline * (cpu.ThumbState ? 2 : 4));
-        }
-
         static bool FrameNow = false;
 
         /*
@@ -504,35 +499,6 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
-        StringBuilder b = new StringBuilder(1000);
-        public String BuildEmuFullText(Arm7 arm7)
-        {
-            String disasm = arm7.ThumbState ? disasmThumb((ushort)arm7.Decode) : disasmArm(arm7.Decode);
-            b.Clear();
-
-            for (int i = 0; i < 15; i++)
-            {
-                b.Append(HexN(arm7.R[i], 8)).Append(" ");
-            }
-            b.Append(HexN(GetCurrentInstrAddr(arm7), 8)).Append(" ");
-            b.Append("cpsr: ");
-            b.Append(HexN(arm7.GetCPSR(), 8));
-            b.Append(" | ");
-
-            if (arm7.ThumbState)
-            {
-                b.Append("    ");
-                b.Append(HexN(arm7.Decode, 4));
-            }
-            else
-            {
-                b.Append(HexN(arm7.Decode, 8));
-            }
-            b.Append(": ").Append(disasm);
-            return b.ToString();
-        }
-
-
         int DebugStepFor = 0;
         byte[] text = new byte[4];
 
@@ -633,9 +599,9 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text($"");
 
-                if (ImGui.Button("flag ARM9 IPCSYNC IRQ"))
+                if (ImGui.Button("flag ARM7 RTC IRQ"))
                 {
-                    Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.IpcSync);
+                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Rtc);
                 }
 
                 if (ImGui.Button("Reset"))
@@ -713,36 +679,42 @@ namespace OptimeGBAEmulator
                 var times = 5000000;
                 if (ImGui.Button("Step " + times))
                 {
-                    using (StreamWriter file7 = new StreamWriter("log7.txt"))
+                    using (StreamWriter file7 = new StreamWriter("log7.txt"), file9 = new StreamWriter("log9.txt"))
                     {
-                        using (StreamWriter file9 = new StreamWriter("log9.txt"))
+                        Action nds7Executed = () =>
                         {
-                            int num = times;
-                            while (num > 0 && !Nds.Nds9.Cpu.Errored && !Nds.Nds7.Cpu.Errored)
+                            file7.WriteLine(BuildEmuFullText(Nds.Nds7.Cpu));
+                            if (Nds.Nds7.Cpu.InterruptServiced)
                             {
-                                file7.WriteLine(BuildEmuFullText(Nds.Nds7.Cpu));
-                                if (Nds.Nds7.Cpu.InstructionsRanInterrupt == Nds.Nds7.Cpu.InstructionsRan)
-                                {
-                                    file7.WriteLine("---------------- INTERRUPT ----------------");
-                                }
-
-                                file9.WriteLine(BuildEmuFullText(Nds.Nds9.Cpu));
-                                if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
-                                {
-                                    file9.WriteLine("---------------- INTERRUPT ----------------");
-                                }
-
-                                Nds.Step();
-
-                                // if (Nds.Nds9.Cpu.InstructionsRanInterrupt == Nds.Nds9.Cpu.InstructionsRan)
-                                // {
-                                //     file.WriteLine("---------------- INTERRUPT ----------------");
-                                // }
-
-                                LogIndex++;
-                                num--;
+                                Nds.Nds7.Cpu.InterruptServiced = false;
+                                file7.WriteLine("---------------- INTERRUPT ----------------");
                             }
+                        };
+
+                        Action nds9Executed = () =>
+                        {
+                            file9.WriteLine(BuildEmuFullText(Nds.Nds9.Cpu));
+                            if (Nds.Nds9.Cpu.InterruptServiced)
+                            {
+                                Nds.Nds9.Cpu.InterruptServiced = false;
+                                file9.WriteLine("---------------- INTERRUPT ----------------");
+                            }
+                        };
+
+                        Nds.Nds7.Cpu.PreExecutionCallback = nds7Executed;
+                        Nds.Nds9.Cpu.PreExecutionCallback = nds9Executed;
+
+                        int num = times;
+                        while (num > 0 && !Nds.Nds9.Cpu.Errored && !Nds.Nds7.Cpu.Errored)
+                        {
+                            Nds.Step();
+
+                            LogIndex++;
+                            num--;
                         }
+
+                        Nds.Nds7.Cpu.PreExecutionCallback = null;
+                        Nds.Nds9.Cpu.PreExecutionCallback = null;
                     }
                 }
 

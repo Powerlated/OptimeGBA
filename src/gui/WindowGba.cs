@@ -458,34 +458,6 @@ namespace OptimeGBAEmulator
             return emuText;
         }
 
-        public String BuildEmuFullText()
-        {
-            String disasm = Gba.Cpu.ThumbState ? disasmThumb((ushort)Gba.Cpu.Decode) : disasmArm(Gba.Cpu.Decode);
-
-            var text =
-            $"{HexN(Gba.Cpu.R[0], 8)} " +
-            $"{HexN(Gba.Cpu.R[1], 8)} " +
-            $"{HexN(Gba.Cpu.R[2], 8)} " +
-            $"{HexN(Gba.Cpu.R[3], 8)} " +
-            $"{HexN(Gba.Cpu.R[4], 8)} " +
-            $"{HexN(Gba.Cpu.R[5], 8)} " +
-            $"{HexN(Gba.Cpu.R[6], 8)} " +
-            $"{HexN(Gba.Cpu.R[7], 8)} " +
-            $"{HexN(Gba.Cpu.R[8], 8)} " +
-            $"{HexN(Gba.Cpu.R[9], 8)} " +
-            $"{HexN(Gba.Cpu.R[10], 8)} " +
-            $"{HexN(Gba.Cpu.R[11], 8)} " +
-            $"{HexN(Gba.Cpu.R[12], 8)} " +
-            $"{HexN(Gba.Cpu.R[13], 8)} " +
-            $"{HexN(Gba.Cpu.R[14], 8)} " +
-            $"{HexN(Gba.Cpu.R[15], 8)} " +
-            $"cpsr: {HexN(Gba.Cpu.GetCPSR(), 8)} | " +
-            $"{(Gba.Cpu.ThumbState ? "    " + HexN(Gba.Cpu.Decode, 4) : HexN(Gba.Cpu.Decode, 8))}: {disasm}";
-            // text += $"> {LogIndex + 1}";
-            return text;
-        }
-
-
         int DebugStepFor = 0;
         byte[] text = new byte[4];
 
@@ -618,8 +590,9 @@ namespace OptimeGBAEmulator
                             // file.WriteLine(BuildEmuFullText());
                             Gba.Step();
 
-                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
+                            if (Gba.Cpu.InterruptServiced)
                             {
+                                Gba.Cpu.InterruptServiced = false;
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
 
@@ -637,10 +610,11 @@ namespace OptimeGBAEmulator
                         while (num > 0 && !Gba.Cpu.Errored)
                         {
                             Gba.Step();
-                            file.WriteLine(BuildEmuFullText());
+                            file.WriteLine(BuildEmuFullText(Gba.Cpu));
 
-                            if (Gba.Cpu.InstructionsRanInterrupt == Gba.Cpu.InstructionsRan)
+                            if (Gba.Cpu.InterruptServiced)
                             {
+                                Gba.Cpu.InterruptServiced = false;
                                 file.WriteLine("---------------- INTERRUPT ----------------");
                             }
 

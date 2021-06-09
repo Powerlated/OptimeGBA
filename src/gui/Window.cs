@@ -309,5 +309,38 @@ namespace OptimeGBAEmulator
         {
             ImGui.Checkbox(label, ref v);
         }
+
+        static StringBuilder b = new StringBuilder(1000);
+        public static String BuildEmuFullText(Arm7 arm7)
+        {
+            String disasm = arm7.ThumbState ? disasmThumb((ushort)arm7.Decode) : disasmArm(arm7.Decode);
+            b.Clear();
+
+            for (int i = 0; i < 15; i++)
+            {
+                b.Append(HexN(arm7.R[i], 8)).Append(" ");
+            }
+            b.Append(HexN(GetCurrentInstrAddr(arm7), 8)).Append(" ");
+            b.Append("cpsr: ");
+            b.Append(HexN(arm7.GetCPSR(), 8));
+            b.Append(" | ");
+
+            if (arm7.ThumbState)
+            {
+                b.Append("    ");
+                b.Append(HexN(arm7.Decode, 4));
+            }
+            else
+            {
+                b.Append(HexN(arm7.Decode, 8));
+            }
+            b.Append(": ").Append(disasm);
+            return b.ToString();
+        }
+
+        public static uint GetCurrentInstrAddr(Arm7 cpu)
+        {
+            return (uint)(cpu.R[15] - cpu.Pipeline * (cpu.ThumbState ? 2 : 4));
+        }
     }
 }
