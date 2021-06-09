@@ -12,15 +12,25 @@ namespace OptimeGBA
 
     public class RtcNds
     {
-        public RtcNds()
+        public void UpdateTime()
         {
-            DateAndTime[0] = 0x04;
-            DateAndTime[1] = 0x08;
-            DateAndTime[2] = 0x19;
-            DateAndTime[3] = 0x03;
-            DateAndTime[4] = 0x01;
-            DateAndTime[5] = 0x01;
-            DateAndTime[6] = 0x01;
+            var now = DateTime.Now;
+
+            DateAndTime[0] = ConvertToBcd((byte)(now.Year % 100));
+            DateAndTime[1] = ConvertToBcd((byte)now.Month);
+            DateAndTime[2] = ConvertToBcd((byte)now.Day);
+            DateAndTime[3] = ConvertToBcd((byte)now.DayOfWeek);
+            DateAndTime[4] = ConvertToBcd((byte)now.Hour);
+            DateAndTime[5] = ConvertToBcd((byte)now.Minute);
+            DateAndTime[6] = ConvertToBcd((byte)now.Second);
+        }
+
+        public static byte ConvertToBcd(byte val)
+        {
+            uint upper = val / 10U;
+            uint lower = val % 10U;
+
+            return (byte)((upper << 4) | lower);
         }
 
         public byte ReadHwio8(uint addr)
@@ -61,6 +71,27 @@ namespace OptimeGBA
                                         State = RtcNdsState.CommandEntered;
                                         // Console.WriteLine("RTC: command set " + Util.Hex(Command, 2));
                                         BitsWritten = 0;
+
+                                        switch ((Command >> 1) & 0b111)
+                                        {
+                                            case 0:
+                                                // Console.WriteLine("RTC status 1");
+                                                break;
+
+                                            case 1:
+                                                // Console.WriteLine("RTC status 2");
+                                                break;
+
+                                            case 2:
+                                                // Console.WriteLine("RTC date and time");
+                                                UpdateTime();
+                                                break;
+
+                                            case 3:
+                                                // Console.WriteLine("RTC time");
+                                                UpdateTime();
+                                                break;
+                                        }
                                     }
                                     break;
                                 case RtcNdsState.CommandEntered:
@@ -68,6 +99,9 @@ namespace OptimeGBA
                                     {
                                         val &= 0xFE; // Erase bit 0
                                         int commandBits = (Command >> 1) & 0b111;
+
+                                        int byteNum = BitsWritten / 8;
+                                        int bitNum = (BitsWritten % 8);
                                         switch (commandBits)
                                         {
                                             case 0: // Status 1
@@ -76,13 +110,12 @@ namespace OptimeGBA
                                                 break;
 
                                             case 2: // Date & Time (7 bytes)
-                                                int byteNum = BitsWritten / 8;
-                                                int bitNum = (BitsWritten % 8);
                                                 val |= (byte)((DateAndTime[byteNum] >> bitNum) & 1);
                                                 break;
 
                                             case 3: // Time (3 bytes);
-                                                throw new NotImplementedException("time");
+                                                val |= (byte)((DateAndTime[byteNum + 4] >> bitNum) & 1);
+                                                break;
 
                                             default:
                                                 // Console.WriteLine("RTC: unknown command read " + commandBits);
