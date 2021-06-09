@@ -224,6 +224,12 @@ namespace OptimeGBA
                 }
             }
 
+            // Special exceptions for cleanly defined blocks of MMIO
+            if (addr >= 0x4000400 && addr < 0x4000500) // Audio channels
+            {
+                return Nds7.Audio.ReadHwio8Channels(addr);
+            }
+
             switch (addr)
             {
                 case 0x4000004: case 0x4000005: // DISPSTAT
@@ -296,7 +302,7 @@ namespace OptimeGBA
                 case 0x4000500: case 0x4000501: // SOUNDCNT
                 case 0x4000504: case 0x4000505: // SOUNDBIAS
                 case 0x4000508: case 0x4000509: // SNDCAPCNT
-                    return Nds7.Nds.Audio.ReadHwio8(addr);
+                    return Nds7.Audio.ReadHwio8(addr);
 
                 case 0x4000300:
                     // Console.WriteLine("NDS7 POSTFLG read");
@@ -321,6 +327,13 @@ namespace OptimeGBA
                     HwioWriteLog.TryGetValue(addr, out count);
                     HwioWriteLog[addr] = count + 1;
                 }
+            }
+            
+            // Special exceptions for cleanly defined blocks of MMIO
+            if (addr >= 0x4000400 && addr < 0x4000500) // Audio channels
+            {
+                Nds7.Audio.WriteHwio8Channels(addr, val);
+                return;
             }
 
             switch (addr)
@@ -391,7 +404,7 @@ namespace OptimeGBA
                 case 0x4000500: case 0x4000501: // SOUNDCNT
                 case 0x4000504: case 0x4000505: // SOUNDBIAS
                 case 0x4000508: case 0x4000509: // SNDCAPCNT
-                    Nds7.Nds.Audio.WriteHwio8(addr, val); return;
+                    Nds7.Audio.WriteHwio8(addr, val); return;
 
                 case 0x4000300:
                     Console.WriteLine("NDS7 POSTFLG write");

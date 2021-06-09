@@ -21,8 +21,6 @@ namespace OptimeGBA
 
         public PpuNds Ppu;
 
-        public NdsAudio Audio;
-
         public MemoryControlNds MemoryControl;
 
         public Keypad Keypad = new Keypad();
@@ -52,8 +50,6 @@ namespace OptimeGBA
             Cartridge = new CartridgeNds(this);
 
             Ppu = new PpuNds(this, Scheduler);
-
-            Audio = new NdsAudio(this);
 
             MemoryControl = new MemoryControlNds();
 

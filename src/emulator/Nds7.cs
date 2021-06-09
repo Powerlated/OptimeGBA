@@ -8,6 +8,7 @@ namespace OptimeGBA
         public new MemoryNds7 Mem;
         public DmaNds Dma;
         public Spi Spi;
+        public NdsAudio Audio;
 
         public Nds7(Nds nds)
         {
@@ -16,6 +17,7 @@ namespace OptimeGBA
             HwControl = new HwControlNds(this, false);
             Mem = new MemoryNds7(this, nds.Provider);
             Spi = new Spi(this);
+            Audio = new NdsAudio(this);
 
             Cpu = new Arm7(this, Mem, false, false, null);
             Dma = new DmaNds(this, false, Mem);

@@ -116,6 +116,14 @@ namespace OptimeGBA
             return (n >> bits) | (n << -bits);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]        
+        public static uint SetByteIn(uint n, byte val, uint pos)
+        {
+            uint mask = ~(0xFFU << (int)(pos * 8));
+            uint or = (uint)(val << (int)(pos * 8));
+            return (n & mask) | or;
+        }
+
         // public bool bitReset(uint i, uint bit)
         // {
         //     return i & (~(1 << bit));
