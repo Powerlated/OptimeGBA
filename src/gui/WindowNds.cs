@@ -1694,6 +1694,14 @@ namespace OptimeGBAEmulator
                     uint loopSamples = 0;
                     switch (c.Format)
                     {
+                        case 0: // PCM8
+                            totalSamples = (c.SOUNDPNT + c.SOUNDLEN) * 4;
+                            loopSamples = c.SOUNDPNT * 4;
+                            break;
+                        case 1: // PCM16
+                            totalSamples = (c.SOUNDPNT + c.SOUNDLEN) * 2;
+                            loopSamples = c.SOUNDPNT * 2;
+                            break;
                         case 2: // IMA-ADPCM
                             totalSamples = (c.SOUNDPNT + c.SOUNDLEN) * 8;
                             loopSamples = c.SOUNDPNT * 8;
@@ -1710,7 +1718,7 @@ namespace OptimeGBAEmulator
 
                     if (c.Playing)
                     {
-                        float volumePortion = (float)(c.Volume >> NdsAudio.VolumeDivShiftTable[c.VolumeDiv]) / 127f;
+                        float volumePortion = (float)(c.Volume >> (1 << c.VolumeDiv)) / 127f;
                         uint fillColor = (ImGui.GetColorU32(ImGuiCol.ButtonHovered) & 0x00FFFFFF) | ((uint)(255f * volumePortion) << 24);
                         drawList.AddRectFilled(pos, pos + fillSize, fillColor); // fill
                         drawList.AddRectFilled(new Vector2(pos.X + fillSize.X - 2, pos.Y), new Vector2(pos.X + fillSize.X, pos.Y + size.Y - 1), ImGui.GetColorU32(ImGuiCol.ButtonActive));
@@ -1765,14 +1773,25 @@ namespace OptimeGBAEmulator
                             }
                         }
                     }
+                    ImGui.SameLine();
+                    if (ImGui.Button("Replay##soundvis" + i))
+                    {
+                        c.SOUNDLEN = 4000;
+                        c.SamplePos = 0;
+                        c.Playing = true;
+                        c.Volume = 127;
+                        c.VolumeDiv = 1;
+                    }
                     ImGui.SameLine(); ImGui.Text("Interval: " + Hex(c.Interval, 4));
-                    ImGui.SameLine(); ImGui.Text("Save: " + c.DebugAdpcmSaved);
-                    ImGui.SameLine(); ImGui.Text("Rest: " + c.DebugAdpcmRestored);
+                    ImGui.SameLine(); ImGui.Text("Len: " + (totalSamples - loopSamples));
 
-                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 20);
+                    ImGui.Text("Source: " + HexN(c.SOUNDSAD, 7));
+                    ImGui.SameLine(); ImGui.Text("Repeat: " + c.RepeatMode);
+                    ImGui.SameLine(); ImGui.Text("Format: " + c.Format);
+
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 40);
 
                     ImGui.Dummy(size);
-
 
                 }
                 ImGui.End();

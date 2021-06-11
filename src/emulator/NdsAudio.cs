@@ -71,7 +71,6 @@ namespace OptimeGBA
             0x1BDC,0x1EA5,0x21B6,0x2515,0x28CA,0x2CDF,0x315B,0x364B,0x3BB9,0x41B2,0x4844,0x4F7E,
             0x5771,0x602F,0x69CE,0x7462,0x7FFF
         };
-        public static byte[] VolumeDivShiftTable = { 0, 1, 2, 4 };
 
         // SOUNDCNT
         public uint MasterVolume;
@@ -225,7 +224,9 @@ namespace OptimeGBA
                     break;
                 case 0xC:
                 case 0xD:
-                    c.SOUNDLEN = SetByteIn(c.SOUNDLEN, val, addr & 1) & 0x3FFFFF;
+                case 0xE:
+                case 0xF:
+                    c.SOUNDLEN = SetByteIn(c.SOUNDLEN, val, addr & 3) & 0x3FFFFF;
                     break;
             }
         }
@@ -243,8 +244,8 @@ namespace OptimeGBA
             uint cyclesThisSample = (uint)SampleTimer;
             SampleTimer -= cyclesThisSample;
 
-            short left = 0;
-            short right = 0;
+            long left = 0;
+            long right = 0;
 
             for (uint i = 0; i < 16; i++)
             {
@@ -261,10 +262,35 @@ namespace OptimeGBA
                         switch (c.Format)
                         {
                             case 0: // PCM8
-                                // System.Console.WriteLine("PCM8");
+                                System.Console.WriteLine("PCM8");
                                 break;
                             case 1: // PCM16
-                                // System.Console.WriteLine("PCM16");
+                                if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 2)
+                                {
+                                    switch (c.RepeatMode)
+                                    {
+                                        case 1: // Infinite 
+                                            c.SamplePos = c.SOUNDPNT * 2;
+                                            break;
+                                        case 2: // One-shot
+                                            c.Playing = false;
+                                            if (!c.Hold)
+                                            {
+                                                c.CurrentValue = 0;
+                                            }
+                                            break;
+                                    }
+                                }
+
+                                if ((c.SamplePos & 1) == 0)
+                                {
+                                    c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos * 2);
+                                }
+
+                                c.CurrentValue = (short)c.CurrentData;
+                                c.CurrentData >>= 16;
+
+                                c.SamplePos++;
                                 break;
                             case 2: // IMA-ADPCM
                                 if ((c.SamplePos & 7) == 0)
@@ -348,14 +374,17 @@ namespace OptimeGBA
 
                     if (c.DebugEnable)
                     {
-                        left += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * (127 - c.Pan)) / 32768);
-                        right += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * c.Pan) / 32768);
+                        left += (((long)c.CurrentValue * (16 >> c.VolumeDiv)) * c.Volume * (127 - c.Pan)) >> 10;
+                        right += (((long)c.CurrentValue * (16 >> c.VolumeDiv)) * c.Volume * c.Pan) >> 10;
                     }
                 }
             }
 
-            SampleBuffer[SampleBufferPos++] = left;
-            SampleBuffer[SampleBufferPos++] = right;
+            // 28 bits now, after mixing all channels
+            // add master volume to get 35 bits
+            // strip 19 to get 16 bits for our short output
+            SampleBuffer[SampleBufferPos++] = (short)((left * MasterVolume) >> 19);
+            SampleBuffer[SampleBufferPos++] = (short)((right * MasterVolume) >> 19);
 
             if (SampleBufferPos >= SampleBufferMax)
             {
