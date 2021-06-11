@@ -9,6 +9,7 @@ namespace OptimeGBA
         public byte SharedRamControl;
 
         public byte[] VRAMCNT = new byte[9];
+        public bool VramConfigDirty;
 
         // EXMEMCNT 
         public byte Slot2SramWaitArm9;
@@ -69,15 +70,15 @@ namespace OptimeGBA
                     MainMemoryAccessPriority = BitTest(val, 7);
                     break;
 
-                case 0x4000240: VRAMCNT[0] = val; break;
-                case 0x4000241: VRAMCNT[1] = val; break;
-                case 0x4000242: VRAMCNT[2] = val; break;
-                case 0x4000243: VRAMCNT[3] = val; break;
-                case 0x4000244: VRAMCNT[4] = val; break;
-                case 0x4000245: VRAMCNT[5] = val; break;
-                case 0x4000246: VRAMCNT[6] = val; break;
-                case 0x4000248: VRAMCNT[7] = val; break;
-                case 0x4000249: VRAMCNT[8] = val; break;
+                case 0x4000240: if (VRAMCNT[0] != val) VramConfigDirty = true; VRAMCNT[0] = val; break;
+                case 0x4000241: if (VRAMCNT[1] != val) VramConfigDirty = true; VRAMCNT[1] = val; break;
+                case 0x4000242: if (VRAMCNT[2] != val) VramConfigDirty = true; VRAMCNT[2] = val; break;
+                case 0x4000243: if (VRAMCNT[3] != val) VramConfigDirty = true; VRAMCNT[3] = val; break;
+                case 0x4000244: if (VRAMCNT[4] != val) VramConfigDirty = true; VRAMCNT[4] = val; break;
+                case 0x4000245: if (VRAMCNT[5] != val) VramConfigDirty = true; VRAMCNT[5] = val; break;
+                case 0x4000246: if (VRAMCNT[6] != val) VramConfigDirty = true; VRAMCNT[6] = val; break;
+                case 0x4000248: if (VRAMCNT[7] != val) VramConfigDirty = true; VRAMCNT[7] = val; break;
+                case 0x4000249: if (VRAMCNT[8] != val) VramConfigDirty = true; VRAMCNT[8] = val; break;
 
                 case 0x4000247:
                     SharedRamControl = (byte)(val & 0b11);

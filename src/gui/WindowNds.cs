@@ -15,6 +15,7 @@ using System.Runtime.InteropServices;
 using static SDL2.SDL;
 using static OptimeGBAEmulator.Window;
 using System.Linq;
+using System.Numerics;
 using static OptimeGBA.Bits;
 
 namespace OptimeGBAEmulator
@@ -287,6 +288,7 @@ namespace OptimeGBAEmulator
             DrawInstrViewer();
             DrawInstrInfo();
             DrawRegViewer();
+            DrawSoundVisualizer();
             DrawMemoryViewer();
             DrawHwioLog();
             DrawBankedRegisters();
@@ -588,10 +590,12 @@ namespace OptimeGBAEmulator
                 ImGui.Text("ARM9");
                 drawCpuInfo(Nds.Nds9.Cpu);
                 displayCheckbox("IRQ Disable", Nds.Nds9.Cpu.IRQDisable);
+                ImGui.Checkbox("Disable ARM9", ref Nds.DebugDisableArm9);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
                 drawCpuInfo(Nds.Nds7.Cpu);
                 displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
+                ImGui.Checkbox("Disable ARM7", ref Nds.DebugDisableArm7);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
@@ -955,7 +959,7 @@ namespace OptimeGBAEmulator
                         );
 
                         // ImGui.Text($"Pointer: {texId}");
-                        ImGui.Image((IntPtr)palTexIds[texIdIndex], new System.Numerics.Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
+                        ImGui.Image((IntPtr)palTexIds[texIdIndex], new Vector2(16 * 8, 16 * 8)); ImGui.SameLine();
                         texIdIndex++;
                     }
                 }
@@ -966,14 +970,14 @@ namespace OptimeGBAEmulator
 
         public void ImGuiColumnSeparator()
         {
-            ImGui.Dummy(new System.Numerics.Vector2(0.0f, 0.5f));
+            ImGui.Dummy(new Vector2(0.0f, 0.5f));
 
             // Draw separator within column
             ImDrawListPtr drawList = ImGui.GetWindowDrawList();
-            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
-            drawList.AddLine(new System.Numerics.Vector2(pos.X - 9999, pos.Y), new System.Numerics.Vector2(pos.X + 9999, pos.Y), ImGui.GetColorU32(ImGuiCol.Border));
+            Vector2 pos = ImGui.GetCursorScreenPos();
+            drawList.AddLine(new Vector2(pos.X - 9999, pos.Y), new Vector2(pos.X + 9999, pos.Y), ImGui.GetColorU32(ImGuiCol.Border));
 
-            ImGui.Dummy(new System.Numerics.Vector2(0.0f, 1f));
+            ImGui.Dummy(new Vector2(0.0f, 1f));
         }
 
         public void DrawInstrViewer()
@@ -1031,9 +1035,9 @@ namespace OptimeGBAEmulator
                         DisplayBuffer
                     );
 
-                    ImGui.Image((IntPtr)screenTexIds[i], new System.Numerics.Vector2(width, height));
+                    ImGui.Image((IntPtr)screenTexIds[i], new Vector2(width, height));
                 }
-                ImGui.SetWindowSize(new System.Numerics.Vector2(width + 16, height * 2 + 48));
+                ImGui.SetWindowSize(new Vector2(width + 16, height * 2 + 48));
 
                 ImGui.End();
             }
@@ -1669,6 +1673,109 @@ namespace OptimeGBAEmulator
                     ImGui.SameLine();
                     ImGui.Text(IeIfBitNames[i]);
                 }
+            }
+        }
+
+        public void DrawSoundVisualizer()
+        {
+            if (ImGui.Begin("Sound Visualizer"))
+            {
+                for (uint i = 0; i < 16; i++)
+                {
+                    var c = Nds.Nds7.Audio.Channels[i];
+
+                    var drawList = ImGui.GetWindowDrawList();
+
+                    var size = new Vector2(ImGui.GetWindowContentRegionWidth(), 40);
+
+                    Vector2 pos = ImGui.GetCursorScreenPos();
+
+                    uint totalSamples = 0;
+                    uint loopSamples = 0;
+                    switch (c.Format)
+                    {
+                        case 2: // IMA-ADPCM
+                            totalSamples = (c.SOUNDPNT + c.SOUNDLEN) * 8;
+                            loopSamples = c.SOUNDPNT * 8;
+                            break;
+                    }
+                    float fillPortion = (float)c.SamplePos / (float)totalSamples;
+                    float loopPortion = (float)loopSamples / (float)totalSamples;
+
+                    // ImGui.Text(Pad(i.ToString(), 2, '0')); ImGui.SameLine();
+                    // displayCheckbox("Playing##" + i, c.Playing);
+                    var fillSize = new Vector2(size.X * fillPortion, size.Y);
+                    var bgColor = ImGui.GetColorU32(c.Playing ? ImGuiCol.Button : ImGuiCol.Border);
+                    drawList.AddRectFilled(pos, pos + size, bgColor); // fill BG
+
+                    if (c.Playing)
+                    {
+                        float volumePortion = (float)(c.Volume >> NdsAudio.VolumeDivShiftTable[c.VolumeDiv]) / 127f;
+                        uint fillColor = (ImGui.GetColorU32(ImGuiCol.ButtonHovered) & 0x00FFFFFF) | ((uint)(255f * volumePortion) << 24);
+                        drawList.AddRectFilled(pos, pos + fillSize, fillColor); // fill
+                        drawList.AddRectFilled(new Vector2(pos.X + fillSize.X - 2, pos.Y), new Vector2(pos.X + fillSize.X, pos.Y + size.Y - 1), ImGui.GetColorU32(ImGuiCol.ButtonActive));
+                    }
+                    if (c.RepeatMode == 1)
+                    {
+                        var loopOffs = size.X * loopPortion;
+                        drawList.AddRectFilled(new Vector2(pos.X + loopOffs - 2, pos.Y), new Vector2(pos.X + loopOffs, pos.Y + size.Y - 1), 0xFF00FF00);
+                    }
+                    else if (c.RepeatMode == 2)
+                    {
+                        drawList.AddRectFilled(new Vector2(pos.X + size.X - 2, pos.Y), new Vector2(pos.X + size.X, pos.Y + size.Y - 1), 0xFF0000FF);
+                    }
+                    drawList.AddRect(pos, pos + size, ImGui.GetColorU32(ImGuiCol.Border)); // border
+
+                    ImGui.Checkbox("##soundvis-check" + i, ref c.DebugEnable); ImGui.SameLine();
+                    if (ImGui.Button("Solo##soundvis" + i))
+                    {
+                        int numEnabled = 0;
+                        for (uint chI = 0; chI < 16; chI++)
+                        {
+                            if (Nds.Nds7.Audio.Channels[chI].DebugEnable)
+                            {
+                                numEnabled++;
+                            }
+                        }
+
+                        bool thisChannelEnabled = c.DebugEnable;
+                        for (uint chI = 0; chI < 16; chI++)
+                        {
+                            if (thisChannelEnabled)
+                            {
+                                if (numEnabled == 1)
+                                {
+                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = true;
+                                }
+                                else if (chI != i)
+                                {
+                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = false;
+                                }
+                            }
+                            else
+                            {
+                                if (chI != i)
+                                {
+                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = false;
+                                }
+                                else
+                                {
+                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = true;
+                                }
+                            }
+                        }
+                    }
+                    ImGui.SameLine(); ImGui.Text("Interval: " + Hex(c.Interval, 4));
+                    ImGui.SameLine(); ImGui.Text("Save: " + c.DebugAdpcmSaved);
+                    ImGui.SameLine(); ImGui.Text("Rest: " + c.DebugAdpcmRestored);
+
+                    ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 20);
+
+                    ImGui.Dummy(size);
+
+
+                }
+                ImGui.End();
             }
         }
     }

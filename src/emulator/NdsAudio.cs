@@ -20,101 +20,20 @@ namespace OptimeGBA
         public uint SOUNDPNT;
         public uint SOUNDLEN;
 
-        public uint SampleNum;
-        public uint Source;
+        public uint SamplePos;
         public uint Timer;
-        public uint LoopStart;
-        public uint Length;
 
         public uint Interval;
         public short CurrentValue;
         public int AdpcmIndex;
         public short AdpcmLoopValue;
         public int AdpcmLoopIndex;
+        public uint AdpcmLoopCurrentData;
         public uint CurrentData;
 
-        public void Start()
-        {
-            SampleNum = 0;
-            Timer = 0;
-            Source = SOUNDSAD & 0x3FFFFFF;
-            LoopStart = SOUNDPNT;
-            Length = SOUNDLEN & 0x3FFFFF;
-        }
-
-        public byte ReadHwio8(uint addr)
-        {
-            byte val = 0;
-
-            switch (addr)
-            {
-                case 0x0:
-                    val |= Volume;
-                    break;
-                case 0x1:
-                    val |= VolumeDiv;
-                    if (Hold) val = BitSet(val, 7);
-                    break;
-                case 0x2:
-                    val |= Pan;
-                    break;
-                case 0x3:
-                    val |= PulseDuty;
-                    val |= (byte)(RepeatMode << 3);
-                    val |= (byte)(Format << 5);
-                    if (Playing) val = BitSet(val, 7);
-                    break;
-            }
-
-            return val;
-        }
-
-        public void WriteHwio8(uint addr, byte val)
-        {
-            switch (addr)
-            {
-                case 0x0:
-                    Volume = (byte)(val & 0x7F);
-                    break;
-                case 0x1:
-                    VolumeDiv = (byte)(val & 3);
-                    Hold = BitTest(val, 7);
-                    break;
-                case 0x2:
-                    Pan = (byte)(val & 0x7F);
-                    break;
-                case 0x3:
-                    PulseDuty = (byte)(val & 7);
-                    RepeatMode = (byte)((val >> 3) & 3);
-                    Format = (byte)((val >> 5) & 3);
-                    if (!Playing && BitTest(val, 7))
-                    {
-                        Start();
-                    }
-                    Playing = BitTest(val, 7);
-                    break;
-
-                case 0x4:
-                case 0x5:
-                case 0x6:
-                case 0x7:
-                    SOUNDSAD = SetByteIn(SOUNDSAD, val, addr & 3);
-                    break;
-                case 0x8:
-                case 0x9:
-                    SOUNDTMR = SetByteIn(SOUNDTMR, val, addr & 1);
-                    Interval = 2 * (0x10000 - SOUNDTMR);
-                    break;
-                case 0xA:
-                case 0xB:
-                    SOUNDPNT = SetByteIn(SOUNDPNT, val, addr & 1);
-                    break;
-                case 0xC:
-                case 0xD:
-                    SOUNDLEN = SetByteIn(SOUNDLEN, val, addr & 1);
-                    break;
-            }
-        }
+        public bool DebugEnable = true;
+        public uint DebugAdpcmSaved;
+        public uint DebugAdpcmRestored;
     }
 
     public class NdsAudio
@@ -235,12 +154,86 @@ namespace OptimeGBA
 
         public byte ReadHwio8Channels(uint addr)
         {
-            return Channels[(addr >> 4) & 0xF].ReadHwio8(addr & 0xF);
+            var c = Channels[(addr >> 4) & 0xF];
+
+            byte val = 0;
+
+            switch (addr & 0xF)
+            {
+                case 0x0:
+                    val |= c.Volume;
+                    break;
+                case 0x1:
+                    val |= c.VolumeDiv;
+                    if (c.Hold) val = BitSet(val, 7);
+                    break;
+                case 0x2:
+                    val |= c.Pan;
+                    break;
+                case 0x3:
+                    val |= c.PulseDuty;
+                    val |= (byte)(c.RepeatMode << 3);
+                    val |= (byte)(c.Format << 5);
+                    if (c.Playing) val = BitSet(val, 7);
+                    break;
+            }
+
+            return val;
         }
 
         public void WriteHwio8Channels(uint addr, byte val)
         {
-            Channels[(addr >> 4) & 0xF].WriteHwio8(addr & 0xF, val);
+            var c = Channels[(addr >> 4) & 0xF];
+
+            switch (addr & 0xF)
+            {
+                case 0x0:
+                    c.Volume = (byte)(val & 0x7F);
+                    break;
+                case 0x1:
+                    c.VolumeDiv = (byte)(val & 3);
+                    c.Hold = BitTest(val, 7);
+                    break;
+                case 0x2:
+                    c.Pan = (byte)(val & 0x7F);
+                    break;
+                case 0x3:
+                    c.PulseDuty = (byte)(val & 7);
+                    c.RepeatMode = (byte)((val >> 3) & 3);
+                    c.Format = (byte)((val >> 5) & 3);
+                    if (!c.Playing && BitTest(val, 7))
+                    {
+                        StartChannel(c);
+                    }
+                    c.Playing = BitTest(val, 7);
+                    break;
+
+                case 0x4:
+                case 0x5:
+                case 0x6:
+                case 0x7:
+                    c.SOUNDSAD = SetByteIn(c.SOUNDSAD, val, addr & 3) & 0x7FFFFFC;
+                    break;
+                case 0x8:
+                case 0x9:
+                    c.SOUNDTMR = SetByteIn(c.SOUNDTMR, val, addr & 1);
+                    c.Interval = 2 * (0x10000 - c.SOUNDTMR);
+                    break;
+                case 0xA:
+                case 0xB:
+                    c.SOUNDPNT = SetByteIn(c.SOUNDPNT, val, addr & 1);
+                    break;
+                case 0xC:
+                case 0xD:
+                    c.SOUNDLEN = SetByteIn(c.SOUNDLEN, val, addr & 1) & 0x3FFFFF;
+                    break;
+            }
+        }
+
+        public void StartChannel(AudioChannelNds c)
+        {
+            c.SamplePos = 0;
+            c.Timer = 0;
         }
 
         uint x = 0;
@@ -274,37 +267,11 @@ namespace OptimeGBA
                                 // System.Console.WriteLine("PCM16");
                                 break;
                             case 2: // IMA-ADPCM
-                                if ((c.SampleNum & 7) == 0)
+                                if ((c.SamplePos & 7) == 0)
                                 {
-                                    if (c.RepeatMode == 1)
-                                    {
-                                        // Save value and ADPCM table index for loop
-                                        if (c.Source == c.SOUNDSAD + c.SOUNDPNT * 4)
-                                        {
-                                            c.AdpcmLoopValue = c.CurrentValue;
-                                            c.AdpcmLoopIndex = c.AdpcmIndex;
-                                        }
-                                    }
-
-                                    // End of sound, loop or stop
-                                    if (c.Source >= c.SOUNDSAD + (c.SOUNDPNT + c.SOUNDLEN) * 4)
-                                    {
-                                        switch (c.RepeatMode)
-                                        {
-                                            case 1: // Infinite 
-                                                c.Source = c.SOUNDSAD + c.SOUNDPNT * 4;
-                                                c.CurrentValue = c.AdpcmLoopValue;
-                                                c.AdpcmIndex = c.AdpcmLoopIndex;
-                                                break;
-                                            case 2: // One-shot
-                                                c.Playing = false;
-                                                break;
-                                        }
-                                    }
-
-                                    c.CurrentData = Nds7.Mem.Read32(c.Source);
+                                    c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos / 2);
                                     // ADPCM header
-                                    if (c.SampleNum == 0)
+                                    if (c.SamplePos == 0)
                                     {
                                         c.CurrentValue = (short)c.CurrentData;
                                         // Console.WriteLine("header set " + x++);
@@ -312,39 +279,78 @@ namespace OptimeGBA
                                         c.AdpcmIndex = (int)((c.CurrentData >> 16) & 0x3F);
                                     }
                                     // Console.WriteLine("addr: " + Util.Hex(c.Source, 8));
-                                    c.Source += 4;
                                 }
-                                if (c.SampleNum > 7)
+                                if (c.SamplePos > 7)
                                 {
-                                    byte data = (byte)(c.CurrentData & 0xF);
-
-                                    short tableVal = AdpcmTable[c.AdpcmIndex];
-                                    int diff = tableVal / 8;
-                                    if ((data & 2) != 0) diff += tableVal / 2;
-                                    if ((data & 1) != 0) diff += tableVal / 4;
-                                    if ((data & 4) != 0) diff += tableVal / 1;
-
-                                    if ((data & 8) == 8)
+                                    // End of sound, loop or stop
+                                    if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 8)
                                     {
-                                        c.CurrentValue = (short)Math.Max(c.CurrentValue - diff, -0x7FFF);
+                                        switch (c.RepeatMode)
+                                        {
+                                            case 1: // Infinite 
+                                                c.SamplePos = c.SOUNDPNT * 8;
+                                                c.CurrentValue = c.AdpcmLoopValue;
+                                                c.AdpcmIndex = c.AdpcmLoopIndex;
+                                                c.CurrentData = c.AdpcmLoopCurrentData;
+                                                // Console.WriteLine($"Ch{i}: Loaded at " + c.SampleNum);
+
+                                                c.DebugAdpcmRestored = c.SamplePos;
+                                                break;
+                                            case 2: // One-shot
+                                                c.Playing = false;
+                                                if (!c.Hold)
+                                                {
+                                                    c.CurrentValue = 0;
+                                                }
+                                                break;
+                                        }
                                     }
                                     else
                                     {
-                                        c.CurrentValue = (short)Math.Min(c.CurrentValue + diff, 0x7FFF);
-                                    }
-                                    c.AdpcmIndex = Math.Min(Math.Max(c.AdpcmIndex + IndexTable[data & 7], 0), 88);
+                                        byte data = (byte)(c.CurrentData & 0xF);
 
-                                    c.CurrentData >>= 4;
+                                        short tableVal = AdpcmTable[c.AdpcmIndex];
+                                        int diff = tableVal / 8;
+                                        if ((data & 2) != 0) diff += tableVal / 2;
+                                        if ((data & 1) != 0) diff += tableVal / 4;
+                                        if ((data & 4) != 0) diff += tableVal / 1;
+
+                                        if ((data & 8) == 8)
+                                        {
+                                            c.CurrentValue = (short)Math.Max(c.CurrentValue - diff, -0x7FFF);
+                                        }
+                                        else
+                                        {
+                                            c.CurrentValue = (short)Math.Min(c.CurrentValue + diff, 0x7FFF);
+                                        }
+                                        c.AdpcmIndex = Math.Min(Math.Max(c.AdpcmIndex + IndexTable[data & 7], 0), 88);
+
+                                        c.CurrentData >>= 4;
+
+                                        // Save value and ADPCM table index for loop
+                                        if (c.SamplePos == c.SOUNDPNT * 8)
+                                        {
+                                            c.AdpcmLoopValue = c.CurrentValue;
+                                            c.AdpcmLoopIndex = c.AdpcmIndex;
+                                            c.AdpcmLoopCurrentData = c.CurrentData;
+
+                                            c.DebugAdpcmSaved = c.SamplePos;
+                                            // Console.WriteLine($"Ch{i}: Saved at " + c.SampleNum);
+                                        }
+                                    }
                                 }
-                                c.SampleNum++;
+                                c.SamplePos++;
                                 break;
                             case 3: // Pulse / Noise
                                 break;
                         }
                     }
 
-                    left += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * (127 - c.Pan)) / 32768);
-                    right += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * c.Pan) / 32768);
+                    if (c.DebugEnable)
+                    {
+                        left += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * (127 - c.Pan)) / 32768);
+                        right += (short)(((c.CurrentValue >> VolumeDivShiftTable[c.VolumeDiv]) * c.Volume * c.Pan) / 32768);
+                    }
                 }
             }
 

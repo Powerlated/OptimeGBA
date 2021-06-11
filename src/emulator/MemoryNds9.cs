@@ -220,10 +220,6 @@ namespace OptimeGBA
                     // Nds9.Nds.Ppu.WritePalettes8(addr + 0, val);
                     // Nds9.Nds.Ppu.WritePalettes8(addr + 1, val);
                     break;
-                case 0x6: // VRAM - duplicated across upper-lower in 8-bit
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, val);
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, val);
-                    break;
             }
         }
 
@@ -351,7 +347,7 @@ namespace OptimeGBA
                 case 0x4001052: case 0x4001053: // BLDALPHA
                 case 0x4001054: case 0x4001055: // BLDY
                 case 0x400106C: case 0x400106D: // MASTER_BRIGHT
-                    return Nds9.Nds.Ppu.ReadHwio8(addr);
+                    return Nds9.Nds.Ppu.ReadHwio8Arm9(addr);
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD
@@ -500,7 +496,7 @@ namespace OptimeGBA
                 case 0x4001052: case 0x4001053: // BLDALPHA
                 case 0x4001054: case 0x4001055: // BLDY
                 case 0x400106C: case 0x400106D: // MASTER_BRIGHT
-                    Nds9.Nds.Ppu.WriteHwio8(addr, val); return;
+                    Nds9.Nds.Ppu.WriteHwio8Arm9(addr, val); return;
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD

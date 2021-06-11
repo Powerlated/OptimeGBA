@@ -34,6 +34,9 @@ namespace OptimeGBA
 
         public ulong Steps;
 
+        public bool DebugDisableArm9;
+        public bool DebugDisableArm7;
+
         public Nds(ProviderNds provider)
         {
             Provider = provider;
@@ -180,44 +183,59 @@ namespace OptimeGBA
 
             long beforeTicks = Scheduler.CurrentTicks;
 
-            // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
-            // so don't do that when not debugging simple test ROMs
-            // Nds7.Cpu.Execute();
-            // Nds9.Cpu.Execute();
-            // Scheduler.CurrentTicks += 1;
+            while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
+            {
+                // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
+                // so don't do that when not debugging simple test ROMs
+                // Nds7.Cpu.Execute();
+                // Nds9.Cpu.Execute();
+                // Scheduler.CurrentTicks += 1;
 
-            // TODO: Proper NDS timings
-            // TODO: Figure out a better way to implement halting
-            uint ticks7 = 0;
-            if (!Nds7.Cpu.Halted)
-            {
-                ticks7 += Nds7.Cpu.Execute();
-            }
-            else
-            {
-                ticks7 += 1;
-            }
-
-            Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-            while (Arm9PendingTicks > 0)
-            {
-                if (!Nds9.Cpu.Halted)
+                // TODO: Proper NDS timings
+                // TODO: Figure out a better way to implement halting
+                uint ticks7 = 0;
+                // Run 32 ARM7 instructions at a time, who needs tight synchronization
+                const uint instrsAtATime = 32;
+                if (!DebugDisableArm7)
                 {
-                    Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+                    for (uint i = 0; i < 32; i++)
+                    {
+                        if (!Nds7.Cpu.Halted)
+                        {
+                            ticks7 += Nds7.Cpu.Execute();
+                        }
+                        else
+                        {
+                            ticks7 += 1;
+                        }
+                    }
                 }
                 else
                 {
-                    Arm9PendingTicks -= 2;
+                    ticks7 += instrsAtATime;
                 }
-            }
-            Scheduler.CurrentTicks += ticks7;
 
-            while (Scheduler.CurrentTicks >= Scheduler.NextEventTicks)
-            {
-                long current = Scheduler.CurrentTicks;
-                long next = Scheduler.NextEventTicks;
-                Scheduler.PopFirstEvent().Callback(current - next);
+                Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+                if (!DebugDisableArm9)
+                {
+                    while (Arm9PendingTicks > 0)
+                    {
+                        if (!Nds9.Cpu.Halted)
+                        {
+                            Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+                        }
+                        else
+                        {
+                            Arm9PendingTicks -= 2;
+                        }
+                    }
+                }
+                Scheduler.CurrentTicks += ticks7;
             }
+
+            long current = Scheduler.CurrentTicks;
+            long next = Scheduler.NextEventTicks;
+            Scheduler.PopFirstEvent().Callback(current - next);
 
             return (uint)(Scheduler.CurrentTicks - beforeTicks);
         }

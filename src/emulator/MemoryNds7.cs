@@ -234,7 +234,7 @@ namespace OptimeGBA
             {
                 case 0x4000004: case 0x4000005: // DISPSTAT
                 case 0x4000006: case 0x4000007: // VCOUNT
-                    return Nds7.Nds.Ppu.ReadHwio8(addr);
+                    return Nds7.Nds.Ppu.ReadHwio8Arm7(addr);
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD
@@ -340,7 +340,7 @@ namespace OptimeGBA
             {
                 case 0x4000004: case 0x4000005: // DISPSTAT
                 case 0x4000006: case 0x4000007: // VCOUNT
-                    Nds7.Nds.Ppu.WriteHwio8(addr, val); return;
+                    Nds7.Nds.Ppu.WriteHwio8Arm7(addr, val); return;
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD

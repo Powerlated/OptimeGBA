@@ -1261,7 +1261,7 @@ namespace OptimeGBA
         public void RenderMode3(uint vcount, byte* vram)
         {
             uint screenBase = (uint)(vcount * Width);
-            uint vramBase = (uint)(vcount * Width * 2);
+            uint vramBase = (uint)(vcount * Width * 2) + LcdcVramBlock * 131072;
 
             for (uint p = 0; p < Width; p++)
             {
