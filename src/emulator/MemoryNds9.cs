@@ -279,13 +279,21 @@ namespace OptimeGBA
 
         public byte ReadHwio8(bool debug, uint addr)
         {
-            lock (HwioReadLog) {
-                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
-                {
-                    uint count;
-                    HwioReadLog.TryGetValue(addr, out count);
-                    HwioReadLog[addr] = count + 1;
+            if (LogHwioAccesses) 
+            {
+                lock (HwioReadLog) {
+                    if ((addr & ~1) != 0 && !debug)
+                    {
+                        uint count;
+                        HwioReadLog.TryGetValue(addr, out count);
+                        HwioReadLog[addr] = count + 1;
+                    }
                 }
+            }
+
+            if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
+            {
+                return Nds9.Nds.Ppu3D.ReadHwio8(addr);
             }
 
             switch (addr)
@@ -428,13 +436,21 @@ namespace OptimeGBA
 
         public void WriteHwio8(bool debug, uint addr, byte val)
         {
-            lock (HwioWriteLog) {
-                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
-                {
-                    uint count;
-                    HwioWriteLog.TryGetValue(addr, out count);
-                    HwioWriteLog[addr] = count + 1;
+            if (LogHwioAccesses)
+            {
+                lock (HwioWriteLog) {
+                    if ((addr & ~1) != 0 && !debug)
+                    {
+                        uint count;
+                        HwioWriteLog.TryGetValue(addr, out count);
+                        HwioWriteLog[addr] = count + 1;
+                    }
                 }
+            }
+
+            if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
+            {
+                Nds9.Nds.Ppu3D.WriteHwio8(addr, val);
             }
 
             switch (addr)

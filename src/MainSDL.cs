@@ -889,12 +889,20 @@ namespace OptimeGBAEmulator
             switch (kb.keysym.sym)
             {
                 case SDL_Keycode.SDLK_SPACE:
-                    Space = pressed;
-                    Sync = !(Space || Tab);
+                    if (!LCtrl)
+                    {
+                        Space = pressed;
+                        Sync = !(Space || Tab);
+                    }
                     break;
                 case SDL_Keycode.SDLK_TAB:
-                    Tab = pressed;
-                    Sync = !(Space || Tab);
+                    if (!LCtrl)
+                    {
+                        Tab = pressed;
+                        Sync = !(Space || Tab);
+                    } else {
+                        Sync = !Sync;
+                    }
                     break;
 
                 case SDL_Keycode.SDLK_LALT:

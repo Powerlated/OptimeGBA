@@ -5,6 +5,7 @@ using OpenTK.Graphics.OpenGL;
 using System;
 using System.IO;
 using ImGuiNET;
+using static OptimeGBA.MemoryUtil;
 using System.Threading;
 using ImGuiUtils;
 using static Util;
@@ -248,6 +249,8 @@ namespace OptimeGBAEmulator
         {
             Nds.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
             Nds.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
+            Nds.Keypad.Y = Window.KeyboardState.IsKeyDown(Keys.A);
+            Nds.Keypad.X = Window.KeyboardState.IsKeyDown(Keys.S);
             Nds.Keypad.Left = Window.KeyboardState.IsKeyDown(Keys.Left);
             Nds.Keypad.Up = Window.KeyboardState.IsKeyDown(Keys.Up);
             Nds.Keypad.Right = Window.KeyboardState.IsKeyDown(Keys.Right);
@@ -294,6 +297,7 @@ namespace OptimeGBAEmulator
             DrawBankedRegisters();
             DrawCpuProfiler();
             DrawInterruptStatus();
+            DrawVoidTool();
         }
 
         public void ResetNds()
@@ -423,7 +427,7 @@ namespace OptimeGBAEmulator
                 }
                 else
                 {
-                    ImGui.Text("");
+                    ImGui.Spacing();
                 }
 
                 ImGui.Separator();
@@ -736,14 +740,14 @@ namespace OptimeGBAEmulator
                 // ImGui.Text($"Palette Reads: {Nds.Nds7.Mem.PaletteReads}");
                 // ImGui.Text($"VRAM Reads: {Nds.Nds7.Mem.VramReads}");
                 // ImGui.Text($"OAM Reads: {Nds.Nds7.Mem.OamReads}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 // ImGui.Text($"EWRAM Writes: {Nds.Nds7.Mem.EwramWrites}");
                 // ImGui.Text($"IWRAM Writes: {Nds.Nds7.Mem.IwramWrites}");
                 // ImGui.Text($"HWIO Writes: {Nds.Nds7.Mem.HwioWrites}");
                 // ImGui.Text($"Palette Writes: {Nds.Nds7.Mem.PaletteWrites}");
                 // ImGui.Text($"VRAM Writes: {Nds.Nds7.Mem.VramWrites}");
                 // ImGui.Text($"OAM Writes: {Nds.Nds7.Mem.OamWrites}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 // bool ticked = Nds.HwControl.IME;
                 // ImGui.Checkbox("IME", ref ticked);
 
@@ -875,12 +879,12 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds9.Timers.T[1].CalculateCounter(), 4)}");
                 ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds9.Timers.T[2].CalculateCounter(), 4)}");
                 ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds9.Timers.T[3].CalculateCounter(), 4)}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds9.Timers.T[0].ReloadVal, 4)}");
                 ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds9.Timers.T[1].ReloadVal, 4)}");
                 ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds9.Timers.T[2].ReloadVal, 4)}");
                 ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds9.Timers.T[3].ReloadVal, 4)}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[0].PrescalerSel]}");
                 ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[1].PrescalerSel]}");
                 ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[2].PrescalerSel]}");
@@ -890,12 +894,12 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds7.Timers.T[1].CalculateCounter(), 4)}");
                 ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds7.Timers.T[2].CalculateCounter(), 4)}");
                 ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds7.Timers.T[3].CalculateCounter(), 4)}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds7.Timers.T[0].ReloadVal, 4)}");
                 ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds7.Timers.T[1].ReloadVal, 4)}");
                 ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds7.Timers.T[2].ReloadVal, 4)}");
                 ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds7.Timers.T[3].ReloadVal, 4)}");
-                ImGui.Text("");
+                ImGui.Spacing();
                 ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[0].PrescalerSel]}");
                 ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[1].PrescalerSel]}");
                 ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[2].PrescalerSel]}");
@@ -1002,8 +1006,10 @@ namespace OptimeGBAEmulator
         public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
         {
-            if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
+            if (ImGui.Begin("Display", ImGuiWindowFlags.AlwaysAutoResize))
             {
+                ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
+
                 float width = BigScreen ? 256 * 4 : 256 * 2;
                 float height = BigScreen ? 192 * 4 : 192 * 2;
 
@@ -1015,7 +1021,7 @@ namespace OptimeGBAEmulator
                     // TexParameter needed for something to display :)
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-                    var renderer = Nds.Ppu.Renderers[i];
+                    var renderer = Nds.Ppu.Renderers[i ^ (Nds.Nds9.DisplaySwap ? 0 : 1)];
 
                     var buf = ShowBackBuf ? renderer.ScreenBack : renderer.ScreenFront;
                     for (uint j = 0; j < 256 * 192; j++)
@@ -1035,9 +1041,52 @@ namespace OptimeGBAEmulator
                         DisplayBuffer
                     );
 
-                    ImGui.Image((IntPtr)screenTexIds[i], new Vector2(width, height));
+                    var screenPos = ImGui.GetCursorScreenPos();
+
+                    var uv0 = new Vector2(0.0f, 0.0f);
+                    var uv1 = new Vector2(1.0f, 1.0f);
+                    var size = new Vector2(width, height);
+
+                    if (i == 1)
+                    {
+                        float x = Window.MouseState.X - screenPos.X;
+                        float y = Window.MouseState.Y - screenPos.Y;
+
+                        bool down = Window.MouseState.IsButtonDown(MouseButton.Left);
+                        ImGui.ImageButton((IntPtr)screenTexIds[i], size, uv0, uv1, 0);
+
+                        // Normalize
+                        uint touchX = (uint)((x / size.X) * 256f);
+                        uint touchY = (uint)((y / size.Y) * 192f);
+
+                        if (touchX < 256 && touchY < 192)
+                        {
+                            // ImGui.Text($"({touchX}, {touchY}) {(down ? "DOWN" : "")}");
+
+                            if (down)
+                            {
+                                Nds.Nds7.Spi.SetTouchPos(touchX, touchY);
+                                Nds.Keypad.Touch = true;
+                            }
+                            else
+                            {
+                                Nds.Nds7.Spi.ClearTouchPos();
+                                Nds.Keypad.Touch = false;
+                            }
+                        }
+                        else
+                        {
+                            Nds.Nds7.Spi.ClearTouchPos();
+                            Nds.Keypad.Touch = false;
+                        }
+                    }
+                    else
+                    {
+                        ImGui.Image((IntPtr)screenTexIds[i], size, uv0, uv1);
+                    }
                 }
-                ImGui.SetWindowSize(new Vector2(width + 16, height * 2 + 48));
+
+                ImGui.PopStyleVar();
 
                 ImGui.End();
             }
@@ -1676,6 +1725,8 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public string[] SoundDivs = new string[] { "/1", "/2", "/4", "/16" };
+
         public void DrawSoundVisualizer()
         {
             if (ImGui.Begin("Sound Visualizer"))
@@ -1776,7 +1827,6 @@ namespace OptimeGBAEmulator
                     ImGui.SameLine();
                     if (ImGui.Button("Replay##soundvis" + i))
                     {
-                        c.SOUNDLEN = 4000;
                         c.SamplePos = 0;
                         c.Playing = true;
                         c.Volume = 127;
@@ -1784,8 +1834,11 @@ namespace OptimeGBAEmulator
                     }
                     ImGui.SameLine(); ImGui.Text("Interval: " + Hex(c.Interval, 4));
                     ImGui.SameLine(); ImGui.Text("Len: " + (totalSamples - loopSamples));
+                    ImGui.SameLine(); ImGui.Text("Volume: " + c.Volume + SoundDivs[c.VolumeDiv]);
 
                     ImGui.Text("Source: " + HexN(c.SOUNDSAD, 7));
+                    ImGui.SameLine(); ImGui.Text("Data: " + Hex(c.CurrentData, 8));
+                    ImGui.SameLine(); ImGui.Text("Value: " + Hex((ushort)c.CurrentValue, 4));
                     ImGui.SameLine(); ImGui.Text("Repeat: " + c.RepeatMode);
                     ImGui.SameLine(); ImGui.Text("Format: " + c.Format);
 
@@ -1794,7 +1847,311 @@ namespace OptimeGBAEmulator
                     ImGui.Dummy(size);
 
                 }
+
+                ImGui.Text("SOUNDBIAS: " + Hex(Nds.Nds7.Audio.SOUNDBIAS, 8));
+
                 ImGui.End();
+            }
+        }
+
+        public static string[] PokemonGen4GameNames = {
+            "<invalid Generation 4 Pokémon game>",
+            "Pokémon Diamond",
+            "Pokémon Pearl",
+            "Pokémon Platinum",
+        };
+
+        public class PokemonGen4Details
+        {
+            public uint BasePtrPtr;
+            public string LangCode;
+
+            public PokemonGen4Details(uint basePtrPtr, string langCode)
+            {
+                BasePtrPtr = basePtrPtr;
+                LangCode = langCode;
+            }
+        }
+
+        public static uint[] MapColors = new uint[] {
+            0xFFFFFFFF,
+            0xFFCF831E,
+            0xFF8E12E1,
+            0xFF888888,
+            0xFF00A5FF,
+            0xFFAD0D6A,
+            0xFF00FFFF,
+            0xFF0000FF,
+            0xFFBBFF66,
+        };
+
+        public static string[] MapColorsNames = new string[] {
+            "Normal",
+            "Highlight",
+            "Highlight 2",
+            "Mystery Zone",
+            "Blackout",
+            "Movement",
+            "Void Exit",
+            "BSOD",
+            "Jubilife City",
+        };
+
+        public static Dictionary<uint, uint> PokemonGen4MapColors = new Dictionary<uint, uint>() {
+            {253, 1}, // Highlight
+            {523, 2}, // Highlight 2
+            {0, 3}, // Mystery Zone
+            {332, 4}, // Blackout
+            {333, 4},
+            {117, 5}, // Movement
+            {177, 5},
+            {179, 5},
+            {181, 5},
+            {183, 5},
+            {192, 5},
+            {393, 5},
+            {474, 5},
+            {475, 5},
+            {476, 5},
+            {477, 5},
+            {478, 5},
+            {479, 5},
+            {480, 5},
+            {481, 5},
+            {482, 5},
+            {483, 5},
+            {484, 5},
+            {485, 5},
+            {486, 5},
+            {487, 5},
+            {488, 5},
+            {489, 5},
+            {490, 5},
+            {496, 5},
+            {105, 6}, // Void Exit
+            {114, 6},
+            {337, 6},
+            {461, 6},
+            {516, 6},
+            {186, 6},
+            {187, 6},
+            {35, 7}, // BSOD
+			{88, 7},
+            {91, 7},
+            {93, 7},
+            {95, 7},
+            {115, 7},
+            {122, 7},
+            {150, 7},
+            {154, 7},
+            {155, 7},
+            {156, 7},
+            {176, 7},
+            {178, 7},
+            {180, 7},
+            {182, 7},
+            {184, 7},
+            {185, 7},
+            {188, 7},
+            {3, 8}, // Jubilife City 
+        };
+
+        public static Dictionary<uint, PokemonGen4Details>[] PokemonGen4BasePtrs = new Dictionary<uint, PokemonGen4Details>[] {
+            // Diamond & Pearl Demo
+            new Dictionary<uint, PokemonGen4Details>() {
+                {0x45, new PokemonGen4Details(0x02106BAC, "US / EU") },
+            },
+            // Diamond & Pearl
+            new Dictionary<uint, PokemonGen4Details>() {
+                {0x44, new PokemonGen4Details(0x02107100, "DE")},
+                {0x45, new PokemonGen4Details(0x02106FC0, "US / EU")},
+                {0x46, new PokemonGen4Details(0x02107140, "FR")},
+                {0x49, new PokemonGen4Details(0x021070A0, "IT")},
+                {0x4A, new PokemonGen4Details(0x02108818, "JP")},
+                {0x4B, new PokemonGen4Details(0x021045C0, "KS")},
+                {0x53, new PokemonGen4Details(0x02107160, "ES")},
+            },
+            // Platinum
+            new Dictionary<uint, PokemonGen4Details>() {
+                {0x44, new PokemonGen4Details(0x02101EE0, "DE")},
+                {0x45, new PokemonGen4Details(0x02101D40, "US / EU")},
+                {0x46, new PokemonGen4Details(0x02101F20, "FR")},
+                {0x49, new PokemonGen4Details(0x02101EA0, "IT")},
+                {0x4A, new PokemonGen4Details(0x02101140, "JP")},
+                {0x4B, new PokemonGen4Details(0x02102C40, "KS")},
+                {0x53, new PokemonGen4Details(0x02101F40, "ES")},
+            },
+            // HeartGold & SoulSilver
+            new Dictionary<uint, PokemonGen4Details>() {
+                {0x44, new PokemonGen4Details(0x02111860, "DE")},
+                {0x45, new PokemonGen4Details(0x02111880, "US / EU")},
+                {0x46, new PokemonGen4Details(0x021118A0, "FR")},
+                {0x49, new PokemonGen4Details(0x02111820, "IT")},
+                {0x4A, new PokemonGen4Details(0x02110DC0, "JP")},
+                {0x4B, new PokemonGen4Details(0x02112280, "KS")},
+                {0x53, new PokemonGen4Details(0x021118C0, "ES")},
+            },
+        };
+
+        public void DrawVoidTool()
+        {
+
+            byte version = 0;
+
+            // Make sure ROM is actually long enough
+            if (Nds.Provider.Rom.Length >= 0x10)
+            {
+                // "POKEMON"
+                if (GetUlong(Nds.Provider.Rom, 0) == 0x204E4F4D454B4F50)
+                {
+                    // "D   " 
+                    if (GetUint(Nds.Provider.Rom, 8) == 0x00000044) version = 1;
+                    // "P   " 
+                    if (GetUint(Nds.Provider.Rom, 8) == 0x00000050) version = 2;
+                    // "PL  " 
+                    if (GetUint(Nds.Provider.Rom, 8) == 0x00004C50) version = 3;
+                }
+            }
+
+            if (version != 0)
+            {
+                if (ImGui.Begin("Void Tool", ImGuiWindowFlags.AlwaysAutoResize))
+                {
+                    uint verId = GetUint(Nds.Provider.Rom, 0xC);
+                    uint id = verId & 0xFF;
+                    uint lang = (verId >> 24) & 0xFF;
+
+                    uint index = 0;
+                    if (id == 0x59) index = 0;
+                    if (id == 0x41) index = 1;
+                    if (id == 0x43) index = 2;
+                    if (id == 0x49) index = 3;
+
+                    PokemonGen4Details details;
+                    PokemonGen4BasePtrs[index].TryGetValue(lang, out details);
+                    if (details != null)
+                    {
+                        uint basePtr = Nds.Nds9.Mem.ReadDebug32(details.BasePtrPtr);
+                        bool isPlatinum = version == 3;
+
+                        // constants from void.lua
+                        uint mapAddrOffs = isPlatinum ? 0x218FEU : 0x22ADAU;
+                        uint coordPtrOffs = isPlatinum ? 0x2371CU : 0x248D4U;
+                        uint coordPtr = Nds.Nds9.Mem.ReadDebug32(basePtr + coordPtrOffs);
+                        uint xPtr = coordPtr + 0x84;
+                        uint yPtr = coordPtr + 0x8C;
+                        uint zPtr = coordPtr + 0x94;
+                        uint xPos = Nds.Nds9.Mem.ReadDebug32(xPtr);
+                        uint yPos = Nds.Nds9.Mem.ReadDebug32(yPtr);
+                        uint zPos = Nds.Nds9.Mem.ReadDebug32(zPtr);
+
+                        var drawList = ImGui.GetWindowDrawList();
+
+                        ImGui.Columns(2);
+
+                        ImGui.Text($"{PokemonGen4GameNames[version]} ({details.LangCode})");
+                        ImGui.Text("Base Pointer Pointer: " + Hex(details.BasePtrPtr, 8));
+                        ImGui.Text("Base Pointer: " + Hex(basePtr, 8));
+                        ImGui.Text("X: " + xPos);
+                        ImGui.Text("Y: " + yPos);
+                        ImGui.Text("Z: " + zPos);
+
+                        ImGui.NextColumn();
+
+                        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(0, 0));
+                        for (uint i = 0; i < MapColorsNames.Length; i++)
+                        {
+                            var legendCursorPos = ImGui.GetCursorScreenPos();
+                            var rectPos = legendCursorPos + new Vector2(0, 3);
+                            drawList.AddRectFilled(rectPos, rectPos + new Vector2(8, 8), MapColors[i]);
+                            ImGui.SetCursorScreenPos(legendCursorPos + new Vector2(10, 0));
+
+                            ImGui.Text(MapColorsNames[i]);
+                        }
+                        ImGui.PopStyleVar();
+
+                        ImGui.Spacing();
+                        ImGui.Spacing();
+
+                        ImGui.Columns(1);
+
+                        int cols = 30;
+                        int rows = 30;
+
+                        int size = 16;
+                        int gap = 1;
+
+                        var cursorPos = ImGui.GetCursorScreenPos();
+
+                        Func<uint, float, uint> colorBright = (uint col, float mul) =>
+                        {
+                            byte r = (byte)((byte)(col >> 0) * mul);
+                            byte g = (byte)((byte)(col >> 8) * mul);
+                            byte b = (byte)((byte)(col >> 16) * mul);
+                            byte a = (byte)(col >> 24);
+
+                            return (uint)((a << 24) | (b << 16) | (g << 8) | r);
+                        };
+
+                        for (int y = 0; y < rows; y++)
+                        {
+                            for (int x = 0; x < cols; x++)
+                            {
+                                int xAdj = x;
+                                int yAdj = y;
+                                uint tile = Nds.Nds9.Mem.ReadDebug16((uint)(basePtr + mapAddrOffs + 2 * xAdj + 60 * yAdj));
+
+                                // The game forces all invalid tiles to ID 3, which is Jubilife City in DPPt 
+                                if (tile > 558)
+                                {
+                                    tile = 3;
+                                }
+
+                                uint color = 0xFFFFFFFF;
+                                if (PokemonGen4MapColors.ContainsKey(tile))
+                                {
+                                    color = MapColors[PokemonGen4MapColors[tile]];
+                                }
+                                // drawList.AddRectFilled(cursorPos, cursorPos + new Vector2(size, size), color);
+
+                                ImGui.PushStyleColor(ImGuiCol.Button, color);
+                                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, colorBright(color, 0.75f));
+                                ImGui.PushStyleColor(ImGuiCol.ButtonActive, colorBright(color, 0.5f));
+                                ImGui.PushID(y * cols + x);
+                                ImGui.SetCursorScreenPos(cursorPos);
+                                // now use invisible buttons that fill the gap for better UX
+                                if (ImGui.InvisibleButton("", new Vector2(size + gap, size + gap)))
+                                {
+                                    // Teleport to center of tile on click
+                                    Nds.Nds9.Mem.Write32(xPtr, (uint)(x * 32 + 16));
+                                    Nds.Nds9.Mem.Write32(yPtr, (uint)(y * 32 + 16));
+                                }
+                                ImGui.SetCursorScreenPos(cursorPos);
+                                // use this to draw the button
+                                ImGui.Button("", new Vector2(size, size));
+                                ImGui.PopID();
+                                ImGui.PopStyleColor();
+                                ImGui.PopStyleColor();
+                                ImGui.PopStyleColor();
+
+                                if (x == xPos / 32 && y == yPos / 32)
+                                {
+                                    drawList.AddRect(cursorPos, cursorPos + new Vector2(size, size), 0xFF800000, 0, ImDrawCornerFlags.None, 2);
+                                }
+
+                                cursorPos += new Vector2(gap + size, 0);
+                            }
+
+                            cursorPos += new Vector2(-(gap + size) * cols, gap + size);
+                        }
+                    }
+                    else
+                    {
+                        ImGui.Text("Generation 4 Pokémon game detected, but no suitable base pointer found.");
+                    }
+
+                    ImGui.End();
+                }
             }
         }
     }

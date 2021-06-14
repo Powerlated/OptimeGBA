@@ -20,6 +20,7 @@ namespace OptimeGBA
         public Ipc[] Ipcs; // 0: ARM7 to ARM9, 1: ARM9 to ARM7
 
         public PpuNds Ppu;
+        public PpuNds3D Ppu3D;
 
         public MemoryControlNds MemoryControl;
 
@@ -53,6 +54,7 @@ namespace OptimeGBA
             Cartridge = new CartridgeNds(this);
 
             Ppu = new PpuNds(this, Scheduler);
+            Ppu3D = new PpuNds3D(this, Scheduler);
 
             MemoryControl = new MemoryControlNds();
 
@@ -183,6 +185,7 @@ namespace OptimeGBA
 
             long beforeTicks = Scheduler.CurrentTicks;
 
+            int arm9PendingTicks = Arm9PendingTicks;
             while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
             {
                 // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
@@ -191,14 +194,16 @@ namespace OptimeGBA
                 // Nds9.Cpu.Execute();
                 // Scheduler.CurrentTicks += 1;
 
+                Ppu3D.Run();
+
                 // TODO: Proper NDS timings
                 // TODO: Figure out a better way to implement halting
                 uint ticks7 = 0;
                 // Run 32 ARM7 instructions at a time, who needs tight synchronization
                 const uint instrsAtATime = 32;
-                if (!DebugDisableArm7)
+                if (!Nds7.Cpu.Halted && !DebugDisableArm7)
                 {
-                    for (uint i = 0; i < 32; i++)
+                    for (uint i = 0; i < instrsAtATime; i++)
                     {
                         if (!Nds7.Cpu.Halted)
                         {
@@ -206,7 +211,8 @@ namespace OptimeGBA
                         }
                         else
                         {
-                            ticks7 += 1;
+                            ticks7 += instrsAtATime;
+                            break;
                         }
                     }
                 }
@@ -215,23 +221,27 @@ namespace OptimeGBA
                     ticks7 += instrsAtATime;
                 }
 
-                Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+                arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
                 if (!DebugDisableArm9)
                 {
-                    while (Arm9PendingTicks > 0)
+                    while (arm9PendingTicks > 0)
                     {
                         if (!Nds9.Cpu.Halted)
                         {
-                            Arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+                            arm9PendingTicks -= (int)Nds9.Cpu.Execute();
                         }
                         else
                         {
-                            Arm9PendingTicks -= 2;
+                            arm9PendingTicks -= (int)(Scheduler.NextEventTicks - Scheduler.CurrentTicks) * 2;
+                            break;
                         }
                     }
                 }
+                
                 Scheduler.CurrentTicks += ticks7;
             }
+
+            Arm9PendingTicks = arm9PendingTicks;
 
             long current = Scheduler.CurrentTicks;
             long next = Scheduler.NextEventTicks;

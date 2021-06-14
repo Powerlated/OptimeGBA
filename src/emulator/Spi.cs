@@ -1,4 +1,5 @@
 using static OptimeGBA.Bits;
+using static OptimeGBA.MemoryUtil;
 using System;
 using static Util;
 
@@ -18,6 +19,12 @@ namespace OptimeGBA
         ReceiveAddress,
         Reading,
         Status,
+    }
+
+    public enum SpiTouchscreenState
+    {
+        Ready,
+        Command,
     }
 
     public unsafe sealed class Spi
@@ -49,6 +56,36 @@ namespace OptimeGBA
         public byte IdIndex;
         public uint Address;
         public byte AddressByteNum = 0;
+
+        // Touchscreen state
+        public SpiTouchscreenState TouchscreenState;
+        public byte TouchscreenCommand;
+        public byte TouchscreenDataByte;
+
+        public ushort TouchAdcX;
+        public ushort TouchAdcY;
+
+        public void SetTouchPos(uint x, uint y)
+        {
+            ushort adcX1 = GetUshort(Firmware, 0x3FF58);
+            ushort adcY1 = GetUshort(Firmware, 0x3FF5A);
+            byte scrX1 = Firmware[0x3FF5C];
+            byte scrY1 = Firmware[0x3FF5D];
+            ushort adcX2 = GetUshort(Firmware, 0x3FF5E);
+            ushort adcY2 = GetUshort(Firmware, 0x3FF60);
+            byte scrX2 = Firmware[0x3FF62];
+            byte scrY2 = Firmware[0x3FF63];
+
+            // Convert screen coords to calibrated ADC touchscreen coords
+            TouchAdcX = (ushort)((x - (scrX1 - 1)) * (adcX2 - adcX1) / (scrX2 - scrX1) + adcX1);
+            TouchAdcY = (ushort)((y - (scrY1 - 1)) * (adcY2 - adcY1) / (scrY2 - scrY1) + adcY1);
+        }
+
+        public void ClearTouchPos()
+        {
+            TouchAdcX = 0;
+            TouchAdcY = 0xFFF;
+        }
 
         public byte OutData;
 
@@ -115,7 +152,7 @@ namespace OptimeGBA
                         TransferToSpiFlash(val);
                         break;
                     case SpiDevice.Touchscreen:
-                        // Console.WriteLine("Touchscreen access");
+                        TransferToTouchscreen(val);
                         break;
                     case SpiDevice.PowerManager:
                         // Console.WriteLine("Power manager access");
@@ -127,6 +164,7 @@ namespace OptimeGBA
             if (!ChipSelHold)
             {
                 FlashState = SpiFlashState.Ready;
+                TouchscreenState = SpiTouchscreenState.Ready;
             }
         }
 
@@ -193,6 +231,33 @@ namespace OptimeGBA
                     OutData = Id[IdIndex];
                     IdIndex++;
                     IdIndex %= 3;
+                    break;
+            }
+        }
+
+        public void TransferToTouchscreen(byte val)
+        {
+            switch (TouchscreenState)
+            {
+                case SpiTouchscreenState.Ready:
+                    TouchscreenState = SpiTouchscreenState.Command;
+                    OutData = 0;
+                    TouchscreenCommand = val;
+                    TouchscreenDataByte = 0;
+                    break;
+                case SpiTouchscreenState.Command:
+                    switch ((TouchscreenCommand >> 4) & 0b111)
+                    {
+                        case 1: // Y position
+                            // Shift 12-byte up left three to get start with 1-bit dummy
+                            OutData = (byte)((TouchAdcY << 3) >> (8 * (1 - (TouchscreenDataByte & 1))));
+                            break;
+                        case 5: // X position
+                            OutData = (byte)((TouchAdcX << 3) >> (8 * (1 - (TouchscreenDataByte & 1))));
+                            // Console.WriteLine("Y");
+                            break;
+                    }
+                    TouchscreenDataByte++;
                     break;
             }
         }

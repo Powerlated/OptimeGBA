@@ -214,13 +214,16 @@ namespace OptimeGBA
 
         public byte ReadHwio8(bool debug, uint addr)
         {
-            lock (HwioReadLog)
+            if (LogHwioAccesses)
             {
-                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                lock (HwioReadLog)
                 {
-                    uint count;
-                    HwioReadLog.TryGetValue(addr, out count);
-                    HwioReadLog[addr] = count + 1;
+                    if ((addr & ~1) != 0 && !debug)
+                    {
+                        uint count;
+                        HwioReadLog.TryGetValue(addr, out count);
+                        HwioReadLog[addr] = count + 1;
+                    }
                 }
             }
 
@@ -319,13 +322,16 @@ namespace OptimeGBA
 
         public void WriteHwio8(bool debug, uint addr, byte val)
         {
-            lock (HwioWriteLog)
+            if (LogHwioAccesses)
             {
-                if (LogHwioAccesses && (addr & ~1) != 0 && !debug)
+                lock (HwioWriteLog)
                 {
-                    uint count;
-                    HwioWriteLog.TryGetValue(addr, out count);
-                    HwioWriteLog[addr] = count + 1;
+                    if ((addr & ~1) != 0 && !debug)
+                    {
+                        uint count;
+                        HwioWriteLog.TryGetValue(addr, out count);
+                        HwioWriteLog[addr] = count + 1;
+                    }
                 }
             }
             

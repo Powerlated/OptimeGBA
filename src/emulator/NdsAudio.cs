@@ -6,7 +6,7 @@ namespace OptimeGBA
     public class AudioChannelNds
     {
         // SOUNDxCNT
-        public byte Volume;
+        public uint Volume;
         public byte VolumeDiv;
         public bool Hold;
         public byte Pan;
@@ -24,9 +24,9 @@ namespace OptimeGBA
         public uint Timer;
 
         public uint Interval;
-        public short CurrentValue;
+        public int CurrentValue;
         public int AdpcmIndex;
-        public short AdpcmLoopValue;
+        public int AdpcmLoopValue;
         public int AdpcmLoopIndex;
         public uint AdpcmLoopCurrentData;
         public uint CurrentData;
@@ -62,18 +62,18 @@ namespace OptimeGBA
 
         public static sbyte[] IndexTable = { -1, -1, -1, -1, 2, 4, 6, 8 };
         public static short[] AdpcmTable = {
-            0x0007,0x0008,0x0009,0x000A,0x000B,0x000C,0x000D,0x000E,0x0010,0x0011,0x0013,0x0015,
-            0x0017,0x0019,0x001C,0x001F,0x0022,0x0025,0x0029,0x002D,0x0032,0x0037,0x003C,0x0042,
-            0x0049,0x0050,0x0058,0x0061,0x006B,0x0076,0x0082,0x008F,0x009D,0x00AD,0x00BE,0x00D1,
-            0x00E6,0x00FD,0x0117,0x0133,0x0151,0x0173,0x0198,0x01C1,0x01EE,0x0220,0x0256,0x0292,
-            0x02D4,0x031C,0x036C,0x03C3,0x0424,0x048E,0x0502,0x0583,0x0610,0x06AB,0x0756,0x0812,
-            0x08E0,0x09C3,0x0ABD,0x0BD0,0x0CFF,0x0E4C,0x0FBA,0x114C,0x1307,0x14EE,0x1706,0x1954,
-            0x1BDC,0x1EA5,0x21B6,0x2515,0x28CA,0x2CDF,0x315B,0x364B,0x3BB9,0x41B2,0x4844,0x4F7E,
-            0x5771,0x602F,0x69CE,0x7462,0x7FFF
+            0x0007, 0x0008, 0x0009, 0x000A, 0x000B, 0x000C, 0x000D, 0x000E, 0x0010, 0x0011, 0x0013, 0x0015,
+            0x0017, 0x0019, 0x001C, 0x001F, 0x0022, 0x0025, 0x0029, 0x002D, 0x0032, 0x0037, 0x003C, 0x0042,
+            0x0049, 0x0050, 0x0058, 0x0061, 0x006B, 0x0076, 0x0082, 0x008F, 0x009D, 0x00AD, 0x00BE, 0x00D1,
+            0x00E6, 0x00FD, 0x0117, 0x0133, 0x0151, 0x0173, 0x0198, 0x01C1, 0x01EE, 0x0220, 0x0256, 0x0292,
+            0x02D4, 0x031C, 0x036C, 0x03C3, 0x0424, 0x048E, 0x0502, 0x0583, 0x0610, 0x06AB, 0x0756, 0x0812,
+            0x08E0, 0x09C3, 0x0ABD, 0x0BD0, 0x0CFF, 0x0E4C, 0x0FBA, 0x114C, 0x1307, 0x14EE, 0x1706, 0x1954,
+            0x1BDC, 0x1EA5, 0x21B6, 0x2515, 0x28CA, 0x2CDF, 0x315B, 0x364B, 0x3BB9, 0x41B2, 0x4844, 0x4F7E,
+            0x5771, 0x602F, 0x69CE, 0x7462, 0x7FFF
         };
 
         // SOUNDCNT
-        public uint MasterVolume;
+        public byte MasterVolume;
         public uint LeftOutputFrom;
         public uint RightOutputFrom;
         public bool Ch1ToMixer;
@@ -81,7 +81,7 @@ namespace OptimeGBA
         public bool MasterEnable;
 
         // SOUNDBIAS
-        ushort SOUNDBIAS;
+        public ushort SOUNDBIAS;
 
         // SNDCAPCNT
         byte SNDCAP0CNT;
@@ -123,7 +123,7 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x4000500: // SOUNDCNT B0
-                    MasterVolume = val & 0x7FU;
+                    MasterVolume = (byte)(val & 0x7FU);
                     break;
                 case 0x4000501: // SOUNDCNT B1
                     LeftOutputFrom = (byte)((val >> 0) & 0b11);
@@ -160,7 +160,7 @@ namespace OptimeGBA
             switch (addr & 0xF)
             {
                 case 0x0:
-                    val |= c.Volume;
+                    val |= (byte)(c.Volume & 0x7F);
                     break;
                 case 0x1:
                     val |= c.VolumeDiv;
@@ -235,6 +235,7 @@ namespace OptimeGBA
         {
             c.SamplePos = 0;
             c.Timer = 0;
+            c.CurrentValue = 0;
         }
 
         uint x = 0;
@@ -262,7 +263,32 @@ namespace OptimeGBA
                         switch (c.Format)
                         {
                             case 0: // PCM8
-                                System.Console.WriteLine("PCM8");
+                                if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 4)
+                                {
+                                    switch (c.RepeatMode)
+                                    {
+                                        case 1: // Infinite 
+                                            c.SamplePos = c.SOUNDPNT * 4;
+                                            break;
+                                        case 2: // One-shot
+                                            c.Playing = false;
+                                            if (!c.Hold)
+                                            {
+                                                c.CurrentValue = 0;
+                                            }
+                                            break;
+                                    }
+                                }
+
+                                if ((c.SamplePos & 3) == 0)
+                                {
+                                    c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos);
+                                }
+
+                                c.CurrentValue = (short)((byte)c.CurrentData << 8);
+                                c.CurrentData >>= 8;
+
+                                c.SamplePos++;
                                 break;
                             case 1: // PCM16
                                 if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 2)
@@ -302,7 +328,7 @@ namespace OptimeGBA
                                         c.CurrentValue = (short)c.CurrentData;
                                         // Console.WriteLine("header set " + x++);
                                         // Console.WriteLine("interval: " + Util.Hex(c.Interval, 8));
-                                        c.AdpcmIndex = (int)((c.CurrentData >> 16) & 0x3F);
+                                        c.AdpcmIndex = Math.Clamp((int)((c.CurrentData >> 16) & 0x7F), 0, 88);
                                     }
                                     // Console.WriteLine("addr: " + Util.Hex(c.Source, 8));
                                 }
@@ -337,19 +363,19 @@ namespace OptimeGBA
 
                                         short tableVal = AdpcmTable[c.AdpcmIndex];
                                         int diff = tableVal / 8;
-                                        if ((data & 2) != 0) diff += tableVal / 2;
                                         if ((data & 1) != 0) diff += tableVal / 4;
+                                        if ((data & 2) != 0) diff += tableVal / 2;
                                         if ((data & 4) != 0) diff += tableVal / 1;
 
                                         if ((data & 8) == 8)
                                         {
-                                            c.CurrentValue = (short)Math.Max(c.CurrentValue - diff, -0x7FFF);
+                                            c.CurrentValue = Math.Max((int)c.CurrentValue - diff, -0x7FFF);
                                         }
                                         else
                                         {
-                                            c.CurrentValue = (short)Math.Min(c.CurrentValue + diff, 0x7FFF);
+                                            c.CurrentValue = Math.Min((int)c.CurrentValue + diff, 0x7FFF);
                                         }
-                                        c.AdpcmIndex = Math.Min(Math.Max(c.AdpcmIndex + IndexTable[data & 7], 0), 88);
+                                        c.AdpcmIndex = Math.Clamp(c.AdpcmIndex + IndexTable[data & 7], 0, 88);
 
                                         c.CurrentData >>= 4;
 
@@ -374,17 +400,22 @@ namespace OptimeGBA
 
                     if (c.DebugEnable)
                     {
-                        left += (((long)c.CurrentValue * (16 >> c.VolumeDiv)) * c.Volume * (127 - c.Pan)) >> 10;
-                        right += (((long)c.CurrentValue * (16 >> c.VolumeDiv)) * c.Volume * c.Pan) >> 10;
+                        uint effectiveVol = c.Volume;
+                        if (effectiveVol == 127) effectiveVol++;
+                        left += ((((long)c.CurrentValue * (16 >> c.VolumeDiv)) * effectiveVol) * (127 - c.Pan)) >> 10;
+                        right += ((((long)c.CurrentValue * (16 >> c.VolumeDiv)) * effectiveVol) * c.Pan) >> 10;
                     }
                 }
             }
 
             // 28 bits now, after mixing all channels
             // add master volume to get 35 bits
+            // add 
             // strip 19 to get 16 bits for our short output
-            SampleBuffer[SampleBufferPos++] = (short)((left * MasterVolume) >> 19);
-            SampleBuffer[SampleBufferPos++] = (short)((right * MasterVolume) >> 19);
+            uint effectiveMasterVol = MasterVolume;
+            if (effectiveMasterVol == 127) effectiveMasterVol++;
+            SampleBuffer[SampleBufferPos++] = (short)((left * effectiveMasterVol) >> 16);
+            SampleBuffer[SampleBufferPos++] = (short)((right * effectiveMasterVol) >> 16);
 
             if (SampleBufferPos >= SampleBufferMax)
             {

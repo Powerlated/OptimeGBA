@@ -19,6 +19,7 @@ namespace OptimeGBA
         Timer71 = 12,
         Timer72 = 13,
         Timer73 = 14,
+        GxFifo = 15,
     }
 
     public class SchedulerEvent

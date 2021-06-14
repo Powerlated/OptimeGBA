@@ -905,7 +905,7 @@ namespace OptimeGBAEmulator
         public bool ShowBackBuf = false;
         public unsafe void DrawDisplay()
         {
-            if (ImGui.Begin("Display", ImGuiWindowFlags.NoResize))
+            if (ImGui.Begin("Display", ImGuiWindowFlags.AlwaysAutoResize))
             {
                 gbTexId = 0;
 
