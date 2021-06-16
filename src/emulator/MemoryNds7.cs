@@ -279,8 +279,8 @@ namespace OptimeGBA
                 case 0x40001C2: case 0x40001C3: // SPIDATA
                     return Nds7.Spi.ReadHwio8(addr);
 
-                case 0x4000130: case 0x4000131: // KEYINPUT 
                 case 0x4000136: case 0x4000137: // EXTKEYIN
+                case 0x4000130: case 0x4000131: // KEYINPUT 
                     return Nds7.Nds.Keypad.ReadHwio8(addr);
 
                 case 0x4000204: case 0x4000205: // EXMEMSTAT

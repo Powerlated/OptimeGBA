@@ -19,6 +19,7 @@ namespace OptimeGBA
         ReceiveAddress,
         Reading,
         Status,
+        TakePrefix, // For cartridges with IR and Flash
     }
 
     public enum SpiTouchscreenState

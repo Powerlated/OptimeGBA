@@ -521,7 +521,15 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Total Instrs.: {Gba.Cpu.InstructionsRan}");
                 ImGui.Text($"Pipeline: {Gba.Cpu.Pipeline}");
 
+
                 // ImGui.Text($"Ins Next Up: {(Gba.Cpu.ThumbState ? Hex(Gba.Cpu.THUMBDecode, 4) : Hex(Gba.Cpu.ARMDecode, 8))}");
+
+                if (ImGui.Button("R"))
+                {
+                    Arm7.Fetches = 0;
+                    Arm7.FetchesWasted = 0;
+                }
+                ImGui.SameLine(); ImGui.TextUnformatted($"Fetches Wasted: " + string.Format("{0:0.#}", ((double)Arm7.FetchesWasted / (double)Arm7.Fetches) * 100) + "%");
 
                 ImGui.Text($"");
 

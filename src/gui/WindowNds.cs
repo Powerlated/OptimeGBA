@@ -238,7 +238,7 @@ namespace OptimeGBAEmulator
             var bios9 = Nds.Provider.Bios9;
             var firmware = Nds.Provider.Firmware;
             Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady) { DirectBoot = false });
-            // Nds.Mem.SaveProvider.LoadSave(sav);
+            Nds.Cartridge.LoadSave(sav);
         }
 
         public double Time;
@@ -302,10 +302,10 @@ namespace OptimeGBAEmulator
 
         public void ResetNds()
         {
-            byte[] save = Nds.Nds7.Mem.SaveProvider.GetSave();
+            byte[] save = Nds.Cartridge.GetSave();
             ProviderNds p = Nds.Provider;
             Nds = new Nds(p);
-            Nds.Nds7.Mem.SaveProvider.LoadSave(save);
+            Nds.Cartridge.LoadSave(save);
         }
 
         static int MemoryViewerInit = 1;
@@ -601,6 +601,12 @@ namespace OptimeGBAEmulator
                 displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
                 ImGui.Checkbox("Disable ARM7", ref Nds.DebugDisableArm7);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
+                if (ImGui.Button("R"))
+                {
+                    Arm7.Fetches = 0;
+                    Arm7.FetchesWasted = 0;
+                }
+                ImGui.SameLine(); ImGui.TextUnformatted($"Fetches Wasted: " + string.Format("{0:0.#}", ((double)Arm7.FetchesWasted / (double)Arm7.Fetches) * 100) + "%");
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
@@ -1839,8 +1845,10 @@ namespace OptimeGBAEmulator
                     ImGui.Text("Source: " + HexN(c.SOUNDSAD, 7));
                     ImGui.SameLine(); ImGui.Text("Data: " + Hex(c.CurrentData, 8));
                     ImGui.SameLine(); ImGui.Text("Value: " + Hex((ushort)c.CurrentValue, 4));
-                    ImGui.SameLine(); ImGui.Text("Repeat: " + c.RepeatMode);
-                    ImGui.SameLine(); ImGui.Text("Format: " + c.Format);
+                    float hz = 33513982F / (float)c.Interval;;
+                    ImGui.SameLine(); ImGui.Text("Hz: " + string.Format("{0:0.#}", hz));
+                    // ImGui.SameLine(); ImGui.Text("Repeat: " + c.RepeatMode);
+                    // ImGui.SameLine(); ImGui.Text("Format: " + c.Format);
 
                     ImGui.SetCursorPosY(ImGui.GetCursorPosY() - 40);
 
@@ -2126,6 +2134,10 @@ namespace OptimeGBAEmulator
                                     Nds.Nds9.Mem.Write32(xPtr, (uint)(x * 32 + 16));
                                     Nds.Nds9.Mem.Write32(yPtr, (uint)(y * 32 + 16));
                                 }
+
+                                // Write in Sandgem Town Pokemon Center
+                                Nds.Nds9.Mem.Write16(basePtr + mapAddrOffs, 420);
+
                                 ImGui.SetCursorScreenPos(cursorPos);
                                 // use this to draw the button
                                 ImGui.Button("", new Vector2(size, size));

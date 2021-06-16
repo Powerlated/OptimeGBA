@@ -2,8 +2,29 @@ using static Util;
 using static OptimeGBA.Bits;
 using static OptimeGBA.MemoryUtil;
 using System;
+using System.Text;
 namespace OptimeGBA
 {
+    public enum SpiEepromState
+    {
+        Ready,
+        ReadStatus,
+        WriteStatus,
+        SetReadAddress,
+        SetWriteAddress,
+        ReadData,
+        WriteData,
+        Done,
+    }
+
+    public enum ExternalMemoryType
+    {
+        None,
+        Eeprom,
+        Flash,
+        FlashWithInfrared
+    }
+
     public enum CartridgeState
     {
         Dummy,
@@ -26,6 +47,7 @@ namespace OptimeGBA
         public uint[] EncLutKeycodeLevel3 = new uint[0x412];
 
         public uint IdCode;
+        public string IdString;
 
         public CartridgeNds(Nds nds)
         {
@@ -44,8 +66,16 @@ namespace OptimeGBA
             if (Rom.Length >= 0x10)
             {
                 IdCode = GetUint(Rom, 0x0C);
+
+                Span<byte> gameIdSpan = stackalloc byte[4];
+                for (int i = 0; i < 4; i++)
+                {
+                    gameIdSpan[i] = GetByte(Rom, 0x0C + (uint)i);
+                }
+
+                IdString = Encoding.ASCII.GetString(gameIdSpan);
+                Console.WriteLine("Game ID: " + IdString);
             }
-            Console.WriteLine("Game ID: " + Hex(IdCode, 4));
 
             InitKeycode(EncLutKeycodeLevel1, 1);
             InitKeycode(EncLutKeycodeLevel2, 2);
@@ -72,6 +102,11 @@ namespace OptimeGBA
                 // Double-encrypt KEY1
                 SetUlong(Rom, 0x4000, Encrypt64(EncLutKeycodeLevel2, GetUlong(Rom, 0x4000)));
             }
+
+            for (uint i = 0; i < ExternalMemory.Length; i++)
+            {
+                ExternalMemory[i] = 0xFF;
+            }
         }
 
         ulong PendingCommand;
@@ -97,11 +132,30 @@ namespace OptimeGBA
 
         // AUXSPICNT
         public byte SpiBaudRate;
-        public bool SpiHoldChipSel = false;
+        public bool SpiChipSelHold = false;
         public bool SpiBusy = false;
         public bool Slot1SpiMode = false;
         public bool TransferReadyIrq = false;
         public bool Slot1Enable = false;
+
+        // Shared External Memory State
+        public SpiEepromState SpiEepromState;
+        public byte SpiOutData;
+        public uint SpiAddress;
+        public uint SpiBytesWritten;
+        public bool ExternalMemoryWriteEnable;
+        // only one game called art academy uses more than 1MB 
+        public byte[] ExternalMemory = new byte[1048576];
+
+        // EEPROM state
+        public byte EepromWriteProtect;
+
+        // Flash state
+        // From Nocash's original DS 
+        // TODO: use more realistic flash ID
+        byte[] FlashId = new byte[] { 0x20, 0x40, 0x12 };
+        public SpiFlashState SpiFlashState;
+        public byte FlashIdIndex;
 
         // ROMCTRL
         byte ROMCTRLB0;
@@ -120,7 +174,7 @@ namespace OptimeGBA
                 {
                     case 0x40001A0: // AUXSPICNT B0
                         val |= SpiBaudRate;
-                        if (SpiHoldChipSel) val = BitSet(val, 6);
+                        if (SpiChipSelHold) val = BitSet(val, 6);
                         if (SpiBusy) val = BitSet(val, 7);
                         // Console.WriteLine("AUXSPICNT B0 read");
                         break;
@@ -129,6 +183,9 @@ namespace OptimeGBA
                         if (TransferReadyIrq) val = BitSet(val, 6);
                         if (Slot1Enable) val = BitSet(val, 7);
                         break;
+
+                    case 0x40001A2: // AUXSPIDATA
+                        return SpiOutData;
 
                     case 0x40001A4: // ROMCTRL B0
                         return ROMCTRLB0;
@@ -174,7 +231,7 @@ namespace OptimeGBA
                 {
                     case 0x40001A0: // AUXSPICNT B0
                         SpiBaudRate = (byte)(val & 0b11);
-                        SpiHoldChipSel = BitTest(val, 6);
+                        SpiChipSelHold = BitTest(val, 6);
                         SpiBusy = BitTest(val, 7);
                         return;
                     case 0x40001A1: // AUXSPICNT B1
@@ -182,6 +239,10 @@ namespace OptimeGBA
                         TransferReadyIrq = BitTest(val, 6);
                         Slot1Enable = BitTest(val, 7);
                         return;
+
+                    case 0x40001A2: // AUXSPIDATA
+                        SpiTransferTo(val);
+                        break;
 
                     case 0x40001A4: // ROMCTRL B0
                         ROMCTRLB0 = val;
@@ -525,6 +586,181 @@ namespace OptimeGBA
                 ((val >> 8) & 0x0000FF00) |
                 ((val << 8) & 0x00FF0000) |
                 ((val << 24) & 0xFF000000);
+        }
+
+        public void SpiTransferTo(byte val)
+        {
+            // currently only EEPROM support
+            if (Slot1Enable)
+            {
+                var saveType = ExternalMemoryType.Eeprom;
+                // TODO: use a game DB to get memory type
+                switch (saveType)
+                {
+                    case ExternalMemoryType.None:
+                        break;
+                    case ExternalMemoryType.Eeprom:
+                        switch (SpiEepromState)
+                        {
+                            case SpiEepromState.Ready:
+                                switch (val)
+                                {
+                                    case 0x06: // Write Enable
+                                        ExternalMemoryWriteEnable = true;
+                                        SpiEepromState = SpiEepromState.Ready;
+                                        break;
+                                    case 0x04: // Write Disable
+                                        ExternalMemoryWriteEnable = false;
+                                        SpiEepromState = SpiEepromState.Ready;
+                                        break;
+                                    case 0x5: // Read Status Register
+                                        SpiEepromState = SpiEepromState.ReadStatus;
+                                        break;
+                                    case 0x1: // Write Status Register
+                                        SpiEepromState = SpiEepromState.WriteStatus;
+                                        break;
+                                    case 0x9F: // Read JEDEC ID (returns 0xFF on EEPROM/FLASH)
+                                        SpiOutData = 0xFF;
+                                        break;
+                                    case 0x3: // Read
+                                        SpiEepromState = SpiEepromState.SetReadAddress;
+                                        SpiAddress = 0;
+                                        SpiBytesWritten = 0;
+                                        break;
+                                    case 0x2: // Write
+                                        SpiEepromState = SpiEepromState.SetWriteAddress;
+                                        SpiAddress = 0;
+                                        SpiBytesWritten = 0;
+                                        break;
+                                }
+                                break;
+                            case SpiEepromState.ReadStatus:
+                                byte status = 0;
+                                if (ExternalMemoryWriteEnable) status = BitSet(status, 1);
+                                status |= (byte)(EepromWriteProtect << 2);
+                                SpiOutData = status;
+                                break;
+                            case SpiEepromState.WriteStatus:
+                                ExternalMemoryWriteEnable = BitTest(val, 1);
+                                EepromWriteProtect = (byte)((val >> 2) & 0b11);
+                                break;
+                            case SpiEepromState.SetReadAddress:
+                                SpiAddress <<= 8;
+                                SpiAddress |= val;
+                                if (++SpiBytesWritten == 2)
+                                {
+                                    SpiEepromState = SpiEepromState.ReadData;
+                                }
+                                break;
+                            case SpiEepromState.ReadData:
+                                SpiOutData = ExternalMemory[SpiAddress];
+                                SpiAddress++;
+                                break;
+                            case SpiEepromState.SetWriteAddress:
+                                SpiAddress <<= 8;
+                                SpiAddress |= val;
+                                if (++SpiBytesWritten == 2)
+                                {
+                                    SpiEepromState = SpiEepromState.WriteData;
+                                }
+                                break;
+                            case SpiEepromState.WriteData:
+                                ExternalMemory[SpiAddress] = val;
+                                SpiOutData = 0;
+                                SpiAddress++;
+                                break;
+                        }
+                        break;
+                    case ExternalMemoryType.FlashWithInfrared:
+                        switch (SpiFlashState)
+                        {
+                            case SpiFlashState.TakePrefix:
+                                if (val == 0)
+                                {
+                                    SpiFlashState = SpiFlashState.Ready;
+                                    Console.WriteLine("Flash with IR command");
+                                }
+                                break;
+                            case SpiFlashState.Ready:
+                                // Console.WriteLine("SPI: Receive command! " + Hex(val, 2));
+                                SpiOutData = 0x00;
+                                switch (val)
+                                {
+                                    case 0x06:
+                                        ExternalMemoryWriteEnable = true;
+                                        break;
+                                    case 0x04:
+                                        ExternalMemoryWriteEnable = false;
+                                        break;
+                                    case 0x9F:
+                                        SpiFlashState = SpiFlashState.Identification;
+                                        SpiAddress = 0;
+                                        break;
+                                    case 0x03:
+                                        SpiFlashState = SpiFlashState.ReceiveAddress;
+                                        SpiAddress = 0;
+                                        SpiBytesWritten = 0;
+                                        break;
+                                    case 0x0B:
+                                        throw new NotImplementedException("slot1 flash fast read");
+                                    case 0x0A:
+                                        throw new NotImplementedException("slot1 flash write");
+                                    case 0x02:
+                                        throw new NotImplementedException("slot1 flash program");
+                                    case 0x05: // Identification
+                                               // Console.WriteLine("SPI ID");
+                                        SpiAddress = 0;
+                                        SpiOutData = 0x00;
+                                        break;
+                                    case 0x00:
+                                        break;
+                                        // default:
+                                        // throw new NotImplementedException("SPI: Unimplemented command: " + Hex(val, 2));
+                                }
+                                break;
+                            case SpiFlashState.ReceiveAddress:
+                                // Console.WriteLine("SPI: Address byte write: " + Hex(val, 2));
+                                SpiAddress <<= 8;
+                                SpiAddress |= val;
+                                if (++SpiBytesWritten == 3)
+                                {
+                                    SpiBytesWritten = 0;
+                                    SpiFlashState = SpiFlashState.Reading;
+                                    // Console.WriteLine("SPI: Address written: " + Hex(Address, 6));
+                                }
+                                break;
+                            case SpiFlashState.Reading:
+                                // Console.WriteLine("SPI: Read from address: " + Hex(Address, 6));
+                                // Nds7.Cpu.Error("SPI");
+                                SpiOutData = ExternalMemory[SpiAddress];
+                                SpiAddress++;
+                                SpiAddress &= 0xFFFFFF;
+                                break;
+                            case SpiFlashState.Identification:
+                                SpiOutData = FlashId[SpiAddress];
+                                SpiAddress++;
+                                SpiAddress %= 3;
+                                break;
+                        }
+                        break;
+                }
+
+                if (!SpiChipSelHold)
+                {
+                    SpiEepromState = SpiEepromState.Ready;
+                    SpiFlashState = SpiFlashState.TakePrefix;
+                }
+            }
+        }
+
+        public byte[] GetSave()
+        {
+            return ExternalMemory;
+        }
+
+        public void LoadSave(byte[] sav)
+        {
+            sav.CopyTo(ExternalMemory, 0);
         }
     }
 }

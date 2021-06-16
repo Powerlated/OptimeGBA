@@ -45,9 +45,13 @@ namespace OptimeGBA
                 case 0x4000136: // EXTKEYIN - ARM7 only
                     if (X) val = BitClear(val, 0);
                     if (Y) val = BitClear(val, 1);
-                    if (DebugButton) val = BitClear(val, 3);
+                    // if (DebugButton) val = BitClear(val, 3);
                     if (Touch) val = BitClear(val, 6);
                     if (ScreensOpen) val = BitClear(val, 7);
+                    // System.Console.WriteLine(Util.Hex(val, 2));
+                    break;
+                case 0x4000137: // EXTKEYIN B1
+                    val = 0;
                     break;
             }
 

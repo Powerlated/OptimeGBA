@@ -151,6 +151,9 @@ namespace OptimeGBA
         public bool LastLastThumbState;
         public bool InterruptServiced;
 
+        public static ulong Fetches;
+        public static ulong FetchesWasted;
+
         public bool FlagInterrupt;
 
         public Cp15 Cp15;
@@ -227,6 +230,8 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineArm()
         {
+            Fetches++;
+            
             Decode = Fetch;
             Fetch = Read32InstrFetch(R[15]);
             R[15] += 4;
@@ -255,6 +260,8 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FetchPipelineThumb()
         {
+            Fetches++;
+            
             Decode = Fetch;
             Fetch = Read16InstrFetch(R[15]);
             R[15] += 2;
@@ -274,6 +281,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void FlushPipeline()
         {
+            FetchesWasted += Pipeline;
             Pipeline = 0;
             if (ThumbState)
             {
