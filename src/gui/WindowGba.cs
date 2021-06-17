@@ -515,21 +515,13 @@ namespace OptimeGBAEmulator
                 ImGui.Text($"Instruction: {Hex(Gba.Cpu.LastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
                 ImGui.Text($"Prev. Ins.: {Hex(Gba.Cpu.LastLastIns, Gba.Cpu.ThumbState ? 4 : 8)}");
                 ImGui.Text($"Disasm: {(Gba.Cpu.ThumbState ? disasmThumb((ushort)Gba.Cpu.LastIns) : disasmArm(Gba.Cpu.LastIns))}");
+                ImGui.Text($"Decoded as: {(Gba.Cpu.LastThumbState ? Gba.Cpu.GetInstructionThumb((ushort)Gba.Cpu.LastIns).Method.Name : Gba.Cpu.GetInstructionArm(Gba.Cpu.LastIns).Method.Name)}");
 
                 ImGui.Text($"Mode: {Gba.Cpu.Mode}");
                 ImGui.Text($"Last Cycles: {Gba.Cpu.InstructionCycles}");
                 ImGui.Text($"Total Instrs.: {Gba.Cpu.InstructionsRan}");
-                ImGui.Text($"Pipeline: {Gba.Cpu.Pipeline}");
-
 
                 // ImGui.Text($"Ins Next Up: {(Gba.Cpu.ThumbState ? Hex(Gba.Cpu.THUMBDecode, 4) : Hex(Gba.Cpu.ARMDecode, 8))}");
-
-                if (ImGui.Button("R"))
-                {
-                    Arm7.Fetches = 0;
-                    Arm7.FetchesWasted = 0;
-                }
-                ImGui.SameLine(); ImGui.TextUnformatted($"Fetches Wasted: " + string.Format("{0:0.#}", ((double)Arm7.FetchesWasted / (double)Arm7.Fetches) * 100) + "%");
 
                 ImGui.Text($"");
 
@@ -589,24 +581,15 @@ namespace OptimeGBAEmulator
                 ImGui.InputInt("Instrs", ref DebugStepFor);
                 if (ImGui.Button("Step For"))
                 {
-                    using (StreamWriter file = new StreamWriter("log.txt"))
+                    int num = DebugStepFor;
+                    while (num > 0 && !Gba.Cpu.Errored)
                     {
-                        int num = DebugStepFor;
-                        while (num > 0 && !Gba.Cpu.Errored)
-                        {
 
-                            // file.WriteLine(BuildEmuFullText());
-                            Gba.Step();
+                        // file.WriteLine(BuildEmuFullText());
+                        Gba.Step();
 
-                            if (Gba.Cpu.InterruptServiced)
-                            {
-                                Gba.Cpu.InterruptServiced = false;
-                                file.WriteLine("---------------- INTERRUPT ----------------");
-                            }
-
-                            LogIndex++;
-                            num--;
-                        }
+                        LogIndex++;
+                        num--;
                     }
                 }
 

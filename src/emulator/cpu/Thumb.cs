@@ -1194,7 +1194,7 @@ namespace OptimeGBA
 
             // String regs = "";
 
-            arm7.FetchPipelineThumb();
+            arm7.R[15] += 2;
 
             uint registerList = ins & 0xFFU;
             uint registerCount = (uint)BitOperations.PopCount(registerList);
@@ -1230,6 +1230,7 @@ namespace OptimeGBA
                 arm7.R[rn] += 0x40;
             }
 
+            arm7.R[15] -= 2;
         }
         // LineDebug(regs);
 

@@ -564,7 +564,6 @@ namespace OptimeGBAEmulator
             ImGui.Text($"Mode: {arm7.Mode}");
             ImGui.Text($"Last Cycles: {arm7.InstructionCycles}");
             ImGui.Text($"Total Instrs.: {arm7.InstructionsRan}");
-            ImGui.Text($"Pipeline: {arm7.Pipeline}");
 
             // bool Negative = arm7.Negative;
             // bool Zero = arm7.Zero;
@@ -601,12 +600,6 @@ namespace OptimeGBAEmulator
                 displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
                 ImGui.Checkbox("Disable ARM7", ref Nds.DebugDisableArm7);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
-                if (ImGui.Button("R"))
-                {
-                    Arm7.Fetches = 0;
-                    Arm7.FetchesWasted = 0;
-                }
-                ImGui.SameLine(); ImGui.TextUnformatted($"Fetches Wasted: " + string.Format("{0:0.#}", ((double)Arm7.FetchesWasted / (double)Arm7.Fetches) * 100) + "%");
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");

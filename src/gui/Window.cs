@@ -236,7 +236,7 @@ namespace OptimeGBAEmulator
                     String disasm = disasmThumb(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 2))
+                    if (tempBase == dev.Cpu.R[15] - 4)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
@@ -252,7 +252,7 @@ namespace OptimeGBAEmulator
                     String disasm = disasmArm(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - (dev.Cpu.Pipeline * 4))
+                    if (tempBase == dev.Cpu.R[15] - 8)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
@@ -313,7 +313,7 @@ namespace OptimeGBAEmulator
         static StringBuilder b = new StringBuilder(1000);
         public static String BuildEmuFullText(Arm7 arm7)
         {
-            String disasm = arm7.ThumbState ? disasmThumb((ushort)arm7.Decode) : disasmArm(arm7.Decode);
+            String disasm = arm7.ThumbState ? disasmThumb((ushort)GetCurrentInstr(arm7)) : disasmArm(GetCurrentInstr(arm7));
             b.Clear();
 
             for (int i = 0; i < 15; i++)
@@ -328,19 +328,31 @@ namespace OptimeGBAEmulator
             if (arm7.ThumbState)
             {
                 b.Append("    ");
-                b.Append(HexN(arm7.Decode, 4));
+                b.Append(HexN(GetCurrentInstr(arm7), 4));
             }
             else
             {
-                b.Append(HexN(arm7.Decode, 8));
+                b.Append(HexN(GetCurrentInstr(arm7), 8));
             }
             b.Append(": ").Append(disasm);
             return b.ToString();
         }
 
+        public static uint GetCurrentInstr(Arm7 cpu)
+        {
+            if (cpu.ThumbState)
+            {
+                return cpu.Mem.Read16(GetCurrentInstrAddr(cpu));
+            }
+            else
+            {
+                return cpu.Mem.Read32(GetCurrentInstrAddr(cpu));
+            }
+        }
+
         public static uint GetCurrentInstrAddr(Arm7 cpu)
         {
-            return (uint)(cpu.R[15] - cpu.Pipeline * (cpu.ThumbState ? 2 : 4));
+            return (uint)(cpu.R[15] - (cpu.ThumbState ? 4 : 8));
         }
     }
 }

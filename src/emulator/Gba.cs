@@ -124,7 +124,7 @@ namespace OptimeGBA
             AudioCallback = provider.AudioCallback;
 
             Mem.InitPageTables();
-            Cpu.FillPipelineArm();
+            Cpu.InitFlushPipeline();
 
 #if UNSAFE
             Console.WriteLine("Starting in memory UNSAFE mode");

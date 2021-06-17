@@ -25,7 +25,7 @@ namespace OptimeGBA
             Timers = new Timers(this, Nds.Scheduler, true, true);
 
             Mem.InitPageTables();
-            Cpu.FillPipelineArm();
+            Cpu.InitFlushPipeline();
 
             // screw it 
             Cpu.SetTimingsTable(

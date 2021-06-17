@@ -232,7 +232,7 @@ namespace OptimeGBAEmulator
                 romPath = filename;
 
                 Marshal.FreeHGlobal(data);
-            }
+            }        
 
         reload:
 
@@ -300,7 +300,7 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady);
+                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady) { DirectBoot = false };
                 Nds = new Nds(provider);
 
                 Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);
@@ -900,7 +900,9 @@ namespace OptimeGBAEmulator
                     {
                         Tab = pressed;
                         Sync = !(Space || Tab);
-                    } else {
+                    }
+                    else
+                    {
                         Sync = !Sync;
                     }
                     break;

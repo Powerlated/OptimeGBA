@@ -135,11 +135,6 @@ namespace OptimeGBA
         public bool ThumbState = false;
         public Arm7Mode Mode = Arm7Mode.System;
 
-        public uint Fetch;
-        public uint Decode;
-        public uint Pipeline; // 0 for empty, 1 for Fetch filled, 2 for Decode filled, 3 for Execute filled (full)
-
-
         public bool Halted;
         public bool PipelineDirty = false;
 
@@ -150,9 +145,6 @@ namespace OptimeGBA
         public bool LastThumbState;
         public bool LastLastThumbState;
         public bool InterruptServiced;
-
-        public static ulong Fetches;
-        public static ulong FetchesWasted;
 
         public bool FlagInterrupt;
 
@@ -218,83 +210,34 @@ namespace OptimeGBA
             R[1] = 0x000000EA;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FillPipelineArm()
+        public void InitFlushPipeline()
         {
-            while (Pipeline < 2)
-            {
-                FetchPipelineArm();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FetchPipelineArm()
-        {
-            Fetches++;
-            
-            Decode = Fetch;
-            Fetch = Read32InstrFetch(R[15]);
-            R[15] += 4;
-
-            Pipeline++;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FetchPipelineArmIfNotFull()
-        {
-            if (Pipeline < 2)
-            {
-                FetchPipelineArm();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FillPipelineThumb()
-        {
-            while (Pipeline < 2)
-            {
-                FetchPipelineThumb();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FetchPipelineThumb()
-        {
-            Fetches++;
-            
-            Decode = Fetch;
-            Fetch = Read16InstrFetch(R[15]);
-            R[15] += 2;
-
-            Pipeline++;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FetchPipelineThumbIfNotFull()
-        {
-            if (Pipeline < 2)
-            {
-                FetchPipelineThumb();
-            }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void FlushPipeline()
-        {
-            FetchesWasted += Pipeline;
-            Pipeline = 0;
             if (ThumbState)
             {
-                R[15] &= 0xFFFFFFFE;
-                FillPipelineThumb();
+                R[15] += 4;
+                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
             }
             else
             {
-                R[15] &= 0xFFFFFFFC;
-                FillPipelineArm();
+                R[15] += 8;
+                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
             }
+        }
 
-            PipelineDirty = false;
+        public void FlushPipeline()
+        {
+            if (ThumbState)
+            {
+                R[15] &= ~1U;
+                R[15] += 2;
+                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+            }
+            else
+            {
+                R[15] &= ~3U;
+                R[15] += 4;
+                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+            }
         }
 
         public uint InstructionCycles = 0;
@@ -323,7 +266,8 @@ namespace OptimeGBA
 
             LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
-            uint ins = Decode;
+            uint ins = Read32InstrFetch(R[15] - 8);
+
 #if OPENTK_DEBUGGER
             LastLastIns = LastIns;
             LastIns = ins;
@@ -333,7 +277,6 @@ namespace OptimeGBA
             if (PreExecutionCallback != null)
                 PreExecutionCallback();
 #endif
-            Pipeline--;
 
             LineDebug($"Ins: ${Util.HexN(ins, 8)} InsBin:{Util.Binary(ins, 32)}");
             LineDebug($"Cond: ${ins >> 28:X}");
@@ -351,8 +294,14 @@ namespace OptimeGBA
                 ArmDispatch[decodeBits](this, ins);
             }
 
-            // Fill the pipeline if it's not full
-            FetchPipelineArmIfNotFull();
+            if (!ThumbState)
+            {
+                R[15] += 4;
+            }
+            else
+            {
+                R[15] += 2;
+            }
 
             return InstructionCycles;
         }
@@ -365,7 +314,8 @@ namespace OptimeGBA
 
             LineDebug($"R15: ${Util.HexN(R[15], 4)}");
 
-            ushort ins = (ushort)Decode;
+            ushort ins = (ushort)Read16InstrFetch(R[15] - 4);
+
             int decodeBits = ins >> 6;
 
 #if OPENTK_DEBUGGER
@@ -378,13 +328,18 @@ namespace OptimeGBA
             if (PreExecutionCallback != null)
                 PreExecutionCallback();
 #endif
-            Pipeline--;
             LineDebug($"Ins: ${Util.HexN(ins, 4)} InsBin:{Util.Binary(ins, 16)}");
 
             ThumbDispatch[decodeBits](this, ins);
 
-            // Fill the pipeline if it's not full
-            FetchPipelineThumbIfNotFull();
+            if (ThumbState)
+            {
+                R[15] += 2;
+            }
+            else
+            {
+                R[15] += 4;
+            }
 
             return InstructionCycles;
         }
@@ -409,21 +364,20 @@ namespace OptimeGBA
             SPSR_irq = GetCPSR();
             if (ThumbState)
             {
-                FillPipelineThumb();
                 R14irq = R[15] - 0;
             }
             else
             {
-                FillPipelineArm();
                 R14irq = R[15] - 4;
             }
+
             SetMode((uint)Arm7Mode.IRQ); // Go into SVC / Supervisor mode
             ThumbState = false; // Back to ARM state
             IRQDisable = true;
             // FIQDisable = true;
 
             R[15] = VectorIRQ;
-            FlushPipeline();
+            InitFlushPipeline();
 
             // Error("IRQ, ENTERING IRQ MODE!");
         }

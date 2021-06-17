@@ -24,7 +24,7 @@ namespace OptimeGBA
             Math = new Nds9Math(this);
 
             Mem.InitPageTables();
-            Cpu.FillPipelineArm();
+            Cpu.InitFlushPipeline();
 
             Cpu.SetVectorMode(true);
 

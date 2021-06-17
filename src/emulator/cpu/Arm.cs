@@ -95,7 +95,7 @@ namespace OptimeGBA
             }
             else
             {
-                arm7.FetchPipelineArm();
+                arm7.R[15] += 4;
             }
 
             for (byte r = 0; r < 16; r++)
@@ -185,6 +185,11 @@ namespace OptimeGBA
                 }
             }
 
+            if (!L)
+            {
+                arm7.R[15] -= 4;
+            }
+
             if (S)
             {
                 if (L && loadsPc)
@@ -268,7 +273,7 @@ namespace OptimeGBA
 
             if (!L)
             {
-                arm7.FetchPipelineArm();
+                arm7.R[15] += 4;
             }
 
             for (byte r = 0; r < 16; r++)
@@ -307,6 +312,11 @@ namespace OptimeGBA
                         if (!P) addr += 4;
                     }
                 }
+            }
+
+            if (!L)
+            {
+                arm7.R[15] -= 4;
             }
 
             // ARMv5: When Rn is in Rlist, writeback happens if Rn is the only register, or not the last
