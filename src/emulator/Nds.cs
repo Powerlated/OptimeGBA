@@ -35,9 +35,6 @@ namespace OptimeGBA
 
         public ulong Steps;
 
-        public bool DebugDisableArm9;
-        public bool DebugDisableArm7;
-
         public Nds(ProviderNds provider)
         {
             Provider = provider;
@@ -201,7 +198,7 @@ namespace OptimeGBA
                 uint ticks7 = 0;
                 // Run 32 ARM7 instructions at a time, who needs tight synchronization
                 const uint instrsAtATime = 32;
-                if (!Nds7.Cpu.Halted && !DebugDisableArm7)
+                if (!Nds7.Cpu.Halted)
                 {
                     for (uint i = 0; i < instrsAtATime; i++)
                     {
@@ -222,22 +219,19 @@ namespace OptimeGBA
                 }
 
                 arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-                if (!DebugDisableArm9)
+                while (arm9PendingTicks > 0)
                 {
-                    while (arm9PendingTicks > 0)
+                    if (!Nds9.Cpu.Halted)
                     {
-                        if (!Nds9.Cpu.Halted)
-                        {
-                            arm9PendingTicks -= (int)Nds9.Cpu.Execute();
-                        }
-                        else
-                        {
-                            arm9PendingTicks -= (int)(Scheduler.NextEventTicks - Scheduler.CurrentTicks) * 2;
-                            break;
-                        }
+                        arm9PendingTicks -= (int)Nds9.Cpu.Execute();
+                    }
+                    else
+                    {
+                        arm9PendingTicks -= (int)(Scheduler.NextEventTicks - Scheduler.CurrentTicks) * 2;
+                        break;
                     }
                 }
-                
+
                 Scheduler.CurrentTicks += ticks7;
             }
 

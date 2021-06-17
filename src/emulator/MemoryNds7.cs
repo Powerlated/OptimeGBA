@@ -280,6 +280,8 @@ namespace OptimeGBA
                     return Nds7.Spi.ReadHwio8(addr);
 
                 case 0x4000136: case 0x4000137: // EXTKEYIN
+                    // Console.WriteLine(Hex(Nds7.Cpu.R[15], 8));
+                    goto case 0x4000130;
                 case 0x4000130: case 0x4000131: // KEYINPUT 
                     return Nds7.Nds.Keypad.ReadHwio8(addr);
 

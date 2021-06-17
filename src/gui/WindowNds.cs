@@ -593,12 +593,10 @@ namespace OptimeGBAEmulator
                 ImGui.Text("ARM9");
                 drawCpuInfo(Nds.Nds9.Cpu);
                 displayCheckbox("IRQ Disable", Nds.Nds9.Cpu.IRQDisable);
-                ImGui.Checkbox("Disable ARM9", ref Nds.DebugDisableArm9);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
                 drawCpuInfo(Nds.Nds7.Cpu);
                 displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
-                ImGui.Checkbox("Disable ARM7", ref Nds.DebugDisableArm7);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
@@ -2128,8 +2126,8 @@ namespace OptimeGBAEmulator
                                     Nds.Nds9.Mem.Write32(yPtr, (uint)(y * 32 + 16));
                                 }
 
-                                // Write in Sandgem Town Pokemon Center
-                                Nds.Nds9.Mem.Write16(basePtr + mapAddrOffs, 420);
+                                // Write in Sandgem Town Pokemon Center for lulz
+                                // Nds.Nds9.Mem.Write16(basePtr + mapAddrOffs, 420);
 
                                 ImGui.SetCursorScreenPos(cursorPos);
                                 // use this to draw the button
