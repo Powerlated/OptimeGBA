@@ -38,8 +38,13 @@ namespace OptimeGBA
         public bool ItcmLoadMode = false;
         public bool DtcmLoadMode = false;
 
-        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
+        public override void InitPageTable(byte*[] table, uint[] maskTable, bool write)
         {
+            byte* mainRam = TryPinByteArray(Nds9.Nds.MainRam);
+            byte* arm9Bios = TryPinByteArray(Arm9Bios);
+            byte* dtcm = TryPinByteArray(Dtcm);
+            byte* itcm = TryPinByteArray(Itcm);
+
             // 12 bits shaved off already, shave off another 12 to get 24
             for (uint i = 0; i < 1048576; i++)
             {
@@ -49,13 +54,13 @@ namespace OptimeGBA
                 switch (i >> 12)
                 {
                     case 0x2: // Main Memory
-                        table[i] = Nds9.Nds.MainRam;
+                        table[i] = mainRam;
                         maskTable[i] = 0x003FFFFF;
                         break;
                     case 0xFF: // BIOS
                         if (!write)
                         {
-                            table[i] = Arm9Bios;
+                            table[i] = arm9Bios;
                         }
                         maskTable[i] = 0x00000FFF;
                         break;
@@ -67,7 +72,7 @@ namespace OptimeGBA
                     if (write || !DtcmLoadMode)
                     {
                         // Console.WriteLine("DTCM page set at " + Util.Hex(addr, 8));
-                        table[i] = Dtcm;
+                        table[i] = dtcm;
                     }
                     maskTable[i] = 0x00003FFF;
                 }
@@ -78,11 +83,20 @@ namespace OptimeGBA
                 {
                     if (write || !ItcmLoadMode)
                     {
-                        table[i] = Itcm;
+                        table[i] = itcm;
                     }
                     maskTable[i] = 0x00007FFF;
                 }
             }
+        }
+
+        ~MemoryNds9()
+        {
+            Console.WriteLine("Cleaning up NDS9 memory...");
+            UnpinByteArray(Nds9.Nds.MainRam);
+            UnpinByteArray(Arm9Bios);
+            UnpinByteArray(Dtcm);
+            UnpinByteArray(Itcm);
         }
 
         public void UpdateTcmSettings()

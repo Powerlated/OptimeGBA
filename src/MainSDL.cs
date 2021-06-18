@@ -772,13 +772,6 @@ namespace OptimeGBAEmulator
                     case SDL_Keycode.SDLK_LCTRL:
                         LCtrl = pressed;
                         break;
-
-                    case SDL_Keycode.SDLK_F12:
-                        if (LCtrl)
-                        {
-                            Nds.DebugDisableArm9 = true;
-                        }
-                        break;
                 }
 
             }

@@ -76,7 +76,6 @@ namespace OptimeGBA
 
         public bool Armv5;
 
-#if UNSAFE
         public uint* R = MemoryUtil.AllocateUnmanagedArray32(16);
 
         ~Arm7() {
@@ -87,9 +86,6 @@ namespace OptimeGBA
             MemoryUtil.FreeUnmanagedArray(Timing8And16InstrFetch);
             MemoryUtil.FreeUnmanagedArray(Timing32InstrFetch);
         }
-#else
-        public uint[] R = new uint[16];
-#endif
 
         public uint R8usr;
         public uint R9usr;

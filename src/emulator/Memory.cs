@@ -22,14 +22,14 @@ namespace OptimeGBA
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
         public bool LogHwioAccesses = false;
 
-        public abstract void InitPageTable(byte[][] pageTable, uint[] maskTable, bool write);
+        public abstract void InitPageTable(byte*[] pageTable, uint[] maskTable, bool write);
         public const int PageSize = 1024;
 
         public uint[] MemoryRegionMasks = new uint[1048576];
 
         public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
-        public byte[][] PageTableRead = new byte[1048576][];
-        public byte[][] PageTableWrite = new byte[1048576][];
+        public byte*[] PageTableRead = new byte*[1048576];
+        public byte*[] PageTableWrite = new byte*[1048576];
 
         public abstract byte Read8Unregistered(bool debug, uint addr);
         public abstract void Write8Unregistered(bool debug, uint addr, byte val);
@@ -37,6 +37,29 @@ namespace OptimeGBA
         public abstract void Write16Unregistered(bool debug, uint addr, ushort val);
         public abstract uint Read32Unregistered(bool debug, uint addr);
         public abstract void Write32Unregistered(bool debug, uint addr, uint val);
+
+        public Dictionary<byte[], GCHandle> Handles = new Dictionary<byte[], GCHandle>();
+
+        public byte* TryPinByteArray(byte[] arr)
+        {
+            GCHandle handle;
+            if (!Handles.TryGetValue(arr, out handle))
+            {
+                handle = GCHandle.Alloc(arr, GCHandleType.Pinned);
+                Handles[arr] = handle;
+            }
+            
+            return (byte*)handle.AddrOfPinnedObject();
+        }
+
+        public void UnpinByteArray(byte[] arr)
+        {
+            Handles[arr].Free();
+            if (!Handles.Remove(arr))
+            {
+                throw new ArgumentException("Tried to unpin already unpinned array.");
+            }
+        }
 
         public void InitPageTables()
         {
@@ -51,12 +74,12 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public byte[] ResolvePageRead(uint addr)
+        public byte* ResolvePageRead(uint addr)
         {
             return PageTableRead[addr >> 12];
         }
 
-        public byte[] ResolvePageWrite(uint addr)
+        public byte* ResolvePageWrite(uint addr)
         {
             return PageTableWrite[addr >> 12];
         }
@@ -117,8 +140,7 @@ namespace OptimeGBA
             var page = ResolvePageRead(addr);
             if (page != null)
             {
-                var maskedAddr = MaskAddress(addr);
-                return GetUint(page, maskedAddr);
+                return GetUint(page, MaskAddress(addr));
             }
 
             return Read32Unregistered(false, addr);
@@ -130,8 +152,7 @@ namespace OptimeGBA
             var page = ResolvePageRead(addr);
             if (page != null)
             {
-                var maskedAddr = MaskAddress(addr);
-                return GetUint(page, maskedAddr);
+                return GetUint(page, MaskAddress(addr));
             }
 
             return Read32Unregistered(true, addr);
@@ -143,8 +164,7 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                var maskedAddr = MaskAddress(addr);
-                SetByte(page, maskedAddr, val);
+                SetByte(page, MaskAddress(addr), val);
                 return;
             }
 
@@ -164,8 +184,7 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                var maskedAddr = MaskAddress(addr);
-                SetUshort(page, maskedAddr, val);
+                SetUshort(page, MaskAddress(addr), val);
                 return;
             }
 
@@ -185,8 +204,7 @@ namespace OptimeGBA
             var page = ResolvePageWrite(addr);
             if (page != null)
             {
-                var maskedAddr = MaskAddress(addr);
-                SetUint(page, maskedAddr, val);
+                SetUint(page, MaskAddress(addr), val);
                 return;
             }
 

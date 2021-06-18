@@ -102,8 +102,16 @@ namespace OptimeGBA
         public byte[] Ewram = MemoryUtil.AllocateManagedArray(EwramSize);
         public byte[] Iwram = MemoryUtil.AllocateManagedArray(IwramSize);
 
-        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
+        public override void InitPageTable(byte*[] table, uint[] maskTable, bool write)
         {
+            byte* bios = TryPinByteArray(Bios);
+            byte* ewram = TryPinByteArray(Ewram);
+            byte* iwram = TryPinByteArray(Iwram);
+            byte* palettes = TryPinByteArray(Gba.Ppu.Renderer.Palettes);
+            byte* vram = TryPinByteArray(Gba.Ppu.Vram);
+            byte* emptyPage = TryPinByteArray(EmptyPage);
+            byte* oam = TryPinByteArray(Gba.Ppu.Renderer.Oam);
+            byte* rom = TryPinByteArray(Rom);
 
             // 12 bits shaved off already, shave off another 12 to get 24
             for (uint i = 0; i < 1048576; i++)
@@ -114,22 +122,22 @@ namespace OptimeGBA
                     case 0x0: // BIOS
                         if (!write)
                         {
-                            table[i] = Bios;
+                            table[i] = bios;
                         }
                         maskTable[i] = 0x00003FFF;
                         break;
                     case 0x2: // EWRAM
-                        table[i] = Ewram;
+                        table[i] = ewram;
                         maskTable[i] = 0x0003FFFF;
                         break;
                     case 0x3: // IWRAM
-                        table[i] = Iwram;
+                        table[i] = iwram;
                         maskTable[i] = 0x00007FFF;
                         break;
                     case 0x5: // Palettes
                         if (!write)
                         {
-                            table[i] = Gba.Ppu.Renderer.Palettes;
+                            table[i] = palettes;
                         }
                         maskTable[i] = 0x3FF;
                         break;
@@ -137,16 +145,16 @@ namespace OptimeGBA
                         addr &= 0x1FFFF;
                         if (addr < 0x18000)
                         {
-                            table[i] = Gba.Ppu.Vram;
+                            table[i] = vram;
                         }
                         else
                         {
-                            table[i] = EmptyPage;
+                            table[i] = emptyPage;
                         }
                         maskTable[i] = 0x0001FFFF; // VRAM
                         break;
                     case 0x7: // PPU OAM
-                        table[i] = Gba.Ppu.Renderer.Oam;
+                        table[i] = oam;
                         maskTable[i] = 0x000003FF;
                         break;
                     case 0x8: // Game Pak ROM/FlashROM 
@@ -156,7 +164,7 @@ namespace OptimeGBA
                     case 0xC: // Game Pak ROM/FlashROM 
                         if (!write)
                         {
-                            table[i] = Rom;
+                            table[i] = rom;
                         }
                         maskTable[i] = 0x01FFFFFF;
                         break;
@@ -165,6 +173,19 @@ namespace OptimeGBA
                         break;
                 }
             }
+        }
+
+        ~MemoryGba()
+        {
+            Console.WriteLine("Cleaning up GBA memory...");
+            UnpinByteArray(Bios);
+            UnpinByteArray(Ewram);
+            UnpinByteArray(Iwram);
+            UnpinByteArray(Gba.Ppu.Renderer.Palettes);
+            UnpinByteArray(Gba.Ppu.Vram);
+            UnpinByteArray(EmptyPage);
+            UnpinByteArray(Gba.Ppu.Renderer.Oam);
+            UnpinByteArray(Rom);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

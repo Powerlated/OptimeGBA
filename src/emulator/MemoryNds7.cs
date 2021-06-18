@@ -33,8 +33,12 @@ namespace OptimeGBA
 
         public byte RCNT;
 
-        public override void InitPageTable(byte[][] table, uint[] maskTable, bool write)
+        public override void InitPageTable(byte*[] table, uint[] maskTable, bool write)
         {
+            byte* arm7Bios = TryPinByteArray(Arm7Bios);
+            byte* mainRam = TryPinByteArray(Nds7.Nds.MainRam);
+            byte* arm7Wram = TryPinByteArray(Arm7Wram);
+
             // 12 bits shaved off already, shave off another 12 to get 24
             for (uint i = 0; i < 1048576; i++)
             {
@@ -44,23 +48,31 @@ namespace OptimeGBA
                     case 0x0: // BIOS
                         if (!write)
                         {
-                            table[i] = Arm7Bios;
+                            table[i] = arm7Bios;
                         }
                         maskTable[i] = 0x00003FFF;
                         break;
                     case 0x2: // Main Memory
-                        table[i] = Nds7.Nds.MainRam;
+                        table[i] = mainRam;
                         maskTable[i] = 0x003FFFFF;
                         break;
                     case 0x3: // Shared RAM / ARM7 WRAM
                         if (addr >= 0x03800000)
                         {
-                            table[i] = Arm7Wram;
+                            table[i] = arm7Wram;
                             maskTable[i] = 0x0000FFFF;
                         }
                         break;
                 }
             }
+        }
+
+        ~MemoryNds7()
+        {
+            Console.WriteLine("Cleaning up NDS7 memory...");
+            UnpinByteArray(Arm7Bios);
+            UnpinByteArray(Nds7.Nds.MainRam);
+            UnpinByteArray(Arm7Wram);
         }
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
