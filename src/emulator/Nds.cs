@@ -150,7 +150,7 @@ namespace OptimeGBA
                     Nds7.Cpu.R[12] = arm7EntryAddr;
                     Nds7.Cpu.R[14] = arm7EntryAddr;
                     Nds7.Cpu.R[15] = arm7EntryAddr;
-                    Nds7.Cpu.FlushPipeline();
+                    Nds7.Cpu.InitFlushPipeline();
 
                     uint arm9RomOffset = GetUint(rom, 0x20);
                     uint arm9EntryAddr = GetUint(rom, 0x24);
@@ -171,7 +171,7 @@ namespace OptimeGBA
                     Nds9.Cpu.R[12] = arm9EntryAddr;
                     Nds9.Cpu.R[14] = arm9EntryAddr;
                     Nds9.Cpu.R[15] = arm9EntryAddr;
-                    Nds9.Cpu.FlushPipeline();
+                    Nds9.Cpu.InitFlushPipeline();
                 }
             }
         }
