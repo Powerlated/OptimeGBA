@@ -55,11 +55,6 @@ namespace OptimeGBA
             return table;
         }
 
-        public bool Errored = false;
-
-        public uint[] ThumbExecutorProfile = new uint[1024];
-        public uint[] ArmExecutorProfile = new uint[4096];
-
         public uint VectorReset;
         public uint VectorUndefined;
         public uint VectorSoftwareInterrupt;
@@ -78,7 +73,8 @@ namespace OptimeGBA
 
         public uint* R = MemoryUtil.AllocateUnmanagedArray32(16);
 
-        ~Arm7() {
+        ~Arm7()
+        {
             MemoryUtil.FreeUnmanagedArray(R);
 
             MemoryUtil.FreeUnmanagedArray(Timing8And16);
@@ -141,6 +137,11 @@ namespace OptimeGBA
         public bool LastThumbState;
         public bool LastLastThumbState;
         public bool InterruptServiced;
+
+        public bool Errored = false;
+
+        public static uint[] ThumbExecutorProfile = new uint[1024];
+        public static uint[] ArmExecutorProfile = new uint[4096];
 
         public bool FlagInterrupt;
 
@@ -211,12 +212,12 @@ namespace OptimeGBA
             if (ThumbState)
             {
                 R[15] += 4;
-                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U;
             }
             else
             {
                 R[15] += 8;
-                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U;
             }
         }
 
@@ -226,13 +227,13 @@ namespace OptimeGBA
             {
                 R[15] &= ~1U;
                 R[15] += 2;
-                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+                InstructionCycles += Timing8And16InstrFetch[(R[15] >> 24) & 0xF] * 2U;
             }
             else
             {
                 R[15] &= ~3U;
                 R[15] += 4;
-                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U; 
+                InstructionCycles += Timing32InstrFetch[(R[15] >> 24) & 0xF] * 2U;
             }
         }
 
@@ -382,7 +383,14 @@ namespace OptimeGBA
         {
             if ((ins & 0b1110000000000000000000000000) == 0b1010000000000000000000000000) // B
             {
-                return Arm.B;
+                if (BitTest(ins, 24))
+                {
+                    return Arm.BL;
+                }
+                else
+                {
+                    return Arm.B;
+                }
             } // id mask    0b1111111100000000000011010000     0b1111111100000000000011110000
             else if ((ins & 0b1111111100000000000011010000) == 0b0001001000000000000000010000) // BX
             {

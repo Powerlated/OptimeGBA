@@ -1468,7 +1468,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictThumb[k] = 0;
                     }
-                    CpuProfilerDictThumb[k] += Nds.Nds7.Cpu.ThumbExecutorProfile[ti];
+                    CpuProfilerDictThumb[k] += Arm7.ThumbExecutorProfile[ti];
                 }
 
                 for (int ai = 0; ai < 4096; ai++)
@@ -1478,7 +1478,7 @@ namespace OptimeGBAEmulator
                     {
                         CpuProfilerDictArm[k] = 0;
                     }
-                    CpuProfilerDictArm[k] += Nds.Nds7.Cpu.ArmExecutorProfile[ai];
+                    CpuProfilerDictArm[k] += Arm7.ArmExecutorProfile[ai];
                 }
 
                 ImGui.Columns(1);

@@ -361,7 +361,8 @@ namespace OptimeGBA
         public static void LDM_V5(Arm7 arm7, uint ins) { _LDMSTM_V5(arm7, ins, true); }
         public static void STM_V5(Arm7 arm7, uint ins) { _LDMSTM_V5(arm7, ins, false); }
 
-        public static void B(Arm7 arm7, uint ins)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static void _B(Arm7 arm7, uint ins, bool link)
         {
             arm7.LineDebug("B | Branch");
             // B
@@ -371,7 +372,7 @@ namespace OptimeGBA
             offset = (offset << 6) >> 6;
 
             // BL - store return address in R14
-            if (BitTest(ins, 24))
+            if (link)
             {
                 arm7.R[14] = arm7.R[15] - 4;
             }
@@ -389,6 +390,9 @@ namespace OptimeGBA
             arm7.R[15] = (uint)(arm7.R[15] + offset);
             arm7.FlushPipeline();
         }
+
+        public static void B(Arm7 arm7, uint ins) { _B(arm7, ins, false); }
+        public static void BL(Arm7 arm7, uint ins) { _B(arm7, ins, true); }
 
         public static void BX(Arm7 arm7, uint ins)
         {
