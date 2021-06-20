@@ -32,4 +32,7 @@
 
     <Compile Remove="src/MainSDL.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="resources/3d-placeholder.raw" />
+  </ItemGroup>
 </Project> 

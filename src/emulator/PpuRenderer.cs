@@ -3,6 +3,7 @@ using static OptimeGBA.Bits;
 using System.Runtime.CompilerServices;
 using System;
 using static OptimeGBA.MemoryUtil;
+using System.IO;
 
 namespace OptimeGBA
 {
@@ -63,7 +64,35 @@ namespace OptimeGBA
             {
                 DisplayMode = 1;
             }
+
+            // Load 3D placeholder
+            // Why do I waste time on useless crap like this
+            Stream img = typeof(PpuRenderer).Assembly.GetManifestResourceStream("OptimeGBA-Opentk.resources.3d-placeholder.raw");
+            PlaceholderFor3D = new ushort[img.Length / 2];
+            int val = 0;
+            int index = 0;
+            while (val != -1)
+            {
+                val = img.ReadByte();
+                byte r = (byte)val;
+                val = img.ReadByte();
+                byte g = (byte)val;
+                val = img.ReadByte();
+                byte b = (byte)val;
+                val = img.ReadByte();
+                byte a = (byte)val;
+
+                // Crush it to RGB555
+                r >>= 3;
+                g >>= 3;
+                b >>= 3;
+
+                PlaceholderFor3D[index++] = (ushort)((b << 10) | (g << 5) | r);
+            }
         }
+
+        // RGB555
+        public static ushort[] PlaceholderFor3D;
 
         // Internal State
         public const int BYTES_PER_PIXEL = 4;
@@ -1217,7 +1246,22 @@ namespace OptimeGBA
                     case BackgroundMode.Affine256ColorBitmap:
                         RenderAffineBitmapBackground(vcount, vram, bg, false);
                         break;
+                    case BackgroundMode.Display3D:
+                        Render3DBackground(vcount, vram, bg);
+                        break;
                 }
+            }
+        }
+
+        public void Render3DBackground(uint vcount, byte* vram, Background bg)
+        {
+            uint srcBase = (uint)(vcount * Width);
+
+            byte prio = bg.Priority;
+            byte flag = (byte)(1 << bg.Id);
+            for (uint i = 0; i < Width; i++)
+            {
+                PlaceBgPixel(i, PlaceholderFor3D[srcBase + i], prio, flag);
             }
         }
 

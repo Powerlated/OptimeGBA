@@ -37,6 +37,8 @@
     <Compile Remove="src/MainOpenTK.cs" />
   </ItemGroup>
   <ItemGroup>
+    <EmbeddedResource Include="resources/3d-placeholder.raw" />
+
     <EmbeddedResource Include="resources/animation/*.raw" />
     <EmbeddedResource Include="resources/no-intro.dat" />
   </ItemGroup>
