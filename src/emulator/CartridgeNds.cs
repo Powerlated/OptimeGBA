@@ -41,6 +41,7 @@ namespace OptimeGBA
     {
         Nds Nds;
         byte[] Rom;
+        byte[] SecureArea = new byte[0x4000];
 
         public uint[] EncLutKeycodeLevel1 = new uint[0x412];
         public uint[] EncLutKeycodeLevel2 = new uint[0x412];
@@ -52,8 +53,7 @@ namespace OptimeGBA
         public CartridgeNds(Nds nds)
         {
             Nds = nds;
-            Rom = new byte[Nds.Provider.Rom.Length];
-            Nds.Provider.Rom.CopyTo(Rom, 0);
+            Rom = Nds.Provider.Rom;
 
             for (uint i = 0; i < 0x412; i++)
             {
@@ -83,24 +83,28 @@ namespace OptimeGBA
 
             if (!Nds.Provider.DirectBoot && Rom.Length >= 0x8000 && GetUint(Rom, 0x4000) == 0xE7FFDEFF)
             {
+                for (uint i = 0; i < 0x4000; i++)
+                {
+                    SecureArea[i] = Rom[0x4000 + i];
+                }
                 Console.WriteLine("Encrypting first 2KB of secure area");
-                SetUlong(Rom, 0x4000, 0x6A624F7972636E65); // Write in "encryObj"
+                SetUlong(SecureArea, 0x0000, 0x6A624F7972636E65); // Write in "encryObj"
 
                 // Encrypt first 2K of the secure area with KEY1
-                for (uint i = 0x4000; i < 0x4800; i += 8)
+                for (uint i = 0x0000; i < 0x0800; i += 8)
                 {
                     // Console.WriteLine("Encrypted ulong at " + Hex(i, 16));
-                    ulong raw = GetUlong(Rom, i);
+                    ulong raw = GetUlong(SecureArea, i);
                     ulong encrypted = Encrypt64(EncLutKeycodeLevel3, raw);
-                    SetUlong(Rom, i, encrypted);
+                    SetUlong(SecureArea, i, encrypted);
                     // Console.WriteLine("Before:" + Hex(raw, 16));
                     // Console.WriteLine("After :" + Hex(encrypted, 16));
                 }
 
-                Console.WriteLine(Hex(GetUint(Rom, 0x4010), 8));
+                Console.WriteLine(Hex(GetUint(SecureArea, 0x0010), 8));
 
                 // Double-encrypt KEY1
-                SetUlong(Rom, 0x4000, Encrypt64(EncLutKeycodeLevel2, GetUlong(Rom, 0x4000)));
+                SetUlong(SecureArea, 0x0000, Encrypt64(EncLutKeycodeLevel2, GetUlong(SecureArea, 0x0000)));
             }
 
             for (uint i = 0; i < ExternalMemory.Length; i++)
@@ -437,7 +441,7 @@ namespace OptimeGBA
                     }
                     break;
                 case CartridgeState.SecureAreaRead:
-                    val = GetUint(Rom, DataPos);
+                    val = GetUint(SecureArea, DataPos - 0x4000);
                     // Console.WriteLine("Secure area read: Pos: " + Hex(DataPos, 8) + " Val: " + Hex(val, 4));
                     break;
 
