@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System;
 using static OptimeGBA.MemoryUtil;
 using System.IO;
+using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 
 namespace OptimeGBA
@@ -588,18 +589,48 @@ namespace OptimeGBA
         public void RenderCharBackground(uint vcount, byte* vram, Background bg)
         {
             bool enableMosaicX = bg.EnableMosaic && BgMosaicX != 0;
-            if (enableMosaicX)
+            fixed (byte* palettes = Palettes)
             {
-                _RenderCharBackground(vcount, vram, bg, true);
-            }
-            else
-            {
-                _RenderCharBackground(vcount, vram, bg, false);
+#if UNSAFE
+                if (enableMosaicX)
+                {
+                    _RenderCharBackground(vcount, vram, palettes, BgHiColor, BgLoColor, BgHiPrio, BgLoPrio, BgHiFlags, BgLoFlags, bg, true);
+                }
+                else
+                {
+                    _RenderCharBackground(vcount, vram, palettes, BgHiColor, BgLoColor, BgHiPrio, BgLoPrio, BgHiFlags, BgLoFlags, bg, false);
+                }
+#else
+                fixed (
+                    byte* hiPrio = BgHiPrio, loPrio = BgLoPrio,
+                    hiFlags = BgHiFlags, loFlags = BgLoFlags
+                )
+                {
+                    fixed (ushort* hiColor = BgHiColor, loColor = BgLoColor)
+                    {
+                        if (enableMosaicX)
+                        {
+                            _RenderCharBackground(vcount, vram, palettes, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags, bg, true);
+                        }
+                        else
+                        {
+                            _RenderCharBackground(vcount, vram, palettes, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags, bg, false);
+                        }
+                    }
+                }
+#endif
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveOptimization | MethodImplOptions.AggressiveInlining)]
-        private void _RenderCharBackground(uint vcount, byte* vram, Background bg, bool mosaicX)
+        private void _RenderCharBackground(
+                uint vcount, byte* vram,
+                byte* palettes,
+                ushort* hiColor, ushort* loColor,
+                byte* hiPrio, byte* loPrio,
+                byte* hiFlags, byte* loFlags,
+                Background bg, bool mosaicX
+            )
         {
             uint charBase = bg.CharBaseBlock * CharBlockSize + CharBaseBlockCoarse * CoarseBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize + MapBaseBlockCoarse * CoarseBlockSize;
@@ -629,6 +660,10 @@ namespace OptimeGBA
 
             uint mosaicXCounter = BgMosaicX;
             byte finalColor = 0;
+
+            // Every byte of these vectors are filled
+            Vector128<ushort> priorityVec = Vector128.Create((byte)bg.Priority).AsUInt16();
+            Vector128<ushort> flagVec = Vector128.Create((byte)flag).AsUInt16();
 
             for (uint tile = 0; tile < tilesToRender; tile++)
             {
@@ -697,52 +732,31 @@ namespace OptimeGBA
                 }
                 else
                 {
+                    uint paletteRow = (mapEntry >> 12) & 0xF;
                     uint vramTileAddr = charBase + tileNumber * 32 + effectiveIntraTileY * 4;
-                    uint data = GetUint(vram, vramTileAddr);
 
-                    uint palette = (mapEntry >> 12) & 15; // 4 bits
-                    uint paletteBase = (palette * 16);
+                    uint data = GetUint(vram, vramTileAddr);
 
                     if (data != 0)
                     {
-                        byte rotateBy = 4;
+                        Vector256<uint> shifts;
                         if (xFlip)
-                        {
-                            rotateBy = 28;
-                            data = RotateRight32(data, rotateBy);
-                        }
+                            shifts = Vector256.Create(28U, 24U, 20U, 16U, 12U, 8U, 4U, 0U);
+                        else
+                            shifts = Vector256.Create(0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U);
+                        Vector256<uint> indices = Vector256.Create(data);
+                        indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
+                        indices = Avx2.And(indices, Vector256.Create(0xFU));
+                        Vector256<uint> colors = Avx2.GatherVector256((uint*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
+                        colors = Avx2.And(colors, Vector256.Create(0xFFFFU));
+                        Vector256<ushort> packedColors = Avx2.PackUnsignedSaturate(colors.AsInt32(), Vector256<int>.Zero);
+                        packedColors = Avx2.Permute4x64(packedColors.AsInt64(), 0b1000).AsUInt16();
 
-                        for (int tp = 0; tp < 8; tp++)
-                        {
-                            if (mosaicX)
-                            {
-                                if (++mosaicXCounter > BgMosaicX)
-                                {
-                                    finalColor = (byte)((data & 0xF) + paletteBase);
-                                    mosaicXCounter = 0;
-                                }
-                            }
-                            else
-                            {
-                                finalColor = (byte)((data & 0xF) + paletteBase);
-                            }
-                            data = RotateRight32(data, rotateBy);
-
-                            if ((finalColor & 0xF) != 0)
-                            {
-                                PlaceBgPixel(lineIndex, LookupPalette(finalColor), bg.Priority, flag);
-                            }
-
-                            lineIndex++;
-                        }
-
-                        pixelX += 8;
+                        PlaceBgRow(lineIndex, Avx2.ExtractVector128(packedColors, 0), priorityVec, flagVec, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags);
                     }
-                    else
-                    {
-                        pixelX += 8;
-                        lineIndex += 8;
-                    }
+
+                    pixelX += 8;
+                    lineIndex += 8;
                 }
             }
         }
@@ -825,6 +839,25 @@ namespace OptimeGBA
                 BgHiColor[lineIndex] = color;
                 BgHiFlags[lineIndex] = flag;
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PlaceBgRow(
+                uint lineIndex,
+                Vector128<ushort> color, Vector128<ushort> priority, Vector128<ushort> flag,
+                ushort* hiColor, ushort* loColor,
+                byte* hiPrio, byte* loPrio,
+                byte* hiFlags, byte* loFlags
+            )
+        {
+
+            Avx2.Store(hiColor + lineIndex, color);
+            Sse2.StoreScalar((long*)(hiPrio + lineIndex), priority.AsInt64());
+            Sse2.StoreScalar((long*)(hiFlags + lineIndex), flag.AsInt64());
+
+            Avx2.Store(loColor + lineIndex, color);
+            Sse2.StoreScalar((long*)(loPrio + lineIndex), priority.AsInt64());
+            Sse2.StoreScalar((long*)(loFlags + lineIndex), flag.AsInt64());
         }
 
         public readonly static uint[] ObjSizeTable = {
@@ -1258,7 +1291,7 @@ namespace OptimeGBA
             byte flag = (byte)(1 << bg.Id);
             for (uint i = 0; i < Width; i++)
             {
-                PlaceBgPixel(i, PlaceholderFor3D[srcBase + i], prio, flag);
+                PlaceBgPixel(i + 8, PlaceholderFor3D[srcBase + i], prio, flag);
             }
         }
 
