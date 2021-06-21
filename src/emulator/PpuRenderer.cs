@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System;
 using static OptimeGBA.MemoryUtil;
 using System.IO;
+using System.Runtime.Intrinsics.X86;
 
 namespace OptimeGBA
 {
@@ -32,24 +33,25 @@ namespace OptimeGBA
             ScreenFront = MemoryUtil.AllocateUnmanagedArray16(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateUnmanagedArray16(ScreenBufferSize);
 
-            WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 8);
-            BgLoColor = MemoryUtil.AllocateUnmanagedArray16(width + 8);
-            BgHiColor = MemoryUtil.AllocateUnmanagedArray16(width + 8);
-            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
-            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width + 8);
-            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
-            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width + 8);
+            // 16 wide to allow tiles to poke out on each side for efficiency
+            WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 16);
+            BgLoColor = MemoryUtil.AllocateUnmanagedArray16(width + 16);
+            BgHiColor = MemoryUtil.AllocateUnmanagedArray16(width + 16);
+            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width + 16);
+            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width + 16);
+            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 16);
+            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width + 16);
 #else 
             ScreenFront = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
 
-            WinMasks = MemoryUtil.AllocateManagedArray(width + 8);
-            BgLoColor = MemoryUtil.AllocateManagedArray16(width + 8);
-            BgHiColor = MemoryUtil.AllocateManagedArray16(width + 8);
-            BgHiPrio = MemoryUtil.AllocateManagedArray(width + 8);
-            BgLoPrio = MemoryUtil.AllocateManagedArray(width + 8);
-            BgHiFlags = MemoryUtil.AllocateManagedArray(width + 8);
-            BgLoFlags = MemoryUtil.AllocateManagedArray(width + 8);
+            WinMasks = MemoryUtil.AllocateManagedArray(width + 16);
+            BgLoColor = MemoryUtil.AllocateManagedArray16(width + 16);
+            BgHiColor = MemoryUtil.AllocateManagedArray16(width + 16);
+            BgHiPrio = MemoryUtil.AllocateManagedArray(width + 16);
+            BgLoPrio = MemoryUtil.AllocateManagedArray(width + 16);
+            BgHiFlags = MemoryUtil.AllocateManagedArray(width + 16);
+            BgLoFlags = MemoryUtil.AllocateManagedArray(width + 16);
 #endif
             ObjBuffer = new ObjPixel[Width];
             ObjWindowBuffer = new byte[Width];
@@ -426,23 +428,23 @@ namespace OptimeGBA
                         val = WinObjEnable;
                     }
 
-                    WinMasks[i] = val;
+                    WinMasks[i + 8] = val;
 
                     // Also prepare backgrounds arrays in this loop
-                    BgHiColor[i] = backdropCol;
-                    BgHiPrio[i] = 4;
-                    BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                    BgHiColor[i + 8] = backdropCol;
+                    BgHiPrio[i + 8] = 4;
+                    BgHiFlags[i + 8] = (byte)BlendFlag.Backdrop;
                 }
             }
             else
             {
                 for (uint i = 0; i < Width; i++)
                 {
-                    WinMasks[i] = 0b111111;
+                    WinMasks[i + 8] = 0b111111;
 
-                    BgHiColor[i] = backdropCol;
-                    BgHiPrio[i] = 4;
-                    BgHiFlags[i] = (byte)BlendFlag.Backdrop;
+                    BgHiColor[i + 8] = backdropCol;
+                    BgHiPrio[i + 8] = 4;
+                    BgHiFlags[i + 8] = (byte)BlendFlag.Backdrop;
                 }
             }
         }
@@ -617,15 +619,18 @@ namespace OptimeGBA
             uint intraTileY = pixelYWrapped & 7;
 
             uint pixelX = bg.HorizontalOffset;
-            uint lineIndex = 0;
-            int tp = (int)(pixelX & 7);
+            uint intraTileX = bg.HorizontalOffset & 7;
+            uint lineIndex = 8 - intraTileX;
+
+            uint tilesToRender = (uint)(Width / 8);
+            if (lineIndex < 8) tilesToRender++;
 
             byte flag = (byte)(1 << bg.Id);
 
             uint mosaicXCounter = BgMosaicX;
             byte finalColor = 0;
 
-            for (uint tile = 0; tile < Width / 8 + 1; tile++)
+            for (uint tile = 0; tile < tilesToRender; tile++)
             {
                 uint pixelXWrapped = pixelX & 255;
 
@@ -633,7 +638,7 @@ namespace OptimeGBA
                 uint tileX = pixelXWrapped >> 3;
                 uint horizontalOffsetBlocks = CharBlockWidthTable[screenSizeBase + ((pixelX & 511) >> 8)];
                 uint mapHoriOffset = MapBlockSize * horizontalOffsetBlocks;
-                uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + (tileY * 64) + (tileX * 2);
+                uint mapEntryIndex = mapBase + mapVertOffset + mapHoriOffset + tileY * 64 + tileX * 2;
                 uint mapEntry = GetUshort(vram, mapEntryIndex);
 
                 uint tileNumber = mapEntry & 1023; // 10 bits
@@ -645,7 +650,7 @@ namespace OptimeGBA
 
                 if (bg.Use8BitColor)
                 {
-                    uint vramTileAddr = charBase + (tileNumber * 64) + (effectiveIntraTileY * 8);
+                    uint vramTileAddr = charBase + tileNumber * 64 + effectiveIntraTileY * 8;
                     ulong data = GetUlong(vram, vramTileAddr);
 
                     if (data != 0)
@@ -656,9 +661,8 @@ namespace OptimeGBA
                             rotateBy = 56;
                             data = RotateRight64(data, rotateBy);
                         }
-                        data = RotateRight64(data, (byte)(rotateBy * tp));
 
-                        for (; tp < 8; tp++)
+                        for (int tp = 0; tp < 8; tp++)
                         {
                             // 256 color, 64 bytes per tile, 8 bytes per row
                             if (mosaicX)
@@ -687,13 +691,13 @@ namespace OptimeGBA
                     }
                     else
                     {
-                        pixelX += (uint)(8 - tp);
-                        lineIndex += (uint)(8 - tp);
+                        pixelX += 8;
+                        lineIndex += 8;
                     }
                 }
                 else
                 {
-                    uint vramTileAddr = charBase + (tileNumber * 32) + (effectiveIntraTileY * 4);
+                    uint vramTileAddr = charBase + tileNumber * 32 + effectiveIntraTileY * 4;
                     uint data = GetUint(vram, vramTileAddr);
 
                     uint palette = (mapEntry >> 12) & 15; // 4 bits
@@ -707,9 +711,8 @@ namespace OptimeGBA
                             rotateBy = 28;
                             data = RotateRight32(data, rotateBy);
                         }
-                        data = RotateRight32(data, (byte)(rotateBy * tp));
 
-                        for (; tp < 8; tp++)
+                        for (int tp = 0; tp < 8; tp++)
                         {
                             if (mosaicX)
                             {
@@ -737,12 +740,10 @@ namespace OptimeGBA
                     }
                     else
                     {
-                        pixelX += (uint)(8 - tp);
-                        lineIndex += (uint)(8 - tp);
+                        pixelX += 8;
+                        lineIndex += 8;
                     }
                 }
-
-                tp = 0;
             }
         }
 
@@ -803,7 +804,7 @@ namespace OptimeGBA
 
                 if (vramValue != 0)
                 {
-                    PlaceBgPixel(p, LookupPalette(vramValue), bg.Priority, flag);
+                    PlaceBgPixel(p + 8, LookupPalette(vramValue), bg.Priority, flag);
                 }
             }
 
@@ -980,7 +981,7 @@ namespace OptimeGBA
                     int origXEdge0 = (int)(0 - xofs);
                     int origY = (int)(objPixelY - yofs);
 
-                    // Precalculate parameters for left and right matrix multiplications
+                    // Calculate starting parameters for matrix multiplications
                     int shiftedXOfs = (int)(xofs + xfofs << 8);
                     int shiftedYOfs = (int)(yofs + yfofs << 8);
                     int pBYOffset = pB * origY + shiftedXOfs;
@@ -988,14 +989,6 @@ namespace OptimeGBA
 
                     int objPixelXEdge0 = (int)(pA * origXEdge0 + pBYOffset);
                     int objPixelYEdge0 = (int)(pC * origXEdge0 + pDYOffset);
-
-                    // Right edge
-                    int origXEdge1 = (int)(1 - xofs);
-                    int objPixelXEdge1 = (int)(pA * origXEdge1 + pBYOffset);
-                    int objPixelYEdge1 = (int)(pC * origXEdge1 + pDYOffset);
-
-                    int xPerPixel = objPixelXEdge1 - objPixelXEdge0;
-                    int yPerPixel = objPixelYEdge1 - objPixelYEdge0;
 
                     for (int x = 0; x < renderXSize; x++)
                     {
@@ -1009,8 +1002,8 @@ namespace OptimeGBA
                                 RenderObjPixel(vram, (int)lerpedObjPixelX, (int)lerpedObjPixelY, tileNumber, xSize, use8BitColor, screenLineBase, palette, priority, mode);
                             }
                         }
-                        objPixelXEdge0 += xPerPixel;
-                        objPixelYEdge0 += yPerPixel;
+                        objPixelXEdge0 += pA;
+                        objPixelYEdge0 += pC;
 
                         screenLineBase = (screenLineBase + 1) % 512;
                     }
@@ -1114,15 +1107,15 @@ namespace OptimeGBA
 
             for (int i = 0; i < Width; i++)
             {
-                uint winMask = WinMasks[i];
+                uint winMask = WinMasks[i + 8];
                 ObjPixel objPixel = ObjBuffer[i];
 
-                ushort hiColor = BgHiColor[i];
-                ushort loColor = BgLoColor[i];
-                uint hiPrio = BgHiPrio[i];
-                uint loPrio = BgLoPrio[i];
-                BlendFlag hiPixelFlag = (BlendFlag)BgHiFlags[i];
-                BlendFlag loPixelFlag = (BlendFlag)BgLoFlags[i];
+                ushort hiColor = BgHiColor[i + 8];
+                ushort loColor = BgLoColor[i + 8];
+                uint hiPrio = BgHiPrio[i + 8];
+                uint loPrio = BgLoPrio[i + 8];
+                BlendFlag hiPixelFlag = (BlendFlag)BgHiFlags[i + 8];
+                BlendFlag loPixelFlag = (BlendFlag)BgLoFlags[i + 8];
                 uint objPaletteIndex = objPixel.PaletteIndex + 256U;
 
                 uint effectiveTarget1Flags = Target1Flags;
@@ -1283,7 +1276,7 @@ namespace OptimeGBA
             {
                 ushort data = GetUshort(vram, vramBase);
 
-                PlaceBgPixel(p, data, bg.Priority, flag);
+                PlaceBgPixel(p + 8, data, bg.Priority, flag);
 
                 screenBase++;
                 vramBase += 2;
