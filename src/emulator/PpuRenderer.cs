@@ -692,45 +692,31 @@ namespace OptimeGBA
 
                     if (data != 0)
                     {
-                        byte rotateBy = 8;
+                        uint dataU = (uint)(data >> 32);
+                        uint dataL = (uint)data;
+
+                        Vector256<uint> shifts;
+                        Vector256<uint> indices;
                         if (xFlip)
                         {
-                            rotateBy = 56;
-                            data = RotateRight64(data, rotateBy);
+                            shifts = Vector256.Create(24U, 16U, 8U, 0U, 24U, 16U, 8U, 0U);
+                            indices = Vector256.Create(dataU, dataU, dataU, dataU, dataL, dataL, dataL, dataL);
                         }
-
-                        for (int tp = 0; tp < 8; tp++)
+                        else
                         {
-                            // 256 color, 64 bytes per tile, 8 bytes per row
-                            if (mosaicX)
-                            {
-                                if (++mosaicXCounter > BgMosaicX)
-                                {
-                                    finalColor = (byte)data;
-                                    mosaicXCounter = 0;
-                                }
-                            }
-                            else
-                            {
-                                finalColor = (byte)data;
-                            }
-                            data = RotateRight64(data, rotateBy);
-
-                            if (finalColor != 0)
-                            {
-                                PlaceBgPixel(lineIndex, LookupPalette(finalColor), bg.Priority, flag);
-                            }
-
-                            lineIndex++;
+                            shifts = Vector256.Create(0U, 8U, 16U, 24U, 0U, 8U, 16U, 24U);
+                            indices = Vector256.Create(dataL, dataL, dataL, dataL, dataU, dataU, dataU, dataU);
                         }
+                        indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
+                        indices = Avx2.And(indices, Vector256.Create(0xFFU));
+                        Vector256<int> colors = Avx2.GatherVector256((int*)palettes, indices.AsInt32(), sizeof(ushort));
+                        colors = Avx2.And(colors, Vector256.Create(0xFFFF));
 
-                        pixelX += 8;
+                        PlaceBgRow(lineIndex, colors, priorityVec, flagVec, winMasks, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags);
                     }
-                    else
-                    {
-                        pixelX += 8;
-                        lineIndex += 8;
-                    }
+
+                    pixelX += 8;
+                    lineIndex += 8;
                 }
                 else
                 {
@@ -759,6 +745,33 @@ namespace OptimeGBA
                     lineIndex += 8;
                 }
             }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void PlaceBgRow(
+                uint lineIndex,
+                Vector256<int> color, Vector128<ushort> priority, Vector128<ushort> flag,
+                byte* winMasks,
+                ushort* hiColor, ushort* loColor,
+                byte* hiPrio, byte* loPrio,
+                byte* hiFlags, byte* loFlags
+            )
+        {
+            Vector128<short> winMask = Avx2.ConvertToVector128Int16((byte*)(winMasks + lineIndex));
+            winMask = Avx2.And(winMask, flag.AsInt16());
+            Vector256<int> winMask256 = Avx2.ConvertToVector256Int32(winMask);
+            color = Avx2.AndNot(Avx2.CompareEqual(winMask256, Vector256<int>.Zero), color);
+
+            Vector256<ushort> packedColor = Avx2.PackUnsignedSaturate(color.AsInt32(), Vector256<int>.Zero);
+            packedColor = Avx2.Permute4x64(packedColor.AsInt64(), 0b1000).AsUInt16();
+
+            Avx2.Store(hiColor + lineIndex, packedColor.GetLower());
+            Sse2.StoreScalar((long*)(hiPrio + lineIndex), priority.AsInt64());
+            Sse2.StoreScalar((long*)(hiFlags + lineIndex), flag.AsInt64());
+
+            Avx2.Store(loColor + lineIndex, packedColor.GetLower());
+            Sse2.StoreScalar((long*)(loPrio + lineIndex), priority.AsInt64());
+            Sse2.StoreScalar((long*)(loFlags + lineIndex), flag.AsInt64());
         }
 
         public readonly static int[] AffineSizeShiftTable = { 7, 8, 9, 10 };
@@ -839,33 +852,8 @@ namespace OptimeGBA
                 BgHiColor[lineIndex] = color;
                 BgHiFlags[lineIndex] = flag;
             }
-        }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceBgRow(
-                uint lineIndex,
-                Vector256<int> color, Vector128<ushort> priority, Vector128<ushort> flag,
-                byte* winMasks,
-                ushort* hiColor, ushort* loColor,
-                byte* hiPrio, byte* loPrio,
-                byte* hiFlags, byte* loFlags
-            )
-        {
-            Vector128<short> winMask = Avx2.ConvertToVector128Int16((byte*)(winMasks + lineIndex));
-            winMask = Avx2.And(winMask, flag.AsInt16());
-            Vector256<int> winMask256 = Avx2.ConvertToVector256Int32(winMask);
-            color = Avx2.AndNot(Avx2.CompareEqual(winMask256, Vector256<int>.Zero), color);
-
-            Vector256<ushort> packedColor = Avx2.PackUnsignedSaturate(color.AsInt32(), Vector256<int>.Zero);
-            packedColor = Avx2.Permute4x64(packedColor.AsInt64(), 0b1000).AsUInt16();
-
-            Avx2.Store(hiColor + lineIndex, packedColor);
-            Sse2.StoreScalar((long*)(hiPrio + lineIndex), priority.AsInt64());
-            Sse2.StoreScalar((long*)(hiFlags + lineIndex), flag.AsInt64());
-
-            Avx2.Store(loColor + lineIndex, packedColor);
-            Sse2.StoreScalar((long*)(loPrio + lineIndex), priority.AsInt64());
-            Sse2.StoreScalar((long*)(loFlags + lineIndex), flag.AsInt64());
+            // branchless
         }
 
         public readonly static uint[] ObjSizeTable = {
