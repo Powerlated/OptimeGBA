@@ -6,7 +6,6 @@ using static OptimeGBA.MemoryUtil;
 using System.IO;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
-
 namespace OptimeGBA
 {
     public sealed unsafe class PpuRenderer
@@ -36,23 +35,15 @@ namespace OptimeGBA
 
             // 16 wide to allow tiles to poke out on each side for efficiency
             WinMasks = MemoryUtil.AllocateUnmanagedArray(Width + 16);
-            BgLoColor = MemoryUtil.AllocateUnmanagedArray16(width + 16);
-            BgHiColor = MemoryUtil.AllocateUnmanagedArray16(width + 16);
-            BgHiPrio = MemoryUtil.AllocateUnmanagedArray(width + 16);
-            BgLoPrio = MemoryUtil.AllocateUnmanagedArray(width + 16);
-            BgHiFlags = MemoryUtil.AllocateUnmanagedArray(width + 16);
-            BgLoFlags = MemoryUtil.AllocateUnmanagedArray(width + 16);
+            BgLo = MemoryUtil.AllocateUnmanagedArray32(width + 16);
+            BgHi = MemoryUtil.AllocateUnmanagedArray32(width + 16);
 #else 
             ScreenFront = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
             ScreenBack = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
 
             WinMasks = MemoryUtil.AllocateManagedArray(width + 16);
-            BgLoColor = MemoryUtil.AllocateManagedArray16(width + 16);
-            BgHiColor = MemoryUtil.AllocateManagedArray16(width + 16);
-            BgHiPrio = MemoryUtil.AllocateManagedArray(width + 16);
-            BgLoPrio = MemoryUtil.AllocateManagedArray(width + 16);
-            BgHiFlags = MemoryUtil.AllocateManagedArray(width + 16);
-            BgLoFlags = MemoryUtil.AllocateManagedArray(width + 16);
+            BgLo = MemoryUtil.AllocateManagedArray32(width + 16);
+            BgHi = MemoryUtil.AllocateManagedArray32(width + 16);
 #endif
             ObjBuffer = new ObjPixel[Width];
             ObjWindowBuffer = new byte[Width];
@@ -113,12 +104,8 @@ namespace OptimeGBA
 
         public byte* WinMasks;
 
-        public ushort* BgLoColor;
-        public ushort* BgHiColor;
-        public byte* BgHiPrio;
-        public byte* BgLoPrio;
-        public byte* BgHiFlags;
-        public byte* BgLoFlags;
+        public uint* BgLo;
+        public uint* BgHi;
 
         ~PpuRenderer()
         {
@@ -126,12 +113,8 @@ namespace OptimeGBA
             MemoryUtil.FreeUnmanagedArray(ScreenBack);
             
             MemoryUtil.FreeUnmanagedArray(WinMasks);
-            MemoryUtil.FreeUnmanagedArray(BgLoColor);
-            MemoryUtil.FreeUnmanagedArray(BgHiColor);
-            MemoryUtil.FreeUnmanagedArray(BgHiPrio);
-            MemoryUtil.FreeUnmanagedArray(BgLoPrio);
-            MemoryUtil.FreeUnmanagedArray(BgHiFlags);
-            MemoryUtil.FreeUnmanagedArray(BgLoFlags);
+            MemoryUtil.FreeUnmanagedArray(BgLo);
+            MemoryUtil.FreeUnmanagedArray(BgHi);
         }
 #else
         public ushort[] ScreenFront;
@@ -139,12 +122,11 @@ namespace OptimeGBA
 
         public byte[] WinMasks;
 
-        public ushort[] BgLoColor;
-        public ushort[] BgHiColor;
-        public byte[] BgHiPrio;
-        public byte[] BgLoPrio;
-        public byte[] BgHiFlags;
-        public byte[] BgLoFlags;
+        // Bytes 0-1: Color
+        // Byte 2: Flag
+        // Byte 3: Priority
+        public uint[] BgLo;
+        public uint[] BgHi;
 #endif
 
         public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
@@ -409,7 +391,8 @@ namespace OptimeGBA
             byte win0ThresholdX = (byte)(Win0HRight - Win0HLeft);
             byte win1ThresholdX = (byte)(Win1HRight - Win1HLeft);
 
-            ushort backdropCol = LookupPalette(0);
+            // Erase with priority 4, backdrop flag, and color 0;
+            uint eraseColor = (uint)((4 << 24) | ((byte)BlendFlag.Backdrop << 16) | LookupPalette(0));
             if (AnyWindowEnabled)
             {
                 for (uint i = 0; i < Width; i++)
@@ -432,9 +415,7 @@ namespace OptimeGBA
                     WinMasks[i + 8] = val;
 
                     // Also prepare backgrounds arrays in this loop
-                    BgHiColor[i + 8] = backdropCol;
-                    BgHiPrio[i + 8] = 4;
-                    BgHiFlags[i + 8] = (byte)BlendFlag.Backdrop;
+                    BgHi[i + 8] = eraseColor;
                 }
             }
             else
@@ -443,9 +424,7 @@ namespace OptimeGBA
                 {
                     WinMasks[i + 8] = 0b111111;
 
-                    BgHiColor[i + 8] = backdropCol;
-                    BgHiPrio[i + 8] = 4;
-                    BgHiFlags[i + 8] = (byte)BlendFlag.Backdrop;
+                    BgHi[i + 8] = eraseColor;
                 }
             }
         }
@@ -594,28 +573,24 @@ namespace OptimeGBA
 #if UNSAFE
                 if (enableMosaicX)
                 {
-                    _RenderCharBackground(vcount, vram, palettes, WinMasks, BgHiColor, BgLoColor, BgHiPrio, BgLoPrio, BgHiFlags, BgLoFlags, bg, true);
+                    _RenderCharBackground(vcount, vram, palettes, WinMasks, BgHi, BgLo, bg, true);
                 }
                 else
                 {
-                    _RenderCharBackground(vcount, vram, palettes, WinMasks, BgHiColor, BgLoColor, BgHiPrio, BgLoPrio, BgHiFlags, BgLoFlags, bg, false);
+                    _RenderCharBackground(vcount, vram, palettes, WinMasks, BgHi, BgLo, bg, false);
                 }
 #else
-                fixed (
-                    byte* winMasks = WinMasks,
-                    hiPrio = BgHiPrio, loPrio = BgLoPrio,
-                    hiFlags = BgHiFlags, loFlags = BgLoFlags
-                )
+                fixed (byte* winMasks = WinMasks)
                 {
-                    fixed (ushort* hiColor = BgHiColor, loColor = BgLoColor)
+                    fixed (uint* hi = BgHi, lo = BgLo)
                     {
                         if (enableMosaicX)
                         {
-                            _RenderCharBackground(vcount, vram, palettes, winMasks, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags, bg, true);
+                            _RenderCharBackground(vcount, vram, palettes, winMasks, hi, lo, bg, true);
                         }
                         else
                         {
-                            _RenderCharBackground(vcount, vram, palettes, winMasks, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags, bg, false);
+                            _RenderCharBackground(vcount, vram, palettes, winMasks, hi, lo, bg, false);
                         }
                     }
                 }
@@ -628,9 +603,7 @@ namespace OptimeGBA
                 uint vcount, byte* vram,
                 byte* palettes,
                 byte* winMasks,
-                ushort* hiColor, ushort* loColor,
-                byte* hiPrio, byte* loPrio,
-                byte* hiFlags, byte* loFlags,
+                uint* hi, uint* lo,
                 Background bg, bool mosaicX
             )
         {
@@ -658,14 +631,10 @@ namespace OptimeGBA
             uint tilesToRender = (uint)(Width / 8);
             if (lineIndex < 8) tilesToRender++;
 
-            byte flag = (byte)(1 << bg.Id);
-
             uint mosaicXCounter = BgMosaicX;
-            byte finalColor = 0;
 
             // Every byte of these vectors are filled
-            Vector128<ushort> priorityVec = Vector128.Create((byte)bg.Priority).AsUInt16();
-            Vector128<ushort> flagVec = Vector128.Create((byte)flag).AsUInt16();
+            Vector256<int> metaVec = Vector256.Create((bg.Priority << 8) | (1 << bg.Id));
 
             for (uint tile = 0; tile < tilesToRender; tile++)
             {
@@ -709,10 +678,8 @@ namespace OptimeGBA
                         }
                         indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
                         indices = Avx2.And(indices, Vector256.Create(0xFFU));
-                        Vector256<int> colors = Avx2.GatherVector256((int*)palettes, indices.AsInt32(), sizeof(ushort));
-                        colors = Avx2.And(colors, Vector256.Create(0xFFFF));
 
-                        PlaceBgRow(lineIndex, colors, priorityVec, flagVec, winMasks, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags);
+                        PlaceBgRow(lineIndex, palettes, 0, indices, metaVec, Vector256.Create(0xFFU), winMasks, hi, lo);
                     }
 
                     pixelX += 8;
@@ -735,10 +702,8 @@ namespace OptimeGBA
                         Vector256<uint> indices = Vector256.Create(data);
                         indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
                         indices = Avx2.And(indices, Vector256.Create(0xFU));
-                        Vector256<int> colors = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
-                        colors = Avx2.And(colors, Vector256.Create(0xFFFF));
 
-                        PlaceBgRow(lineIndex, colors, priorityVec, flagVec, winMasks, hiColor, loColor, hiPrio, loPrio, hiFlags, loFlags);
+                        PlaceBgRow(lineIndex, palettes, paletteRow, indices, metaVec, Vector256.Create(0xFU), winMasks, hi, lo);
                     }
 
                     pixelX += 8;
@@ -750,28 +715,32 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void PlaceBgRow(
                 uint lineIndex,
-                Vector256<int> color, Vector128<ushort> priority, Vector128<ushort> flag,
+                byte* palettes,
+                uint paletteRow,
+                Vector256<uint> indices, Vector256<int> meta, Vector256<uint> clearMask,
                 byte* winMasks,
-                ushort* hiColor, ushort* loColor,
-                byte* hiPrio, byte* loPrio,
-                byte* hiFlags, byte* loFlags
+                uint* hi, uint* lo
             )
         {
-            Vector128<short> winMask = Avx2.ConvertToVector128Int16((byte*)(winMasks + lineIndex));
-            winMask = Avx2.And(winMask, flag.AsInt16());
-            Vector256<int> winMask256 = Avx2.ConvertToVector256Int32(winMask);
-            color = Avx2.AndNot(Avx2.CompareEqual(winMask256, Vector256<int>.Zero), color);
+            Vector256<int> color = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
+            color = Avx2.And(color, Vector256.Create(0xFFFF));
+            // Weave metadata (priority, ID) into color data
+            color = Avx2.Or(color, Avx2.ShiftLeftLogical(meta, 16));
 
-            Vector256<ushort> packedColor = Avx2.PackUnsignedSaturate(color.AsInt32(), Vector256<int>.Zero);
-            packedColor = Avx2.Permute4x64(packedColor.AsInt64(), 0b1000).AsUInt16();
+            Vector256<int> winMask = Avx2.ConvertToVector256Int32((byte*)(winMasks + lineIndex));
+            winMask = Avx2.And(winMask, meta);
+            winMask = Avx2.CompareEqual(winMask, Vector256<int>.Zero);
+            // Get important color bits
+            Vector256<int> clear = Avx2.And(indices, clearMask).AsInt32();
+            // Are those bits clear? 
+            clear = Avx2.CompareEqual(clear, Vector256<int>.Zero);
+            // Merge with window mask
+            winMask = Avx2.Or(winMask, clear);
+            winMask = Avx2.Xor(winMask, Vector256.Create(0xFFFFFFFF).AsInt32());
 
-            Avx2.Store(hiColor + lineIndex, packedColor.GetLower());
-            Sse2.StoreScalar((long*)(hiPrio + lineIndex), priority.AsInt64());
-            Sse2.StoreScalar((long*)(hiFlags + lineIndex), flag.AsInt64());
-
-            Avx2.Store(loColor + lineIndex, packedColor.GetLower());
-            Sse2.StoreScalar((long*)(loPrio + lineIndex), priority.AsInt64());
-            Sse2.StoreScalar((long*)(loFlags + lineIndex), flag.AsInt64());
+            // Push back covered pixels from hi to lo
+            Avx2.MaskStore((int*)(lo + lineIndex), winMask, Avx2.LoadVector256((int*)(hi + lineIndex)));
+            Avx2.MaskStore((int*)(hi + lineIndex), winMask, color);
         }
 
         public readonly static int[] AffineSizeShiftTable = { 7, 8, 9, 10 };
@@ -784,7 +753,7 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
-            byte flag = (byte)(1 << bg.Id);
+            ushort meta = (ushort)((bg.Priority << 8) | (1 << bg.Id));
 
             int posX = bg.AffinePosX;
             int posY = bg.AffinePosY;
@@ -831,7 +800,7 @@ namespace OptimeGBA
 
                 if (vramValue != 0)
                 {
-                    PlaceBgPixel(p + 8, LookupPalette(vramValue), bg.Priority, flag);
+                    PlaceBgPixel(p + 8, LookupPalette(vramValue), meta);
                 }
             }
 
@@ -840,20 +809,13 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceBgPixel(uint lineIndex, ushort color, byte priority, byte flag)
+        public void PlaceBgPixel(uint lineIndex, ushort color, ushort meta)
         {
-            if ((WinMasks[lineIndex] & flag) != 0)
+            if ((WinMasks[lineIndex] & meta) != 0)
             {
-                BgLoPrio[lineIndex] = BgHiPrio[lineIndex];
-                BgLoColor[lineIndex] = BgHiColor[lineIndex];
-                BgLoFlags[lineIndex] = BgHiFlags[lineIndex];
-
-                BgHiPrio[lineIndex] = priority;
-                BgHiColor[lineIndex] = color;
-                BgHiFlags[lineIndex] = flag;
+                BgLo[lineIndex] = BgHi[lineIndex];
+                BgHi[lineIndex] = (uint)(color | ((uint)meta << 16));
             }
-
-            // branchless
         }
 
         public readonly static uint[] ObjSizeTable = {
@@ -1139,12 +1101,14 @@ namespace OptimeGBA
                 uint winMask = WinMasks[i + 8];
                 ObjPixel objPixel = ObjBuffer[i];
 
-                ushort hiColor = BgHiColor[i + 8];
-                ushort loColor = BgLoColor[i + 8];
-                uint hiPrio = BgHiPrio[i + 8];
-                uint loPrio = BgLoPrio[i + 8];
-                BlendFlag hiPixelFlag = (BlendFlag)BgHiFlags[i + 8];
-                BlendFlag loPixelFlag = (BlendFlag)BgLoFlags[i + 8];
+                uint hi = BgHi[i + 8];
+                uint lo = BgLo[i + 8];
+                ushort hiColor = (ushort)hi;
+                ushort loColor = (ushort)lo;
+                byte hiPrio = (byte)(hi >> 24);
+                byte loPrio = (byte)(lo >> 24);
+                BlendFlag hiPixelFlag = (BlendFlag)((byte)(hi >> 16));
+                BlendFlag loPixelFlag = (BlendFlag)((byte)(lo >> 16));
                 uint objPaletteIndex = objPixel.PaletteIndex + 256U;
 
                 uint effectiveTarget1Flags = Target1Flags;
@@ -1283,11 +1247,11 @@ namespace OptimeGBA
         {
             uint srcBase = (uint)(vcount * Width);
 
-            byte prio = bg.Priority;
-            byte flag = (byte)(1 << bg.Id);
+            ushort meta = (ushort)((bg.Priority << 8) | (1 << bg.Id));
+
             for (uint i = 0; i < Width; i++)
             {
-                PlaceBgPixel(i + 8, PlaceholderFor3D[srcBase + i], prio, flag);
+                PlaceBgPixel(i, PlaceholderFor3D[srcBase + i], meta);
             }
         }
 
@@ -1300,12 +1264,13 @@ namespace OptimeGBA
             uint vramBase = (uint)(vcount * Width * 2) + bg.MapBaseBlock * MapBlockSizeAffineNds;
 
             byte flag = (byte)(1 << bg.Id);
+            ushort meta = (ushort)((bg.Priority << 8) | flag);
 
             for (uint p = 0; p < Width; p++)
             {
                 ushort data = GetUshort(vram, vramBase);
 
-                PlaceBgPixel(p + 8, data, bg.Priority, flag);
+                PlaceBgPixel(p + 8, data, meta);
 
                 screenBase++;
                 vramBase += 2;
