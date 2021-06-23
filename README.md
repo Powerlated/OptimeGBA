@@ -16,8 +16,8 @@ per second in Pokémon Emerald on a high-end machine.
  - Passing all of [jsmolka's gba-suite](https://github.com/jsmolka/gba-suite) CPU instruction tests
  - Timers and DMA are implemented
  - Audio is fully implemented and sounds great on most games
- - Limited emulation of the Pixel Processing Unit (PPU)
-    - Non-affine background rendering
+ - Almost complete emulation of the Pixel Processing Unit (PPU)
+    - Affine and non-affine background rendering
     - Affine and non-affine sprite support
     - Alpha blending
     - Windowing
@@ -26,7 +26,7 @@ per second in Pokémon Emerald on a high-end machine.
 ## Future Plans
  - Optimization, optimization, optimization
  - Implement and fix the remaining PPU features
-    - Affine backgrounds
+    - Sprite mosaic
  - Seek out any unimplemented ARM7TDMI quirks that may remain
 
 ## Controls
@@ -53,15 +53,13 @@ per second in Pokémon Emerald on a high-end machine.
 
 ## Screenshots
 
-As graphics are under construction, screenshots below likely contain errors.
-
 ![Pokémon Emerald](/img/emerald.png)
 ![Pokémon Mystery Dungeon: Red Rescue Team](/img/pmd.png)
 ![Kirby: Nightmare in Dreamland](/img/kirby_nightmare_in_dreamland.png)
 
 ## Running
 
-For building and using Optime GBA, .NET 5 is recommended. 
+For building and using Optime GBA, .NET 5 is recommended. You also need a CPU with AVX2 support because I completely overdid the renderer.
 
 A compatible Game Boy Advance BIOS image is required to run the emulator. Place the BIOS in the emulator working directory (the root of the repository when using `dotnet run`) named as `gba_bios.bin`. 
 
