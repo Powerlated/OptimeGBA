@@ -381,7 +381,9 @@ namespace OptimeGBA
             }
             else if (addr >= 0x4000134 && addr <= 0x400015A) // Serial Communications
             {
-
+                switch (addr) {
+                    case 0x4000135: return 0x80;
+                }
             }
             else if (addr >= 0x4000200 && addr <= 0x4FF0800) // Interrupt, Waitstate, and Power-Down Control
             {
