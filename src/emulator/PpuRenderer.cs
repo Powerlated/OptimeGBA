@@ -391,6 +391,12 @@ namespace OptimeGBA
             byte win0ThresholdX = (byte)(Win0HRight - Win0HLeft);
             byte win1ThresholdX = (byte)(Win1HRight - Win1HLeft);
 
+            if (!win0InsideY) win0ThresholdX = 0;
+            if (!win1InsideY) win1ThresholdX = 0;
+
+            byte win0HPos = (byte)(-Win0HLeft);
+            byte win1HPos = (byte)(-Win1HLeft);
+
             // Erase with priority 4, backdrop flag, and color 0;
             uint eraseColor = (uint)((4 << 24) | ((byte)BlendFlag.Backdrop << 16) | LookupPalette(0));
             if (AnyWindowEnabled)
@@ -399,11 +405,11 @@ namespace OptimeGBA
                 {
                     byte val = WinOutEnable;
 
-                    if (win0InsideY && ((byte)(i - Win0HLeft)) < win0ThresholdX)
+                    if (win0HPos < win0ThresholdX)
                     {
                         val = Win0InEnable;
                     }
-                    else if (win1InsideY && ((byte)(i - Win1HLeft)) < win1ThresholdX)
+                    else if (win1HPos < win1ThresholdX)
                     {
                         val = Win1InEnable;
                     }
@@ -411,6 +417,9 @@ namespace OptimeGBA
                     {
                         val = WinObjEnable;
                     }
+
+                    win0HPos++;
+                    win1HPos++;
 
                     WinMasks[i + 8] = val;
 
@@ -661,22 +670,14 @@ namespace OptimeGBA
 
                     if (data != 0)
                     {
-                        uint dataU = (uint)(data >> 32);
-                        uint dataL = (uint)data;
-
-                        Vector256<uint> shifts;
-                        Vector256<uint> indices;
+                        Vector256<uint> indices = Avx2.ConvertToVector256Int32((byte*)&data).AsUInt32();
                         if (xFlip)
                         {
-                            shifts = Vector256.Create(24U, 16U, 8U, 0U, 24U, 16U, 8U, 0U);
-                            indices = Vector256.Create(dataU, dataU, dataU, dataU, dataL, dataL, dataL, dataL);
+                            // First, reverse within 128-bit lanes
+                            indices = Avx2.Shuffle(indices, 0b00_01_10_11);
+                            // Then, swap upper and lower halves
+                            indices = Avx2.Permute2x128(indices, indices, 1);
                         }
-                        else
-                        {
-                            shifts = Vector256.Create(0U, 8U, 16U, 24U, 0U, 8U, 16U, 24U);
-                            indices = Vector256.Create(dataL, dataL, dataL, dataL, dataU, dataU, dataU, dataU);
-                        }
-                        indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
                         indices = Avx2.And(indices, Vector256.Create(0xFFU));
 
                         PlaceBgRow(lineIndex, palettes, 0, indices, metaVec, Vector256.Create(0xFFU), winMasks, hi, lo);
@@ -764,16 +765,13 @@ namespace OptimeGBA
 
             for (uint p = 0; p < Width; p++)
             {
-                uint xInteger = (uint)((posX >> 8) & 0x7FFFF);
-                uint pixelX = xInteger;
-
-                uint yInteger = (uint)((posY >> 8) & 0x7FFFF);
-                uint pixelY = yInteger;
+                uint pixelX = (uint)((posX >> 8) & 0x7FFFF);
+                uint pixelY = (uint)((posY >> 8) & 0x7FFFF);
 
                 posX += bg.AffineA;
                 posY += bg.AffineC;
 
-                if (!bg.OverflowWrap && (pixelX > size || pixelY > size))
+                if (!bg.OverflowWrap && (pixelX >= size || pixelY >= size))
                 {
                     continue;
                 }
@@ -791,11 +789,9 @@ namespace OptimeGBA
                 uint mapEntryIndex = mapBase + (tileY * tileSize) + (tileX * 1);
                 uint tileNumber = vram[mapEntryIndex];
 
-                uint realIntraTileY = intraTileY;
-
                 // Always 256color
                 // 256 color, 64 bytes per tile, 8 bytes per row
-                uint vramAddr = charBase + (tileNumber * 64) + (realIntraTileY * 8) + (intraTileX / 1);
+                uint vramAddr = charBase + (tileNumber * 64) + (intraTileY * 8) + (intraTileX / 1);
                 byte vramValue = vram[vramAddr];
 
                 if (vramValue != 0)
@@ -1105,8 +1101,6 @@ namespace OptimeGBA
                 uint lo = BgLo[i + 8];
                 ushort hiColor = (ushort)hi;
                 ushort loColor = (ushort)lo;
-                byte hiPrio = (byte)(hi >> 24);
-                byte loPrio = (byte)(lo >> 24);
                 BlendFlag hiPixelFlag = (BlendFlag)((byte)(hi >> 16));
                 BlendFlag loPixelFlag = (BlendFlag)((byte)(lo >> 16));
                 uint objPaletteIndex = objPixel.PaletteIndex + 256U;
@@ -1116,6 +1110,9 @@ namespace OptimeGBA
 
                 if (objPaletteIndex != 256 && (winMask & (uint)WindowFlag.Obj) != 0)
                 {
+                    byte hiPrio = (byte)(hi >> 24);
+                    byte loPrio = (byte)(lo >> 24);
+
                     if (objPixel.Priority <= hiPrio)
                     {
                         loColor = hiColor;
@@ -1251,7 +1248,7 @@ namespace OptimeGBA
 
             for (uint i = 0; i < Width; i++)
             {
-                PlaceBgPixel(i, PlaceholderFor3D[srcBase + i], meta);
+                PlaceBgPixel(i + 8, PlaceholderFor3D[srcBase + i], meta);
             }
         }
 
