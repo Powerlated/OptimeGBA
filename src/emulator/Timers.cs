@@ -188,9 +188,8 @@ namespace OptimeGBA
             // On overflow, refill with reload value
             CounterVal = ReloadVal;
 
-            if (!Timers.NdsMode)
+            if (Timers.Device is Gba gba)
             {
-                var gba = (Gba)Timers.Device;
                 if (EnableIrq)
                 {
                     gba.HwControl.FlagInterrupt((uint)InterruptGba.Timer0Overflow + Id);
@@ -201,10 +200,9 @@ namespace OptimeGBA
                     gba.GbaAudio.TimerOverflow(cyclesLate, Id);
                 }
             }
-            else
+            else if (Timers.Device is DeviceNds deviceNds)
             {
-                var nds = (DeviceNds)Timers.Device;
-                nds.HwControl.FlagInterrupt((uint)InterruptNds.Timer0Overflow + Id);
+                deviceNds.HwControl.FlagInterrupt((uint)InterruptNds.Timer0Overflow + Id);
             }
 
             if (Id < 3)
