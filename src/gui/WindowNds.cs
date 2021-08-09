@@ -11,7 +11,7 @@ using ImGuiUtils;
 using static Util;
 using System.Collections.Generic;
 using OptimeGBA;
-using System.Text;
+using System.Runtime.Intrinsics.X86;
 using System.Runtime.InteropServices;
 using static SDL2.SDL;
 using static OptimeGBAEmulator.Window;
@@ -195,7 +195,7 @@ namespace OptimeGBAEmulator
             byte[] bios7 = System.IO.File.ReadAllBytes("bios7.bin");
             byte[] bios9 = System.IO.File.ReadAllBytes("bios9.bin");
             byte[] firmware = System.IO.File.ReadAllBytes("firmware.bin");
-            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, new byte[0], "", AudioReady) { DirectBoot = false });
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, new byte[0], "", AudioReady) { DirectBoot = true });
 
             EmulationThread = new Thread(EmulationThreadHandler);
             EmulationThread.Name = "Emulation Core";
@@ -237,7 +237,7 @@ namespace OptimeGBAEmulator
             var bios7 = Nds.Provider.Bios7;
             var bios9 = Nds.Provider.Bios9;
             var firmware = Nds.Provider.Firmware;
-            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady) { DirectBoot = false });
+            Nds = new Nds(new ProviderNds(bios7, bios9, firmware, rom, savPath, AudioReady) { DirectBoot = true });
             Nds.Cartridge.LoadSave(sav);
         }
 
@@ -916,8 +916,8 @@ namespace OptimeGBAEmulator
                 ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
                 ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
 
-                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.FlashState.ToString());
-                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Address, 6));
+                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.Flash.FlashState.ToString());
+                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Flash.Address, 6));
                 ImGui.Text("Slot 1 Access: " + (Nds.MemoryControl.Slot1AccessRights ? "ARM7" : "ARM9"));
                 ImGui.Text("Slot 1 State: " + Nds.Cartridge.State.ToString());
                 ImGui.Text("Slot 1 Addr: " + Hex(Nds.Cartridge.DataPos, 8));
@@ -1761,15 +1761,20 @@ namespace OptimeGBAEmulator
                     // ImGui.Text(Pad(i.ToString(), 2, '0')); ImGui.SameLine();
                     // displayCheckbox("Playing##" + i, c.Playing);
                     var fillSize = new Vector2(size.X * fillPortion, size.Y);
-                    var bgColor = ImGui.GetColorU32(c.Playing ? ImGuiCol.Button : ImGuiCol.Border);
+                    uint crcColor = c.SOUNDSAD;
+                    for (uint j = 0; j < 8; j++)
+                    {
+                        crcColor = Sse42.Crc32(j, crcColor);
+                    }
+                    var bgColor = c.Playing ? crcColor : ImGui.GetColorU32(ImGuiCol.Border);
                     drawList.AddRectFilled(pos, pos + size, bgColor); // fill BG
 
                     if (c.Playing)
                     {
                         float volumePortion = (float)(c.Volume >> (1 << c.VolumeDiv)) / 127f;
-                        uint fillColor = (ImGui.GetColorU32(ImGuiCol.ButtonHovered) & 0x00FFFFFF) | ((uint)(255f * volumePortion) << 24);
+                        uint fillColor = (crcColor & 0x00FFFFFF) | ((uint)(255f * volumePortion) << 24);
                         drawList.AddRectFilled(pos, pos + fillSize, fillColor); // fill
-                        drawList.AddRectFilled(new Vector2(pos.X + fillSize.X - 2, pos.Y), new Vector2(pos.X + fillSize.X, pos.Y + size.Y - 1), ImGui.GetColorU32(ImGuiCol.ButtonActive));
+                        drawList.AddRectFilled(new Vector2(pos.X + fillSize.X - 2, pos.Y), new Vector2(pos.X + fillSize.X, pos.Y + size.Y - 1), ColorBright(crcColor, 0.5f));
                     }
                     if (c.RepeatMode == 1)
                     {
@@ -1836,7 +1841,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text("Source: " + HexN(c.SOUNDSAD, 7));
                     ImGui.SameLine(); ImGui.Text("Data: " + Hex(c.CurrentData, 8));
                     ImGui.SameLine(); ImGui.Text("Value: " + Hex((ushort)c.CurrentValue, 4));
-                    float hz = 33513982F / (float)c.Interval;;
+                    float hz = 33513982F / (float)c.Interval;
                     ImGui.SameLine(); ImGui.Text("Hz: " + string.Format("{0:0.#}", hz));
                     // ImGui.SameLine(); ImGui.Text("Repeat: " + c.RepeatMode);
                     // ImGui.SameLine(); ImGui.Text("Format: " + c.Format);
@@ -1851,6 +1856,16 @@ namespace OptimeGBAEmulator
 
                 ImGui.End();
             }
+        }
+
+        uint ColorBright(uint col, float mul)
+        {
+            byte r = (byte)((byte)(col >> 0) * mul);
+            byte g = (byte)((byte)(col >> 8) * mul);
+            byte b = (byte)((byte)(col >> 16) * mul);
+            byte a = (byte)(col >> 24);
+
+            return (uint)((a << 24) | (b << 16) | (g << 8) | r);
         }
 
         public static string[] PokemonGen4GameNames = {
@@ -2082,16 +2097,6 @@ namespace OptimeGBAEmulator
 
                         var cursorPos = ImGui.GetCursorScreenPos();
 
-                        Func<uint, float, uint> colorBright = (uint col, float mul) =>
-                        {
-                            byte r = (byte)((byte)(col >> 0) * mul);
-                            byte g = (byte)((byte)(col >> 8) * mul);
-                            byte b = (byte)((byte)(col >> 16) * mul);
-                            byte a = (byte)(col >> 24);
-
-                            return (uint)((a << 24) | (b << 16) | (g << 8) | r);
-                        };
-
                         for (int y = 0; y < rows; y++)
                         {
                             for (int x = 0; x < cols; x++)
@@ -2114,8 +2119,8 @@ namespace OptimeGBAEmulator
                                 // drawList.AddRectFilled(cursorPos, cursorPos + new Vector2(size, size), color);
 
                                 ImGui.PushStyleColor(ImGuiCol.Button, color);
-                                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, colorBright(color, 0.75f));
-                                ImGui.PushStyleColor(ImGuiCol.ButtonActive, colorBright(color, 0.5f));
+                                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ColorBright(color, 0.75f));
+                                ImGui.PushStyleColor(ImGuiCol.ButtonActive, ColorBright(color, 0.5f));
                                 ImGui.PushID(y * cols + x);
                                 ImGui.SetCursorScreenPos(cursorPos);
                                 // now use invisible buttons that fill the gap for better UX

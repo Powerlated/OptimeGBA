@@ -899,7 +899,7 @@ namespace OptimeGBA
                 VCount = 0;
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
-                // CompileVram();
+                CompileVram();
 
                 // Pre-render sprites for line zero
                 fixed (byte* vramObjA = VramObjA, vramObjB = VramObjB)

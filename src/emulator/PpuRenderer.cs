@@ -61,7 +61,7 @@ namespace OptimeGBA
 
             // Load 3D placeholder
             // Why do I waste time on useless crap like this
-            Stream img = typeof(PpuRenderer).Assembly.GetManifestResourceStream("OptimeGBA-Opentk.resources.3d-placeholder.raw");
+            Stream img = typeof(PpuRenderer).Assembly.GetManifestResourceStream("OptimeGBA-OpenTK.resources.3d-placeholder.raw");
             if (img == null)
             {
                 img = typeof(PpuRenderer).Assembly.GetManifestResourceStream("OptimeGBA-SDL.resources.3d-placeholder.raw");

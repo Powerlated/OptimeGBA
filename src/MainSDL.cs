@@ -300,7 +300,7 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady) { DirectBoot = false };
+                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady) { DirectBoot = true };
                 Nds = new Nds(provider);
 
                 Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);

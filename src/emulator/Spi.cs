@@ -12,16 +12,6 @@ namespace OptimeGBA
         Touchscreen = 2
     }
 
-    public enum SpiFlashState
-    {
-        Ready,
-        Identification,
-        ReceiveAddress,
-        Reading,
-        Status,
-        TakePrefix, // For cartridges with IR and Flash
-    }
-
     public enum SpiTouchscreenState
     {
         Ready,
@@ -31,12 +21,12 @@ namespace OptimeGBA
     public unsafe sealed class Spi
     {
         public Nds7 Nds7;
-        public byte[] Firmware;
 
         public Spi(Nds7 nds7)
         {
             Nds7 = nds7;
-            Firmware = nds7.Nds.Provider.Firmware;
+
+            Flash = new SpiFlash(nds7.Nds.Provider.Firmware);
         }
 
         // From Nocash's original DS 
@@ -51,12 +41,8 @@ namespace OptimeGBA
         bool EnableSpi;
         bool Busy;
 
-        // Firmware flash state
-        public SpiFlashState FlashState;
-        public bool EnableWrite;
-        public byte IdIndex;
-        public uint Address;
-        public byte AddressByteNum = 0;
+        // Flash
+        public SpiFlash Flash;
 
         // Touchscreen state
         public SpiTouchscreenState TouchscreenState;
@@ -68,14 +54,14 @@ namespace OptimeGBA
 
         public void SetTouchPos(uint x, uint y)
         {
-            ushort adcX1 = GetUshort(Firmware, 0x3FF58);
-            ushort adcY1 = GetUshort(Firmware, 0x3FF5A);
-            byte scrX1 = Firmware[0x3FF5C];
-            byte scrY1 = Firmware[0x3FF5D];
-            ushort adcX2 = GetUshort(Firmware, 0x3FF5E);
-            ushort adcY2 = GetUshort(Firmware, 0x3FF60);
-            byte scrX2 = Firmware[0x3FF62];
-            byte scrY2 = Firmware[0x3FF63];
+            ushort adcX1 = GetUshort(Flash.Data, 0x3FF58);
+            ushort adcY1 = GetUshort(Flash.Data, 0x3FF5A);
+            byte scrX1 = Flash.Data[0x3FF5C];
+            byte scrY1 = Flash.Data[0x3FF5D];
+            ushort adcX2 = GetUshort(Flash.Data, 0x3FF5E);
+            ushort adcY2 = GetUshort(Flash.Data, 0x3FF60);
+            byte scrX2 = Flash.Data[0x3FF62];
+            byte scrY2 = Flash.Data[0x3FF63];
 
             // Convert screen coords to calibrated ADC touchscreen coords
             TouchAdcX = (ushort)((x - (scrX1 - 1)) * (adcX2 - adcX1) / (scrX2 - scrX1) + adcX1);
@@ -150,7 +136,7 @@ namespace OptimeGBA
                 switch (DeviceSelect)
                 {
                     case SpiDevice.Firmware:
-                        TransferToSpiFlash(val);
+                        OutData = Flash.TransferTo(val, TransferSize);
                         break;
                     case SpiDevice.Touchscreen:
                         TransferToTouchscreen(val);
@@ -164,75 +150,8 @@ namespace OptimeGBA
 
             if (!ChipSelHold)
             {
-                FlashState = SpiFlashState.Ready;
+                Flash.Deselect();
                 TouchscreenState = SpiTouchscreenState.Ready;
-            }
-        }
-
-        public void TransferToSpiFlash(byte val)
-        {
-            switch (FlashState)
-            {
-                case SpiFlashState.Ready:
-                    // Console.WriteLine("SPI: Receive command! " + Hex(val, 2));
-                    OutData = 0x00;
-                    switch (val)
-                    {
-                        case 0x06:
-                            EnableWrite = true;
-                            break;
-                        case 0x04:
-                            EnableWrite = false;
-                            break;
-                        case 0x9F:
-                            FlashState = SpiFlashState.Identification;
-                            IdIndex = 0;
-                            break;
-                        case 0x03:
-                            FlashState = SpiFlashState.ReceiveAddress;
-                            Address = 0;
-                            AddressByteNum = 0;
-                            break;
-                        case 0x05: // Identification
-                            // Console.WriteLine("SPI ID");
-                            OutData = 0x00;
-                            break;
-                        case 0x00:
-                            break;
-                        default:
-                            throw new NotImplementedException("SPI: Unimplemented command: " + Hex(val, 2));
-                    }
-                    break;
-                case SpiFlashState.ReceiveAddress:
-                    // Console.WriteLine("SPI: Address byte write: " + Hex(val, 2));
-                    Address |= (uint)(val << ((2 - AddressByteNum) * 8));
-                    AddressByteNum++;
-                    if (AddressByteNum > 2)
-                    {
-                        AddressByteNum = 0;
-                        FlashState = SpiFlashState.Reading;
-                        // Console.WriteLine("SPI: Address written: " + Hex(Address, 6));
-                    }
-                    break;
-                case SpiFlashState.Reading:
-                    // Console.WriteLine("SPI: Read from address: " + Hex(Address, 6));
-                    // Nds7.Cpu.Error("SPI");
-                    if (Address < 0x40000)
-                    {
-                        OutData = Firmware[Address];
-                    }
-                    else
-                    {
-                        OutData = 0;
-                    }
-                    Address += TransferSize ? 2U : 1U;
-                    Address &= 0xFFFFFF;
-                    break;
-                case SpiFlashState.Identification:
-                    OutData = Id[IdIndex];
-                    IdIndex++;
-                    IdIndex %= 3;
-                    break;
             }
         }
 
