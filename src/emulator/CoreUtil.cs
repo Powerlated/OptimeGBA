@@ -86,7 +86,7 @@ namespace OptimeGBA
             return (byte)((i * 0x0202020202U & 0x010884422010U) % 1023);
         }
 
-                [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint LogicalShiftLeft32(uint n, byte bits)
         {
             return n << bits;
@@ -116,13 +116,54 @@ namespace OptimeGBA
             return (n >> bits) | (n << -bits);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte GetByteIn(long n, int pos)
+        {
+            return (byte)(n >> (pos * 8));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte GetByteIn(ulong n, int pos)
+        {
+            return (byte)(n >> (pos * 8));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte GetByteIn(long n, uint pos)
+        {
+            return (byte)(n >> (int)(pos * 8));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static byte GetByteIn(ulong n, uint pos)
+        {
+            return (byte)(n >> (int)(pos * 8));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static uint SetByteIn(uint n, byte val, uint pos)
         {
             uint mask = ~(0xFFU << (int)(pos * 8));
             uint or = (uint)(val << (int)(pos * 8));
             return (n & mask) | or;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong SetByteIn(ulong n, byte val, uint pos)
+        {
+            ulong mask = ~(0xFFUL << (int)(pos * 8));
+            ulong or = (ulong)((ulong)val << (int)(pos * 8));
+            return (n & mask) | or;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static long SetByteIn(long n, byte val, uint pos)
+        {
+            long mask = ~(0xFFL << (int)(pos * 8));
+            long or = (long)((long)val << (int)(pos * 8));
+            return (n & mask) | or;
+        }
+
 
         // public bool bitReset(uint i, uint bit)
         // {
