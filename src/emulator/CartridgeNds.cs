@@ -172,7 +172,7 @@ namespace OptimeGBA
         public byte ReadHwio8(bool fromArm7, uint addr)
         {
             byte val = 0;
-            if (fromArm7 == Nds.MemoryControl.Slot1AccessRights)
+            if (fromArm7 == Nds.MemoryControl.Nds7Slot1AccessRights)
             {
                 switch (addr)
                 {
@@ -229,7 +229,7 @@ namespace OptimeGBA
 
         public void WriteHwio8(bool fromArm7, uint addr, byte val)
         {
-            if (fromArm7 == Nds.MemoryControl.Slot1AccessRights)
+            if (fromArm7 == Nds.MemoryControl.Nds7Slot1AccessRights)
             {
                 switch (addr)
                 {
@@ -403,7 +403,7 @@ namespace OptimeGBA
 
                 // Trigger Slot 1 DMA
                 Nds.Scheduler.AddEventRelative(SchedulerId.None, 0, RepeatCartridgeTransfer);
-                // Console.WriteLine("Trigger slot 1 DMA, Dest: " + Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
+                // Console.WriteLine("Trigger slot 1 DMA, Dest: " + Hex(Nds.Dma7.Ch[3].DmaDest, 8));
             }
         }
 
@@ -467,14 +467,14 @@ namespace OptimeGBA
 
         public void RepeatCartridgeTransfer(long cyclesLate)
         {
-            // Console.WriteLine(Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8));
-            if (Nds.MemoryControl.Slot1AccessRights)
+            // Console.WriteLine(Hex(Nds.Dma7.Ch[3].DmaDest, 8));
+            if (Nds.MemoryControl.Nds7Slot1AccessRights)
             {
-                Nds.Nds7.Dma.Repeat((byte)DmaStartTimingNds7.Slot1);
+                Nds.Dma7.Repeat((byte)DmaStartTimingNds7.Slot1);
             }
             else
             {
-                Nds.Nds9.Dma.Repeat((byte)DmaStartTimingNds9.Slot1);
+                Nds.Dma9.Repeat((byte)DmaStartTimingNds9.Slot1);
             }
         }
 
@@ -485,13 +485,13 @@ namespace OptimeGBA
 
             if (TransferReadyIrq)
             {
-                if (Nds.MemoryControl.Slot1AccessRights)
+                if (Nds.MemoryControl.Nds7Slot1AccessRights)
                 {
-                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                    Nds.HwControl7.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
                 }
                 else
                 {
-                    Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
+                    Nds.HwControl9.FlagInterrupt((uint)InterruptNds.Slot1DataTransferComplete);
 
                 }
             }

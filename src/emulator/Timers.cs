@@ -14,12 +14,12 @@ namespace OptimeGBA
         public long EnableCycles = 0;
         public long Interval;
 
+        public static readonly int[] PrescalerShifts = {
+            0, 6, 8, 10
+        };
         public static readonly uint[] PrescalerDivs = {
             1, 64, 256, 1024
         };
-
-        public uint Prescaler = 0;
-        public uint PrescalerDiv = PrescalerDivs[0];
 
         public uint PrescalerSel = 0;
         public bool CountUpTiming = false;
@@ -71,7 +71,6 @@ namespace OptimeGBA
                     break;
                 case 0x02: // TMCNT_H B0
                     PrescalerSel = (uint)(val & 0b11);
-                    PrescalerDiv = PrescalerDivs[PrescalerSel];
                     CountUpTiming = BitTest(val, 2);
                     EnableIrq = BitTest(val, 6);
                     if (BitTest(val, 7))
@@ -89,7 +88,8 @@ namespace OptimeGBA
             }
         }
 
-        public SchedulerId GetSchedulerId() {
+        public SchedulerId GetSchedulerId()
+        {
             uint id = (uint)SchedulerId.Timer90 + Id;
             if (Timers.IsNds7) id += 4;
 
@@ -112,7 +112,7 @@ namespace OptimeGBA
         public uint CalculateCounter()
         {
             long diff = Timers.Scheduler.CurrentTicks - EnableCycles;
-            diff /= PrescalerDiv;
+            diff >>= PrescalerShifts[PrescalerSel];
 
             if (Enabled)
             {
@@ -150,19 +150,19 @@ namespace OptimeGBA
             uint diff = max - CounterVal;
 
             // Align to the master clock
-            uint prescalerMod = diff % PrescalerDiv;
+            uint prescalerMod = diff % PrescalerDivs[PrescalerSel];
             diff -= prescalerMod;
-            diff += PrescalerDiv;
+            diff += PrescalerDivs[PrescalerSel];
 
-            return diff * PrescalerDiv;
+            return diff * PrescalerDivs[PrescalerSel];
         }
 
         public long CalculateAlignedCurrentTicks()
         {
             long ticks = Timers.Scheduler.CurrentTicks;
-            long prescalerMod = Timers.Scheduler.CurrentTicks % PrescalerDiv;
+            long prescalerMod = Timers.Scheduler.CurrentTicks % PrescalerDivs[PrescalerSel];
             ticks -= prescalerMod;
-            ticks += PrescalerDiv;
+            ticks += PrescalerDivs[PrescalerSel];
 
             return ticks;
         }
@@ -188,21 +188,14 @@ namespace OptimeGBA
             // On overflow, refill with reload value
             CounterVal = ReloadVal;
 
-            if (Timers.Device is Gba gba)
+            if (Id < 2 && Timers.GbaAudio != null)
             {
-                if (EnableIrq)
-                {
-                    gba.HwControl.FlagInterrupt((uint)InterruptGba.Timer0Overflow + Id);
-                }
-
-                if (Id < 2)
-                {
-                    gba.GbaAudio.TimerOverflow(cyclesLate, Id);
-                }
+                Timers.GbaAudio.TimerOverflow(cyclesLate, Id);
             }
-            else if (Timers.Device is DeviceNds deviceNds)
+
+            if (EnableIrq)
             {
-                deviceNds.HwControl.FlagInterrupt((uint)InterruptNds.Timer0Overflow + Id);
+                Timers.HwControl.FlagInterrupt((uint)InterruptGba.Timer0Overflow + Id);
             }
 
             if (Id < 3)
@@ -234,15 +227,16 @@ namespace OptimeGBA
 
     public sealed class Timers
     {
-        public Device Device;
+        public HwControl HwControl;
+        public GbaAudio GbaAudio;
         public bool NdsMode;
         public bool IsNds7;
         public Scheduler Scheduler;
 
-
-        public Timers(Device device, Scheduler scheduler, bool ndsMode, bool isNds7)
+        public Timers(GbaAudio gbaAudio, HwControl hwControl, Scheduler scheduler, bool ndsMode, bool isNds7)
         {
-            Device = device;
+            GbaAudio = gbaAudio;
+            HwControl = hwControl;
             NdsMode = ndsMode;
             IsNds7 = isNds7;
             Scheduler = scheduler;
@@ -259,48 +253,12 @@ namespace OptimeGBA
 
         public byte ReadHwio8(uint addr)
         {
-            if (addr >= 0x4000100 && addr <= 0x4000103)
-            {
-                return T[0].ReadHwio8(addr - 0x4000100);
-            }
-            else if (addr >= 0x4000104 && addr <= 0x4000107)
-            {
-                return T[1].ReadHwio8(addr - 0x4000104);
-            }
-            else if (addr >= 0x4000108 && addr <= 0x400010B)
-            {
-                return T[2].ReadHwio8(addr - 0x4000108);
-            }
-            else if (addr >= 0x400010C && addr <= 0x400010F)
-            {
-                return T[3].ReadHwio8(addr - 0x400010C);
-            }
-            throw new Exception("This shouldn't happen.");
+            return T[(addr >> 2) & 3].ReadHwio8(addr & 3);
         }
 
         public void WriteHwio8(uint addr, byte val)
         {
-            if (addr >= 0x4000100 && addr <= 0x4000103)
-            {
-                T[0].WriteHwio8(addr - 0x4000100, val);
-                return;
-            }
-            else if (addr >= 0x4000104 && addr <= 0x4000107)
-            {
-                T[1].WriteHwio8(addr - 0x4000104, val);
-                return;
-            }
-            else if (addr >= 0x4000108 && addr <= 0x400010B)
-            {
-                T[2].WriteHwio8(addr - 0x4000108, val);
-                return;
-            }
-            else if (addr >= 0x400010C && addr <= 0x400010F)
-            {
-                T[3].WriteHwio8(addr - 0x400010C, val);
-                return;
-            }
-            throw new Exception("This shouldn't happen.");
+            T[(addr >> 2) & 3].WriteHwio8(addr & 3, val);
         }
     }
 }

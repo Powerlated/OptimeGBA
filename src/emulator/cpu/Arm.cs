@@ -405,7 +405,7 @@ namespace OptimeGBA
             arm7.ThumbState = BitTest(rmValue, 0);
             if (arm7.ThumbState)
             {
-                arm7.Device.StateChange();
+                arm7.StateChange();
                 arm7.LineDebug("Switch to THUMB State");
             }
             else

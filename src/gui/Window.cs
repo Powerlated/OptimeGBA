@@ -220,23 +220,23 @@ namespace OptimeGBAEmulator
             Context.SwapBuffers();
         }
 
-        public static void drawDisassembly(Device dev)
+        public static void drawDisassembly(Arm7 cpu)
         {
-            uint back = dev.Cpu.ThumbState ? 32U : 64U;
+            uint back = cpu.ThumbState ? 32U : 64U;
 
             int rows = 32;
-            uint tempBase = dev.Cpu.R[15] - back;
+            uint tempBase = cpu.R[15] - back;
 
             // Forcibly align addresses to avoid race condition
             for (int i = 0; i < rows; i++)
             {
-                if (dev.Cpu.ThumbState)
+                if (cpu.ThumbState)
                 {
-                    ushort val = dev.Cpu.Mem.ReadDebug16(tempBase & ~1U);
+                    ushort val = cpu.Mem.ReadDebug16(tempBase & ~1U);
                     String disasm = disasmThumb(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 4)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - 4)
+                    if (tempBase == cpu.R[15] - 4)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }
@@ -248,11 +248,11 @@ namespace OptimeGBAEmulator
                 }
                 else
                 {
-                    uint val = dev.Cpu.Mem.ReadDebug32(tempBase & ~3U);
+                    uint val = cpu.Mem.ReadDebug32(tempBase & ~3U);
                     String disasm = disasmArm(val);
 
                     String s = $"{Util.HexN(tempBase, 8)}: {HexN(val, 8)} {disasm}";
-                    if (tempBase == dev.Cpu.R[15] - 8)
+                    if (tempBase == cpu.R[15] - 8)
                     {
                         ImGui.TextColored(new System.Numerics.Vector4(0.0f, 1.0f, 0.0f, 1.0f), s);
                     }

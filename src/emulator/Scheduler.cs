@@ -134,16 +134,24 @@ namespace OptimeGBA
             UpdateNextEvent();
         }
 
+        public CircularBuffer<SchedulerEvent> EventsToRemove = new(64, null);
         public void CancelEventsById(SchedulerId id)
         {
+            EventsToRemove.Reset();
+
             SchedulerEvent evt = RootEvent.NextEvent;
             while (evt != null)
             {
                 if (evt.Id == id)
                 {
-                    RemoveEvent(evt);
+                    EventsToRemove.Insert(evt);
                 }
                 evt = evt.NextEvent;
+            }
+
+            while (EventsToRemove.Entries > 0)
+            {
+                RemoveEvent(EventsToRemove.Pop());
             }
         }
 

@@ -886,7 +886,7 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Instruction Viewer"))
             {
-                drawDisassembly(Gba);
+                drawDisassembly(Gba.Cpu);
             }
         }
 

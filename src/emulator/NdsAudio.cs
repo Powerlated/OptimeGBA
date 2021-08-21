@@ -59,15 +59,15 @@ namespace OptimeGBA
 
     public class NdsAudio
     {
-        Nds7 Nds7;
+        Nds Nds;
 
-        public NdsAudio(Nds7 nds7)
+        public NdsAudio(Nds nds)
         {
-            Nds7 = nds7;
+            Nds = nds;
 
-            if (Nds7.Nds.Cartridge.IdString != null && CustomSamples.ContainsKey(Nds7.Nds.Cartridge.IdString))
+            if (Nds.Cartridge.IdString != null && CustomSamples.ContainsKey(Nds.Cartridge.IdString))
             {
-                CustomSampleSet = CustomSamples[Nds7.Nds.Cartridge.IdString];
+                CustomSampleSet = CustomSamples[Nds.Cartridge.IdString];
             }
 
             for (uint i = 0; i < 16; i++)
@@ -548,7 +548,7 @@ namespace OptimeGBA
 
                                     if ((c.SamplePos & 3) == 0)
                                     {
-                                        c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos);
+                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos);
                                     }
 
                                     c.CurrentValue = (short)((byte)c.CurrentData << 8);
@@ -576,7 +576,7 @@ namespace OptimeGBA
 
                                     if ((c.SamplePos & 1) == 0)
                                     {
-                                        c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos * 2);
+                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos * 2);
                                     }
 
                                     c.CurrentValue = (short)c.CurrentData;
@@ -587,7 +587,7 @@ namespace OptimeGBA
                                 case 2: // IMA-ADPCM
                                     if ((c.SamplePos & 7) == 0)
                                     {
-                                        c.CurrentData = Nds7.Mem.Read32(c.SOUNDSAD + c.SamplePos / 2);
+                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos / 2);
                                         // ADPCM header
                                         if (c.SamplePos == 0)
                                         {
@@ -719,11 +719,11 @@ namespace OptimeGBA
             {
                 SampleBufferPos = 0;
 
-                Nds7.Nds.Provider.AudioCallback(SampleBuffer);
+                Nds.Provider.AudioCallback(SampleBuffer);
             }
 
 
-            Nds7.Nds.Scheduler.AddEventRelative(SchedulerId.ApuSample, (cyclesThisSample - cyclesLate) + 1, Sample);
+            Nds.Scheduler.AddEventRelative(SchedulerId.ApuSample, (cyclesThisSample - cyclesLate) + 1, Sample);
         }
     }
 }

@@ -841,7 +841,7 @@ namespace OptimeGBA
             Renderers[0].IncrementMosaicCounters();
             Renderers[1].IncrementMosaicCounters();
 
-            Nds.Nds9.Dma.Repeat((byte)DmaStartTimingNds9.HBlank);
+            Nds.Dma9.Repeat((byte)DmaStartTimingNds9.HBlank);
         }
 
         public void EndVblankToHblank(long cyclesLate)
@@ -872,11 +872,11 @@ namespace OptimeGBA
 
                         if (VBlankIrqEnable7)
                         {
-                            Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.VBlank);
+                            Nds.HwControl7.FlagInterrupt((uint)InterruptNds.VBlank);
                         }
                         if (VBlankIrqEnable9)
                         {
-                            Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.VBlank);
+                            Nds.HwControl9.FlagInterrupt((uint)InterruptNds.VBlank);
                         }
 
                         Renderers[0].RunVblankOperations();
@@ -914,11 +914,11 @@ namespace OptimeGBA
 
             if (VCounterMatch7 && VCounterIrqEnable7)
             {
-                Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.VCounterMatch);
+                Nds.HwControl7.FlagInterrupt((uint)InterruptNds.VCounterMatch);
             }
             if (VCounterMatch9 && VCounterIrqEnable9)
             {
-                Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.VCounterMatch);
+                Nds.HwControl9.FlagInterrupt((uint)InterruptNds.VCounterMatch);
             }
         }
     }

@@ -23,8 +23,8 @@ namespace OptimeGBA
 
         // Shared between 7/9 EXMEMCNT/EXMEMSTAT
         // true = ARM7
-        public bool Slot2AccessRights;
-        public bool Slot1AccessRights;
+        public bool Nds7Slot2AccessRights;
+        public bool Nds7Slot1AccessRights;
         public bool MainMemoryAccessPriority;
 
         public byte ReadHwio8Nds9(uint addr)
@@ -39,11 +39,11 @@ namespace OptimeGBA
                     val |= (byte)((Slot2Rom0WaitArm9 & 0b11) << 2);
                     val |= (byte)((Slot2Rom1WaitArm9 & 0b1) << 4);
                     val |= (byte)((Slot2RomPhiPinOutArm9 & 0b11) << 5);
-                    if (Slot2AccessRights) val = BitSet(val, 7);
+                    if (Nds7Slot2AccessRights) val = BitSet(val, 7);
                     break;
                 case 0x4000205:
                     // Console.WriteLine("read from exmemcnt b1");
-                    if (Slot1AccessRights) val = BitSet(val, 3);
+                    if (Nds7Slot1AccessRights) val = BitSet(val, 3);
                     if (MainMemoryAccessPriority) val = BitSet(val, 7);
                     val = BitSet(val, 6);
                     break;
@@ -62,11 +62,11 @@ namespace OptimeGBA
                     Slot2Rom0WaitArm9 = (byte)BitRange(val, 2, 3);
                     Slot2Rom1WaitArm9 = (byte)BitRange(val, 4, 4);
                     Slot2RomPhiPinOutArm9 = (byte)BitRange(val, 5, 6);
-                    Slot2AccessRights = BitTest(val, 7);
+                    Nds7Slot2AccessRights = BitTest(val, 7);
                     break;
                 case 0x4000205:
                     // Console.WriteLine("write to exmemcnt b1");
-                    Slot1AccessRights = BitTest(val, 3);
+                    Nds7Slot1AccessRights = BitTest(val, 3);
                     MainMemoryAccessPriority = BitTest(val, 7);
                     break;
 
@@ -103,11 +103,11 @@ namespace OptimeGBA
                     val |= (byte)((Slot2Rom0WaitArm7 & 0b11) << 2);
                     val |= (byte)((Slot2Rom1WaitArm7 & 0b1) << 4);
                     val |= (byte)((Slot2RomPhiPinOutArm7 & 0b11) << 5);
-                    if (Slot2AccessRights) val = BitSet(val, 7);
+                    if (Nds7Slot2AccessRights) val = BitSet(val, 7);
                     break;
                 case 0x4000205:
                     // Console.WriteLine("read from exmemstat b1");
-                    if (Slot1AccessRights) val = BitSet(val, 3);
+                    if (Nds7Slot1AccessRights) val = BitSet(val, 3);
                     if (MainMemoryAccessPriority) val = BitSet(val, 7);
                     val = BitSet(val, 6);
                     break;

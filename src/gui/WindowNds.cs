@@ -69,13 +69,13 @@ namespace OptimeGBAEmulator
                 ThreadSync.WaitOne();
 
                 int cyclesLeft = CyclesPerFrameNds;
-                while (cyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
+                while (cyclesLeft > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored)
                 {
                     cyclesLeft -= (int)Nds.Step();
                     CheckBreakpoints();
                 }
 
-                while (!SyncToAudio && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored && RunEmulator)
+                while (!SyncToAudio && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && RunEmulator)
                 {
                     Nds.Step();
                     CheckBreakpoints();
@@ -90,8 +90,8 @@ namespace OptimeGBAEmulator
 
         public void CheckBreakpoints()
         {
-            var arm9 = Nds.Nds9.Cpu;
-            var arm7 = Nds.Nds7.Cpu;
+            var arm9 = Nds.Cpu9;
+            var arm7 = Nds.Cpu7;
 
             uint addr9 = GetCurrentInstrAddr(arm9);
             uint addr7 = GetCurrentInstrAddr(arm7);
@@ -147,7 +147,7 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored && RunEmulator)
+            while (cycles > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && RunEmulator)
             {
                 cycles -= (int)Nds.Step();
             }
@@ -157,7 +157,7 @@ namespace OptimeGBAEmulator
         public void RunFrame()
         {
             CyclesLeft += FrameCycles;
-            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored)
             {
                 CyclesLeft -= (int)Nds.Step();
             }
@@ -166,7 +166,7 @@ namespace OptimeGBAEmulator
         public void RunScanline()
         {
             CyclesLeft += ScanlineCycles;
-            while (CyclesLeft > 0 && !Nds.Nds7.Cpu.Errored && !Nds.Nds9.Cpu.Errored)
+            while (CyclesLeft > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored)
             {
                 CyclesLeft -= (int)Nds.Step();
             }
@@ -274,7 +274,7 @@ namespace OptimeGBAEmulator
                 Time += e.Time;
             }
 
-            if (Nds.Nds7.Mem.SaveProvider.Dirty)
+            if (Nds.Mem7.SaveProvider.Dirty)
             {
                 DumpSav();
             }
@@ -323,32 +323,32 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(5);
 
                 ImGui.Text("User");
-                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13usr, 8));
-                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14usr, 8));
+                ImGui.Text("R13: " + Hex(Nds.Cpu7.R13usr, 8));
+                ImGui.Text("R14: " + Hex(Nds.Cpu7.R14usr, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Supervisor");
-                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13svc, 8));
-                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14svc, 8));
+                ImGui.Text("R13: " + Hex(Nds.Cpu7.R13svc, 8));
+                ImGui.Text("R14: " + Hex(Nds.Cpu7.R14svc, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Abort");
-                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13abt, 8));
-                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14abt, 8));
+                ImGui.Text("R13: " + Hex(Nds.Cpu7.R13abt, 8));
+                ImGui.Text("R14: " + Hex(Nds.Cpu7.R14abt, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("IRQ");
-                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13irq, 8));
-                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14irq, 8));
+                ImGui.Text("R13: " + Hex(Nds.Cpu7.R13irq, 8));
+                ImGui.Text("R14: " + Hex(Nds.Cpu7.R14irq, 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Undefined");
-                ImGui.Text("R13: " + Hex(Nds.Nds7.Cpu.R13und, 8));
-                ImGui.Text("R14: " + Hex(Nds.Nds7.Cpu.R14und, 8));
+                ImGui.Text("R13: " + Hex(Nds.Cpu7.R13und, 8));
+                ImGui.Text("R14: " + Hex(Nds.Cpu7.R14und, 8));
 
                 ImGui.End();
             }
@@ -440,7 +440,7 @@ namespace OptimeGBAEmulator
                     ImGui.Text($"{Util.HexN(tempBase, 8)}:");
                     for (int j = 0; j < cols; j++)
                     {
-                        uint val = Nds.Nds9.Mem.Read8(tempBase);
+                        uint val = Nds.Mem9.Read8(tempBase);
 
                         ImGui.SameLine();
                         ImGui.Selectable($"{HexN(val, 2)}");
@@ -484,23 +484,23 @@ namespace OptimeGBAEmulator
         public String BuildEmuText()
         {
             String text = "";
-            text += $"{HexN(Nds.Nds7.Cpu.R[0], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[1], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[2], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[3], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[4], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[5], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[6], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[7], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[8], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[9], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[10], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[11], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[12], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[13], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[14], 8)} ";
-            text += $"{HexN(Nds.Nds7.Cpu.R[15], 8)} ";
-            text += $"cpsr: {HexN(Nds.Nds7.Cpu.GetCPSR(), 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[0], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[1], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[2], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[3], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[4], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[5], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[6], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[7], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[8], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[9], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[10], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[11], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[12], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[13], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[14], 8)} ";
+            text += $"{HexN(Nds.Cpu7.R[15], 8)} ";
+            text += $"cpsr: {HexN(Nds.Cpu7.GetCPSR(), 8)} ";
             String emuText = text.Substring(0, 135) + text.Substring(144, 14) + $" {LogIndex + 1}";
             return emuText;
         }
@@ -528,9 +528,9 @@ namespace OptimeGBAEmulator
                 }
 
                 ImGui.Separator();
-                ImGui.Text(Nds.Nds7.Cpu.Debug);
+                ImGui.Text(Nds.Cpu7.Debug);
                 ImGui.Separator();
-                ImGui.Text(Nds.Nds9.Cpu.Debug);
+                ImGui.Text(Nds.Cpu9.Debug);
                 ImGui.End();
             }
         }
@@ -591,22 +591,22 @@ namespace OptimeGBAEmulator
             {
                 ImGui.Columns(5);
                 ImGui.Text("ARM9");
-                drawCpuInfo(Nds.Nds9.Cpu);
-                displayCheckbox("IRQ Disable", Nds.Nds9.Cpu.IRQDisable);
+                drawCpuInfo(Nds.Cpu9);
+                displayCheckbox("IRQ Disable", Nds.Cpu9.IRQDisable);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
-                drawCpuInfo(Nds.Nds7.Cpu);
-                displayCheckbox("IRQ Disable", Nds.Nds7.Cpu.IRQDisable);
+                drawCpuInfo(Nds.Cpu7);
+                displayCheckbox("IRQ Disable", Nds.Cpu7.IRQDisable);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
-                // ImGui.Text($"Ins Next Up: {(Nds.Nds7.Cpu.ThumbState ? Hex(Nds.Nds7.Cpu.THUMBDecode, 4) : Hex(Nds.Nds7.Cpu.ARMDecode, 8))}");
+                // ImGui.Text($"Ins Next Up: {(Nds.Cpu7.ThumbState ? Hex(Nds.Cpu7.THUMBDecode, 4) : Hex(Nds.Cpu7.ARMDecode, 8))}");
 
                 ImGui.Text($"");
 
                 if (ImGui.Button("flag ARM7 RTC IRQ"))
                 {
-                    Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.Rtc);
+                    Nds.HwControl7.FlagInterrupt((uint)InterruptNds.Rtc);
                 }
 
                 if (ImGui.Button("Reset"))
@@ -639,8 +639,8 @@ namespace OptimeGBAEmulator
 
                 if (ImGui.Button("Un-error"))
                 {
-                    Nds.Nds7.Cpu.Errored = false;
-                    Nds.Nds9.Cpu.Errored = false;
+                    Nds.Cpu7.Errored = false;
+                    Nds.Cpu9.Errored = false;
                 }
                 if (ImGui.Button("Step"))
                 {
@@ -649,7 +649,7 @@ namespace OptimeGBAEmulator
                 }
                 if (ImGui.Button("Step until ARM9 unhalted"))
                 {
-                    while (Nds.Nds9.Cpu.Halted)
+                    while (Nds.Cpu9.Halted)
                     {
                         Nds.Step();
                     }
@@ -657,7 +657,7 @@ namespace OptimeGBAEmulator
                 // if (ImGui.Button("Step Until Error"))
                 // {
                 //     bool exit = false;
-                //     while (!Nds.Nds7.Cpu.Errored && !exit)
+                //     while (!Nds.Cpu7.Errored && !exit)
                 //     {
 
                 //         Nds.Step();
@@ -674,7 +674,7 @@ namespace OptimeGBAEmulator
                 if (ImGui.Button("Step For"))
                 {
                     int num = DebugStepFor;
-                    while (num > 0 && !Nds.Nds7.Cpu.Errored)
+                    while (num > 0 && !Nds.Cpu7.Errored)
                     {
                         Nds.Step();
                         num--;
@@ -688,29 +688,29 @@ namespace OptimeGBAEmulator
                     {
                         Action nds7Executed = () =>
                         {
-                            file7.WriteLine(BuildEmuFullText(Nds.Nds7.Cpu));
-                            if (Nds.Nds7.Cpu.InterruptServiced)
+                            file7.WriteLine(BuildEmuFullText(Nds.Cpu7));
+                            if (Nds.Cpu7.InterruptServiced)
                             {
-                                Nds.Nds7.Cpu.InterruptServiced = false;
+                                Nds.Cpu7.InterruptServiced = false;
                                 file7.WriteLine("---------------- INTERRUPT ----------------");
                             }
                         };
 
                         Action nds9Executed = () =>
                         {
-                            file9.WriteLine(BuildEmuFullText(Nds.Nds9.Cpu));
-                            if (Nds.Nds9.Cpu.InterruptServiced)
+                            file9.WriteLine(BuildEmuFullText(Nds.Cpu9));
+                            if (Nds.Cpu9.InterruptServiced)
                             {
-                                Nds.Nds9.Cpu.InterruptServiced = false;
+                                Nds.Cpu9.InterruptServiced = false;
                                 file9.WriteLine("---------------- INTERRUPT ----------------");
                             }
                         };
 
-                        Nds.Nds7.Cpu.PreExecutionCallback = nds7Executed;
-                        Nds.Nds9.Cpu.PreExecutionCallback = nds9Executed;
+                        Nds.Cpu7.PreExecutionCallback = nds7Executed;
+                        Nds.Cpu9.PreExecutionCallback = nds9Executed;
 
                         int num = times;
-                        while (num > 0 && !Nds.Nds9.Cpu.Errored && !Nds.Nds7.Cpu.Errored)
+                        while (num > 0 && !Nds.Cpu9.Errored && !Nds.Cpu7.Errored)
                         {
                             Nds.Step();
 
@@ -718,8 +718,8 @@ namespace OptimeGBAEmulator
                             num--;
                         }
 
-                        Nds.Nds7.Cpu.PreExecutionCallback = null;
-                        Nds.Nds9.Cpu.PreExecutionCallback = null;
+                        Nds.Cpu7.PreExecutionCallback = null;
+                        Nds.Cpu9.PreExecutionCallback = null;
                     }
                 }
 
@@ -729,28 +729,28 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
-                // ImGui.Text($"BIOS Reads: {Nds.Nds7.Mem.BiosReads}");
-                // ImGui.Text($"EWRAM Reads: {Nds.Nds7.Mem.EwramReads}");
-                // ImGui.Text($"IWRAM Reads: {Nds.Nds7.Mem.IwramReads}");
-                // ImGui.Text($"ROM Reads: {Nds.Nds7.Mem.RomReads}");
-                // ImGui.Text($"HWIO Reads: {Nds.Nds7.Mem.HwioReads}");
-                // ImGui.Text($"Palette Reads: {Nds.Nds7.Mem.PaletteReads}");
-                // ImGui.Text($"VRAM Reads: {Nds.Nds7.Mem.VramReads}");
-                // ImGui.Text($"OAM Reads: {Nds.Nds7.Mem.OamReads}");
+                // ImGui.Text($"BIOS Reads: {Nds.Mem7.BiosReads}");
+                // ImGui.Text($"EWRAM Reads: {Nds.Mem7.EwramReads}");
+                // ImGui.Text($"IWRAM Reads: {Nds.Mem7.IwramReads}");
+                // ImGui.Text($"ROM Reads: {Nds.Mem7.RomReads}");
+                // ImGui.Text($"HWIO Reads: {Nds.Mem7.HwioReads}");
+                // ImGui.Text($"Palette Reads: {Nds.Mem7.PaletteReads}");
+                // ImGui.Text($"VRAM Reads: {Nds.Mem7.VramReads}");
+                // ImGui.Text($"OAM Reads: {Nds.Mem7.OamReads}");
                 ImGui.Spacing();
-                // ImGui.Text($"EWRAM Writes: {Nds.Nds7.Mem.EwramWrites}");
-                // ImGui.Text($"IWRAM Writes: {Nds.Nds7.Mem.IwramWrites}");
-                // ImGui.Text($"HWIO Writes: {Nds.Nds7.Mem.HwioWrites}");
-                // ImGui.Text($"Palette Writes: {Nds.Nds7.Mem.PaletteWrites}");
-                // ImGui.Text($"VRAM Writes: {Nds.Nds7.Mem.VramWrites}");
-                // ImGui.Text($"OAM Writes: {Nds.Nds7.Mem.OamWrites}");
+                // ImGui.Text($"EWRAM Writes: {Nds.Mem7.EwramWrites}");
+                // ImGui.Text($"IWRAM Writes: {Nds.Mem7.IwramWrites}");
+                // ImGui.Text($"HWIO Writes: {Nds.Mem7.HwioWrites}");
+                // ImGui.Text($"Palette Writes: {Nds.Mem7.PaletteWrites}");
+                // ImGui.Text($"VRAM Writes: {Nds.Mem7.VramWrites}");
+                // ImGui.Text($"OAM Writes: {Nds.Mem7.OamWrites}");
                 ImGui.Spacing();
                 // bool ticked = Nds.HwControl.IME;
                 // ImGui.Checkbox("IME", ref ticked);
 
                 ImGui.Checkbox("Log HWIO", ref LogHwioAccesses);
-                Nds.Nds7.Mem.LogHwioAccesses = LogHwioAccesses;
-                Nds.Nds9.Mem.LogHwioAccesses = LogHwioAccesses;
+                Nds.Mem7.LogHwioAccesses = LogHwioAccesses;
+                Nds.Mem9.LogHwioAccesses = LogHwioAccesses;
                 ImGui.Checkbox("Direct Boot", ref Nds.Provider.DirectBoot);
                 // ImGui.Checkbox("Big Screen", ref BigScreen);
                 // ImGui.Checkbox("Back Buffer", ref ShowBackBuf);
@@ -773,40 +773,40 @@ namespace OptimeGBAEmulator
                 ImGuiColumnSeparator();
 
                 ImGui.Text("NDS9---------------");
-                ImGui.Text($"0 Src:   {Hex(Nds.Nds9.Dma.Ch[0].DmaSource, 8)}");
-                ImGui.Text($"1 Src:   {Hex(Nds.Nds9.Dma.Ch[1].DmaSource, 8)}");
-                ImGui.Text($"2 Src:   {Hex(Nds.Nds9.Dma.Ch[2].DmaSource, 8)}");
-                ImGui.Text($"3 Src:   {Hex(Nds.Nds9.Dma.Ch[3].DmaSource, 8)}");
-                ImGui.Text($"0 Dest:  {Hex(Nds.Nds9.Dma.Ch[0].DmaDest, 8)}");
-                ImGui.Text($"1 Dest:  {Hex(Nds.Nds9.Dma.Ch[1].DmaDest, 8)}");
-                ImGui.Text($"2 Dest:  {Hex(Nds.Nds9.Dma.Ch[2].DmaDest, 8)}");
-                ImGui.Text($"3 Dest:  {Hex(Nds.Nds9.Dma.Ch[3].DmaDest, 8)}");
-                ImGui.Text($"0 Words: {Hex(Nds.Nds9.Dma.Ch[0].DMACNT_L, 4)}");
-                ImGui.Text($"1 Words: {Hex(Nds.Nds9.Dma.Ch[1].DMACNT_L, 4)}");
-                ImGui.Text($"2 Words: {Hex(Nds.Nds9.Dma.Ch[2].DMACNT_L, 4)}");
-                ImGui.Text($"3 Words: {Hex(Nds.Nds9.Dma.Ch[3].DMACNT_L, 4)}");
-                ImGui.Text($"0 Start: {((DmaStartTimingNds9)(Nds.Nds9.Dma.Ch[0].StartTiming)).ToString()}");
-                ImGui.Text($"1 Start: {((DmaStartTimingNds9)(Nds.Nds9.Dma.Ch[1].StartTiming)).ToString()}");
-                ImGui.Text($"2 Start: {((DmaStartTimingNds9)(Nds.Nds9.Dma.Ch[2].StartTiming)).ToString()}");
-                ImGui.Text($"3 Start: {((DmaStartTimingNds9)(Nds.Nds9.Dma.Ch[3].StartTiming)).ToString()}");
+                ImGui.Text($"0 Src:   {Hex(Nds.Dma9.Ch[0].DmaSource, 8)}");
+                ImGui.Text($"1 Src:   {Hex(Nds.Dma9.Ch[1].DmaSource, 8)}");
+                ImGui.Text($"2 Src:   {Hex(Nds.Dma9.Ch[2].DmaSource, 8)}");
+                ImGui.Text($"3 Src:   {Hex(Nds.Dma9.Ch[3].DmaSource, 8)}");
+                ImGui.Text($"0 Dest:  {Hex(Nds.Dma9.Ch[0].DmaDest, 8)}");
+                ImGui.Text($"1 Dest:  {Hex(Nds.Dma9.Ch[1].DmaDest, 8)}");
+                ImGui.Text($"2 Dest:  {Hex(Nds.Dma9.Ch[2].DmaDest, 8)}");
+                ImGui.Text($"3 Dest:  {Hex(Nds.Dma9.Ch[3].DmaDest, 8)}");
+                ImGui.Text($"0 Words: {Hex(Nds.Dma9.Ch[0].DMACNT_L, 4)}");
+                ImGui.Text($"1 Words: {Hex(Nds.Dma9.Ch[1].DMACNT_L, 4)}");
+                ImGui.Text($"2 Words: {Hex(Nds.Dma9.Ch[2].DMACNT_L, 4)}");
+                ImGui.Text($"3 Words: {Hex(Nds.Dma9.Ch[3].DMACNT_L, 4)}");
+                ImGui.Text($"0 Start: {((DmaStartTimingNds9)(Nds.Dma9.Ch[0].StartTiming)).ToString()}");
+                ImGui.Text($"1 Start: {((DmaStartTimingNds9)(Nds.Dma9.Ch[1].StartTiming)).ToString()}");
+                ImGui.Text($"2 Start: {((DmaStartTimingNds9)(Nds.Dma9.Ch[2].StartTiming)).ToString()}");
+                ImGui.Text($"3 Start: {((DmaStartTimingNds9)(Nds.Dma9.Ch[3].StartTiming)).ToString()}");
 
                 ImGui.Text("NDS7---------------");
-                ImGui.Text($"0 Src:   {Hex(Nds.Nds7.Dma.Ch[0].DmaSource, 8)}");
-                ImGui.Text($"1 Src:   {Hex(Nds.Nds7.Dma.Ch[1].DmaSource, 8)}");
-                ImGui.Text($"2 Src:   {Hex(Nds.Nds7.Dma.Ch[2].DmaSource, 8)}");
-                ImGui.Text($"3 Src:   {Hex(Nds.Nds7.Dma.Ch[3].DmaSource, 8)}");
-                ImGui.Text($"0 Dest:  {Hex(Nds.Nds7.Dma.Ch[0].DmaDest, 8)}");
-                ImGui.Text($"1 Dest:  {Hex(Nds.Nds7.Dma.Ch[1].DmaDest, 8)}");
-                ImGui.Text($"2 Dest:  {Hex(Nds.Nds7.Dma.Ch[2].DmaDest, 8)}");
-                ImGui.Text($"3 Dest:  {Hex(Nds.Nds7.Dma.Ch[3].DmaDest, 8)}");
-                ImGui.Text($"0 Words: {Hex(Nds.Nds7.Dma.Ch[0].DMACNT_L, 4)}");
-                ImGui.Text($"1 Words: {Hex(Nds.Nds7.Dma.Ch[1].DMACNT_L, 4)}");
-                ImGui.Text($"2 Words: {Hex(Nds.Nds7.Dma.Ch[2].DMACNT_L, 4)}");
-                ImGui.Text($"3 Words: {Hex(Nds.Nds7.Dma.Ch[3].DMACNT_L, 4)}");
-                ImGui.Text($"0 Start: {((DmaStartTimingNds7)(Nds.Nds7.Dma.Ch[0].StartTiming)).ToString()}");
-                ImGui.Text($"1 Start: {((DmaStartTimingNds7)(Nds.Nds7.Dma.Ch[1].StartTiming)).ToString()}");
-                ImGui.Text($"2 Start: {((DmaStartTimingNds7)(Nds.Nds7.Dma.Ch[2].StartTiming)).ToString()}");
-                ImGui.Text($"3 Start: {((DmaStartTimingNds7)(Nds.Nds7.Dma.Ch[3].StartTiming)).ToString()}");
+                ImGui.Text($"0 Src:   {Hex(Nds.Dma7.Ch[0].DmaSource, 8)}");
+                ImGui.Text($"1 Src:   {Hex(Nds.Dma7.Ch[1].DmaSource, 8)}");
+                ImGui.Text($"2 Src:   {Hex(Nds.Dma7.Ch[2].DmaSource, 8)}");
+                ImGui.Text($"3 Src:   {Hex(Nds.Dma7.Ch[3].DmaSource, 8)}");
+                ImGui.Text($"0 Dest:  {Hex(Nds.Dma7.Ch[0].DmaDest, 8)}");
+                ImGui.Text($"1 Dest:  {Hex(Nds.Dma7.Ch[1].DmaDest, 8)}");
+                ImGui.Text($"2 Dest:  {Hex(Nds.Dma7.Ch[2].DmaDest, 8)}");
+                ImGui.Text($"3 Dest:  {Hex(Nds.Dma7.Ch[3].DmaDest, 8)}");
+                ImGui.Text($"0 Words: {Hex(Nds.Dma7.Ch[0].DMACNT_L, 4)}");
+                ImGui.Text($"1 Words: {Hex(Nds.Dma7.Ch[1].DMACNT_L, 4)}");
+                ImGui.Text($"2 Words: {Hex(Nds.Dma7.Ch[2].DMACNT_L, 4)}");
+                ImGui.Text($"3 Words: {Hex(Nds.Dma7.Ch[3].DMACNT_L, 4)}");
+                ImGui.Text($"0 Start: {((DmaStartTimingNds7)(Nds.Dma7.Ch[0].StartTiming)).ToString()}");
+                ImGui.Text($"1 Start: {((DmaStartTimingNds7)(Nds.Dma7.Ch[1].StartTiming)).ToString()}");
+                ImGui.Text($"2 Start: {((DmaStartTimingNds7)(Nds.Dma7.Ch[2].StartTiming)).ToString()}");
+                ImGui.Text($"3 Start: {((DmaStartTimingNds7)(Nds.Dma7.Ch[3].StartTiming)).ToString()}");
 
                 ImGuiColumnSeparator();
 
@@ -872,35 +872,35 @@ namespace OptimeGBAEmulator
                 String[] prescalerCodes = { "F/1", "F/64", "F/256", "F/1024" };
 
                 ImGui.Text("NDS9---------------");
-                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Nds9.Timers.T[0].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds9.Timers.T[1].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds9.Timers.T[2].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds9.Timers.T[3].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Timers9.T[0].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Timers9.T[1].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Timers9.T[2].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Timers9.T[3].CalculateCounter(), 4)}");
                 ImGui.Spacing();
-                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds9.Timers.T[0].ReloadVal, 4)}");
-                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds9.Timers.T[1].ReloadVal, 4)}");
-                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds9.Timers.T[2].ReloadVal, 4)}");
-                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds9.Timers.T[3].ReloadVal, 4)}");
+                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Timers9.T[0].ReloadVal, 4)}");
+                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Timers9.T[1].ReloadVal, 4)}");
+                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Timers9.T[2].ReloadVal, 4)}");
+                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Timers9.T[3].ReloadVal, 4)}");
                 ImGui.Spacing();
-                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[0].PrescalerSel]}");
-                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[1].PrescalerSel]}");
-                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[2].PrescalerSel]}");
-                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Nds9.Timers.T[3].PrescalerSel]}");
+                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Timers9.T[0].PrescalerSel]}");
+                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Timers9.T[1].PrescalerSel]}");
+                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Timers9.T[2].PrescalerSel]}");
+                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Timers9.T[3].PrescalerSel]}");
                 ImGui.Text("NDS7---------------");
-                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Nds7.Timers.T[0].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Nds7.Timers.T[1].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Nds7.Timers.T[2].CalculateCounter(), 4)}");
-                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Nds7.Timers.T[3].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 0 Counter: {Hex(Nds.Timers7.T[0].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 1 Counter: {Hex(Nds.Timers7.T[1].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 2 Counter: {Hex(Nds.Timers7.T[2].CalculateCounter(), 4)}");
+                ImGui.Text($"Timer 3 Counter: {Hex(Nds.Timers7.T[3].CalculateCounter(), 4)}");
                 ImGui.Spacing();
-                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Nds7.Timers.T[0].ReloadVal, 4)}");
-                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Nds7.Timers.T[1].ReloadVal, 4)}");
-                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Nds7.Timers.T[2].ReloadVal, 4)}");
-                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Nds7.Timers.T[3].ReloadVal, 4)}");
+                ImGui.Text($"Timer 0 Reload: {Hex(Nds.Timers7.T[0].ReloadVal, 4)}");
+                ImGui.Text($"Timer 1 Reload: {Hex(Nds.Timers7.T[1].ReloadVal, 4)}");
+                ImGui.Text($"Timer 2 Reload: {Hex(Nds.Timers7.T[2].ReloadVal, 4)}");
+                ImGui.Text($"Timer 3 Reload: {Hex(Nds.Timers7.T[3].ReloadVal, 4)}");
                 ImGui.Spacing();
-                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[0].PrescalerSel]}");
-                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[1].PrescalerSel]}");
-                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[2].PrescalerSel]}");
-                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Nds7.Timers.T[3].PrescalerSel]}");
+                ImGui.Text($"Timer 0 Prescaler: {prescalerCodes[Nds.Timers7.T[0].PrescalerSel]}");
+                ImGui.Text($"Timer 1 Prescaler: {prescalerCodes[Nds.Timers7.T[1].PrescalerSel]}");
+                ImGui.Text($"Timer 2 Prescaler: {prescalerCodes[Nds.Timers7.T[2].PrescalerSel]}");
+                ImGui.Text($"Timer 3 Prescaler: {prescalerCodes[Nds.Timers7.T[3].PrescalerSel]}");
 
 
                 ImGuiColumnSeparator();
@@ -916,9 +916,9 @@ namespace OptimeGBAEmulator
                 ImGui.Text("VRAMCNT_I: " + Hex(Nds.MemoryControl.VRAMCNT[8], 2));
                 ImGui.Checkbox("Disable VRAM Updates", ref Nds.Ppu.DebugDisableVramUpdates);
 
-                ImGui.Text("Firmware State: " + Nds.Nds7.Spi.Flash.FlashState.ToString());
-                ImGui.Text("Firmware Addr: " + Hex(Nds.Nds7.Spi.Flash.Address, 6));
-                ImGui.Text("Slot 1 Access: " + (Nds.MemoryControl.Slot1AccessRights ? "ARM7" : "ARM9"));
+                ImGui.Text("Firmware State: " + Nds.Spi.Flash.FlashState.ToString());
+                ImGui.Text("Firmware Addr: " + Hex(Nds.Spi.Flash.Address, 6));
+                ImGui.Text("Slot 1 Access: " + (Nds.MemoryControl.Nds7Slot1AccessRights ? "ARM7" : "ARM9"));
                 ImGui.Text("Slot 1 State: " + Nds.Cartridge.State.ToString());
                 ImGui.Text("Slot 1 Addr: " + Hex(Nds.Cartridge.DataPos, 8));
                 ImGui.Text("Slot 1 Tx. So Far: " + Nds.Cartridge.BytesTransferred + " bytes");
@@ -987,10 +987,10 @@ namespace OptimeGBAEmulator
             {
                 ImGui.Columns(2);
                 ImGui.Text("ARM9\n");
-                drawDisassembly(Nds.Nds9);
+                drawDisassembly(Nds.Cpu9);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7\n");
-                drawDisassembly(Nds.Nds7);
+                drawDisassembly(Nds.Cpu7);
                 ImGui.Columns(1);
 
                 ImGui.End();
@@ -1018,7 +1018,7 @@ namespace OptimeGBAEmulator
                     // TexParameter needed for something to display :)
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Nearest);
                     GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMagFilter.Nearest);
-                    var renderer = Nds.Ppu.Renderers[i ^ (Nds.Nds9.DisplaySwap ? 0 : 1)];
+                    var renderer = Nds.Ppu.Renderers[i ^ (Nds.DisplaySwap ? 0 : 1)];
 
                     var buf = ShowBackBuf ? renderer.ScreenBack : renderer.ScreenFront;
                     for (uint j = 0; j < 256 * 192; j++)
@@ -1062,18 +1062,18 @@ namespace OptimeGBAEmulator
 
                             if (down)
                             {
-                                Nds.Nds7.Spi.SetTouchPos(touchX, touchY);
+                                Nds.Spi.SetTouchPos(touchX, touchY);
                                 Nds.Keypad.Touch = true;
                             }
                             else
                             {
-                                Nds.Nds7.Spi.ClearTouchPos();
+                                Nds.Spi.ClearTouchPos();
                                 Nds.Keypad.Touch = false;
                             }
                         }
                         else
                         {
-                            Nds.Nds7.Spi.ClearTouchPos();
+                            Nds.Spi.ClearTouchPos();
                             Nds.Keypad.Touch = false;
                         }
                     }
@@ -1390,7 +1390,7 @@ namespace OptimeGBAEmulator
                     }
                     ImGui.EndCombo();
                 }
-                uint value = Nds.Nds9.Mem.ReadDebug32(RegViewerSelected9.Address);
+                uint value = Nds.Mem9.ReadDebug32(RegViewerSelected9.Address);
                 foreach (RegisterField f in RegViewerSelected9.Fields)
                 {
                     if (f.Checkbox)
@@ -1425,7 +1425,7 @@ namespace OptimeGBAEmulator
                     }
                     ImGui.EndCombo();
                 }
-                value = Nds.Nds7.Mem.ReadDebug32(RegViewerSelected7.Address);
+                value = Nds.Mem7.ReadDebug32(RegViewerSelected7.Address);
                 foreach (RegisterField f in RegViewerSelected7.Fields)
                 {
                     if (f.Checkbox)
@@ -1463,7 +1463,7 @@ namespace OptimeGBAEmulator
 
                 for (int ti = 0; ti < 1024; ti++)
                 {
-                    ThumbExecutor k = Nds.Nds9.Cpu.ThumbDispatch[ti];
+                    ThumbExecutor k = Nds.Cpu9.ThumbDispatch[ti];
                     if (!CpuProfilerDictThumb.TryGetValue(k, out uint val))
                     {
                         CpuProfilerDictThumb[k] = 0;
@@ -1473,7 +1473,7 @@ namespace OptimeGBAEmulator
 
                 for (int ai = 0; ai < 4096; ai++)
                 {
-                    ArmExecutor k = Nds.Nds9.Cpu.ArmDispatch[ai];
+                    ArmExecutor k = Nds.Cpu9.ArmDispatch[ai];
                     if (!CpuProfilerDictArm.TryGetValue(k, out uint val))
                     {
                         CpuProfilerDictArm[k] = 0;
@@ -1519,17 +1519,17 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file9 = new StreamWriter("hwio9.txt"))
                     {
                         file9.WriteLine("ARM9");
-                        lock (Nds.Nds9.Mem.HwioReadLog)
+                        lock (Nds.Mem9.HwioReadLog)
                         {
-                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Mem9.HwioReadLog)
                             {
                                 file9.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                             }
                         }
                         file9.WriteLine("---------");
-                        lock (Nds.Nds9.Mem.HwioWriteLog)
+                        lock (Nds.Mem9.HwioWriteLog)
                         {
-                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Mem9.HwioWriteLog)
                             {
                                 file9.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                             }
@@ -1539,17 +1539,17 @@ namespace OptimeGBAEmulator
                     using (StreamWriter file7 = new StreamWriter("hwio7.txt"))
                     {
                         file7.WriteLine("ARM7");
-                        lock (Nds.Nds7.Mem.HwioReadLog)
+                        lock (Nds.Mem7.HwioReadLog)
                         {
-                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Mem7.HwioReadLog)
                             {
                                 file7.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                             }
                         }
                         file7.WriteLine("---------");
-                        lock (Nds.Nds7.Mem.HwioWriteLog)
+                        lock (Nds.Mem7.HwioWriteLog)
                         {
-                            foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                            foreach (KeyValuePair<uint, uint> entry in Nds.Mem7.HwioWriteLog)
                             {
                                 file7.WriteLine($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                             }
@@ -1560,17 +1560,17 @@ namespace OptimeGBAEmulator
                 ImGui.Columns(2);
 
                 ImGui.Text("ARM9");
-                lock (Nds.Nds9.Mem.HwioReadLog)
+                lock (Nds.Mem9.HwioReadLog)
                 {
-                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioReadLog)
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Mem9.HwioReadLog)
                     {
                         ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                     }
                 }
                 ImGui.Text("---------");
-                lock (Nds.Nds9.Mem.HwioWriteLog)
+                lock (Nds.Mem9.HwioWriteLog)
                 {
-                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds9.Mem.HwioWriteLog)
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Mem9.HwioWriteLog)
                     {
                         ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                     }
@@ -1579,17 +1579,17 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
 
                 ImGui.Text("ARM7");
-                lock (Nds.Nds7.Mem.HwioReadLog)
+                lock (Nds.Mem7.HwioReadLog)
                 {
-                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioReadLog)
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Mem7.HwioReadLog)
                     {
                         ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} reads");
                     }
                 }
                 ImGui.Text("---------");
-                lock (Nds.Nds7.Mem.HwioWriteLog)
+                lock (Nds.Mem7.HwioWriteLog)
                 {
-                    foreach (KeyValuePair<uint, uint> entry in Nds.Nds7.Mem.HwioWriteLog)
+                    foreach (KeyValuePair<uint, uint> entry in Nds.Mem7.HwioWriteLog)
                     {
                         ImGui.Text($"{Hex(entry.Key, 8)}: {entry.Value} writes");
                     }
@@ -1696,12 +1696,12 @@ namespace OptimeGBAEmulator
 
                 ImGui.Text("ARM9");
                 ImGui.SetColumnWidth(0, 61);
-                displayCheckbox("IME##arm9", Nds.Nds9.HwControl.IME);
-                drawInterruptColumn(Nds.Nds9.HwControl.IE, Nds.Nds9.HwControl.IF, false);
+                displayCheckbox("IME##arm9", Nds.HwControl9.IME);
+                drawInterruptColumn(Nds.HwControl9.IE, Nds.HwControl9.IF, false);
                 ImGui.NextColumn();
                 ImGui.Text("ARM7");
-                displayCheckbox("IME##arm7", Nds.Nds7.HwControl.IME);
-                drawInterruptColumn(Nds.Nds7.HwControl.IE, Nds.Nds7.HwControl.IF, true);
+                displayCheckbox("IME##arm7", Nds.HwControl7.IME);
+                drawInterruptColumn(Nds.HwControl7.IE, Nds.HwControl7.IF, true);
 
                 ImGui.End();
             }
@@ -1730,7 +1730,7 @@ namespace OptimeGBAEmulator
             {
                 for (uint i = 0; i < 16; i++)
                 {
-                    var c = Nds.Nds7.Audio.Channels[i];
+                    var c = Nds.Audio.Channels[i];
 
                     var drawList = ImGui.GetWindowDrawList();
 
@@ -1793,7 +1793,7 @@ namespace OptimeGBAEmulator
                         int numEnabled = 0;
                         for (uint chI = 0; chI < 16; chI++)
                         {
-                            if (Nds.Nds7.Audio.Channels[chI].DebugEnable)
+                            if (Nds.Audio.Channels[chI].DebugEnable)
                             {
                                 numEnabled++;
                             }
@@ -1806,22 +1806,22 @@ namespace OptimeGBAEmulator
                             {
                                 if (numEnabled == 1)
                                 {
-                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = true;
+                                    Nds.Audio.Channels[chI].DebugEnable = true;
                                 }
                                 else if (chI != i)
                                 {
-                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = false;
+                                    Nds.Audio.Channels[chI].DebugEnable = false;
                                 }
                             }
                             else
                             {
                                 if (chI != i)
                                 {
-                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = false;
+                                    Nds.Audio.Channels[chI].DebugEnable = false;
                                 }
                                 else
                                 {
-                                    Nds.Nds7.Audio.Channels[chI].DebugEnable = true;
+                                    Nds.Audio.Channels[chI].DebugEnable = true;
                                 }
                             }
                         }
@@ -1852,7 +1852,7 @@ namespace OptimeGBAEmulator
 
                 }
 
-                ImGui.Text("SOUNDBIAS: " + Hex(Nds.Nds7.Audio.SOUNDBIAS, 8));
+                ImGui.Text("SOUNDBIAS: " + Hex(Nds.Audio.SOUNDBIAS, 8));
 
                 ImGui.End();
             }
@@ -2045,19 +2045,19 @@ namespace OptimeGBAEmulator
                     PokemonGen4BasePtrs[index].TryGetValue(lang, out details);
                     if (details != null)
                     {
-                        uint basePtr = Nds.Nds9.Mem.ReadDebug32(details.BasePtrPtr);
+                        uint basePtr = Nds.Mem9.ReadDebug32(details.BasePtrPtr);
                         bool isPlatinum = version == 3;
 
                         // constants from void.lua
                         uint mapAddrOffs = isPlatinum ? 0x218FEU : 0x22ADAU;
                         uint coordPtrOffs = isPlatinum ? 0x2371CU : 0x248D4U;
-                        uint coordPtr = Nds.Nds9.Mem.ReadDebug32(basePtr + coordPtrOffs);
+                        uint coordPtr = Nds.Mem9.ReadDebug32(basePtr + coordPtrOffs);
                         uint xPtr = coordPtr + 0x84;
                         uint yPtr = coordPtr + 0x8C;
                         uint zPtr = coordPtr + 0x94;
-                        uint xPos = Nds.Nds9.Mem.ReadDebug32(xPtr);
-                        uint yPos = Nds.Nds9.Mem.ReadDebug32(yPtr);
-                        uint zPos = Nds.Nds9.Mem.ReadDebug32(zPtr);
+                        uint xPos = Nds.Mem9.ReadDebug32(xPtr);
+                        uint yPos = Nds.Mem9.ReadDebug32(yPtr);
+                        uint zPos = Nds.Mem9.ReadDebug32(zPtr);
 
                         var drawList = ImGui.GetWindowDrawList();
 
@@ -2103,7 +2103,7 @@ namespace OptimeGBAEmulator
                             {
                                 int xAdj = x;
                                 int yAdj = y;
-                                uint tile = Nds.Nds9.Mem.ReadDebug16((uint)(basePtr + mapAddrOffs + 2 * xAdj + 60 * yAdj));
+                                uint tile = Nds.Mem9.ReadDebug16((uint)(basePtr + mapAddrOffs + 2 * xAdj + 60 * yAdj));
 
                                 // The game forces all invalid tiles to ID 3, which is Jubilife City in DPPt 
                                 if (tile > 558)
@@ -2127,12 +2127,12 @@ namespace OptimeGBAEmulator
                                 if (ImGui.InvisibleButton("", new Vector2(size + gap, size + gap)))
                                 {
                                     // Teleport to center of tile on click
-                                    Nds.Nds9.Mem.Write32(xPtr, (uint)(x * 32 + 16));
-                                    Nds.Nds9.Mem.Write32(yPtr, (uint)(y * 32 + 16));
+                                    Nds.Mem9.Write32(xPtr, (uint)(x * 32 + 16));
+                                    Nds.Mem9.Write32(yPtr, (uint)(y * 32 + 16));
                                 }
 
                                 // Write in Sandgem Town Pokemon Center for lulz
-                                // Nds.Nds9.Mem.Write16(basePtr + mapAddrOffs, 420);
+                                // Nds.Mem9.Write16(basePtr + mapAddrOffs, 420);
 
                                 ImGui.SetCursorScreenPos(cursorPos);
                                 // use this to draw the button

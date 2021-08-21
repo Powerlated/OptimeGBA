@@ -10,13 +10,6 @@ namespace OptimeGBA
 {
     public unsafe abstract class Memory
     {
-        Device Device;
-
-        public Memory(Device device)
-        {
-            Device = device;
-        }
-
         public SaveProvider SaveProvider;
         public SortedDictionary<uint, uint> HwioWriteLog = new SortedDictionary<uint, uint>();
         public SortedDictionary<uint, uint> HwioReadLog = new SortedDictionary<uint, uint>();
@@ -102,7 +95,7 @@ namespace OptimeGBA
 #if DEBUG
             if ((addr & 1) != 0)
             {
-                Device.Cpu.Error("Misaligned Read16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Device.Cpu.R[15], 8));
+                Console.Error.WriteLine("Misaligned Read16! " + Util.HexN(addr, 8));
             }
 #endif
 
@@ -133,7 +126,7 @@ namespace OptimeGBA
 #if DEBUG
             if ((addr & 3) != 0)
             {
-                Device.Cpu.Error("Misaligned Read32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Device.Cpu.R[15], 8));
+                Console.Error.WriteLine("Misaligned Read32! " + Util.HexN(addr, 8));
             }
 #endif
 
@@ -177,7 +170,7 @@ namespace OptimeGBA
 #if DEBUG
             if ((addr & 1) != 0)
             {
-                Device.Cpu.Error("Misaligned Write16! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Device.Cpu.R[15], 8));
+                Console.Error.WriteLine("Misaligned Write16! " + Util.HexN(addr, 8));
             }
 #endif
 
@@ -197,7 +190,7 @@ namespace OptimeGBA
 #if DEBUG
             if ((addr & 3) != 0)
             {
-                Device.Cpu.Error("Misaligned Write32! " + Util.HexN(addr, 8) + " PC:" + Util.HexN(Device.Cpu.R[15], 8));
+                Console.Error.WriteLine("Misaligned Write32! " + Util.HexN(addr, 8));
             }
 #endif
 

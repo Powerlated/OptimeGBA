@@ -33,14 +33,14 @@ namespace OptimeGBA
 
     public sealed class HwControlNds : HwControl
     {
-        Device Device;
-        bool Arm9; // Or Arm7
+        Arm7 Cpu;
 
-        public HwControlNds(Device device, bool arm9)
+        public HwControlNds(Arm7 cpu)
         {
-            Device = device;
-            Arm9 = arm9;
+            Cpu = cpu;
         }
+
+        public byte Postflg; // POSTFLG
 
         public byte ReadHwio8(uint addr)
         {
@@ -130,19 +130,19 @@ namespace OptimeGBA
         public void CheckAndFireInterrupts()
         {
             Available = (IE & IF & 0xFFFFFFFF) != 0;
-            Device.Cpu.FlagInterrupt = Available && IME;
-            if (Arm9)
+            Cpu.FlagInterrupt = Available && IME;
+            if (Cpu.Armv5)
             {
                 if (Available && IME)
                 {
-                    Device.Cpu.Halted = false;
+                    Cpu.Halted = false;
                 }
             }
             else
             {
                 if (Available)
                 {
-                    Device.Cpu.Halted = false;
+                    Cpu.Halted = false;
                 }
             }
         }

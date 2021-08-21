@@ -4,12 +4,11 @@ namespace OptimeGBA
 {
     public unsafe sealed class Nds9Math
     {
-        public Nds9 Nds9;
+        public Nds Nds;
 
-        public Nds9Math(Nds9 nds9)
+        public Nds9Math(Nds nds)
         {
-            Nds9 = nds9;
-
+            Nds = nds;
         }
 
         public long DIV_NUMER;

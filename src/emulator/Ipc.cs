@@ -109,10 +109,10 @@ namespace OptimeGBA
                         switch (Id)
                         {
                             case 0:
-                                Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.IpcSync);
+                                Nds.HwControl7.FlagInterrupt((uint)InterruptNds.IpcSync);
                                 break;
                             case 1:
-                                Nds.Nds7.HwControl.FlagInterrupt((uint)InterruptNds.IpcSync);
+                                Nds.HwControl9.FlagInterrupt((uint)InterruptNds.IpcSync);
                                 break;
                         }
                     }
@@ -155,7 +155,7 @@ namespace OptimeGBA
                     {
                         GetRemote().RecvFifo.Insert(LastSendValue);
                         unsafe {
-                        GetRemote().CheckRecvFifoPendingIrq("remote insert R15: " + Util.Hex(Nds.Nds7.Cpu.R[15], 8));
+                        GetRemote().CheckRecvFifoPendingIrq("remote insert R15: " + Util.Hex(Nds.Cpu7.R[15], 8));
                         } 
                     }
                     break;
@@ -194,10 +194,10 @@ namespace OptimeGBA
             switch (Id)
             {
                 case 0:
-                    Nds.Nds7.HwControl.FlagInterrupt((uint)interrupt);
+                    Nds.HwControl9.FlagInterrupt((uint)interrupt);
                     break;
                 case 1:
-                    Nds.Nds9.HwControl.FlagInterrupt((uint)interrupt);
+                    Nds.HwControl7.FlagInterrupt((uint)interrupt);
                     break;
             }
         }

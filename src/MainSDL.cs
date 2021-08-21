@@ -424,10 +424,10 @@ namespace OptimeGBAEmulator
                         CyclesRan = 0;
 
                         long ran =
-                            Nds.Nds7.Cpu.InstructionsRan +
-                            Nds.Nds9.Cpu.InstructionsRan;
-                        Nds.Nds7.Cpu.InstructionsRan = 0;
-                        Nds.Nds9.Cpu.InstructionsRan = 0;
+                            Nds.Cpu7.InstructionsRan +
+                            Nds.Cpu9.InstructionsRan;
+                        Nds.Cpu7.InstructionsRan = 0;
+                        Nds.Cpu9.InstructionsRan = 0;
                         double mips = (double)ran / 1000000D;
 
                         // Use Math.Floor to truncate to 2 decimal places

@@ -27,11 +27,11 @@ namespace OptimeGBA
 
     public sealed class DmaChannelNds
     {
-        public bool Nds9;
+        public bool Nds7;
 
-        public DmaChannelNds(bool nds9)
+        public DmaChannelNds(bool nds7)
         {
-            Nds9 = nds9;
+            Nds7 = nds7;
         }
 
         public uint DMASAD;
@@ -155,7 +155,7 @@ namespace OptimeGBA
             SrcAddrCtrl = (DmaSrcAddrCtrl)BitRange(DMACNT_H, 7, 8);
             Repeat = BitTest(DMACNT_H, 9);
             TransferType = BitTest(DMACNT_H, 10);
-            if (Nds9)
+            if (!Nds7)
             {
                 StartTiming = (byte)BitRange(DMACNT_H, 11, 13);
             }
@@ -212,9 +212,9 @@ namespace OptimeGBA
 
     public unsafe sealed class DmaNds
     {
-        DeviceNds Device;
-        bool Nds9;
+        bool Nds7;
         Memory Mem;
+        HwControl HwControl;
 
         public DmaChannelNds[] Ch;
         static readonly uint[] DmaSourceMask = { 0x07FFFFFF, 0x0FFFFFFF, 0x0FFFFFFF, 0x0FFFFFFF };
@@ -224,17 +224,17 @@ namespace OptimeGBA
 
         public bool DmaLock;
 
-        public DmaNds(DeviceNds deviceNds, bool nds9, Memory mem)
+        public DmaNds(bool nds7, Memory mem, HwControlNds hwControl)
         {
-            Device = deviceNds;
-            Nds9 = nds9;
+            Nds7 = nds7;
             Mem = mem;
+            HwControl = hwControl;
 
             Ch = new DmaChannelNds[4] {
-                new DmaChannelNds(Nds9),
-                new DmaChannelNds(Nds9),
-                new DmaChannelNds(Nds9),
-                new DmaChannelNds(Nds9),
+                new DmaChannelNds(Nds7),
+                new DmaChannelNds(Nds7),
+                new DmaChannelNds(Nds7),
+                new DmaChannelNds(Nds7),
             };
         }
 
@@ -311,7 +311,7 @@ namespace OptimeGBA
             // Console.WriteLine("Dest: " + Util.Hex(c.DmaDest, 8));
             // Console.WriteLine("Length: " + c.DmaLength);
 
-            if (Nds9)
+            if (!Nds7)
             {
                 c.DmaSource &= 0x0FFFFFFF;
                 c.DmaDest &= 0x0FFFFFFF;
@@ -428,7 +428,7 @@ namespace OptimeGBA
 
             if (c.FinishedIRQ)
             {
-                Device.HwControl.FlagInterrupt((uint)InterruptNds.Dma0 + ci);
+                HwControl.FlagInterrupt((uint)InterruptNds.Dma0 + ci);
             }
 
             DmaLock = false;

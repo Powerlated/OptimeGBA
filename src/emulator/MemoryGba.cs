@@ -12,7 +12,7 @@ namespace OptimeGBA
     {
         Gba Gba;
 
-        public MemoryGba(Gba gba, ProviderGba provider) : base(gba)
+        public MemoryGba(Gba gba, ProviderGba provider)
         {
             Gba = gba;
 

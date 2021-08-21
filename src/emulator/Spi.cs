@@ -20,13 +20,13 @@ namespace OptimeGBA
 
     public unsafe sealed class Spi
     {
-        public Nds7 Nds7;
+        public Nds Nds;
 
-        public Spi(Nds7 nds7)
+        public Spi(Nds nds)
         {
-            Nds7 = nds7;
+            Nds = nds;
 
-            Flash = new SpiFlash(nds7.Nds.Provider.Firmware);
+            Flash = new SpiFlash(Nds.Provider.Firmware);
         }
 
         // From Nocash's original DS 

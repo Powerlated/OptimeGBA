@@ -95,7 +95,7 @@ namespace OptimeGBA
                     (CommandFifo.Entries < 128 && CommandFifoIrqMode == 1)
                     )
                 {
-                    Nds.Nds9.HwControl.FlagInterrupt((uint)InterruptNds.GeometryFifo);
+                    Nds.HwControl9.FlagInterrupt((uint)InterruptNds.GeometryFifo);
                 }
             }
         }

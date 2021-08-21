@@ -3,16 +3,22 @@ using System;
 namespace OptimeGBA
 {
 
-    public unsafe sealed class Gba : Device
+    public unsafe sealed class Gba
     {
         public ProviderGba Provider;
 
-        public new MemoryGba Mem;
+        public Scheduler Scheduler;
+
+        public AudioCallback AudioCallback;
+
+        public MemoryGba Mem;
+        public Arm7 Cpu;
         public GbaAudio GbaAudio;
         public Keypad Keypad;
         public PpuGba Ppu;
         public HwControlGba HwControl;
         public DmaGba Dma;
+        public Timers Timers;
 
         public Gba(ProviderGba provider)
         {
@@ -25,9 +31,9 @@ namespace OptimeGBA
             Ppu = new PpuGba(this, Scheduler);
             Keypad = new Keypad();
             Dma = new DmaGba(this);
-            Timers = new Timers(this, Scheduler, false, true);
+            Timers = new Timers(GbaAudio, HwControl, Scheduler, false, true);
             HwControl = new HwControlGba(this);
-            Cpu = new Arm7(this, Mem, false, false, null);
+            Cpu = new Arm7(StateChange, Mem, false, false, null);
 
             Cpu.SetTimingsTable(
                 Cpu.Timing8And16,
@@ -157,7 +163,7 @@ namespace OptimeGBA
 
         public void DoNothing(long cyclesLate) { }
 
-        public override void StateChange()
+        public void StateChange()
         {
             Scheduler.AddEventRelative(SchedulerId.None, 0, DoNothing);
         }

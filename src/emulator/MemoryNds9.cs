@@ -11,11 +11,11 @@ namespace OptimeGBA
 {
     public sealed unsafe class MemoryNds9 : Memory
     {
-        Nds9 Nds9;
+        Nds Nds;
 
-        public MemoryNds9(Nds9 nds9, ProviderNds provider) : base(nds9)
+        public MemoryNds9(Nds nds, ProviderNds provider)
         {
-            Nds9 = nds9;
+            Nds = nds;
 
             SaveProvider = new NullSaveProvider();
 
@@ -40,7 +40,7 @@ namespace OptimeGBA
 
         public override void InitPageTable(byte*[] table, uint[] maskTable, bool write)
         {
-            byte* mainRam = TryPinByteArray(Nds9.Nds.MainRam);
+            byte* mainRam = TryPinByteArray(Nds.MainRam);
             byte* arm9Bios = TryPinByteArray(Arm9Bios);
             byte* dtcm = TryPinByteArray(Dtcm);
             byte* itcm = TryPinByteArray(Itcm);
@@ -93,7 +93,7 @@ namespace OptimeGBA
         ~MemoryNds9()
         {
             Console.WriteLine("Cleaning up NDS9 memory...");
-            UnpinByteArray(Nds9.Nds.MainRam);
+            UnpinByteArray(Nds.MainRam);
             UnpinByteArray(Arm9Bios);
             UnpinByteArray(Dtcm);
             UnpinByteArray(Itcm);
@@ -101,14 +101,14 @@ namespace OptimeGBA
 
         public void UpdateTcmSettings()
         {
-            // Console.WriteLine("Data TCM Settings: " + Util.Hex(Nds9.Nds.Cp15.DataTcmSettings, 8));
-            ItcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.InstTcmSettings >> 1) & 0x1F);
-            DtcmVirtualSize = 512U << (int)((Nds9.Nds.Cp15.DataTcmSettings >> 1) & 0x1F);
+            // Console.WriteLine("Data TCM Settings: " + Util.Hex(Nds.Cp15.DataTcmSettings, 8));
+            ItcmVirtualSize = 512U << (int)((Nds.Cp15.InstTcmSettings >> 1) & 0x1F);
+            DtcmVirtualSize = 512U << (int)((Nds.Cp15.DataTcmSettings >> 1) & 0x1F);
 
-            DtcmBase = (uint)(Nds9.Nds.Cp15.DataTcmSettings & 0xFFFFF000);
+            DtcmBase = (uint)(Nds.Cp15.DataTcmSettings & 0xFFFFF000);
 
-            ItcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 19);
-            DtcmLoadMode = BitTest(Nds9.Nds.Cp15.ControlRegister, 17);
+            ItcmLoadMode = BitTest(Nds.Cp15.ControlRegister, 19);
+            DtcmLoadMode = BitTest(Nds.Cp15.ControlRegister, 17);
 
             Console.WriteLine("ITCM set to: " + Util.Hex(0, 8) + " - " + Util.Hex(ItcmVirtualSize - 1, 8));
             Console.WriteLine("DTCM set to: " + Util.Hex(DtcmBase, 8) + " - " + Util.Hex(DtcmBase + DtcmVirtualSize - 1, 8));
@@ -118,19 +118,19 @@ namespace OptimeGBA
 
         public (byte[] array, uint offset) GetSharedRamParams(uint addr)
         {
-            switch (Nds9.Nds.MemoryControl.SharedRamControl)
+            switch (Nds.MemoryControl.SharedRamControl)
             {
                 case 0:
                 default:
                     addr &= 0x7FFF; // All 32k of Shared RAM
-                    return (Nds9.Nds.SharedRam, addr);
+                    return (Nds.SharedRam, addr);
                 case 1:
                     addr &= 0x3FFF; // 2nd half of Shared RAM
                     addr += 0x4000;
-                    return (Nds9.Nds.SharedRam, addr);
+                    return (Nds.SharedRam, addr);
                 case 2:
                     addr &= 0x3FFF; // 1st half of Shared RAM
-                    return (Nds9.Nds.SharedRam, addr);
+                    return (Nds.SharedRam, addr);
                 case 3:
                     // throw new NotImplementedException("Implement unmapping Shared RAM from ARM9 without EmptyPage, since some game can possibly try to write to the EmptyPage");
                     EmptyPage[0] = 0;
@@ -148,11 +148,11 @@ namespace OptimeGBA
                 case 0x4: // I/O Registers
                     return ReadHwio8(debug, addr);
                 case 0x5: // PPU Palettes
-                    return Nds9.Nds.Ppu.ReadPalettes8(addr);
+                    return Nds.Ppu.ReadPalettes8(addr);
                 case 0x6: // VRAM
-                    return Nds9.Nds.Ppu.ReadVram8Arm9(addr);
+                    return Nds.Ppu.ReadVram8Arm9(addr);
                 case 0x7: // PPU OAM
-                    return Nds9.Nds.Ppu.ReadOam8(addr);
+                    return Nds.Ppu.ReadOam8(addr);
             }
 
             return 0;
@@ -173,14 +173,14 @@ namespace OptimeGBA
 
                     return u16;
                 case 0x5: // PPU Palettes
-                    return Nds9.Nds.Ppu.ReadPalettes16(addr);
+                    return Nds.Ppu.ReadPalettes16(addr);
                 case 0x6: // VRAM
                     return (ushort)(
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 1) << 8)
+                        (Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
+                        (Nds.Ppu.ReadVram8Arm9(addr + 1) << 8)
                     );
                 case 0x7: // PPU OAM
-                    return Nds9.Nds.Ppu.ReadOam16(addr);
+                    return Nds.Ppu.ReadOam16(addr);
             }
 
             return 0;
@@ -203,16 +203,16 @@ namespace OptimeGBA
 
                     return u32;
                 case 0x5: // PPU Palettes
-                    return Nds9.Nds.Ppu.ReadPalettes32(addr);
+                    return Nds.Ppu.ReadPalettes32(addr);
                 case 0x6: // VRAM
                     return (uint)(
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 1) << 8) |
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 2) << 16) |
-                        (Nds9.Nds.Ppu.ReadVram8Arm9(addr + 3) << 24)
+                        (Nds.Ppu.ReadVram8Arm9(addr + 0) << 0) |
+                        (Nds.Ppu.ReadVram8Arm9(addr + 1) << 8) |
+                        (Nds.Ppu.ReadVram8Arm9(addr + 2) << 16) |
+                        (Nds.Ppu.ReadVram8Arm9(addr + 3) << 24)
                     );
                 case 0x7: // PPU OAM
-                    return Nds9.Nds.Ppu.ReadOam32(addr);
+                    return Nds.Ppu.ReadOam32(addr);
             }
 
             return 0;
@@ -231,8 +231,8 @@ namespace OptimeGBA
                     break;
                 case 0x5: // PPU Palettes - duplicated across upper-lower in 8-bit??
                     Console.WriteLine("NDS: 8-bit write to palettes");
-                    // Nds9.Nds.Ppu.WritePalettes8(addr + 0, val);
-                    // Nds9.Nds.Ppu.WritePalettes8(addr + 1, val);
+                    // Nds.Ppu.WritePalettes8(addr + 0, val);
+                    // Nds.Ppu.WritePalettes8(addr + 1, val);
                     break;
             }
         }
@@ -250,14 +250,14 @@ namespace OptimeGBA
                     WriteHwio8(debug, addr++, (byte)(val >> 8));
                     break;
                 case 0x5: // PPU Palettes
-                    Nds9.Nds.Ppu.WritePalettes16(addr, val);
+                    Nds.Ppu.WritePalettes16(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
+                    Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
+                    Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
                     break;
                 case 0x7: // PPU OAM
-                    Nds9.Nds.Ppu.WriteOam16(addr, val);
+                    Nds.Ppu.WriteOam16(addr, val);
                     break;
             }
         }
@@ -277,16 +277,16 @@ namespace OptimeGBA
                     WriteHwio8(debug, addr++, (byte)(val >> 24));
                     break;
                 case 0x5: // PPU Palettes
-                    Nds9.Nds.Ppu.WritePalettes32(addr, val);
+                    Nds.Ppu.WritePalettes32(addr, val);
                     break;
                 case 0x6: // VRAM
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 2, (byte)(val >> 16));
-                    Nds9.Nds.Ppu.WriteVram8Arm9(addr + 3, (byte)(val >> 24));
+                    Nds.Ppu.WriteVram8Arm9(addr + 0, (byte)(val >> 0));
+                    Nds.Ppu.WriteVram8Arm9(addr + 1, (byte)(val >> 8));
+                    Nds.Ppu.WriteVram8Arm9(addr + 2, (byte)(val >> 16));
+                    Nds.Ppu.WriteVram8Arm9(addr + 3, (byte)(val >> 24));
                     break;
                 case 0x7: // PPU OAM
-                    Nds9.Nds.Ppu.WriteOam32(addr, val);
+                    Nds.Ppu.WriteOam32(addr, val);
                     break;
             }
         }
@@ -307,7 +307,7 @@ namespace OptimeGBA
 
             if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
             {
-                return Nds9.Nds.Ppu3D.ReadHwio8(addr);
+                return Nds.Ppu3D.ReadHwio8(addr);
             }
 
             switch (addr)
@@ -369,7 +369,7 @@ namespace OptimeGBA
                 case 0x4001052: case 0x4001053: // BLDALPHA
                 case 0x4001054: case 0x4001055: // BLDY
                 case 0x400106C: case 0x400106D: // MASTER_BRIGHT
-                    return Nds9.Nds.Ppu.ReadHwio8Arm9(addr);
+                    return Nds.Ppu.ReadHwio8Arm9(addr);
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD
@@ -387,39 +387,39 @@ namespace OptimeGBA
                 case 0x40000E4: case 0x40000E5: case 0x40000E6: case 0x40000E7: // DMA1 Fill Data
                 case 0x40000E8: case 0x40000E9: case 0x40000EA: case 0x40000EB: // DMA2 Fill Data
                 case 0x40000EC: case 0x40000ED: case 0x40000EE: case 0x40000EF: // DMA3 Fill Data
-                    return Nds9.Dma.ReadHwio8(addr);
+                    return Nds.Dma9.ReadHwio8(addr);
 
                 case 0x4000100: case 0x4000101: case 0x4000102: case 0x4000103: // Timer 0
                 case 0x4000104: case 0x4000105: case 0x4000106: case 0x4000107: // Timer 1
                 case 0x4000108: case 0x4000109: case 0x400010A: case 0x400010B: // Timer 2
                 case 0x400010C: case 0x400010D: case 0x400010E: case 0x400010F: // Timer 3
-                    return Nds9.Timers.ReadHwio8(addr);
+                    return Nds.Timers9.ReadHwio8(addr);
 
                 case 0x4000180: case 0x4000181: case 0x4000182: case 0x4000183: // IPCSYNC
                 case 0x4000184: case 0x4000185: case 0x4000186: case 0x4000187: // IPCFIFOCNT
                 case 0x4000188: case 0x4000189: case 0x400018A: case 0x400018B: // IPCFIFOSEND
                 case 0x4100000: case 0x4100001: case 0x4100002: case 0x4100003: // IPCFIFORECV
-                    return Nds9.Nds.Ipcs[1].ReadHwio8(addr);
+                    return Nds.Ipcs[0].ReadHwio8(addr);
 
                 case 0x40001A0: case 0x40001A1: // AUXSPICNT
                 case 0x40001A2: case 0x40001A3: // AUXSPIDATA
                 case 0x40001A4: case 0x40001A5: case 0x40001A6: case 0x40001A7: // ROMCTRL
                 case 0x4100010: case 0x4100011: case 0x4100012: case 0x4100013: // Slot 1 Data In
-                    return Nds9.Nds.Cartridge.ReadHwio8(false, addr);
+                    return Nds.Cartridge.ReadHwio8(false, addr);
 
                 case 0x4000208: case 0x4000209: case 0x400020A: case 0x400020B: // IME
                 case 0x4000210: case 0x4000211: case 0x4000212: case 0x4000213: // IE
                 case 0x4000214: case 0x4000215: case 0x4000216: case 0x4000217: // IF
-                    return Nds9.HwControl.ReadHwio8(addr);
+                    return Nds.HwControl9.ReadHwio8(addr);
 
                 case 0x4000130: case 0x4000131: // KEYINPUT 
-                    return Nds9.Nds.Keypad.ReadHwio8(addr); 
+                    return Nds.Keypad.ReadHwio8(addr); 
 
                 case 0x4000204: case 0x4000205: // EXMEMCNT
                 case 0x4000240: case 0x4000241: case 0x4000242: case 0x4000243: // VRAMCNT
                 case 0x4000244: case 0x4000245: case 0x4000246: case 0x4000247: // VRAMCNT, WRAMCNT
                 case 0x4000248: case 0x4000249: // VRAMCNT
-                    return Nds9.Nds.MemoryControl.ReadHwio8Nds9(addr);
+                    return Nds.MemoryControl.ReadHwio8Nds9(addr);
 
                 case 0x4000280: case 0x4000281: case 0x4000282: case 0x4000283: // DIVCNT B3
                 case 0x4000290: case 0x4000291: case 0x4000292: case 0x4000293: // DIV_NUMER
@@ -434,13 +434,13 @@ namespace OptimeGBA
                 case 0x40002B4: case 0x40002B5: case 0x40002B6: case 0x40002B7: // SQRT_RESULT
                 case 0x40002B8: case 0x40002B9: case 0x40002BA: case 0x40002BB: // SQRT_PARAM
                 case 0x40002BC: case 0x40002BD: case 0x40002BE: case 0x40002BF: // SQRT_PARAM
-                    return Nds9.Math.ReadHwio8(addr);
+                    return Nds.Math.ReadHwio8(addr);
 
                 case 0x4000300:
                     // Console.WriteLine("NDS9 POSTFLG read");
-                    return Nds9.POSTFLG;
+                    return Nds.HwControl9.Postflg;
                 case 0x4000304: case 0x4000305: case 0x4000306: case 0x4000307: // POWCNT1 
-                    return Nds9.ReadHwio8(addr);
+                    return Nds.ReadHwio8Arm9(addr);
             }
 
             // Console.WriteLine($"NDS9: Unmapped MMIO read addr:{Hex(addr, 8)}");
@@ -464,7 +464,7 @@ namespace OptimeGBA
 
             if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
             {
-                Nds9.Nds.Ppu3D.WriteHwio8(addr, val);
+                Nds.Ppu3D.WriteHwio8(addr, val);
             }
 
             switch (addr)
@@ -526,7 +526,7 @@ namespace OptimeGBA
                 case 0x4001052: case 0x4001053: // BLDALPHA
                 case 0x4001054: case 0x4001055: // BLDY
                 case 0x400106C: case 0x400106D: // MASTER_BRIGHT
-                    Nds9.Nds.Ppu.WriteHwio8Arm9(addr, val); return;
+                    Nds.Ppu.WriteHwio8Arm9(addr, val); return;
 
                 case 0x40000B0: case 0x40000B1: case 0x40000B2: case 0x40000B3: // DMA0SAD
                 case 0x40000B4: case 0x40000B5: case 0x40000B6: case 0x40000B7: // DMA0DAD
@@ -544,25 +544,25 @@ namespace OptimeGBA
                 case 0x40000E4: case 0x40000E5: case 0x40000E6: case 0x40000E7: // DMA1 Fill Data
                 case 0x40000E8: case 0x40000E9: case 0x40000EA: case 0x40000EB: // DMA2 Fill Data
                 case 0x40000EC: case 0x40000ED: case 0x40000EE: case 0x40000EF: // DMA3 Fill Data
-                    Nds9.Dma.WriteHwio8(addr, val); return;
+                    Nds.Dma9.WriteHwio8(addr, val); return;
 
                 case 0x4000100: case 0x4000101: case 0x4000102: case 0x4000103: // Timer 0
                 case 0x4000104: case 0x4000105: case 0x4000106: case 0x4000107: // Timer 1
                 case 0x4000108: case 0x4000109: case 0x400010A: case 0x400010B: // Timer 2
                 case 0x400010C: case 0x400010D: case 0x400010E: case 0x400010F: // Timer 3
-                    Nds9.Timers.WriteHwio8(addr, val); return;
+                    Nds.Timers9.WriteHwio8(addr, val); return;
 
                 case 0x4000180: case 0x4000181: case 0x4000182: case 0x4000183: // IPCSYNC
                 case 0x4000184: case 0x4000185: case 0x4000186: case 0x4000187: // IPCFIFOCNT
                 case 0x4000188: case 0x4000189: case 0x400018A: case 0x400018B: // IPCFIFOSEND
-                    Nds9.Nds.Ipcs[1].WriteHwio8(addr, val); return;
+                    Nds.Ipcs[0].WriteHwio8(addr, val); return;
 
                 case 0x40001A0: case 0x40001A1: // AUXSPICNT
                 case 0x40001A2: case 0x40001A3: // AUXSPIDATA
                 case 0x40001A4: case 0x40001A5: case 0x40001A6: case 0x40001A7: // ROMCTRL
                 case 0x40001A8: case 0x40001A9: case 0x40001AA: case 0x40001AB: // Slot 1 Command 0-3
                 case 0x40001AC: case 0x40001AD: case 0x40001AE: case 0x40001AF: // Slot 1 Command 4-7
-                    Nds9.Nds.Cartridge.WriteHwio8(false, addr, val); return;
+                    Nds.Cartridge.WriteHwio8(false, addr, val); return;
 
                 case 0x40001B0: case 0x40001B1: case 0x40001B2: case 0x40001B3: // Slot 1 KEY2 encryption seed
                 case 0x40001B4: case 0x40001B5: case 0x40001B6: case 0x40001B7: 
@@ -572,13 +572,13 @@ namespace OptimeGBA
                 case 0x4000208: case 0x4000209: case 0x400020A: case 0x400020B: // IME
                 case 0x4000210: case 0x4000211: case 0x4000212: case 0x4000213: // IE
                 case 0x4000214: case 0x4000215: case 0x4000216: case 0x4000217: // IF
-                    Nds9.HwControl.WriteHwio8(addr, val); return;
+                    Nds.HwControl9.WriteHwio8(addr, val); return;
 
                 case 0x4000204: case 0x4000205: // EXMEMCNT
                 case 0x4000240: case 0x4000241: case 0x4000242: case 0x4000243: // VRAMCNT
                 case 0x4000244: case 0x4000245: case 0x4000246: case 0x4000247: // VRAMCNT, WRAMCNT
                 case 0x4000248: case 0x4000249: // VRAMCNT
-                    Nds9.Nds.MemoryControl.WriteHwio8Nds9(addr, val); return;
+                    Nds.MemoryControl.WriteHwio8Nds9(addr, val); return;
 
                 case 0x4000280: case 0x4000281: case 0x4000282: case 0x4000283: // DIVCNT B3
                 case 0x4000290: case 0x4000291: case 0x4000292: case 0x4000293: // DIV_NUMER
@@ -593,14 +593,14 @@ namespace OptimeGBA
                 case 0x40002B4: case 0x40002B5: case 0x40002B6: case 0x40002B7: // SQRT_RESULT
                 case 0x40002B8: case 0x40002B9: case 0x40002BA: case 0x40002BB: // SQRT_PARAM
                 case 0x40002BC: case 0x40002BD: case 0x40002BE: case 0x40002BF: // SQRT_PARAM
-                    Nds9.Math.WriteHwio8(addr, val); return;
+                    Nds.Math.WriteHwio8(addr, val); return;
 
                 case 0x4000300:
                     Console.WriteLine("NDS9 POSTFLG write");
-                    Nds9.POSTFLG = (byte)(val & 0b11);
+                    Nds.HwControl9.Postflg = (byte)(val & 0b11);
                     return;
                 case 0x4000304: case 0x4000305: case 0x4000306: case 0x4000307:// POWCNT1
-                    Nds9.WriteHwio8(addr, val);
+                    Nds.WriteHwio8Arm9(addr, val);
                     return;
             }
 

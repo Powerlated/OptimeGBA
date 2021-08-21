@@ -64,7 +64,6 @@ namespace OptimeGBA
         public uint VectorIRQ;
         public uint VectorFIQ;
 
-        public Device Device;
         public Memory Mem;
 
         public Action PreExecutionCallback;
@@ -145,11 +144,12 @@ namespace OptimeGBA
 
         public bool FlagInterrupt;
 
-        public Cp15 Cp15;
+        public Action StateChange;
 
-        public Arm7(Device device, Memory mem, bool vectorMode, bool armv5, Cp15 cp15)
+        public Cp15 Cp15;
+        public Arm7(Action stateChange, Memory mem, bool vectorMode, bool armv5, Cp15 cp15)
         {
-            Device = device;
+            StateChange = stateChange;
             Mem = mem;
             Armv5 = armv5;
             Cp15 = cp15;
@@ -1020,7 +1020,7 @@ namespace OptimeGBA
             bool newThumbState = BitTest(val, 5);
             if (newThumbState != ThumbState)
             {
-                Device.StateChange();
+                StateChange();
             }
             ThumbState = newThumbState;
 

@@ -27,21 +27,21 @@ namespace OptimeGBA
                     ControlRegister = rdVal;
                     ControlRegister |= 0b00000000000000000000000001111000;
                     ControlRegister &= 0b00000000000011111111000010000101;
-                    Nds.Nds9.Mem.UpdateTcmSettings();
+                    Nds.Mem9.UpdateTcmSettings();
                     break;
 
                 case 0x704:
                 case 0x782:
-                    Nds.Nds9.Cpu.Halted = true;
+                    Nds.Cpu9.Halted = true;
                     break;
 
                 case 0x910:
                     DataTcmSettings = rdVal;
-                    Nds.Nds9.Mem.UpdateTcmSettings();
+                    Nds.Mem9.UpdateTcmSettings();
                     break;
                 case 0x911:
                     InstTcmSettings = rdVal;
-                    Nds.Nds9.Mem.UpdateTcmSettings();
+                    Nds.Mem9.UpdateTcmSettings();
                     break;
 
                 default:
