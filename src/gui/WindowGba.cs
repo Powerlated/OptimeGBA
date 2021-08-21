@@ -279,35 +279,35 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Banked Registers"))
             {
-                ImGui.Columns(5);
+                                ImGui.Columns(5);
 
                 ImGui.Text("User");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13usr, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14usr, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.USR), 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.GetModeReg(14, Arm7Mode.USR), 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Supervisor");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13svc, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14svc, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.SVC), 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.GetModeReg(14, Arm7Mode.SVC), 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Abort");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13abt, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14abt, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.ABT), 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.GetModeReg(14, Arm7Mode.ABT), 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("IRQ");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13irq, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14irq, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.IRQ), 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.GetModeReg(14, Arm7Mode.IRQ), 8));
 
                 ImGui.NextColumn();
 
                 ImGui.Text("Undefined");
-                ImGui.Text("R13: " + Hex(Gba.Cpu.R13und, 8));
-                ImGui.Text("R14: " + Hex(Gba.Cpu.R14und, 8));
+                ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.UND), 8));
+                ImGui.Text("R14: " + Hex(Gba.Cpu.GetModeReg(14, Arm7Mode.UND), 8));
 
                 ImGui.End();
             }

@@ -11,10 +11,9 @@ namespace OptimeGBA
     {
         public static void SWI(Arm7 arm7, uint ins)
         {
-            arm7.R14svc = arm7.R[15] - 4;
             arm7.SPSR_svc = arm7.GetCPSR();
-
-            arm7.SetMode((uint)Arm7.Arm7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.SetMode(Arm7Mode.SVC); // Go into SVC / Supervisor mode
+            arm7.R[14] = arm7.R[15] - 4;
             // arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;
 
@@ -38,7 +37,7 @@ namespace OptimeGBA
             if (S && (!L || !loadsPc))
             {
                 oldMode = arm7.GetMode();
-                arm7.SetMode((uint)Arm7.Arm7Mode.User);
+                arm7.SetMode(Arm7Mode.USR);
             }
 
             // if (U && P && W) Error("U & P & W");
@@ -198,7 +197,7 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    arm7.SetMode(oldMode);
+                    arm7.SetMode((Arm7Mode)oldMode);
                 }
             }
 
@@ -223,7 +222,7 @@ namespace OptimeGBA
             if (S && (!L || !loadsPc))
             {
                 oldMode = arm7.GetMode();
-                arm7.SetMode((uint)Arm7.Arm7Mode.User);
+                arm7.SetMode(Arm7Mode.USR);
             }
 
             // if (U && P && W) Error("U & P & W");
@@ -347,7 +346,7 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    arm7.SetMode(oldMode);
+                    arm7.SetMode((Arm7Mode)oldMode);
                 }
             }
 
@@ -500,7 +499,7 @@ namespace OptimeGBA
             if (!useSPSR)
             {
                 // TODO: Fix privileged mode functionality in CPSR MSR
-                if (arm7.Mode == Arm7.Arm7Mode.User)
+                if (arm7.Mode == Arm7Mode.USR)
                 {
                     // Privileged
                     arm7.LineDebug("Privileged");

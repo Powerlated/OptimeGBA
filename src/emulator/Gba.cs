@@ -118,12 +118,12 @@ namespace OptimeGBA
 
             if (!provider.BootBios)
             {
-                Cpu.R13svc = 0x03007FE0;
-                Cpu.R13irq = 0x03007FA0;
-                Cpu.R13usr = 0x03007F00;
+                Cpu.SetModeReg(13, Arm7Mode.SVC, 0x03007FE0);
+                Cpu.SetModeReg(13, Arm7Mode.IRQ, 0x03007FA0);
+                Cpu.SetModeReg(13, Arm7Mode.USR, 0x03007F00);
 
                 // Default Stack Pointer
-                Cpu.R[13] = Cpu.R13usr;
+                Cpu.R[13] = Cpu.GetModeReg(13, Arm7Mode.USR);
                 Cpu.R[15] = 0x08000000;
             }
 

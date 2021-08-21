@@ -1236,10 +1236,11 @@ namespace OptimeGBA
 
         public static void SWI(Arm7 arm7, ushort ins)
         {
-            arm7.R14svc = arm7.R[15] - 2;
             arm7.SPSR_svc = arm7.GetCPSR();
 
-            arm7.SetMode((uint)Arm7.Arm7Mode.Supervisor); // Go into SVC / Supervisor mode
+            arm7.SetMode(Arm7Mode.SVC); // Go into SVC / Supervisor mode
+
+            arm7.R[14] = arm7.R[15] - 2;
 
             arm7.ThumbState = false; // Back to ARM state
             arm7.IRQDisable = true;

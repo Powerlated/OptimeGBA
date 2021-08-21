@@ -7,24 +7,26 @@ using static OptimeGBA.MemoryUtil;
 
 namespace OptimeGBA
 {
-    // ARM DDI 0100I manual used for implementation of this CPU
+    // ARM DDI 0100I manual and GBATek used for implementation of this CPU
+
+    public enum Arm7Mode
+    {
+        OldUSR = 0x00,
+        OldFIQ = 0x01,
+        OldIRQ = 0x02,
+        OldSVC = 0x03,
+
+        USR = 0x10, // User
+        FIQ = 0x11, // Fast Interrupt Request
+        IRQ = 0x12, // Interrupt Request
+        SVC = 0x13, // Supervisor Call
+        ABT = 0x17, // Abort
+        UND = 0x1B, // Undefined Instruction
+        SYS = 0x1F, // System
+    }
+
     public unsafe sealed class Arm7
     {
-        public enum Arm7Mode
-        {
-            OldUser = 0x00,
-            OldFIQ = 0x01,
-            OldIRQ = 0x02,
-            OldSupervisor = 0x03,
-
-            User = 0x10,
-            FIQ = 0x11,
-            IRQ = 0x12,
-            Supervisor = 0x13,
-            Abort = 0x17,
-            Undefined = 0x1B,
-            System = 0x1F,
-        }
 
         // 1024 functions, taking the top 10 bits of THUMB
         public ThumbExecutor[] ThumbDispatch;
@@ -82,33 +84,12 @@ namespace OptimeGBA
             MemoryUtil.FreeUnmanagedArray(Timing32InstrFetch);
         }
 
-        public uint R8usr;
-        public uint R9usr;
-        public uint R10usr;
-        public uint R11usr;
-        public uint R12usr;
-        public uint R13usr;
-        public uint R14usr;
-
-        public uint R8fiq;
-        public uint R9fiq;
-        public uint R10fiq;
-        public uint R11fiq;
-        public uint R12fiq;
-        public uint R13fiq;
-        public uint R14fiq;
-
-        public uint R13svc;
-        public uint R14svc;
-
-        public uint R13abt;
-        public uint R14abt;
-
-        public uint R13irq;
-        public uint R14irq;
-
-        public uint R13und;
-        public uint R14und;
+        public uint[] Rusr = new uint[7];
+        public uint[] Rfiq = new uint[7];
+        public uint[] Rsvc = new uint[2];
+        public uint[] Rabt = new uint[2];
+        public uint[] Rirq = new uint[2];
+        public uint[] Rund = new uint[2];
 
         public uint SPSR_fiq;
         public uint SPSR_svc;
@@ -124,7 +105,7 @@ namespace OptimeGBA
         public bool IRQDisable = false;
         public bool FIQDisable = false;
         public bool ThumbState = false;
-        public Arm7Mode Mode = Arm7Mode.System;
+        public Arm7Mode Mode = Arm7Mode.SYS;
 
         public bool Halted;
         public bool PipelineDirty = false;
@@ -158,7 +139,7 @@ namespace OptimeGBA
             ArmDispatch = GenerateArmDispatch();
 
             // Default Mode
-            Mode = Arm7Mode.System;
+            Mode = Arm7Mode.SYS;
 
             SetVectorMode(vectorMode);
             R[15] = VectorReset;
@@ -359,16 +340,18 @@ namespace OptimeGBA
 #endif
 
             SPSR_irq = GetCPSR();
+
+            SetMode(Arm7Mode.IRQ); // Go into SVC / Supervisor mode
+
             if (ThumbState)
             {
-                R14irq = R[15] - 0;
+                R[14] = R[15] - 0;
             }
             else
             {
-                R14irq = R[15] - 4;
+                R[14] = R[15] - 4;
             }
 
-            SetMode((uint)Arm7Mode.IRQ); // Go into SVC / Supervisor mode
             ThumbState = false; // Back to ARM state
             IRQDisable = true;
             // FIQDisable = true;
@@ -1024,7 +1007,7 @@ namespace OptimeGBA
             }
             ThumbState = newThumbState;
 
-            SetMode(val & 0b01111);
+            SetMode((Arm7Mode)(val & 0b01111));
         }
 
         public uint GetSPSR()
@@ -1034,15 +1017,15 @@ namespace OptimeGBA
                 case Arm7Mode.FIQ:
                 case Arm7Mode.OldFIQ:
                     return SPSR_fiq;
-                case Arm7Mode.Supervisor:
-                case Arm7Mode.OldSupervisor:
+                case Arm7Mode.SVC:
+                case Arm7Mode.OldSVC:
                     return SPSR_svc;
-                case Arm7Mode.Abort:
+                case Arm7Mode.ABT:
                     return SPSR_abt;
                 case Arm7Mode.IRQ:
                 case Arm7Mode.OldIRQ:
                     return SPSR_irq;
-                case Arm7Mode.Undefined:
+                case Arm7Mode.UND:
                     return SPSR_und;
 
             }
@@ -1059,18 +1042,18 @@ namespace OptimeGBA
                 case Arm7Mode.OldFIQ:
                     SPSR_fiq = set;
                     return;
-                case Arm7Mode.Supervisor:
-                case Arm7Mode.OldSupervisor:
+                case Arm7Mode.SVC:
+                case Arm7Mode.OldSVC:
                     SPSR_svc = set;
                     return;
-                case Arm7Mode.Abort:
+                case Arm7Mode.ABT:
                     SPSR_abt = set;
                     return;
                 case Arm7Mode.IRQ:
                 case Arm7Mode.OldIRQ:
                     SPSR_irq = set;
                     return;
-                case Arm7Mode.Undefined:
+                case Arm7Mode.UND:
                     SPSR_und = set;
                     return;
 
@@ -1081,170 +1064,78 @@ namespace OptimeGBA
             // Error("No SPSR in this mode!");
         }
 
-        public void SetMode(uint mode)
+        public uint GetModeReg(uint reg, Arm7Mode mode)
         {
-            // Bit 4 of mode is always set 
-            mode |= 0b10000;
-            // Store registers based on current mode
-            switch (Mode)
+            if (mode == Mode)
             {
-                case Arm7Mode.User:
-                case Arm7Mode.OldUser:
-                case Arm7Mode.System:
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13usr = R[13];
-                    R14usr = R[14];
-                    LineDebug("Saved Registers: User / System");
-                    break;
-
-                case Arm7Mode.FIQ:
-                case Arm7Mode.OldFIQ:
-                    R8fiq = R[8];
-                    R9fiq = R[9];
-                    R10fiq = R[10];
-                    R11fiq = R[11];
-                    R12fiq = R[12];
-                    R13fiq = R[13];
-                    R14fiq = R[14];
-                    LineDebug("Saved Registers: FIQ");
-                    break;
-
-                case Arm7Mode.Supervisor:
-                case Arm7Mode.OldSupervisor:
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13svc = R[13];
-                    R14svc = R[14];
-                    LineDebug("Saved Registers: Supervisor");
-                    break;
-
-                case Arm7Mode.Abort:
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13abt = R[13];
-                    R14abt = R[14];
-                    LineDebug("Saved Registers: Abort");
-                    break;
-
-                case Arm7Mode.IRQ:
-                case Arm7Mode.OldIRQ:
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13irq = R[13];
-                    R14irq = R[14];
-                    LineDebug("Saved Registers: IRQ");
-                    break;
-
-                case Arm7Mode.Undefined:
-                    R8usr = R[8];
-                    R9usr = R[9];
-                    R10usr = R[10];
-                    R11usr = R[11];
-                    R12usr = R[12];
-                    R13und = R[13];
-                    R14und = R[14];
-                    LineDebug("Saved Registers: Undefined");
-                    break;
+                return R[reg];
             }
 
             switch (mode)
             {
-
-
-                case 0x10:
-                    Mode = Arm7Mode.User;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13usr;
-                    R[14] = R14usr;
-                    LineDebug($"Mode Switch: User");
-                    break;
-                case 0x11:
-                    Mode = Arm7Mode.FIQ;
-                    R[8] = R8fiq;
-                    R[9] = R9fiq;
-                    R[10] = R10fiq;
-                    R[11] = R11fiq;
-                    R[12] = R12fiq;
-                    R[13] = R13fiq;
-                    R[14] = R14fiq;
-                    LineDebug($"Mode Switch: FIQ");
-                    break;
-                case 0x12:
-                    Mode = Arm7Mode.IRQ;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13irq;
-                    R[14] = R14irq;
-                    LineDebug($"Mode Switch: IRQ");
-                    break;
-                case 0x13:
-                    Mode = Arm7Mode.Supervisor;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13svc;
-                    R[14] = R14svc;
-                    LineDebug($"Mode Switch: Supervisor");
-                    break;
-                case 0x17:
-                    Mode = Arm7Mode.Abort;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13abt;
-                    R[14] = R14abt;
-                    LineDebug($"Mode Switch: Abort");
-                    break;
-                case 0x1B:
-                    Mode = Arm7Mode.Undefined;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13und;
-                    R[14] = R14und;
-                    LineDebug($"Mode Switch: Undefined");
-                    break;
-                case 0x1F:
-                    Mode = Arm7Mode.System;
-                    R[8] = R8usr;
-                    R[9] = R9usr;
-                    R[10] = R10usr;
-                    R[11] = R11usr;
-                    R[12] = R12usr;
-                    R[13] = R13usr;
-                    R[14] = R14usr;
-                    LineDebug($"Mode Switch: System");
-                    break;
-                default:
-                    Error($"Invalid SetMode: {mode}");
-                    return;
+                case Arm7Mode.USR:
+                case Arm7Mode.SYS: return Rusr[reg - 8];
+                case Arm7Mode.FIQ: return Rfiq[reg - 8];
+                case Arm7Mode.IRQ: return Rirq[reg - 13];
+                case Arm7Mode.SVC: return Rsvc[reg - 13];
+                case Arm7Mode.ABT: return Rabt[reg - 13];
+                case Arm7Mode.UND: return Rund[reg - 13];
             }
+
+            return 0;
+        }
+
+        public void SetModeReg(uint reg, Arm7Mode mode, uint val)
+        {
+            if (mode == Mode)
+            {
+                R[reg] = val;
+            }
+
+            switch (mode)
+            {
+                case Arm7Mode.USR:
+                case Arm7Mode.SYS: Rusr[reg - 8] = val; break;
+                case Arm7Mode.FIQ: Rfiq[reg - 8] = val; break;
+                case Arm7Mode.IRQ: Rirq[reg - 13] = val; break;
+                case Arm7Mode.SVC: Rsvc[reg - 13] = val; break;
+                case Arm7Mode.ABT: Rabt[reg - 13] = val; break;
+                case Arm7Mode.UND: Rund[reg - 13] = val; break;
+            }
+        }
+
+        public void SetMode(Arm7Mode mode)
+        {
+            // Bit 4 of mode is always set 
+            mode |= (Arm7Mode)0b10000;
+
+            // Store registers based on current mode
+            switch (Mode)
+            {
+                case Arm7Mode.USR:
+                case Arm7Mode.SYS: for (uint i = 0; i < 7; i++) Rusr[i] = R[8 + i]; break;
+                case Arm7Mode.FIQ: for (uint i = 0; i < 7; i++) Rfiq[i] = R[8 + i]; break;
+                case Arm7Mode.SVC: for (uint i = 0; i < 2; i++) Rsvc[i] = R[13 + i]; break;
+                case Arm7Mode.ABT: for (uint i = 0; i < 2; i++) Rabt[i] = R[13 + i]; break;
+                case Arm7Mode.IRQ: for (uint i = 0; i < 2; i++) Rirq[i] = R[13 + i]; break;
+                case Arm7Mode.UND: for (uint i = 0; i < 2; i++) Rund[i] = R[13 + i]; break;
+            }
+
+            switch (mode)
+            {
+                case Arm7Mode.USR:
+                case Arm7Mode.SYS: for (uint i = 5; i < 7; i++) R[8 + i] = Rusr[i]; break;
+                case Arm7Mode.FIQ: for (uint i = 0; i < 7; i++) R[8 + i] = Rfiq[i]; break;
+                case Arm7Mode.SVC: for (uint i = 0; i < 2; i++) R[13 + i] = Rsvc[i]; break;
+                case Arm7Mode.ABT: for (uint i = 0; i < 2; i++) R[13 + i] = Rabt[i]; break;
+                case Arm7Mode.IRQ: for (uint i = 0; i < 2; i++) R[13 + i] = Rirq[i]; break;
+                case Arm7Mode.UND: for (uint i = 0; i < 2; i++) R[13 + i] = Rund[i]; break;
+            }
+
+            if (Mode == Arm7Mode.FIQ)
+                for (uint i = 0; i < 5; i++) R[8 + i] = Rusr[i];
+
+            Mode = mode;
         }
 
         public uint GetMode()

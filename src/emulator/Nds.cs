@@ -100,6 +100,7 @@ namespace OptimeGBA
                 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
             );
 
+            // ARM7 init
             Mem7 = new MemoryNds7(this, Provider);
             Spi = new Spi(this);
             Audio = new NdsAudio(this);
@@ -211,8 +212,8 @@ namespace OptimeGBA
                         Mem7.Write8(arm7RamAddr + i, rom[arm7RomOffset + i]);
                     }
                     Cpu7.R[13] = 0x3002F7C;
-                    Cpu7.R13irq = 0x3003F80;
-                    Cpu7.R13svc = 0x3003FC0;
+                    Cpu7.SetModeReg(13, Arm7Mode.IRQ, 0x3003F80);
+                    Cpu7.SetModeReg(13, Arm7Mode.SVC, 0x3003FC0);
                     Cpu7.R[12] = arm7EntryAddr;
                     Cpu7.R[14] = arm7EntryAddr;
                     Cpu7.R[15] = arm7EntryAddr;
@@ -232,8 +233,8 @@ namespace OptimeGBA
                         Mem9.Write8(arm9RamAddr + i, rom[arm9RomOffset + i]);
                     }
                     Cpu9.R[13] = 0x380FD80;
-                    Cpu9.R13irq = 0x380FF80;
-                    Cpu9.R13svc = 0x380FFC0;
+                    Cpu9.SetModeReg(13, Arm7Mode.IRQ, 0x380FF80);
+                    Cpu9.SetModeReg(13, Arm7Mode.SVC, 0x380FFC0);
                     Cpu9.R[12] = arm9EntryAddr;
                     Cpu9.R[14] = arm9EntryAddr;
                     Cpu9.R[15] = arm9EntryAddr;
