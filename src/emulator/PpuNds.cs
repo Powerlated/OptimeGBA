@@ -12,13 +12,13 @@ namespace OptimeGBA
 
         public PpuRenderer[] Renderers;
 
-        public PpuNds(Nds gba, Scheduler scheduler)
+        public PpuNds(Nds nds, Scheduler scheduler)
         {
-            Nds = gba;
+            Nds = nds;
             Scheduler = scheduler;
             Renderers = new PpuRenderer[] {
-                new PpuRenderer(true, 256, 192),
-                new PpuRenderer(true, 256, 192)
+                new PpuRenderer(nds, 256, 192),
+                new PpuRenderer(nds, 256, 192)
             };
 
             Scheduler.AddEventRelative(SchedulerId.Ppu, 1536, EndDrawingToHblank);
@@ -899,7 +899,7 @@ namespace OptimeGBA
                 VCount = 0;
                 Scheduler.AddEventRelative(SchedulerId.Ppu, 1536 - cyclesLate, EndDrawingToHblank);
 
-                CompileVram();
+                // CompileVram();
 
                 // Pre-render sprites for line zero
                 fixed (byte* vramObjA = VramObjA, vramObjB = VramObjB)

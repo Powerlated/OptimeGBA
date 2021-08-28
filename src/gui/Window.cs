@@ -38,6 +38,8 @@ namespace OptimeGBAEmulator
         bool NdsMode = false;
         bool RomLoaded = false;
 
+        public bool RunEmulator;
+
         public Window(int width, int height, string title) : base(GameWindowSettings.Default, new NativeWindowSettings() { Size = new Vector2i(width, height), Title = title })
         {
             WindowGba = new WindowGba(this);

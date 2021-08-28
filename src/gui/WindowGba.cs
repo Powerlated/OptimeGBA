@@ -25,7 +25,7 @@ namespace OptimeGBAEmulator
 {
     public unsafe class WindowGba
     {
-        public GameWindow Window;
+        public Window Window;
         int gbTexId;
         int bgPalTexId;
         int objPalTexId;
@@ -69,7 +69,7 @@ namespace OptimeGBAEmulator
                     cyclesLeft -= (int)Gba.Step();
                 }
 
-                while (!SyncToAudio && !Gba.Cpu.Errored && RunEmulator)
+                while (!SyncToAudio && !Gba.Cpu.Errored && Window.RunEmulator)
                 {
                     Gba.Step();
                     ThreadCyclesQueued = 0;
@@ -114,7 +114,7 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Gba.Cpu.Errored && RunEmulator)
+            while (cycles > 0 && !Gba.Cpu.Errored && Window.RunEmulator)
             {
                 cycles -= (int)Gba.Step();
             }
@@ -147,14 +147,12 @@ namespace OptimeGBAEmulator
             }
         }
 
-        bool RunEmulator = false;
-
         public static uint GetAudioSamplesInQueue()
         {
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public WindowGba(GameWindow window)
+        public WindowGba(Window window)
         {
             Window = window;
 
@@ -192,9 +190,6 @@ namespace OptimeGBAEmulator
             gbTexId = GL.GenTexture();
             bgPalTexId = GL.GenTexture();
             objPalTexId = GL.GenTexture();
-
-            Window.VSync = VSyncMode.Off;
-            Window.UpdateFrequency = 59.7275;
         }
 
         public void LoadRomAndSave(byte[] rom, byte[] sav, string savPath)
@@ -210,6 +205,9 @@ namespace OptimeGBAEmulator
 
         public void OnUpdateFrame(FrameEventArgs e)
         {
+            Window.VSync = VSyncMode.Off;
+            Window.UpdateFrequency = 59.7275;            
+            
             Gba.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
             Gba.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
             Gba.Keypad.Left = Window.KeyboardState.IsKeyDown(Keys.Left);
@@ -224,7 +222,7 @@ namespace OptimeGBAEmulator
             SyncToAudio = !(Window.KeyboardState.IsKeyDown(Keys.Tab) || Window.KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
 
-            if (RunEmulator)
+            if (Window.RunEmulator)
             {
                 FrameNow = true;
                 ThreadSync.Set();
@@ -616,7 +614,7 @@ namespace OptimeGBAEmulator
                 }
 
 
-                ImGui.Checkbox("Run Emulator", ref RunEmulator);
+                ImGui.Checkbox("Run Emulator", ref Window.RunEmulator);
                 // ImGui.Checkbox("Log HWIO Access", ref Gba.Mem.LogHWIOAccess);
 
                 ImGui.NextColumn();

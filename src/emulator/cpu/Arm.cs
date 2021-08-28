@@ -1005,10 +1005,242 @@ namespace OptimeGBA
         public static void LDRSB(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, false); }
         public static void LDRSH(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, true); }
 
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static (uint shifterOperand, bool shifterCarryOut, uint rnVal, uint rd) DataDecode(Arm7 arm7, uint ins, bool useImmediate32)
+        {
+            uint rd = (ins >> 12) & 0xF; // Rd, SBZ for CMP
+
+            // ----- When using register as 2nd operand -----
+            // Shift by immediate or shift by register
+            uint shifterOperand = 0;
+            bool shifterCarryOut = false;
+
+            if (useImmediate32)
+            {
+                uint rn = (ins >> 16) & 0xF; // Rn
+                                             // uint rs = (ins >> 8) & 0xF;
+                                             // uint rm = ins & 0xF;
+                uint rnVal = arm7.R[rn];
+                // uint rsVal = R[rs];
+                // uint rmVal = R[rm];
+
+                uint rotateBits = ((ins >> 8) & 0xF) * 2;
+                uint constant = ins & 0xFF;
+
+                shifterOperand = RotateRight32(constant, (byte)rotateBits);
+                if (rotateBits == 0)
+                {
+                    shifterCarryOut = arm7.Carry;
+                }
+                else
+                {
+                    shifterCarryOut = BitTest(shifterOperand, 31);
+                }
+
+                arm7.LineDebug($"Immediate32: {Util.Hex(shifterOperand, 8)}");
+
+                return (shifterOperand, shifterCarryOut, rnVal, rd);
+            }
+            else
+            {
+                bool regShift = (ins & BIT_4) != 0;
+
+                byte shiftBits;
+                uint shiftType = (ins >> 5) & 0b11;
+
+                if (!regShift)
+                {
+                    // Immediate Shift
+                    arm7.LineDebug("Immediate Shift");
+                    shiftBits = (byte)((ins >> 7) & 0b11111);
+
+                    uint rn = (ins >> 16) & 0xF; // Rn
+                                                 // uint rs = (ins >> 8) & 0xF;
+                    uint rm = ins & 0xF;
+                    uint rnVal = arm7.R[rn];
+                    // uint rsVal = R[rs];
+                    uint rmVal = arm7.R[rm];
+
+                    switch (shiftType)
+                    {
+                        case 0b00: // LSL
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = arm7.Carry;
+                            }
+                            else
+                            {
+                                shifterOperand = LogicalShiftLeft32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                            }
+                            break;
+                        case 0b01: // LSR
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = BitTest(rmVal, 31);
+                            }
+                            else
+                            {
+                                shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                        case 0b10: // ASR
+                            if (shiftBits == 0)
+                            {
+                                if (!BitTest(rmVal, 31))
+                                {
+                                    shifterOperand = 0;
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterOperand = 0xFFFFFFFF;
+                                    shifterCarryOut = true;
+                                }
+                            }
+                            else
+                            {
+                                shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                        case 0b11: // ROR
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = LogicalShiftLeft32(arm7.Carry ? 1U : 0, 31) | LogicalShiftRight32(rmVal, 1);
+                                shifterCarryOut = BitTest(rmVal, 0);
+                            }
+                            else
+                            {
+                                shifterOperand = RotateRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            break;
+                    }
+
+                    return (shifterOperand, shifterCarryOut, rnVal, rd);
+                }
+                else
+                {
+                    // Register shift
+                    arm7.LineDebug("Register Shift");
+
+                    uint rn = (ins >> 16) & 0xF; // Rn
+                    uint rs = (ins >> 8) & 0xF;
+                    uint rm = ins & 0xF;
+                    arm7.LineDebug("RS: " + rs);
+
+                    arm7.ICycle();
+
+                    arm7.R[15] += 4;
+                    uint rnVal = arm7.R[rn];
+                    uint rsVal = arm7.R[rs];
+                    uint rmVal = arm7.R[rm];
+                    arm7.R[15] -= 4;
+
+                    shiftBits = (byte)(rsVal & 0b11111111);
+
+                    switch (shiftType)
+                    {
+                        case 0b00:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = arm7.Carry;
+                                break;
+                            }
+
+                            if (shiftBits >= 32)
+                            {
+                                if (shiftBits > 32)
+                                {
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterCarryOut = BitTest(rmVal, 0);
+                                }
+                                shifterOperand = 0;
+                                break;
+                            }
+
+                            shifterOperand = rmVal << shiftBits;
+                            shifterCarryOut = BitTest(rmVal, (byte)(32 - shiftBits));
+                            break;
+                        case 0b01:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = arm7.Carry;
+                            }
+                            else if (shiftBits < 32)
+                            {
+                                shifterOperand = LogicalShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            else if (shiftBits == 32)
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = BitTest(rmVal, 31);
+                            }
+                            else
+                            {
+                                shifterOperand = 0;
+                                shifterCarryOut = false;
+                            }
+                            break;
+                        case 0b10:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = arm7.Carry;
+                            }
+                            else if (shiftBits < 32)
+                            {
+                                shifterOperand = ArithmeticShiftRight32(rmVal, shiftBits);
+                                shifterCarryOut = BitTest(rmVal, (byte)(shiftBits - 1));
+                            }
+                            else if (shiftBits >= 32)
+                            {
+                                if (!BitTest(rmVal, 31))
+                                {
+                                    shifterOperand = 0;
+                                    shifterCarryOut = false;
+                                }
+                                else
+                                {
+                                    shifterOperand = 0xFFFFFFFF;
+                                    shifterCarryOut = true;
+                                }
+                            }
+                            break;
+                        case 0b11:
+                            if (shiftBits == 0)
+                            {
+                                shifterOperand = rmVal;
+                                shifterCarryOut = arm7.Carry;
+                            }
+                            else
+                            {
+                                shifterOperand = RotateRight32(rmVal, (byte)(shiftBits & 0b11111));
+                                shifterCarryOut = BitTest(rmVal, (byte)((shiftBits & 0b11111) - 1));
+                            }
+                            break;
+                    }
+
+                    return (shifterOperand, shifterCarryOut, rnVal, rd);
+                }
+            }
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataAND(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("AND");
 
@@ -1035,7 +1267,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataEOR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("EOR");
 
@@ -1062,7 +1294,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataSUB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("SUB");
 
@@ -1073,7 +1305,7 @@ namespace OptimeGBA
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = !(shifterOperand > rnValue); // C
+                arm7.Carry = shifterOperand <= rnValue; // C
                 arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
 
                 if (rd == 15)
@@ -1091,7 +1323,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataRSB(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("RSB");
 
@@ -1102,7 +1334,7 @@ namespace OptimeGBA
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = !(rnValue > shifterOperand); // C
+                arm7.Carry = rnValue <= shifterOperand; // C
                 arm7.Overflow = Arm7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
 
                 if (rd == 15)
@@ -1120,7 +1352,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataADD(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("ADD");
 
@@ -1148,7 +1380,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataADC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("ADC");
 
@@ -1176,7 +1408,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataSBC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("SBC");
 
@@ -1187,7 +1419,7 @@ namespace OptimeGBA
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = !((long)shifterOperand + (long)(!arm7.Carry ? 1U : 0) > rnValue); // C
+                arm7.Carry = (long)shifterOperand + (arm7.Carry ? 0 : 1L) <= rnValue; // C
                 arm7.Overflow = Arm7.CheckOverflowSub(rnValue, shifterOperand, aluOut); // V
 
                 if (rd == 15)
@@ -1205,7 +1437,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataRSC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("RSC");
 
@@ -1216,7 +1448,7 @@ namespace OptimeGBA
             {
                 arm7.Negative = BitTest(aluOut, 31); // N
                 arm7.Zero = aluOut == 0; // Z
-                arm7.Carry = !((long)rnValue + (long)(!arm7.Carry ? 1U : 0) > shifterOperand); // C
+                arm7.Carry = (long)rnValue + (long)(!arm7.Carry ? 1U : 0) <= shifterOperand; // C
                 arm7.Overflow = Arm7.CheckOverflowSub(shifterOperand, rnValue, aluOut); // V
 
                 if (rd == 15)
@@ -1234,7 +1466,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataTST(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("TST");
 
@@ -1248,7 +1480,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataTEQ(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("TEQ");
 
@@ -1262,7 +1494,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataCMP(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             // SBZ means should be zero, not relevant to the current code, just so you know
             arm7.LineDebug("CMP");
@@ -1278,7 +1510,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataCMN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("CMN");
 
@@ -1293,7 +1525,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataORR(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("ORR");
 
@@ -1320,7 +1552,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataMOV(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("MOV");
 
@@ -1346,7 +1578,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataBIC(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("BIC");
 
@@ -1373,7 +1605,7 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static void _DataMVN(Arm7 arm7, uint ins, bool useImmediate32, bool setFlags)
         {
-            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = arm7.ArmDataDecode(ins, useImmediate32);
+            (uint shifterOperand, bool shifterCarryOut, uint rnValue, uint rd) = DataDecode(arm7, ins, useImmediate32);
 
             arm7.LineDebug("MVN");
 

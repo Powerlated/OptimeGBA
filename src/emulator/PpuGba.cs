@@ -16,7 +16,7 @@ namespace OptimeGBA
         {
             Gba = gba;
             Scheduler = scheduler;
-            Renderer = new PpuRenderer(false, 240, 160);
+            Renderer = new PpuRenderer(null, 240, 160);
 
             Scheduler.AddEventRelative(SchedulerId.Ppu, 960, EndDrawingToHblank);
 

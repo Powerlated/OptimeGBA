@@ -4,34 +4,21 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-
         {
-            "name": ".NET Core Launch (Linux/Mac)",
+            "name": ".NET Core Launch (console)",
             "type": "coreclr",
             "request": "launch",
-            "program": "${workspaceFolder}/bin/Debug/netcoreapp5/OptimeGBA-SDL",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/bin/Debug/netcoreapp5/OptimeGBA-SDL.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "internalConsole",
-            "preLaunchTask": "build",
-            "stopAtEntry": false
-        },
-        {
-            "name": ".NET Core Launch (Windows)",
-            "type": "coreclr",
-            "request": "launch",
-            "program": "${workspaceFolder}/bin/Debug/netcoreapp5/OptimeGBA-SDL.exe",
-            "args": [],
-            "cwd": "${workspaceFolder}",
-            "console": "internalConsole",
-            "preLaunchTask": "build",
             "stopAtEntry": false
         },
         {
             "name": ".NET Core Attach",
             "type": "coreclr",
-            "request": "attach",
-            "processId": "${command:pickProcess}"
+            "request": "attach"
         }
     ]
 }

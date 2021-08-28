@@ -164,7 +164,6 @@ namespace OptimeGBA
             return (n & mask) | or;
         }
 
-
         // public bool bitReset(uint i, uint bit)
         // {
         //     return i & (~(1 << bit));
@@ -191,6 +190,11 @@ namespace OptimeGBA
             T temp = one;
             one = two;
             two = temp;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static sbyte SignExtend(byte val, int pos) {
+            return (sbyte)(((sbyte)val << (7 - pos)) >> (7 - pos));
         }
     }
 }

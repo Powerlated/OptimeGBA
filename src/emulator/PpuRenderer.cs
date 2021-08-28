@@ -12,18 +12,18 @@ namespace OptimeGBA
     {
         public int Width;
         public int Height;
-        public bool Nds;
-        public PpuRenderer(bool nds, int width, int height)
+        public Nds Nds;
+        public PpuRenderer(Nds nds, int width, int height)
         {
             Width = width;
             Height = height;
             Nds = nds;
 
             Backgrounds = new Background[4] {
-                new Background(Nds, 0),
-                new Background(Nds, 1),
-                new Background(Nds, 2),
-                new Background(Nds, 3),
+                new Background(Nds != null, 0),
+                new Background(Nds != null, 1),
+                new Background(Nds != null, 2),
+                new Background(Nds != null, 3),
             };
 
             Array.Fill(DebugEnableBg, true);
@@ -54,7 +54,7 @@ namespace OptimeGBA
                 ScreenBack[i] = 0x7FFF;
             }
 
-            if (!nds)
+            if (nds == null)
             {
                 DisplayMode = 1;
             }
@@ -480,7 +480,7 @@ namespace OptimeGBA
             Backgrounds[1].Mode = BackgroundMode.Char;
             Backgrounds[2].Mode = BackgroundMode.Char;
             Backgrounds[3].Mode = BackgroundMode.Char;
-            if (!Nds)
+            if (Nds == null)
             {
                 switch (BgMode)
                 {
@@ -1009,7 +1009,7 @@ namespace OptimeGBA
             uint tileX = (uint)(objX / 8);
             uint tileY = (uint)(objY / 8);
 
-            uint charBase = Nds ? 0U : 0x10000U;
+            uint charBase = Nds != null ? 0U : 0x10000U;
 
             tile <<= (int)TileObj1DBoundary;
             uint effectiveTileNumber = (uint)(tile + tileX);
@@ -1193,7 +1193,7 @@ namespace OptimeGBA
 
         public bool BgIsEnabled(int id)
         {
-            if (!Nds)
+            if (Nds == null)
             {
                 switch (BgMode)
                 {
@@ -1248,7 +1248,7 @@ namespace OptimeGBA
 
             for (uint i = 0; i < Width; i++)
             {
-                PlaceBgPixel(i + 8, PlaceholderFor3D[srcBase + i], meta);
+                PlaceBgPixel(i + 8, Nds.Ppu3D.Screen[srcBase + i], meta);
             }
         }
 
@@ -1327,16 +1327,13 @@ namespace OptimeGBA
             {
                 case 0x08: // BG0CNT B0
                 case 0x09: // BG0CNT B1
-                    return Backgrounds[0].ReadBGCNT(addr & 1);
                 case 0x0A: // BG1CNT B0
                 case 0x0B: // BG1CNT B1
-                    return Backgrounds[1].ReadBGCNT(addr & 1);
                 case 0x0C: // BG2CNT B0
                 case 0x0D: // BG2CNT B1
-                    return Backgrounds[2].ReadBGCNT(addr & 1);
                 case 0x0E: // BG3CNT B0
                 case 0x0F: // BG3CNT B1
-                    return Backgrounds[3].ReadBGCNT(addr & 1);
+                    return Backgrounds[(addr >> 1) & 3].ReadBGCNT(addr & 1);
 
                 case 0x10: // BG0HOFS B0
                 case 0x11: // BG0HOFS B1
@@ -1454,22 +1451,13 @@ namespace OptimeGBA
             {
                 case 0x08: // BG0CNT B0
                 case 0x09: // BG0CNT B1
-                    Backgrounds[0].WriteBGCNT(addr & 1, val);
-                    BackgroundSettingsDirty = true;
-                    break;
                 case 0x0A: // BG1CNT B0
                 case 0x0B: // BG1CNT B1
-                    Backgrounds[1].WriteBGCNT(addr & 1, val);
-                    BackgroundSettingsDirty = true;
-                    break;
                 case 0x0C: // BG2CNT B0
                 case 0x0D: // BG2CNT B1
-                    Backgrounds[2].WriteBGCNT(addr & 1, val);
-                    BackgroundSettingsDirty = true;
-                    break;
                 case 0x0E: // BG3CNT B0
                 case 0x0F: // BG3CNT B1
-                    Backgrounds[3].WriteBGCNT(addr & 1, val);
+                    Backgrounds[(addr >> 1) & 3].WriteBGCNT(addr & 1, val);
                     BackgroundSettingsDirty = true;
                     break;
 

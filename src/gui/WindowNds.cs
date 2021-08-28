@@ -23,7 +23,7 @@ namespace OptimeGBAEmulator
 {
     public unsafe class WindowNds
     {
-        GameWindow Window;
+        Window Window;
 
         int[] screenTexIds = new int[2];
         int[] palTexIds = new int[4];
@@ -75,7 +75,7 @@ namespace OptimeGBAEmulator
                     CheckBreakpoints();
                 }
 
-                while (!SyncToAudio && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && RunEmulator)
+                while (!SyncToAudio && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && Window.RunEmulator)
                 {
                     Nds.Step();
                     CheckBreakpoints();
@@ -147,7 +147,7 @@ namespace OptimeGBAEmulator
 
         public void RunCycles(int cycles)
         {
-            while (cycles > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && RunEmulator)
+            while (cycles > 0 && !Nds.Cpu7.Errored && !Nds.Cpu9.Errored && Window.RunEmulator)
             {
                 cycles -= (int)Nds.Step();
             }
@@ -180,14 +180,12 @@ namespace OptimeGBAEmulator
             }
         }
 
-        bool RunEmulator = false;
-
         public static uint GetAudioSamplesInQueue()
         {
             return SDL_GetQueuedAudioSize(AudioDevice) / sizeof(short);
         }
 
-        public WindowNds(GameWindow window)
+        public WindowNds(Window window)
         {
             Window = window;
 
@@ -227,9 +225,6 @@ namespace OptimeGBAEmulator
         {
             GL.GenTextures(2, screenTexIds);
             GL.GenTextures(4, palTexIds);
-
-            Window.VSync = VSyncMode.Off;
-            Window.UpdateFrequency = 59.7275;
         }
 
         public void LoadRomAndSave(byte[] rom, byte[] sav, string savPath)
@@ -247,6 +242,9 @@ namespace OptimeGBAEmulator
 
         public void OnUpdateFrame(FrameEventArgs e)
         {
+            Window.VSync = VSyncMode.Off;
+            Window.UpdateFrequency = 5585644D / (355D * 263D);
+
             Nds.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
             Nds.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
             Nds.Keypad.Y = Window.KeyboardState.IsKeyDown(Keys.A);
@@ -263,7 +261,7 @@ namespace OptimeGBAEmulator
             SyncToAudio = !(Window.KeyboardState.IsKeyDown(Keys.Tab) || Window.KeyboardState.IsKeyDown(Keys.Space));
             // SyncToAudio = false;
 
-            if (RunEmulator)
+            if (Window.RunEmulator)
             {
                 FrameNow = true;
                 ThreadSync.Set();
@@ -724,7 +722,7 @@ namespace OptimeGBAEmulator
                 }
 
 
-                ImGui.Checkbox("Run Emulator", ref RunEmulator);
+                ImGui.Checkbox("Run Emulator", ref Window.RunEmulator);
 
                 ImGui.NextColumn();
                 ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
@@ -815,19 +813,15 @@ namespace OptimeGBAEmulator
                 ImGui.Text("A---------------");
                 var rendA = Nds.Ppu.Renderers[0];
                 ImGui.Text($"BG0 Size X/Y: {PpuRenderer.CharWidthTable[rendA.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rendA.Backgrounds[0].ScreenSize]}");
-                ImGui.Text($"BG0 Scroll X: {rendA.Backgrounds[0].HorizontalOffset}");
-                ImGui.Text($"BG0 Scroll Y: {rendA.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"BG0 Scroll X/Y: {rendA.Backgrounds[0].HorizontalOffset}/{rendA.Backgrounds[0].VerticalOffset}");
                 ImGui.Text($"BG1 Size X/Y: {PpuRenderer.CharWidthTable[rendA.Backgrounds[1].ScreenSize]}/{PpuRenderer.CharHeightTable[rendA.Backgrounds[1].ScreenSize]}");
-                ImGui.Text($"BG1 Scroll X: {rendA.Backgrounds[1].HorizontalOffset}");
-                ImGui.Text($"BG1 Scroll Y: {rendA.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"BG2 Scroll X/Y: {rendA.Backgrounds[1].HorizontalOffset}/{rendA.Backgrounds[1].VerticalOffset}");
                 ImGui.Text($"BG2 Size X/Y: {PpuRenderer.CharWidthTable[rendA.Backgrounds[2].ScreenSize]}/{PpuRenderer.CharHeightTable[rendA.Backgrounds[2].ScreenSize]}");
                 ImGui.Text($"BG2 Affine Size: {PpuRenderer.AffineSizeTable[rendA.Backgrounds[2].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendA.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Scroll X: {rendA.Backgrounds[2].HorizontalOffset}");
-                ImGui.Text($"BG2 Scroll Y: {rendA.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"BG3 Scroll X/Y: {rendA.Backgrounds[2].HorizontalOffset}/{rendA.Backgrounds[2].VerticalOffset}");
                 ImGui.Text($"BG3 Size X/Y: {PpuRenderer.CharWidthTable[rendA.Backgrounds[3].ScreenSize]}/{PpuRenderer.CharHeightTable[rendA.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Affine Size: {PpuRenderer.AffineSizeTable[rendA.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendA.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Scroll X: {rendA.Backgrounds[3].HorizontalOffset}");
-                ImGui.Text($"BG3 Scroll Y: {rendA.Backgrounds[3].VerticalOffset}");
+                ImGui.Text($"BG3 Scroll X/Y: {rendA.Backgrounds[3].HorizontalOffset}/{rendA.Backgrounds[3].VerticalOffset}");
                 ImGui.Text("Debug BG0123/OBJ");
                 ImGui.Checkbox("##rendAbg0", ref rendA.DebugEnableBg[0]);
                 ImGui.SameLine(); ImGui.Checkbox("##rendAbg1", ref rendA.DebugEnableBg[1]);
@@ -838,25 +832,37 @@ namespace OptimeGBAEmulator
                 ImGui.Text("B---------------");
                 var rendB = Nds.Ppu.Renderers[1];
                 ImGui.Text($"BG0 Size X/Y: {PpuRenderer.CharWidthTable[rendB.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rendB.Backgrounds[0].ScreenSize]}");
-                ImGui.Text($"BG0 Scroll X: {rendB.Backgrounds[0].HorizontalOffset}");
-                ImGui.Text($"BG0 Scroll Y: {rendB.Backgrounds[0].VerticalOffset}");
+                ImGui.Text($"BG0 Scroll X/Y: {rendB.Backgrounds[0].HorizontalOffset}/{rendB.Backgrounds[0].VerticalOffset}");
                 ImGui.Text($"BG1 Size X/Y: {PpuRenderer.CharWidthTable[rendB.Backgrounds[1].ScreenSize]}/{PpuRenderer.CharHeightTable[rendB.Backgrounds[1].ScreenSize]}");
-                ImGui.Text($"BG1 Scroll X: {rendB.Backgrounds[1].HorizontalOffset}");
-                ImGui.Text($"BG1 Scroll Y: {rendB.Backgrounds[1].VerticalOffset}");
+                ImGui.Text($"BG2 Scroll X/Y: {rendB.Backgrounds[1].HorizontalOffset}/{rendB.Backgrounds[1].VerticalOffset}");
                 ImGui.Text($"BG2 Size X/Y: {PpuRenderer.CharWidthTable[rendB.Backgrounds[2].ScreenSize]}/{PpuRenderer.CharHeightTable[rendB.Backgrounds[2].ScreenSize]}");
                 ImGui.Text($"BG2 Affine Size: {PpuRenderer.AffineSizeTable[rendB.Backgrounds[2].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendB.Backgrounds[2].ScreenSize]}");
-                ImGui.Text($"BG2 Scroll X: {rendB.Backgrounds[2].HorizontalOffset}");
-                ImGui.Text($"BG2 Scroll Y: {rendB.Backgrounds[2].VerticalOffset}");
+                ImGui.Text($"BG3 Scroll X/Y: {rendB.Backgrounds[2].HorizontalOffset}/{rendB.Backgrounds[2].VerticalOffset}");
                 ImGui.Text($"BG3 Size X/Y: {PpuRenderer.CharWidthTable[rendB.Backgrounds[3].ScreenSize]}/{PpuRenderer.CharHeightTable[rendB.Backgrounds[3].ScreenSize]}");
                 ImGui.Text($"BG3 Affine Size: {PpuRenderer.AffineSizeTable[rendB.Backgrounds[3].ScreenSize]}/{PpuRenderer.AffineSizeTable[rendB.Backgrounds[3].ScreenSize]}");
-                ImGui.Text($"BG3 Scroll X: {rendB.Backgrounds[3].HorizontalOffset}");
-                ImGui.Text($"BG3 Scroll Y: {rendB.Backgrounds[3].VerticalOffset}");
+                ImGui.Text($"BG3 Scroll X/Y: {rendB.Backgrounds[3].HorizontalOffset}/{rendB.Backgrounds[3].VerticalOffset}");
                 ImGui.Text("Debug BG0123/OBJ");
                 ImGui.Checkbox("##rendBbg0", ref rendB.DebugEnableBg[0]);
                 ImGui.SameLine(); ImGui.Checkbox("##rendBbg1", ref rendB.DebugEnableBg[1]);
                 ImGui.SameLine(); ImGui.Checkbox("##rendBbg2", ref rendB.DebugEnableBg[2]);
                 ImGui.SameLine(); ImGui.Checkbox("##rendBbg3", ref rendB.DebugEnableBg[3]);
                 ImGui.SameLine(); ImGui.Checkbox("##rendBobj", ref rendB.DebugEnableObj);
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text("Viewport 1 X: " + Nds.Ppu3D.Viewport1[0]);
+                ImGui.Text("Viewport 1 Y: " + Nds.Ppu3D.Viewport1[1]);
+                ImGui.Text("Viewport 2 X: " + Nds.Ppu3D.Viewport2[0]);
+                ImGui.Text("Viewport 2 Y: " + Nds.Ppu3D.Viewport2[1]);
+
+                // doesn't work right now because different matrices can be used in the same frame
+                // ImGui.Text($"Matrix Mode: {Nds.Ppu3D.MatrixMode}");
+                // ImGui.Text("Projection");
+                // DisplayMatrix(ref Nds.Ppu3D.DebugProjectionMatrix);
+                // ImGui.Text("Position");
+                // DisplayMatrix(ref Nds.Ppu3D.DebugPositionMatrix);
+                // ImGui.Text("Direction");
+                // DisplayMatrix(ref Nds.Ppu3D.DebugDirectionMatrix);
 
                 // ImGui.Text($"Window 0 Left..: {Nds.Ppu.Win0HLeft}");
                 // ImGui.Text($"Window 0 Right.: {Nds.Ppu.Win0HRight}");
@@ -967,6 +973,14 @@ namespace OptimeGBAEmulator
 
                 ImGui.End();
             }
+        }
+
+        public void DisplayMatrix(ref Matrix m)
+        {
+            ImGui.Text($"{m.Data[0x0]}, {m.Data[0x1]}, {m.Data[0x2]}, {m.Data[0x3]}");
+            ImGui.Text($"{m.Data[0x4]}, {m.Data[0x5]}, {m.Data[0x6]}, {m.Data[0x7]}");
+            ImGui.Text($"{m.Data[0x8]}, {m.Data[0x9]}, {m.Data[0xA]}, {m.Data[0xB]}");
+            ImGui.Text($"{m.Data[0xC]}, {m.Data[0xD]}, {m.Data[0xE]}, {m.Data[0xF]}");
         }
 
         public void ImGuiColumnSeparator()

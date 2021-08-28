@@ -194,6 +194,11 @@ namespace OptimeGBA
                     (byte[] array, uint offset) = GetSharedRamParams(addr);
                     return GetUint(array, offset);
                 case 0x4: // I/O Registers
+                    if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
+                    {
+                        return Nds.Ppu3D.ReadHwio32(addr);
+                    }
+
                     byte f0 = ReadHwio8(debug, addr + 0);
                     byte f1 = ReadHwio8(debug, addr + 1);
                     byte f2 = ReadHwio8(debug, addr + 2);
@@ -271,6 +276,11 @@ namespace OptimeGBA
                     SetUint(array, offset, val);
                     break;
                 case 0x4: // I/O Registers
+                    if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
+                    {
+                        Nds.Ppu3D.WriteHwio32(addr, val);
+                        return;
+                    }
                     WriteHwio8(debug, addr++, (byte)(val >> 0));
                     WriteHwio8(debug, addr++, (byte)(val >> 8));
                     WriteHwio8(debug, addr++, (byte)(val >> 16));
@@ -307,7 +317,8 @@ namespace OptimeGBA
 
             if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
             {
-                return Nds.Ppu3D.ReadHwio8(addr);
+                // Console.Error.WriteLine("8-bit or 16-bit read to 3D");
+                return 0;
             }
 
             switch (addr)
@@ -464,7 +475,8 @@ namespace OptimeGBA
 
             if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
             {
-                Nds.Ppu3D.WriteHwio8(addr, val);
+                // Console.Error.WriteLine($"8-bit or 16-bit write to 3D addr:{Hex(addr, 8)} val:{Hex(val, 2)}");
+                return;
             }
 
             switch (addr)

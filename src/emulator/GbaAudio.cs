@@ -32,7 +32,11 @@ namespace OptimeGBA
                 if (ReadPos == WritePos) Collisions++;
                 Entries++;
                 Buffer[WritePos++] = data;
-                WritePos %= Size;
+
+                if (WritePos >= Size)
+                {
+                    WritePos = 0;
+                }
             }
             else
             {
@@ -49,7 +53,11 @@ namespace OptimeGBA
             {
                 Entries--;
                 data = Buffer[ReadPos++];
-                ReadPos %= Size;
+
+                if (ReadPos >= Size)
+                {
+                    ReadPos = 0;
+                }
             }
             else
             {
@@ -57,6 +65,12 @@ namespace OptimeGBA
                 data = EmptyValue;
             }
             return data;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Peek()
+        {
+            return Buffer[ReadPos];
         }
 
         public void Reset()
