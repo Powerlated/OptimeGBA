@@ -1248,5 +1248,9 @@ namespace OptimeGBA
         public byte* Timing8And16InstrFetch = AllocateUnmanagedArray(16);
         public byte* Timing32InstrFetch = AllocateUnmanagedArray(16);
 
+        public uint GetCurrentInstrAddr()
+        {
+            return (uint)(R[15] - (ThumbState ? 4 : 8));
+        }
     }
 }

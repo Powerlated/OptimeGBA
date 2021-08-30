@@ -2,6 +2,8 @@ using System;
 using static OptimeGBA.Bits;
 using static OptimeGBA.CoreUtil;
 using static Util;
+using System.Runtime.CompilerServices;
+using System.Diagnostics;
 
 namespace OptimeGBA
 {
@@ -47,20 +49,20 @@ namespace OptimeGBA
 
             for (int i = 0; i < 16; i++)
             {
-                int sum = 0;
+                long sum = 0;
 
                 int ai = i & ~3; // Matrix A row
                 int bi = i & 3; // Matrix B column
 
                 for (int j = 0; j < 4; j++)
                 {
-                    sum += a.Data[ai] * Data[bi];
+                    sum += (long)a.Data[ai] * Data[bi];
                     ai++;
                     bi += 4;
                 }
 
                 // Trim multiplied fixed point digits off
-                m.Data[i] = sum >> 12;
+                m.Data[i] = (int)(sum >> 12);
             }
 
             return m;
@@ -72,17 +74,15 @@ namespace OptimeGBA
 
             for (int i = 0; i < 4; i++)
             {
-                int sum = 0;
+                long sum = 0;
 
                 for (int j = 0; j < 4; j++)
                 {
-                    int mat = Data[j * 4 + i];
-                    int vec = a.Data[j];
-                    sum += mat * vec;
+                    sum += (long)Data[j * 4 + i] * a.Data[j];
                 }
 
                 // Trim multiplied fixed point digits off
-                v.Data[i] = sum >> 12;
+                v.Data[i] = (int)(sum >> 12);
             }
 
             return v;
@@ -208,7 +208,8 @@ namespace OptimeGBA
         public byte CommandFifoIrqMode;
 
         // GXFIFO
-        public uint PendingCommand;
+        public CircularBuffer<byte> PackedCommandQueue = new CircularBuffer<byte>(4, 0);
+        public int PackedParamsQueued = 0;
         public CircularBuffer<Command> CommandFifo = new CircularBuffer<Command>(256, new Command());
 
         // GPU State
@@ -217,6 +218,8 @@ namespace OptimeGBA
         public MatrixStack PositionStack = new MatrixStack(31, 63);
         public MatrixStack DirectionStack = new MatrixStack(31, 63);
         public MatrixStack TextureStack = new MatrixStack(1, 0);
+        public Matrix ClipMatrix;
+        public bool ClipMatrixDirty;
 
         public byte[] Viewport1 = new byte[2];
         public byte[] Viewport2 = new byte[2];
@@ -225,13 +228,17 @@ namespace OptimeGBA
         public Matrix DebugProjectionMatrix;
         public Matrix DebugPositionMatrix;
         public Matrix DebugDirectionMatrix;
+
+
+
+
         public Matrix DebugTextureMatrix;
 
         public PrimitiveType PrimitiveType;
+        public short[] VertexCoords = new short[3];
         public byte[] VertexColor = new byte[3];
-        public CircularBuffer<Vertex> VertexQueue = new CircularBuffer<Vertex>(1024, new Vertex());
-
-        public CircularBuffer<byte> PackedCommandQueue = new CircularBuffer<byte>(1024, 0);
+        public CircularBuffer<Vertex> VertexQueueFront = new CircularBuffer<Vertex>(6144, new Vertex());
+        public CircularBuffer<Vertex> VertexQueueBack = new CircularBuffer<Vertex>(6144, new Vertex());
 
         public uint ReadHwio32(uint addr)
         {
@@ -239,7 +246,9 @@ namespace OptimeGBA
 
             switch (addr)
             {
-                case 0x4000600:
+                case 0x4000600: // GXSTAT
+                    val |= 0b10; // always true boxtest
+
                     val |= (uint)(PositionStack.Sp & 0b11111) << 8;
                     val |= (uint)(ProjectionStack.Sp & 0b1) << 13;
 
@@ -247,6 +256,7 @@ namespace OptimeGBA
                     if (CommandFifo.Entries == 256) val = BitSet(val, 24);
                     if (CommandFifo.Entries < 128) val = BitSet(val, 25);
                     if (CommandFifo.Entries == 0) val = BitSet(val, 26);
+                    if (CommandFifo.Entries > 0) val = BitSet(val, 27);
                     val |= (uint)CommandFifoIrqMode << 30;
                     break;
             }
@@ -258,47 +268,71 @@ namespace OptimeGBA
         {
             if (addr >= 0x4000440 && addr < 0x4000600)
             {
+                Debug2("3D: MMIO insert cmd " + Hex((byte)(addr >> 2), 2) + " param " + Hex(val, 8));
+
                 QueueCommand((byte)(addr >> 2), val);
                 // Debug("3D: Port command send");
             }
 
-            switch (addr)
+            // GXFIFO
+            if (addr >= 0x4000400 && addr < 0x4000440)
             {
-                case 0x4000400:
-                    // QueueCommand(0);
-                    // TODO: GXFIFO commands
-                    // Console.WriteLine("GXFIFO command send");
-                    if (PackedCommandQueue.Entries == 0)
+                // QueueCommand(0);
+                // TODO: GXFIFO commands
+                // Console.WriteLine("GXFIFO command send");
+                if (PackedCommandQueue.Entries == 0)
+                {
+                    // Console.WriteLine(CommandFifo.Entries);
+                    for (int i = 0; i < 4; i++)
                     {
-                        for (int i = 0; i < 4; i++)
-                        {
-                            byte cmd = (byte)val;
+                        byte cmd = (byte)val;
 
-                            if (cmd != 0)
+                        if (cmd != 0)
+                        {
+                            if (cmd > 0x72)
+                            {
+                                throw new Exception("3D: GXFIFO insert invalid cmd " + Hex(cmd, 2) + " from addr " + Hex(addr, 8));
+                            }
+
+                            Debug2("3D: GXFIFO insert " + Hex(cmd, 2) + " from addr " + Hex(addr, 8));
+                            if (CommandParamLengths[cmd] != 0)
                             {
                                 PackedCommandQueue.Insert(cmd);
                             }
-
-                            cmd >>= 8;
+                            else
+                            {
+                                // if no params just queue it up
+                                QueueCommand(cmd, 0);
+                            }
                         }
+
+                        val >>= 8;
                     }
-                    else
+                }
+                else
+                {
+                    // Console.WriteLine("quued");
+                    byte cmd = PackedCommandQueue.Peek();
+                    QueueCommand(cmd, val);
+
+                    PackedParamsQueued++;
+
+                    Debug2("3D: GXFIFO take param cmd " + Hex(cmd, 2) + " param " + Hex(val, 8) + " remaining " + (CommandParamLengths[cmd] - PackedParamsQueued) + " from addr " + Hex(addr, 8));
+
+                    if (PackedParamsQueued >= CommandParamLengths[cmd])
                     {
-                        // Console.WriteLine("quued");
-                        QueueCommand(PackedCommandQueue.Peek(), val);
+                        PackedParamsQueued = 0;
 
-                        byte cmd = PackedCommandQueue.Peek();
+                        PackedCommandQueue.Pop();
 
-                        if (CommandFifo.Entries >= CommandParamLengths[cmd])
-                        {
-                            PackedCommandQueue.Pop();
-                            Debug("execu");
-
-                            RunCommand(CommandFifo.Peek());
-                        }
+                        Debug("execu");
                     }
-                    return;
+                }
+                return;
+            }
 
+            switch (addr)
+            {
                 case 0x4000600:
                     CommandFifoIrqMode = (byte)((val >> 30) & 0b11);
                     return;
@@ -307,11 +341,16 @@ namespace OptimeGBA
 
         public void QueueCommand(byte cmd, uint val)
         {
-            CommandFifo.Insert(new Command(cmd, val));
+            if (!CommandFifo.Insert(new Command(cmd, val)))
+            {
+                Console.Error.WriteLine("3D: GXFIFO overflow");
+            }
         }
 
         public void RunCommand(Command cmd)
         {
+            Debug2("3D CMD: " + Hex(cmd.Cmd, 2) + " take " + CommandParamLengths[cmd.Cmd] + " params " + "queue " + CommandFifo.Entries);
+
             switch (cmd.Cmd)
             {
                 case 0x10: // Set Matrix Mode
@@ -345,16 +384,50 @@ namespace OptimeGBA
                     switch (MatrixMode)
                     {
                         case MatrixMode.Projection:
-                            ProjectionStack.Pop(SignExtend((byte)cmd.Param, 5));
+                            ProjectionStack.Pop(SignExtend8((byte)cmd.Param, 5));
                             break;
                         case MatrixMode.Position:
                         case MatrixMode.PositionDirection:
                             // PositionStack.Current.Print("Pre-pop position matrix");
-                            PositionStack.Pop(SignExtend((byte)cmd.Param, 5));
-                            DirectionStack.Pop(SignExtend((byte)cmd.Param, 5));
+                            PositionStack.Pop(SignExtend8((byte)cmd.Param, 5));
+                            DirectionStack.Pop(SignExtend8((byte)cmd.Param, 5));
                             break;
                         case MatrixMode.Texture:
-                            TextureStack.Pop(SignExtend((byte)cmd.Param, 5));
+                            TextureStack.Pop(SignExtend8((byte)cmd.Param, 5));
+                            break;
+                    }
+                    break;
+                case 0x13: // Store Current Matrix
+                    PopCommand();
+                    switch (MatrixMode)
+                    {
+                        case MatrixMode.Projection:
+                            ProjectionStack.Store((byte)(cmd.Param & 0b11111));
+                            break;
+                        case MatrixMode.Position:
+                        case MatrixMode.PositionDirection:
+                            PositionStack.Store((byte)(cmd.Param & 0b11111));
+                            DirectionStack.Store((byte)(cmd.Param & 0b11111));
+                            break;
+                        case MatrixMode.Texture:
+                            TextureStack.Store((byte)(cmd.Param & 0b11111));
+                            break;
+                    }
+                    break;
+                case 0x14: // Restore Current Matrix
+                    PopCommand();
+                    switch (MatrixMode)
+                    {
+                        case MatrixMode.Projection:
+                            ProjectionStack.Restore((byte)(cmd.Param & 0b11111));
+                            break;
+                        case MatrixMode.Position:
+                        case MatrixMode.PositionDirection:
+                            PositionStack.Restore((byte)(cmd.Param & 0b11111));
+                            DirectionStack.Restore((byte)(cmd.Param & 0b11111));
+                            break;
+                        case MatrixMode.Texture:
+                            TextureStack.Restore((byte)(cmd.Param & 0b11111));
                             break;
                     }
                     break;
@@ -365,17 +438,47 @@ namespace OptimeGBA
                     {
                         case MatrixMode.Projection:
                             ProjectionStack.Current = Matrix.GetIdentity();
+                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.Position:
                             PositionStack.Current = Matrix.GetIdentity();
+                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.PositionDirection:
                             PositionStack.Current = Matrix.GetIdentity();
                             DirectionStack.Current = Matrix.GetIdentity();
+                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.Texture:
                             TextureStack.Current = Matrix.GetIdentity();
                             break;
+                    }
+                    break;
+                case 0x16: // Load 4x4 Matrix to Current Matrix
+                    {
+                        Matrix m = new Matrix();
+
+                        for (int i = 0; i < 16; i++)
+                        {
+                            m.Data[i] = (int)PopCommand().Param;
+                        }
+
+                        LoadCurrentMatrix(ref m);
+                    }
+                    break;
+                case 0x17: // Load 4x3 Matrix to Current Matrix
+                    {
+                        Matrix m = Matrix.GetIdentity();
+
+                        for (int i = 0; i < 4; i++)
+                        {
+                            for (int j = 0; j < 3; j++)
+                            {
+                                m.Data[i * 4 + j] = (int)PopCommand().Param;
+                            }
+                        }
+
+                        LoadCurrentMatrix(ref m);
                     }
                     break;
                 case 0x18: // Multiply Current Matrix by 4x4 Matrix
@@ -423,6 +526,32 @@ namespace OptimeGBA
                         MultiplyCurrentMatrixBy(ref m);
                     }
                     break;
+                case 0x1B: // Multiply Current Matrix by Scale Matrix
+                    Debug("Multiply Current Matrix by Scale Matrix");
+                    {
+                        Matrix m = Matrix.GetIdentity();
+
+                        m.Data[0] = (int)PopCommand().Param;
+                        m.Data[5] = (int)PopCommand().Param;
+                        m.Data[10] = (int)PopCommand().Param;
+
+                        switch (MatrixMode)
+                        {
+                            case MatrixMode.Projection:
+                                ProjectionStack.Current = ProjectionStack.Current.Multiply(m);
+                                ClipMatrixDirty = true;
+                                break;
+                            case MatrixMode.Position:
+                            case MatrixMode.PositionDirection:
+                                PositionStack.Current = PositionStack.Current.Multiply(m);
+                                ClipMatrixDirty = true;
+                                break;
+                            case MatrixMode.Texture:
+                                TextureStack.Current = TextureStack.Current.Multiply(m);
+                                break;
+                        }
+                    }
+                    break;
                 case 0x1C: // Multiply Current Matrix by Translation Matrix
                     Debug("Multiply Current Matrix by Translation Matrix");
                     {
@@ -446,37 +575,94 @@ namespace OptimeGBA
                         cmd.Param >>= 5;
                     }
                     break;
+                case 0x21: // TODO: Set Normal Vector
+                    PopCommand();
+                    break;
+                case 0x22: // TODO: Set Texture Coordinates
+                    PopCommand();
+                    break;
                 case 0x23: // Set Vertex XYZ 12-bit fraction
                     Debug("Set Vertex XYZ 12-bit fraction");
-                    {
-                        var v = new Vector();
+                    PopCommand();
+                    VertexCoords[0] = (short)cmd.Param;
+                    VertexCoords[1] = (short)(cmd.Param >> 16);
+                    cmd = PopCommand();
+                    VertexCoords[2] = (short)cmd.Param;
 
-                        PopCommand();
-                        v.Data[0] = (short)cmd.Param;
-                        v.Data[1] = (short)(cmd.Param >> 16);
-                        cmd = PopCommand();
-                        v.Data[2] = (short)cmd.Param;
-
-                        TransformAndAddVertex(v);
-                    }
+                    TransformAndAddVertex();
                     break;
-                case 0x29: // Polygon Attributes
-                           // TODO
+                case 0x24: // Set Vertex XYZ 6-bit fraction
+                    PopCommand();
+                    VertexCoords[0] = (short)(((cmd.Param >> 0) & 1023) << 6);
+                    VertexCoords[1] = (short)(((cmd.Param >> 10) & 1023) << 6);
+                    VertexCoords[2] = (short)(((cmd.Param >> 20) & 1023) << 6);
+
+                    TransformAndAddVertex();
+                    break;
+                case 0x25: // Set Vertex XY 12-bit fraction
+                    PopCommand();
+                    VertexCoords[0] = (short)cmd.Param;
+                    VertexCoords[1] = (short)(cmd.Param >> 16);
+
+                    TransformAndAddVertex();
+                    break;
+                case 0x26: // Set Vertex XZ 12-bit fraction
+                    PopCommand();
+                    VertexCoords[0] = (short)cmd.Param;
+                    VertexCoords[2] = (short)(cmd.Param >> 16);
+
+                    TransformAndAddVertex();
+                    break;
+                case 0x27: // Set Vertex YZ 12-bit fraction
+                    PopCommand();
+                    VertexCoords[1] = (short)cmd.Param;
+                    VertexCoords[2] = (short)(cmd.Param >> 16);
+
+                    TransformAndAddVertex();
+                    break;
+                case 0x28: // Relative add vertex coordinates
+                    PopCommand();
+                    VertexCoords[0] += (short)((((cmd.Param >> 0) & 1023) << 6) >> 6);
+                    VertexCoords[1] += (short)((((cmd.Param >> 10) & 1023) << 6) >> 6);
+                    VertexCoords[2] += (short)((((cmd.Param >> 20) & 1023) << 6) >> 6);
+
+                    TransformAndAddVertex();
+                    break;
+                case 0x29: // TODO: Polygon Attributes
                     Debug("Polygon Attributes");
                     PopCommand();
                     break;
-                case 0x2A: // Texture Parameters
-                           // TODO
+                case 0x2A: // TODO: Texture Parameters
                     Debug("Texture Parameters");
                     PopCommand();
                     break;
+                case 0x2B: // TODO: Set Texture Palette Base Address
+                    PopCommand();
+                    break;
+                case 0x30: // TODO: Diffise/Ambient Reflections
+                    PopCommand();
+                    break;
+                case 0x31: // TODO: Specular Reflections & Emission
+                    PopCommand();
+                    break;
+                case 0x32: // TODO: Light Vector
+                    PopCommand();
+                    break;
+                case 0x33: // TODO: Set Light Color
+                    PopCommand();
+                    break;
+                case 0x34: // TODO: Shininess
+                    for (uint i = 0; i < 32; i++)
+                    {
+                        PopCommand();
+                    }
+                    break;
                 case 0x40: // Begin Vertex List
                     PopCommand();
-                    Debug("Begin Vertex List");
                     PrimitiveType = (PrimitiveType)(cmd.Param & 0b11);
+                    // Console.WriteLine("Begin Vertex List: " + PrimitiveType);
                     break;
-                case 0x41: // End Vertex List
-                           // This does nothing lmao
+                case 0x41: // End Vertex List - essentially a NOP
                     Debug("End Vertex List");
                     PopCommand();
                     break;
@@ -485,7 +671,7 @@ namespace OptimeGBA
                     PopCommand();
                     // TODO: swap buffers parameters
                     Render();
-                    VertexQueue.Reset();
+                    Swap(ref VertexQueueFront, ref VertexQueueBack);
                     break;
                 case 0x60: // Set Viewport
                     Debug("Set Viewport");
@@ -495,9 +681,29 @@ namespace OptimeGBA
                     Viewport2[0] = (byte)(cmd.Param >> 16);
                     Viewport2[1] = (byte)(cmd.Param >> 24);
                     break;
-                default:
-                    // throw new Exception(Hex(cmd.Cmd, 2));
+                case 0x70: // TODO: Box Test
                     PopCommand();
+                    PopCommand();
+                    PopCommand();
+                    break;
+                case 0x71: // TODO: Position Test
+                    PopCommand();
+                    PopCommand();
+                    break;
+                default:
+                    throw new Exception(Hex(cmd.Cmd, 2));
+
+                    if (CommandParamLengths[cmd.Cmd] == 0)
+                    {
+                        PopCommand();
+                    }
+                    else
+                    {
+                        for (uint i = 0; i < CommandParamLengths[cmd.Cmd]; i++)
+                        {
+                            PopCommand();
+                        }
+                    }
                     break;
             }
         }
@@ -525,7 +731,7 @@ namespace OptimeGBA
 
         public Command PopCommand()
         {
-            if (CommandFifo.Entries == 0) Debug("Tried popping with no more commands left!");
+            if (CommandFifo.Entries == 0) Console.Error.WriteLine("3D: Tried popping with no more commands left!");
 
             return CommandFifo.Pop();
         }
@@ -535,16 +741,41 @@ namespace OptimeGBA
             return CommandFifo.Peek();
         }
 
+        public void LoadCurrentMatrix(ref Matrix m)
+        {
+            switch (MatrixMode)
+            {
+                case MatrixMode.Projection:
+                    ProjectionStack.Current = m;
+                    ClipMatrixDirty = true;
+                    break;
+                case MatrixMode.Position:
+                    PositionStack.Current = m;
+                    ClipMatrixDirty = true;
+                    break;
+                case MatrixMode.PositionDirection:
+                    PositionStack.Current = m;
+                    DirectionStack.Current = m;
+                    ClipMatrixDirty = true;
+                    break;
+                case MatrixMode.Texture:
+                    TextureStack.Current = m;
+                    break;
+            }
+        }
+
         public void MultiplyCurrentMatrixBy(ref Matrix m)
         {
             switch (MatrixMode)
             {
                 case MatrixMode.Projection:
                     ProjectionStack.Current = ProjectionStack.Current.Multiply(m);
+                    ClipMatrixDirty = true;
                     // ProjectionStack.Current.Print("Projection after multiply");
                     break;
                 case MatrixMode.Position:
                     PositionStack.Current = PositionStack.Current.Multiply(m);
+                    ClipMatrixDirty = true;
                     break;
                 case MatrixMode.PositionDirection:
                     PositionStack.Current.Print("Before translation mul");
@@ -558,21 +789,28 @@ namespace OptimeGBA
             }
         }
 
-        public void TransformAndAddVertex(Vector vec)
+        public void TransformAndAddVertex()
         {
             var v = new Vertex();
 
             for (int i = 0; i < 3; i++)
             {
                 v.Color[i] = VertexColor[i];
+                v.Pos.Data[i] = VertexCoords[i];
             }
 
-            v.Pos = vec;
+            if (ClipMatrixDirty)
+            {
+                ClipMatrixDirty = false;
+
+                ClipMatrix = ProjectionStack.Current.Multiply(PositionStack.Current);
+            }
+
             v.Pos.Data[3] = 0x1000; // Set W coordinate to 1 
-            v.Pos = PositionStack.Current.Multiply(v.Pos);
-            v.Pos = ProjectionStack.Current.Multiply(v.Pos);
+            v.Pos = ClipMatrix.Multiply(v.Pos);
             // PositionStack.Current.Print("Position Matrix");
-            VertexQueue.Insert(v);
+            VertexQueueBack.Insert(v);
+
         }
 
         public void Render()
@@ -583,43 +821,78 @@ namespace OptimeGBA
                 Screen[i] = 0;
             }
 
-            while (VertexQueue.Entries >= 3)
+            Span<Vertex> vertices = stackalloc Vertex[3];
+            while (VertexQueueFront.Entries >= 1)
             {
-                Span<Vertex> vertices = stackalloc Vertex[3];
+                var v = VertexQueueFront.Pop();
 
-                for (int i = 0; i < 3; i++)
+                int x = v.Pos.Data[0];
+                int y = v.Pos.Data[1];
+                int z = v.Pos.Data[2];
+                int w = v.Pos.Data[3];
+
+                if (w == 0)
                 {
-                    vertices[i] = VertexQueue.Pop();
-
-                    int x = vertices[i].Pos.Data[0];
-                    int y = vertices[i].Pos.Data[1];
-                    int z = vertices[i].Pos.Data[2];
-                    int w = vertices[i].Pos.Data[3];
-
-                    int screenX = (((x * (Viewport2[0] - Viewport1[0] + 1)) >> 12) / 8) + Viewport2[0] / 2;
-                    int screenY = (((y * (Viewport2[1] - Viewport1[1] + 1)) >> 12) / 8) + Viewport2[1] / 2;
-
-                    // 0,0 is bottom left on NDS
-                    screenY = 191 - screenY;
-
-                    vertices[i].Pos.Data[0] = screenX;
-                    vertices[i].Pos.Data[1] = screenY;
-
-                    if (w != 0)
-                    {
-                        Debug($"{screenX}, {screenY}, {z}, {w}");
-
-                        if ((uint)screenX < 256 && (uint)screenY < 192)
-                        {
-                            SetPixel(screenX, screenY);
-                        }
-                    }
+                    continue;
                 }
 
-                DrawLine(vertices[0].Pos.Data[0], vertices[0].Pos.Data[1], vertices[1].Pos.Data[0], vertices[1].Pos.Data[1]);
-                DrawLine(vertices[1].Pos.Data[0], vertices[1].Pos.Data[1], vertices[2].Pos.Data[0], vertices[2].Pos.Data[1]);
-                DrawLine(vertices[2].Pos.Data[0], vertices[2].Pos.Data[1], vertices[0].Pos.Data[0], vertices[0].Pos.Data[1]);
+                // int screenX = (((x * (Viewport2[0] - Viewport1[0] + 1)) >> 12) / 8) + Viewport2[0] / 2;
+                // int screenY = (((y * (Viewport2[1] - Viewport1[1] + 1)) >> 12) / 8) + Viewport2[1] / 2;
+                // int screenX = (x * (Viewport2[0] - Viewport1[0] + 1)) / (2 * w) + Viewport2[0] / 2;
+                // int screenY = (y * (Viewport2[1] - Viewport1[1] + 1)) / (2 * w) + Viewport2[1] / 2;
+
+                // int screenX = (x * 256) / (2 * w) + 128;
+                // int screenY = (y * 192) / (2 * w) + 96;
+
+                int screenX = x * 128 / w + 128;
+                int screenY = -y * 96 / w + 96;
+
+                // Console.WriteLine($"{screenX} {screenY}");
+
+                // 0,0 is bottom left on NDS
+                // screenY = 191 - screenY;
+
+                SetPixel(screenX, screenY);
             }
+
+            // Console.WriteLine(VertexQueueFront.Entries);
+
+            // while (VertexQueue.Entries >= 3)
+            // {
+            //     for (int i = 0; i < 3; i++)
+            //     {
+            //         vertices[i] = VertexQueue.Pop();
+
+            //         int x = vertices[i].Pos.Data[0];
+            //         int y = vertices[i].Pos.Data[1];
+            //         int z = vertices[i].Pos.Data[2];
+            //         int w = vertices[i].Pos.Data[3];
+
+            //         if (w == 0)
+            //         {
+            //             w = 0x1000;
+            //         }
+
+            //         // int screenX = (((x * (Viewport2[0] - Viewport1[0] + 1)) >> 12) / 8) + Viewport2[0] / 2;
+            //         // int screenY = (((y * (Viewport2[1] - Viewport1[1] + 1)) >> 12) / 8) + Viewport2[1] / 2;
+            //         int screenX = (x * (Viewport2[0] - Viewport1[0] + 1)) / (2 * w) + Viewport2[0] / 2;
+            //         int screenY = (y * (Viewport2[1] - Viewport1[1] + 1)) / (2 * w) + Viewport2[1] / 2;
+
+            //         // 0,0 is bottom left on NDS
+            //         screenY = 191 - screenY;
+
+            //         // Console.WriteLine($"{screenX}, {screenY}, {z}, {w}");
+
+            //         vertices[i].Pos.Data[0] = screenX;
+            //         vertices[i].Pos.Data[1] = screenY;
+
+            //         SetPixel(screenX, screenY);
+            //     }
+
+            //     DrawLine(vertices[0].Pos.Data[0], vertices[0].Pos.Data[1], vertices[1].Pos.Data[0], vertices[1].Pos.Data[1]);
+            //     DrawLine(vertices[1].Pos.Data[0], vertices[1].Pos.Data[1], vertices[2].Pos.Data[0], vertices[2].Pos.Data[1]);
+            //     DrawLine(vertices[2].Pos.Data[0], vertices[2].Pos.Data[1], vertices[0].Pos.Data[0], vertices[0].Pos.Data[1]);
+            // }
 
             // var m = PositionStack.Current;
             var m = ProjectionStack.Current;
@@ -725,15 +998,26 @@ namespace OptimeGBA
 
         void SetPixel(int x, int y)
         {
+            if ((uint)x >= 256 || (uint)y >= 192)
+            {
+                return;
+            }
+
             var screenIndex = y * 256 + x;
 
             Screen[screenIndex] = 0x7FFF;
         }
 
+        [Conditional("NEVER")]
         public static void Debug(string s)
         {
-            if (false)
-                Console.WriteLine("3D: " + s);
+            Console.WriteLine("3D: " + s);
+        }
+
+        [Conditional("NEVER")]
+        public void Debug2(string s)
+        {
+            Console.WriteLine("[" + Hex(Nds.Cpu9.GetCurrentInstrAddr(), 8) + "] " + s);
         }
     }
 }

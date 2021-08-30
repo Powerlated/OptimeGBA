@@ -249,7 +249,6 @@ namespace OptimeGBA
 
             long beforeTicks = Scheduler.CurrentTicks;
 
-            int arm9PendingTicks = Arm9PendingTicks;
             while (Scheduler.CurrentTicks < Scheduler.NextEventTicks)
             {
                 // Running both CPUs at 1CPI at 32 MHz causes the firmware to loop the setup screen,
@@ -257,8 +256,6 @@ namespace OptimeGBA
                 // Cpu7.Execute();
                 // Cpu9.Execute();
                 // Scheduler.CurrentTicks += 1;
-
-                Ppu3D.Run();
 
                 // TODO: Proper NDS timings
                 // TODO: Figure out a better way to implement halting
@@ -285,24 +282,23 @@ namespace OptimeGBA
                     ticks7 += instrsAtATime;
                 }
 
-                arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
-                while (arm9PendingTicks > 0)
+                Arm9PendingTicks += (int)ticks7 * 2; // ARM9 runs at twice the speed of ARM7
+                while (Arm9PendingTicks > 0)
                 {
                     if (!Cpu9.Halted)
                     {
-                        arm9PendingTicks -= (int)Cpu9.Execute();
+                        Arm9PendingTicks -= (int)Cpu9.Execute();
+                        Ppu3D.Run();
                     }
                     else
                     {
-                        arm9PendingTicks -= (int)(Scheduler.NextEventTicks - Scheduler.CurrentTicks) * 2;
+                        Arm9PendingTicks -= (int)(Scheduler.NextEventTicks - Scheduler.CurrentTicks) * 2;
                         break;
                     }
                 }
 
                 Scheduler.CurrentTicks += ticks7;
             }
-
-            Arm9PendingTicks = arm9PendingTicks;
 
             long current = Scheduler.CurrentTicks;
             long next = Scheduler.NextEventTicks;

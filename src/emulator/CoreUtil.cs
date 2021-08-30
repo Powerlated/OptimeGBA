@@ -193,8 +193,15 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static sbyte SignExtend(byte val, int pos) {
+        public static sbyte SignExtend8(byte val, int pos)
+        {
             return (sbyte)(((sbyte)val << (7 - pos)) >> (7 - pos));
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static short SignExtend16(ushort val, int pos)
+        {
+            return (short)(((short)val << (15 - pos)) >> (15 - pos));
         }
     }
 }

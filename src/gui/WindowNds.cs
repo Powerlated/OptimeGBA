@@ -93,8 +93,8 @@ namespace OptimeGBAEmulator
             var arm9 = Nds.Cpu9;
             var arm7 = Nds.Cpu7;
 
-            uint addr9 = GetCurrentInstrAddr(arm9);
-            uint addr7 = GetCurrentInstrAddr(arm7);
+            uint addr9 = arm9.GetCurrentInstrAddr();
+            uint addr7 = arm7.GetCurrentInstrAddr();
 
             if (EnableBreakpoints)
             {
@@ -596,7 +596,7 @@ namespace OptimeGBAEmulator
                 drawCpuInfo(Nds.Cpu7);
                 displayCheckbox("IRQ Disable", Nds.Cpu7.IRQDisable);
                 ImGui.Text($"Total Steps: " + Nds.Steps);
-                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
+                // ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 200);
 
                 // ImGui.Text($"Ins Next Up: {(Nds.Cpu7.ThumbState ? Hex(Nds.Cpu7.THUMBDecode, 4) : Hex(Nds.Cpu7.ARMDecode, 8))}");
 
@@ -679,7 +679,7 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                var times = 5000000;
+                var times = 10000;
                 if (ImGui.Button("Step " + times))
                 {
                     using (StreamWriter file7 = new StreamWriter("log7.txt"), file9 = new StreamWriter("log9.txt"))
@@ -725,7 +725,7 @@ namespace OptimeGBAEmulator
                 ImGui.Checkbox("Run Emulator", ref Window.RunEmulator);
 
                 ImGui.NextColumn();
-                ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
+                // ImGui.SetColumnWidth(ImGui.GetColumnIndex(), 150);
 
                 // ImGui.Text($"BIOS Reads: {Nds.Mem7.BiosReads}");
                 // ImGui.Text($"EWRAM Reads: {Nds.Mem7.EwramReads}");
@@ -850,19 +850,19 @@ namespace OptimeGBAEmulator
 
                 ImGuiColumnSeparator();
 
-                ImGui.Text("Viewport 1 X: " + Nds.Ppu3D.Viewport1[0]);
-                ImGui.Text("Viewport 1 Y: " + Nds.Ppu3D.Viewport1[1]);
-                ImGui.Text("Viewport 2 X: " + Nds.Ppu3D.Viewport2[0]);
-                ImGui.Text("Viewport 2 Y: " + Nds.Ppu3D.Viewport2[1]);
+                // ImGui.Text("Viewport 1 X: " + Nds.Ppu3D.Viewport1[0]);
+                // ImGui.Text("Viewport 1 Y: " + Nds.Ppu3D.Viewport1[1]);
+                // ImGui.Text("Viewport 2 X: " + Nds.Ppu3D.Viewport2[0]);
+                // ImGui.Text("Viewport 2 Y: " + Nds.Ppu3D.Viewport2[1]);
 
                 // doesn't work right now because different matrices can be used in the same frame
-                // ImGui.Text($"Matrix Mode: {Nds.Ppu3D.MatrixMode}");
-                // ImGui.Text("Projection");
-                // DisplayMatrix(ref Nds.Ppu3D.DebugProjectionMatrix);
-                // ImGui.Text("Position");
-                // DisplayMatrix(ref Nds.Ppu3D.DebugPositionMatrix);
-                // ImGui.Text("Direction");
-                // DisplayMatrix(ref Nds.Ppu3D.DebugDirectionMatrix);
+                ImGui.Text($"Matrix Mode: {Nds.Ppu3D.MatrixMode}");
+                ImGui.Text("Projection");
+                DisplayMatrix(ref Nds.Ppu3D.ProjectionStack.Current);
+                ImGui.Text("Position");
+                DisplayMatrix(ref Nds.Ppu3D.PositionStack.Current);
+                ImGui.Text("Direction");
+                DisplayMatrix(ref Nds.Ppu3D.DirectionStack.Current);
 
                 // ImGui.Text($"Window 0 Left..: {Nds.Ppu.Win0HLeft}");
                 // ImGui.Text($"Window 0 Right.: {Nds.Ppu.Win0HRight}");
@@ -977,10 +977,10 @@ namespace OptimeGBAEmulator
 
         public void DisplayMatrix(ref Matrix m)
         {
-            ImGui.Text($"{m.Data[0x0]}, {m.Data[0x1]}, {m.Data[0x2]}, {m.Data[0x3]}");
-            ImGui.Text($"{m.Data[0x4]}, {m.Data[0x5]}, {m.Data[0x6]}, {m.Data[0x7]}");
-            ImGui.Text($"{m.Data[0x8]}, {m.Data[0x9]}, {m.Data[0xA]}, {m.Data[0xB]}");
-            ImGui.Text($"{m.Data[0xC]}, {m.Data[0xD]}, {m.Data[0xE]}, {m.Data[0xF]}");
+            ImGui.Text($"{HexN((uint)m.Data[0x0], 8)} {HexN((uint)m.Data[0x1], 8)} {HexN((uint)m.Data[0x2], 8)} {HexN((uint)m.Data[0x3], 8)}");
+            ImGui.Text($"{HexN((uint)m.Data[0x4], 8)} {HexN((uint)m.Data[0x5], 8)} {HexN((uint)m.Data[0x6], 8)} {HexN((uint)m.Data[0x7], 8)}");
+            ImGui.Text($"{HexN((uint)m.Data[0x8], 8)} {HexN((uint)m.Data[0x9], 8)} {HexN((uint)m.Data[0xA], 8)} {HexN((uint)m.Data[0xB], 8)}");
+            ImGui.Text($"{HexN((uint)m.Data[0xC], 8)} {HexN((uint)m.Data[0xD], 8)} {HexN((uint)m.Data[0xE], 8)} {HexN((uint)m.Data[0xF], 8)}");
         }
 
         public void ImGuiColumnSeparator()

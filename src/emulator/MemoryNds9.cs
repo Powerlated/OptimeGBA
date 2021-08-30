@@ -317,7 +317,7 @@ namespace OptimeGBA
 
             if (addr >= 0x4000320 && addr < 0x40006A4) // 3D
             {
-                // Console.Error.WriteLine("8-bit or 16-bit read to 3D");
+                Console.Error.WriteLine("8-bit or 16-bit read to 3D");
                 return 0;
             }
 

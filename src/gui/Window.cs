@@ -322,7 +322,7 @@ namespace OptimeGBAEmulator
             {
                 b.Append(HexN(arm7.R[i], 8)).Append(" ");
             }
-            b.Append(HexN(GetCurrentInstrAddr(arm7), 8)).Append(" ");
+            b.Append(HexN(arm7.GetCurrentInstrAddr(), 8)).Append(" ");
             b.Append("cpsr: ");
             b.Append(HexN(arm7.GetCPSR(), 8));
             b.Append(" | ");
@@ -344,17 +344,14 @@ namespace OptimeGBAEmulator
         {
             if (cpu.ThumbState)
             {
-                return cpu.Mem.Read16(GetCurrentInstrAddr(cpu));
+                return cpu.Mem.Read16(cpu.GetCurrentInstrAddr());
             }
             else
             {
-                return cpu.Mem.Read32(GetCurrentInstrAddr(cpu));
+                return cpu.Mem.Read32(cpu.GetCurrentInstrAddr());
             }
         }
 
-        public static uint GetCurrentInstrAddr(Arm7 cpu)
-        {
-            return (uint)(cpu.R[15] - (cpu.ThumbState ? 4 : 8));
-        }
+
     }
 }

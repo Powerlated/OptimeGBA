@@ -25,7 +25,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void Insert(T data)
+        public bool Insert(T data)
         {
             if (Entries < Size)
             {
@@ -37,11 +37,12 @@ namespace OptimeGBA
                 {
                     WritePos = 0;
                 }
+
+                return true;
             }
-            else
-            {
-                FullInserts++;
-            }
+
+            FullInserts++;
+            return false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
