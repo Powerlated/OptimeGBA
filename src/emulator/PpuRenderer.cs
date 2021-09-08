@@ -272,8 +272,6 @@ namespace OptimeGBA
         public ushort WINOUTValue;
         public ushort BLDCNTValue;
         public uint BLDALPHAValue;
-        public byte MOSAICValueB0;
-        public byte MOSAICValueB1;
 
         public void RenderScanlineGba(uint vcount, byte[] vramArr)
         {
@@ -1335,84 +1333,6 @@ namespace OptimeGBA
                 case 0x0F: // BG3CNT B1
                     return Backgrounds[(addr >> 1) & 3].ReadBGCNT(addr & 1);
 
-                case 0x10: // BG0HOFS B0
-                case 0x11: // BG0HOFS B1
-                case 0x12: // BG0VOFS B0
-                case 0x13: // BG0VOFS B1
-                    return Backgrounds[0].ReadBGOFS(addr & 3);
-                case 0x14: // BG1HOFS B0
-                case 0x15: // BG1HOFS B1
-                case 0x16: // BG1VOFS B0
-                case 0x17: // BG1VOFS B1
-                    return Backgrounds[1].ReadBGOFS(addr & 3);
-                case 0x18: // BG2HOFS B0
-                case 0x19: // BG2HOFS B1
-                case 0x1A: // BG2VOFS B0
-                case 0x1B: // BG2VOFS B1
-                    return Backgrounds[2].ReadBGOFS(addr & 3);
-                case 0x1C: // BG3HOFS B0
-                case 0x1D: // BG3HOFS B1
-                case 0x1E: // BG3VOFS B0
-                case 0x1F: // BG3VOFS B1
-                    return Backgrounds[3].ReadBGOFS(addr & 3);
-
-
-                case 0x20: // BG2PA B0
-                case 0x21: // BG2PA B1
-                case 0x22: // BG2PB B0
-                case 0x23: // BG2PB B1
-                case 0x24: // BG2PC B0
-                case 0x25: // BG2PC B1
-                case 0x26: // BG2PD B0
-                case 0x27: // BG2PD B1
-                    return Backgrounds[3].ReadBGPX(addr & 7);
-                case 0x28: // BG2X B0
-                case 0x29: // BG2X B1
-                case 0x2A: // BG2X B2
-                case 0x2B: // BG2X B3
-                case 0x2C: // BG2Y B0
-                case 0x2D: // BG2Y B1
-                case 0x2E: // BG2Y B2
-                case 0x2F: // BG2Y B3
-                    return Backgrounds[2].ReadBGXY(addr & 7);
-
-                case 0x30: // BG3PA B0
-                case 0x31: // BG3PA B1
-                case 0x32: // BG3PB B0
-                case 0x33: // BG3PB B1
-                case 0x34: // BG3PC B0
-                case 0x35: // BG3PC B1
-                case 0x36: // BG3PD B0
-                case 0x37: // BG3PD B1
-                    return Backgrounds[3].ReadBGPX(addr & 7);
-                case 0x38: // BG3X B0
-                case 0x39: // BG3X B1
-                case 0x3A: // BG3X B2
-                case 0x3B: // BG3X B3
-                case 0x3C: // BG3Y B0
-                case 0x3D: // BG3Y B1
-                case 0x3E: // BG3Y B2
-                case 0x3F: // BG3Y B3
-                    return Backgrounds[3].ReadBGXY(addr & 7);
-
-                case 0x40: // WIN0H B0
-                    return Win0HRight;
-                case 0x41: // WIN0H B1
-                    return Win0HLeft;
-                case 0x42: // WIN1H B0
-                    return Win1HRight;
-                case 0x43: // WIN1H B1
-                    return Win1HLeft;
-
-                case 0x44: // WIN0V B0
-                    return Win0VBottom;
-                case 0x45: // WIN0V B1
-                    return Win0VTop;
-                case 0x46: // WIN1V B0
-                    return Win1VBottom;
-                case 0x47: // WIN1V B1
-                    return Win1VTop;
-
                 case 0x48: // WININ B0
                     return (byte)((WININValue >> 0) & 0x3F);
                 case 0x49: // WININ B1
@@ -1423,11 +1343,6 @@ namespace OptimeGBA
                 case 0x4B: // WINOUT B1
                     return (byte)((WINOUTValue >> 8) & 0x3F);
 
-                case 0x4C: // MOSAIC B0
-                    return MOSAICValueB0;
-                case 0x4D: // MOSAIC B1
-                    return MOSAICValueB1;
-
                 case 0x50: // BLDCNT B0
                     return (byte)((BLDCNTValue >> 0) & 0xFF);
                 case 0x51: // BLDCNT B1
@@ -1437,9 +1352,6 @@ namespace OptimeGBA
                     return (byte)(BLDALPHAValue >> 0);
                 case 0x53: // BLDALPHA B1
                     return (byte)(BLDALPHAValue >> 8);
-
-                case 0x54: // BLDY
-                    return (byte)BlendBrightness;
             }
 
             return 0;
@@ -1581,14 +1493,10 @@ namespace OptimeGBA
                     break;
 
                 case 0x4C: // MOSAIC B0
-                    MOSAICValueB0 = val;
-
                     BgMosaicX = (byte)((val >> 0) & 0xF);
                     BgMosaicY = (byte)((val >> 4) & 0xF);
                     break;
                 case 0x4D: // MOSAIC B1
-                    MOSAICValueB1 = val;
-
                     ObjMosaicX = (byte)((val >> 0) & 0xF);
                     ObjMosaicY = (byte)((val >> 4) & 0xF);
                     break;
