@@ -25,22 +25,22 @@ namespace OptimeGBA
         }
 
         // Raw VRAM Blocks
-        public byte[] VramA = MemoryUtil.AllocateManagedArray(131072);
-        public byte[] VramB = MemoryUtil.AllocateManagedArray(131072);
-        public byte[] VramC = MemoryUtil.AllocateManagedArray(131072);
-        public byte[] VramD = MemoryUtil.AllocateManagedArray(131072);
-        public byte[] VramE = MemoryUtil.AllocateManagedArray(65536);
-        public byte[] VramF = MemoryUtil.AllocateManagedArray(16384);
-        public byte[] VramG = MemoryUtil.AllocateManagedArray(16384);
-        public byte[] VramH = MemoryUtil.AllocateManagedArray(32768);
-        public byte[] VramI = MemoryUtil.AllocateManagedArray(16384);
+        public byte[] VramA = new byte[131072];
+        public byte[] VramB = new byte[131072];
+        public byte[] VramC = new byte[131072];
+        public byte[] VramD = new byte[131072];
+        public byte[] VramE = new byte[65536];
+        public byte[] VramF = new byte[16384];
+        public byte[] VramG = new byte[16384];
+        public byte[] VramH = new byte[32768];
+        public byte[] VramI = new byte[16384];
 
         // Built arrays (Passed to PpuRenderer for rendering)
-        public byte[] VramLcdc = MemoryUtil.AllocateManagedArray(671744);
-        public byte[] VramBgA = MemoryUtil.AllocateManagedArray(524288);
-        public byte[] VramObjA = MemoryUtil.AllocateManagedArray(262144);
-        public byte[] VramBgB = MemoryUtil.AllocateManagedArray(131072);
-        public byte[] VramObjB = MemoryUtil.AllocateManagedArray(131072);
+        public byte[] VramLcdc = new byte[671744];
+        public byte[] VramBgA = new byte[524288];
+        public byte[] VramObjA = new byte[262144];
+        public byte[] VramBgB = new byte[131072];
+        public byte[] VramObjB = new byte[131072];
 
         public bool DebugDisableVramUpdates;
 

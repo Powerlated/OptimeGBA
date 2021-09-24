@@ -26,11 +26,11 @@ namespace OptimeGBA
         }
 
         public const int Arm9BiosSize = 4096;
-        public byte[] Arm9Bios = MemoryUtil.AllocateManagedArray(Arm9BiosSize);
+        public byte[] Arm9Bios = new byte[Arm9BiosSize];
         public const int ItcmSize = 32768;
-        public byte[] Itcm = MemoryUtil.AllocateManagedArray(ItcmSize);
+        public byte[] Itcm = new byte[ItcmSize];
         public const int DtcmSize = 16384;
-        public byte[] Dtcm = MemoryUtil.AllocateManagedArray(DtcmSize);
+        public byte[] Dtcm = new byte[DtcmSize];
 
         public uint DtcmBase = 0;
         public uint ItcmVirtualSize = 0;

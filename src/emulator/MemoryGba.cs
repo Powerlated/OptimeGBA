@@ -97,10 +97,10 @@ namespace OptimeGBA
         public const int IwramSize = 32768;
         public uint RomSize;
 
-        public byte[] Bios = MemoryUtil.AllocateManagedArray(BiosSize);
-        public byte[] Rom = MemoryUtil.AllocateManagedArray(MaxRomSize);
-        public byte[] Ewram = MemoryUtil.AllocateManagedArray(EwramSize);
-        public byte[] Iwram = MemoryUtil.AllocateManagedArray(IwramSize);
+        public byte[] Bios = new byte[BiosSize];
+        public byte[] Rom = new byte[MaxRomSize];
+        public byte[] Ewram = new byte[EwramSize];
+        public byte[] Iwram = new byte[IwramSize];
 
         public override void InitPageTable(byte*[] table, uint[] maskTable, bool write)
         {

@@ -20,7 +20,7 @@ namespace OptimeGBA
 
         public uint[] MemoryRegionMasks = new uint[1048576];
 
-        public byte[] EmptyPage = MemoryUtil.AllocateManagedArray(PageSize);
+        public byte[] EmptyPage = new byte[PageSize];
         public byte*[] PageTableRead = new byte*[1048576];
         public byte*[] PageTableWrite = new byte*[1048576];
 

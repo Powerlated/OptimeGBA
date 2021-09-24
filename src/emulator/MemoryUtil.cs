@@ -175,20 +175,5 @@ namespace OptimeGBA
         {
             Marshal.FreeHGlobal(new IntPtr(arr));
         }
-
-        public static byte[] AllocateManagedArray(int size)
-        {
-            return new byte[size];
-        }
-
-        public static ushort[] AllocateManagedArray16(int size)
-        {
-            return new ushort[size];
-        }
-
-        public static uint[] AllocateManagedArray32(int size)
-        {
-            return new uint[size];
-        }
     }
 }

@@ -53,7 +53,7 @@ namespace OptimeGBA
             // }
         }
 
-        public byte[] Vram = MemoryUtil.AllocateManagedArray(98304);
+        public byte[] Vram = new byte[98304];
 
         public long ScanlineStartCycles;
 

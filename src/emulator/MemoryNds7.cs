@@ -28,8 +28,8 @@ namespace OptimeGBA
         public const int Arm7BiosSize = 16384;
         public const int Arm7WramSize = 65536;
 
-        public byte[] Arm7Bios = MemoryUtil.AllocateManagedArray(Arm7BiosSize);
-        public byte[] Arm7Wram = MemoryUtil.AllocateManagedArray(Arm7WramSize);
+        public byte[] Arm7Bios = new byte[Arm7BiosSize];
+        public byte[] Arm7Wram = new byte[Arm7WramSize];
 
         public byte RCNT;
 
