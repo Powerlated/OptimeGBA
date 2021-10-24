@@ -299,8 +299,8 @@ namespace OptimeGBA
 
         public Dictionary<uint, CustomSample> CustomSampleSet;
 
-        public static double CyclesPerSample = 33513982D / 32768D;
-        public double SampleTimer;
+        public int SampleTimer;
+
         public const uint SampleBufferMax = 256;
         public short[] SampleBuffer = new short[SampleBufferMax];
         public uint SampleBufferPos = 0;
@@ -502,12 +502,8 @@ namespace OptimeGBA
             }
         }
 
-        uint x = 0;
         public void Sample(long cyclesLate)
         {
-            SampleTimer += CyclesPerSample;
-            uint cyclesThisSample = (uint)SampleTimer;
-            SampleTimer -= cyclesThisSample;
 
             long left = 0;
             long right = 0;
@@ -518,7 +514,7 @@ namespace OptimeGBA
 
                 if (c.Playing)
                 {
-                    c.Timer += cyclesThisSample;
+                    c.Timer += 1024;
                     while (c.Timer >= c.Interval && c.Interval != 0)
                     {
                         c.Timer -= c.Interval;
@@ -706,24 +702,31 @@ namespace OptimeGBA
                 }
             }
 
-            // 28 bits now, after mixing all channels
-            // add master volume to get 35 bits
-            // add 
-            // strip 19 to get 16 bits for our short output
-            uint effectiveMasterVol = MasterVolume;
-            if (effectiveMasterVol == 127) effectiveMasterVol++;
-            SampleBuffer[SampleBufferPos++] = (short)((left * effectiveMasterVol) >> 16);
-            SampleBuffer[SampleBufferPos++] = (short)((right * effectiveMasterVol) >> 16);
-
-            if (SampleBufferPos >= SampleBufferMax)
+            // Decimate samples to 32768 hz 
+            // Since 33513982 hz / 1024 ≅ 32728.498 hz
+            SampleTimer += 32768 * 1024;
+            while (SampleTimer >= 33513982)
             {
-                SampleBufferPos = 0;
+                SampleTimer -= 33513982;
 
-                Nds.Provider.AudioCallback(SampleBuffer);
+                // 28 bits now, after mixing all channels
+                // add master volume to get 35 bits
+                // add 
+                // strip 19 to get 16 bits for our short output
+                uint effectiveMasterVol = MasterVolume;
+                if (effectiveMasterVol == 127) effectiveMasterVol++;
+                SampleBuffer[SampleBufferPos++] = (short)((left * effectiveMasterVol) >> 16);
+                SampleBuffer[SampleBufferPos++] = (short)((right * effectiveMasterVol) >> 16);
+
+                if (SampleBufferPos >= SampleBufferMax)
+                {
+                    SampleBufferPos = 0;
+
+                    Nds.Provider.AudioCallback(SampleBuffer);
+                }
             }
 
-
-            Nds.Scheduler.AddEventRelative(SchedulerId.ApuSample, (cyclesThisSample - cyclesLate) + 1, Sample);
+            Nds.Scheduler.AddEventRelative(SchedulerId.ApuSample, 1024 - cyclesLate, Sample);
         }
     }
 }
