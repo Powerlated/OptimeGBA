@@ -53,38 +53,15 @@ namespace OptimeGBA
 
         public uint DMACNT_H;
 
-        public byte ReadHwio8(uint addr)
+               public byte ReadHwio8(uint addr)
         {
+            // DMASAD, DMADAD, and DMACNT_L are write-only
             byte val = 0;
             switch (addr)
             {
-                case 0x00: // DMASAD B0
-                    return (byte)(DMASAD >> 0);
-                case 0x01: // DMASAD B1
-                    return (byte)(DMASAD >> 8);
-                case 0x02: // DMASAD B2
-                    return (byte)(DMASAD >> 16);
-                case 0x03: // DMASAD B3
-                    return (byte)(DMASAD >> 24);
-
-                case 0x04: // DMADAD B0
-                    return (byte)(DMADAD >> 0);
-                case 0x05: // DMADAD B1
-                    return (byte)(DMADAD >> 8);
-                case 0x06: // DMADAD B2
-                    return (byte)(DMADAD >> 16);
-                case 0x07: // DMADAD B3
-                    return (byte)(DMADAD >> 24);
-
-                case 0x08: // DMACNT_L B0
-                    return (byte)(DMACNT_L >> 0);
-                case 0x09: // DMACNT_L B1
-                    return (byte)(DMACNT_L >> 8);
                 case 0x0A: // DMACNT_H B0
-                    val |= (byte)(GetControl() >> 0);
-                    break;
                 case 0x0B: // DMACNT_H B1
-                    val |= (byte)(GetControl() >> 8);
+                    val = GetByteIn(GetControl(), addr & 1);
                     break;
             }
             return val;
@@ -95,55 +72,26 @@ namespace OptimeGBA
             switch (addr)
             {
                 case 0x00: // DMASAD B0
-                    DMASAD &= 0xFFFFFF00;
-                    DMASAD |= ((uint)val << 0);
-                    break;
                 case 0x01: // DMASAD B1
-                    DMASAD &= 0xFFFF00FF;
-                    DMASAD |= ((uint)val << 8);
-                    break;
                 case 0x02: // DMASAD B2
-                    DMASAD &= 0xFF00FFFF;
-                    DMASAD |= ((uint)val << 16);
-                    break;
                 case 0x03: // DMASAD B3
-                    DMASAD &= 0x00FFFFFF;
-                    DMASAD |= ((uint)val << 24);
+                    DMASAD = SetByteIn(DMASAD, val, addr & 3);
                     break;
 
                 case 0x04: // DMADAD B0
-                    DMADAD &= 0xFFFFFF00;
-                    DMADAD |= ((uint)val << 0);
-                    break;
                 case 0x05: // DMADAD B1
-                    DMADAD &= 0xFFFF00FF;
-                    DMADAD |= ((uint)val << 8);
-                    break;
                 case 0x06: // DMADAD B2
-                    DMADAD &= 0xFF00FFFF;
-                    DMADAD |= ((uint)val << 16);
-                    break;
                 case 0x07: // DMADAD B3
-                    DMADAD &= 0x00FFFFFF;
-                    DMADAD |= ((uint)val << 24);
+                    DMADAD = SetByteIn(DMADAD, val, addr & 3);
                     break;
 
                 case 0x08: // DMACNT_L B0
-                    DMACNT_L &= 0xFF00;
-                    DMACNT_L |= ((uint)val << 0);
-                    break;
                 case 0x09: // DMACNT_L B1
-                    DMACNT_L &= 0x00FF;
-                    DMACNT_L |= ((uint)val << 8);
+                    DMACNT_L = SetByteIn(DMACNT_L, val, addr & 1);
                     break;
                 case 0x0A: // DMACNT_H B0
-                    DMACNT_H &= 0xFF00;
-                    DMACNT_H |= ((uint)val << 0);
-                    UpdateControl();
-                    break;
                 case 0x0B: // DMACNT_H B1
-                    DMACNT_H &= 0x00FF;
-                    DMACNT_H |= ((uint)val << 8);
+                    DMACNT_H = SetByteIn(DMACNT_H, val, addr & 1);
                     UpdateControl();
                     break;
             }

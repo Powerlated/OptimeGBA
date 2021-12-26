@@ -76,18 +76,13 @@ namespace OptimeGBA
                     {
                         FifoError = true;
                     }
-                    val = (byte)(LastRecvValue >> 0);
+                    val = GetByteIn(LastRecvValue, addr & 3);
                     break;
                 case 0x4100001: // IPCFIFORECV B1
-                    val = (byte)(LastRecvValue >> 8);
-                    break;
                 case 0x4100002: // IPCFIFORECV B2
-                    val = (byte)(LastRecvValue >> 16);
-                    break;
                 case 0x4100003: // IPCFIFORECV B3
-                    val = (byte)(LastRecvValue >> 24);
+                    val = GetByteIn(LastRecvValue, addr & 3);
                     break;
-
             }
 
             return val;
@@ -137,26 +132,33 @@ namespace OptimeGBA
                     break;
 
                 case 0x4000188: // IPCFIFOSEND B0
-                    LastSendValue &= 0xFFFFFF00;
-                    LastSendValue |= (uint)(val << 0);
-                    break;
                 case 0x4000189: // IPCFIFOSEND B1
-                    LastSendValue &= 0xFFFF00FF;
-                    LastSendValue |= (uint)(val << 8);
-                    break;
                 case 0x400018A: // IPCFIFOSEND B2
-                    LastSendValue &= 0xFF00FFFF;
-                    LastSendValue |= (uint)(val << 16);
+                    LastSendValue = SetByteIn(LastSendValue, val, addr & 3);
                     break;
                 case 0x400018B: // IPCFIFOSEND B3
-                    LastSendValue &= 0x00FFFFFF;
-                    LastSendValue |= (uint)(val << 24);
+                    LastSendValue = SetByteIn(LastSendValue, val, addr & 3);
                     if (EnableFifos)
                     {
                         GetRemote().RecvFifo.Insert(LastSendValue);
-                        unsafe {
-                        GetRemote().CheckRecvFifoPendingIrq("remote insert R15: " + Util.Hex(Nds.Cpu7.R[15], 8));
-                        } 
+
+                        bool eligible = true;
+
+                        // if ((LastSendValue >> 28) == 0x8) eligible = false;
+                        // if ((LastSendValue >> 28) == 0x4) eligible = false;
+                        // if ((LastSendValue >> 28) == 0xC) eligible = false;
+                        // // if ((LastSendValue >> 28) == 0x0) eligible = false;
+
+                        // if (eligible)
+                        // {
+                        //     if (Id == 0) Console.WriteLine("ARM9 to ARM7 " + Util.Hex(LastSendValue, 8));
+                        //     // else Console.WriteLine("ARM7 to ARM9 " + Util.Hex(LastSendValue, 8));
+                        // }
+
+                        unsafe
+                        {
+                            GetRemote().CheckRecvFifoPendingIrq("remote insert R15: " + Util.Hex(Nds.Cpu7.R[15], 8));
+                        }
                     }
                     break;
             }
