@@ -38,12 +38,12 @@ namespace OptimeGBA
             BgLo = MemoryUtil.AllocateUnmanagedArray32(width + 16);
             BgHi = MemoryUtil.AllocateUnmanagedArray32(width + 16);
 #else 
-            ScreenFront = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
-            ScreenBack = MemoryUtil.AllocateManagedArray16(ScreenBufferSize);
+            ScreenFront = new ushort[ScreenBufferSize];
+            ScreenBack = new ushort[ScreenBufferSize];
 
-            WinMasks = MemoryUtil.AllocateManagedArray(width + 16);
-            BgLo = MemoryUtil.AllocateManagedArray32(width + 16);
-            BgHi = MemoryUtil.AllocateManagedArray32(width + 16);
+            WinMasks = new byte[width + 16];
+            BgLo = new uint[width + 16];
+            BgHi = new uint[width + 16];
 #endif
             ObjBuffer = new ObjPixel[Width];
             ObjWindowBuffer = new byte[Width];
@@ -129,8 +129,8 @@ namespace OptimeGBA
         public uint[] BgHi;
 #endif
 
-        public byte[] Palettes = MemoryUtil.AllocateManagedArray(1024);
-        public byte[] Oam = MemoryUtil.AllocateManagedArray(1024);
+        public byte[] Palettes = new byte[1024];
+        public byte[] Oam = new byte[1024];
 
         public ObjPixel[] ObjBuffer;
         public byte[] ObjWindowBuffer;
