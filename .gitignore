@@ -1,9 +1,9 @@
-bin/
-obj/
-roms/
+/bin
+/obj
+/roms/*
+!/roms/.gitkeep
 imgui.ini
 *.txt
-dmg_boot.bin
 tests/
 .vs
 Properties

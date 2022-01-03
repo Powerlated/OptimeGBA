@@ -5,7 +5,7 @@
 <img width="360px" src="img/optime-gba-full.gif">
 </div>
 
-Optime GBA is a work-in-progress Game Boy Advance and Nintendo DS emulator.  
+Optime GBA is a work-in-progress Game Boy Advance and Nintendo DS emulator.
 
 I aim to develop Optime GBA to the point where it can run most popular games with decent performance.
 So far, optimization is somewhat lackluster, only managing around 400 frames
@@ -74,13 +74,25 @@ per second in Pokémon Emerald on a high-end machine.
 
 For building and using Optime GBA, .NET 5 is recommended. You also need a CPU with AVX2 support because I completely overdid the renderer.
 
-A compatible Game Boy Advance BIOS image is required to run the emulator. Place the BIOS in the emulator working directory (the root of the repository when using `dotnet run`) named as `gba_bios.bin`. 
+A compatible Game Boy Advance BIOS image is required to run the emulator. Place the BIOS in the emulator working directory (the root of the repository when using `dotnet run`) named as `gba_bios.bin`.
 
-For running Nintendo DS games, official Nintendo DS firmware, ARM9 BIOS, and ARM7 BIOS dumps are required. Place the dumps named as `firmware.bin`, `bios9.bin`, `bios7.bin`, respectively, in the emulator working directory.  
+For running Nintendo DS games, official Nintendo DS firmware, ARM9 BIOS, and ARM7 BIOS dumps are required. Place the dumps named as `firmware.bin`, `bios9.bin`, `bios7.bin`, respectively, in the emulator working directory.
+
+### With emulator debugger
+Please prepare both GBA and NDS firmware.
+
+Put your ROMs under `roms/`.
 
 ```
 # OpenTK Debugger
 dotnet run -c Release -p OptimeGBA-OpenTK.csproj
-# Simple SDL Frontend 
+```
+
+### With simple frontend
+
+```
+# Simple SDL Frontend
 dotnet run -c Release -p OptimeGBA-SDL.csproj
 ```
+
+Drag and drop your rom into the main window.
