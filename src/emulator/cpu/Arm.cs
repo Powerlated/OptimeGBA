@@ -107,11 +107,11 @@ namespace OptimeGBA
 
                         if (r != 15)
                         {
-                            arm7.R[r] = arm7.Read32(addr & 0xFFFFFFFC);
+                            arm7.R[r] = arm7.Read32(addr & ~3U);
                         }
                         else
                         {
-                            arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC) & 0xFFFFFFFC;
+                            arm7.R[15] = arm7.Read32(addr & ~3U) & ~3U;
                             arm7.FlushPipeline();
                         }
 
@@ -122,7 +122,7 @@ namespace OptimeGBA
 
                         if (P) addr += 4;
 
-                        arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                        arm7.Write32(addr & ~3U, arm7.R[r]);
 
                         if (!P) addr += 4;
 
@@ -136,7 +136,7 @@ namespace OptimeGBA
             {
                 if (L)
                 {
-                    arm7.R[15] = arm7.Read32(addr & 0xFFFFFFFC);
+                    arm7.R[15] = arm7.Read32(addr & ~3U);
                     arm7.FlushPipeline();
                     if (U)
                     {
@@ -149,38 +149,33 @@ namespace OptimeGBA
                 }
                 else
                 {
-                    // Empty register list
-                    if ((ins & 0xFFFF) == 0)
+                    arm7.LineDebug("Empty Rlist!");
+                    if (P)
                     {
-                        arm7.LineDebug("Empty Rlist!");
-                        if (P)
+                        if (U)
                         {
-                            if (U)
-                            {
-                                arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
-                                arm7.R[rn] += 0x40;
-                            }
-                            else
-                            {
-                                arm7.R[rn] -= 0x40;
-                                arm7.Write32(arm7.R[rn], arm7.R[15]);
-                            }
+                            arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
+                            arm7.R[rn] += 0x40;
                         }
                         else
                         {
-                            if (U)
-                            {
-                                arm7.Write32(arm7.R[rn], arm7.R[15]);
-                                arm7.R[rn] += 0x40;
-                            }
-                            else
-                            {
-                                arm7.R[rn] -= 0x40;
-                                arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
-                            }
+                            arm7.R[rn] -= 0x40;
+                            arm7.Write32(arm7.R[rn], arm7.R[15]);
                         }
                     }
-
+                    else
+                    {
+                        if (U)
+                        {
+                            arm7.Write32(arm7.R[rn], arm7.R[15]);
+                            arm7.R[rn] += 0x40;
+                        }
+                        else
+                        {
+                            arm7.R[rn] -= 0x40;
+                            arm7.Write32(arm7.R[rn] + 4, arm7.R[15]);
+                        }
+                    }
                 }
             }
 
@@ -306,7 +301,7 @@ namespace OptimeGBA
 
                         if (P) addr += 4;
 
-                        arm7.Write32(addr & 0xFFFFFFFC, arm7.R[r]);
+                        arm7.Write32(addr & ~3U, arm7.R[r]);
 
                         if (!P) addr += 4;
                     }
@@ -419,7 +414,7 @@ namespace OptimeGBA
                 arm7.R[14] = arm7.R[15] - 4;
             }
 
-            arm7.R[15] = (rmValue & 0xFFFFFFFE);
+            arm7.R[15] = rmValue & ~1U;
             arm7.FlushPipeline();
         }
 
@@ -764,7 +759,7 @@ namespace OptimeGBA
                     {
 
                         // If the address isn't word-aligned
-                        uint data = arm7.Read32(addr & 0xFFFFFFFC);
+                        uint data = arm7.Read32(addr & ~3U);
                         loadVal = RotateRight32(data, (byte)(8 * (addr & 0b11)));
 
                         // Error("Misaligned LDR");
@@ -788,9 +783,10 @@ namespace OptimeGBA
                     {
                         addr -= offset;
                     }
-                }
 
-                if (W || !P)
+                    arm7.R[rn] = addr;
+                }
+                else if (W)
                 {
                     arm7.R[rn] = addr;
                 }
@@ -839,9 +835,10 @@ namespace OptimeGBA
                     {
                         addr -= offset;
                     }
-                }
 
-                if (W || !P)
+                    arm7.R[rn] = addr;
+                }
+                else if (W)
                 {
                     arm7.R[rn] = addr;
                 }
@@ -1005,7 +1002,7 @@ namespace OptimeGBA
         public static void LDRSB(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, false); }
         public static void LDRSH(Arm7 arm7, uint ins) { _SpecialLDRSTR(arm7, ins, true, true, true); }
 
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static (uint shifterOperand, bool shifterCarryOut, uint rnVal, uint rd) DataDecode(Arm7 arm7, uint ins, bool useImmediate32)
         {
@@ -1091,16 +1088,8 @@ namespace OptimeGBA
                         case 0b10: // ASR
                             if (shiftBits == 0)
                             {
-                                if (!BitTest(rmVal, 31))
-                                {
-                                    shifterOperand = 0;
-                                    shifterCarryOut = false;
-                                }
-                                else
-                                {
-                                    shifterOperand = 0xFFFFFFFF;
-                                    shifterCarryOut = true;
-                                }
+                                shifterOperand = (uint)((int)rmVal >> 31);
+                                shifterCarryOut = BitTest(rmVal, 31);
                             }
                             else
                             {
@@ -1142,7 +1131,7 @@ namespace OptimeGBA
                     uint rmVal = arm7.R[rm];
                     arm7.R[15] -= 4;
 
-                    shiftBits = (byte)(rsVal & 0b11111111);
+                    shiftBits = (byte)rsVal;
 
                     switch (shiftType)
                     {
@@ -1206,16 +1195,8 @@ namespace OptimeGBA
                             }
                             else if (shiftBits >= 32)
                             {
-                                if (!BitTest(rmVal, 31))
-                                {
-                                    shifterOperand = 0;
-                                    shifterCarryOut = false;
-                                }
-                                else
-                                {
-                                    shifterOperand = 0xFFFFFFFF;
-                                    shifterCarryOut = true;
-                                }
+                                shifterOperand = (uint)((int)rmVal >> 31);
+                                shifterCarryOut = BitTest(rmVal, 31);
                             }
                             break;
                         case 0b11:
