@@ -5,11 +5,7 @@
 <img width="360px" src="img/optime-gba-full.gif">
 </div>
 
-Optime GBA is a work-in-progress Game Boy Advance and Nintendo DS emulator.  
-
-I aim to develop Optime GBA to the point where it can run most popular games with decent performance.
-So far, optimization is somewhat lackluster, only managing around 400 frames
-per second in Pokémon Emerald on a high-end machine.
+Optime GBA is a work-in-progress Game Boy Advance and Nintendo DS emulator.
 
 ## Current Progress
  - Passing all of [ARMWrestler](https://github.com/destoer/armwrestler-gba-fixed), a simple test of the GBA's CPU
