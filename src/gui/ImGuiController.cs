@@ -282,7 +282,7 @@ void main()
                 GL.NamedBufferData(_vertexBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                 _vertexBufferSize = newSize;
 
-                Console.WriteLine($"Resized vertex buffer to new size {_vertexBufferSize}");
+                // Console.WriteLine($"Resized vertex buffer to new size {_vertexBufferSize}");
             }
 
             uint totalIBSize = (uint)(draw_data.TotalIdxCount * sizeof(ushort));
@@ -292,7 +292,7 @@ void main()
                 GL.NamedBufferData(_indexBuffer, newSize, IntPtr.Zero, BufferUsageHint.DynamicDraw);
                 _indexBufferSize = newSize;
 
-                Console.WriteLine($"Resized index buffer to new size {_indexBufferSize}");
+                // Console.WriteLine($"Resized index buffer to new size {_indexBufferSize}");
             }
 
 
