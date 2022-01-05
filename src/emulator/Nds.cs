@@ -288,7 +288,6 @@ namespace OptimeGBA
                     if (!Cpu9.Halted)
                     {
                         Arm9PendingTicks -= (int)Cpu9.Execute();
-                        Ppu3D.Run();
                     }
                     else
                     {
@@ -296,6 +295,8 @@ namespace OptimeGBA
                         break;
                     }
                 }
+
+                Ppu3D.Run();
 
                 Scheduler.CurrentTicks += ticks7;
             }
