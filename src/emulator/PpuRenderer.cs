@@ -693,14 +693,44 @@ namespace OptimeGBA
 
                     if (data != 0)
                     {
-                        Vector256<uint> shifts;
-                        if (xFlip)
-                            shifts = Vector256.Create(28U, 24U, 20U, 16U, 12U, 8U, 4U, 0U);
-                        else
-                            shifts = Vector256.Create(0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U);
                         Vector256<uint> indices = Vector256.Create(data);
-                        indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
-                        indices = Avx2.And(indices, Vector256.Create(0xFU));
+                        if (Avx2.IsSupported)
+                        {
+                            Vector256<uint> shifts;
+                            if (xFlip)
+                                shifts = Vector256.Create(28U, 24U, 20U, 16U, 12U, 8U, 4U, 0U);
+                            else
+                                shifts = Vector256.Create(0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U);
+                            indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
+                            indices = Avx2.And(indices, Vector256.Create(0xFU));
+                        }
+                        else
+                        {
+                            if (xFlip)
+                            {
+                                uint i0 = data >> 28 & 0xFU;
+                                uint i1 = data >> 24 & 0xFU;
+                                uint i2 = data >> 20 & 0xFU;
+                                uint i3 = data >> 16 & 0xFU;
+                                uint i4 = data >> 12 & 0xFU;
+                                uint i5 = data >> 8 & 0xFU;
+                                uint i6 = data >> 4 & 0xFU;
+                                uint i7 = data >> 0 & 0xFU;
+                                indices = Vector256.Create(i0, i1, i2, i3, i4, i5, i6, i7);
+                            }
+                            else
+                            {
+                                uint i0 = data >> 0 & 0xFU;
+                                uint i1 = data >> 4 & 0xFU;
+                                uint i2 = data >> 8 & 0xFU;
+                                uint i3 = data >> 12 & 0xFU;
+                                uint i4 = data >> 16 & 0xFU;
+                                uint i5 = data >> 20 & 0xFU;
+                                uint i6 = data >> 24 & 0xFU;
+                                uint i7 = data >> 28 & 0xFU;
+                                indices = Vector256.Create(i0, i1, i2, i3, i4, i5, i6, i7);
+                            }
+                        }
 
                         PlaceBgRow(lineIndex, palettes, paletteRow, indices, metaVec, Vector256.Create(0xFU), winMasks, hi, lo);
                     }
@@ -721,25 +751,56 @@ namespace OptimeGBA
                 uint* hi, uint* lo
             )
         {
-            Vector256<int> color = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
-            color = Avx2.And(color, Vector256.Create(0xFFFF));
-            // Weave metadata (priority, ID) into color data
-            color = Avx2.Or(color, Avx2.ShiftLeftLogical(meta, 16));
+            if (Avx2.IsSupported)
+            {
+                Vector256<int> color = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
+                color = Avx2.And(color, Vector256.Create(0xFFFF));
+                // Weave metadata (priority, ID) into color data
+                color = Avx2.Or(color, Avx2.ShiftLeftLogical(meta, 16));
 
-            Vector256<int> winMask = Avx2.ConvertToVector256Int32((byte*)(winMasks + lineIndex));
-            winMask = Avx2.And(winMask, meta);
-            winMask = Avx2.CompareEqual(winMask, Vector256<int>.Zero);
-            // Get important color bits
-            Vector256<int> clear = Avx2.And(indices, clearMask).AsInt32();
-            // Are those bits clear? 
-            clear = Avx2.CompareEqual(clear, Vector256<int>.Zero);
-            // Merge with window mask
-            winMask = Avx2.Or(winMask, clear);
-            winMask = Avx2.Xor(winMask, Vector256.Create(0xFFFFFFFF).AsInt32());
+                Vector256<int> winMask = Avx2.ConvertToVector256Int32((byte*)(winMasks + lineIndex));
+                winMask = Avx2.And(winMask, meta);
+                winMask = Avx2.CompareEqual(winMask, Vector256<int>.Zero);
+                // Get important color bits
+                Vector256<int> clear = Avx2.And(indices, clearMask).AsInt32();
+                // Are those bits clear?
+                clear = Avx2.CompareEqual(clear, Vector256<int>.Zero);
+                // Merge with window mask
+                winMask = Avx2.Or(winMask, clear);
+                winMask = Avx2.Xor(winMask, Vector256.Create(0xFFFFFFFF).AsInt32());
 
-            // Push back covered pixels from hi to lo
-            Avx2.MaskStore((int*)(lo + lineIndex), winMask, Avx2.LoadVector256((int*)(hi + lineIndex)));
-            Avx2.MaskStore((int*)(hi + lineIndex), winMask, color);
+                // Push back covered pixels from hi to lo
+                Avx2.MaskStore((int*)(lo + lineIndex), winMask, Avx2.LoadVector256((int*)(hi + lineIndex)));
+                Avx2.MaskStore((int*)(hi + lineIndex), winMask, color);
+            }
+            else
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    uint indexI = indices.GetElement(i);
+                    int metaI = meta.GetElement(i);
+                    uint clearMaskI = clearMask.GetElement(i);
+
+                    int color = *(int*)(palettes + (paletteRow * 16 + (int)indexI) * sizeof(ushort));
+                    color &= 0xFFFF;
+                    // Weave metadata (priority, ID) into color data
+                    color |= metaI << 16;
+
+                    int winMask = *(byte*)(winMasks + lineIndex + i);
+                    winMask &= metaI;
+                    // Get important color bits
+                    uint clear = indexI & clearMaskI;
+                    // Merge with window mask
+                    bool mergedMask = winMask != 0 && clear != 0;
+
+                    // Push back covered pixels from hi to lo
+                    if (mergedMask)
+                    {
+                        lo[lineIndex + i] = hi[lineIndex + i];
+                        hi[lineIndex + i] = (uint)color;
+                    }
+                }
+            }
         }
 
         public readonly static int[] AffineSizeShiftTable = { 7, 8, 9, 10 };
