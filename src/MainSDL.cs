@@ -5,6 +5,7 @@ using System.IO;
 using System.Collections.Generic;
 using System.Xml;
 using System.Text;
+using static OptimeGBA.CoreUtil;
 using System.Runtime.InteropServices;
 using OptimeGBA;
 using DiscordRPC;
@@ -32,6 +33,7 @@ namespace OptimeGBAEmulator
         static uint AudioDevice;
 
         static IntPtr Texture;
+        static IntPtr Texture2; // NDS bottom screen texture
 
         static double Fps;
         static double Mips;
@@ -41,6 +43,7 @@ namespace OptimeGBAEmulator
 
         static Gba Gba;
         static Nds Nds;
+        static SDL_Rect NdsTouchscreenRect;
 
         static bool NdsMode;
 
@@ -64,6 +67,7 @@ namespace OptimeGBAEmulator
 
         const int NDS_WIDTH = 256;
         const int NDS_HEIGHT = 192;
+        const int NDS_DUAL_HEIGHT = 192 * 2;
 
         static bool Excepted = false;
         static string ExceptionMessage = "";
@@ -72,6 +76,7 @@ namespace OptimeGBAEmulator
         static AutoResetEvent ThreadSync = new AutoResetEvent(false);
 
         static uint[] DisplayBuf = new uint[NDS_WIDTH * NDS_HEIGHT];
+        static uint[] DisplayBuf2 = new uint[NDS_WIDTH * NDS_HEIGHT];
         static bool ColorCorrection = true;
 
         public static void Main(string[] args)
@@ -232,7 +237,7 @@ namespace OptimeGBAEmulator
                 romPath = filename;
 
                 Marshal.FreeHGlobal(data);
-            }        
+            }
 
         reload:
 
@@ -300,12 +305,13 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady) { DirectBoot = true };
+                var provider = new ProviderNds(ndsBios7, ndsBios9, ndsFirmware, rom, savPath, AudioReady) { DirectBoot = false };
                 Nds = new Nds(provider);
 
                 Texture = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);
-                SDL_SetWindowMinimumSize(Window, NDS_WIDTH, NDS_HEIGHT);
-                SDL_SetWindowSize(Window, NDS_WIDTH * 4, NDS_HEIGHT * 4);
+                Texture2 = SDL_CreateTexture(Renderer, SDL_PIXELFORMAT_ABGR8888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, NDS_WIDTH, NDS_HEIGHT);
+                SDL_SetWindowMinimumSize(Window, NDS_WIDTH, NDS_DUAL_HEIGHT);
+                SDL_SetWindowSize(Window, NDS_WIDTH * 4, NDS_DUAL_HEIGHT * 4);
             }
             else
             {
@@ -372,6 +378,43 @@ namespace OptimeGBAEmulator
                         case SDL_EventType.SDL_KEYUP:
                         case SDL_EventType.SDL_KEYDOWN:
                             KeyEvent(evt.key);
+                            break;
+
+                        case SDL_EventType.SDL_MOUSEBUTTONDOWN:
+                        case SDL_EventType.SDL_MOUSEBUTTONUP:
+                            if (NdsMode)
+                            {
+                                if (evt.button.button == SDL_BUTTON_LEFT)
+                                {
+                                    bool down = evt.type == SDL_EventType.SDL_MOUSEBUTTONDOWN;
+
+                                    float x = evt.button.x - NdsTouchscreenRect.x;
+                                    float y = evt.button.y - NdsTouchscreenRect.y;
+
+                                    // Normalize
+                                    uint touchX = (uint)((x / NdsTouchscreenRect.w) * 256f);
+                                    uint touchY = (uint)((y / NdsTouchscreenRect.h) * 192f);
+
+                                    if (touchX < 256 && touchY < 192)
+                                    {
+                                        if (down)
+                                        {
+                                            Nds.Spi.SetTouchPos(touchX, touchY);
+                                            Nds.Keypad.Touch = true;
+                                        }
+                                        else
+                                        {
+                                            Nds.Spi.ClearTouchPos();
+                                            Nds.Keypad.Touch = false;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        Nds.Spi.ClearTouchPos();
+                                        Nds.Keypad.Touch = false;
+                                    }
+                                }
+                            }
                             break;
 
                         case SDL_EventType.SDL_DROPFILE:
@@ -443,14 +486,22 @@ namespace OptimeGBAEmulator
                     if (Nds.Ppu.Renderers[0].RenderingDone)
                     {
                         Nds.Ppu.Renderers[0].RenderingDone = false;
+                        Nds.Ppu.Renderers[1].RenderingDone = false;
+
                         CopyPixels(Nds.Ppu.Renderers[0].ScreenFront, DisplayBuf, NDS_WIDTH * NDS_HEIGHT, false);
-                        fixed (void* ptr = DisplayBuf)
+                        CopyPixels(Nds.Ppu.Renderers[1].ScreenFront, DisplayBuf2, NDS_WIDTH * NDS_HEIGHT, false);
+
+                        fixed (void* ptr = DisplayBuf, ptr2 = DisplayBuf2)
+                        {
                             SDL_UpdateTexture(Texture, IntPtr.Zero, (IntPtr)ptr, NDS_WIDTH * 4);
+                            SDL_UpdateTexture(Texture2, IntPtr.Zero, (IntPtr)ptr2, NDS_WIDTH * 4);
+                        }
                     }
 
                     SDL_Rect dest = new SDL_Rect();
+                    SDL_Rect dest2 = new SDL_Rect();
                     SDL_GetWindowSize(Window, out int w, out int h);
-                    double ratio = Math.Min((double)h / (double)NDS_HEIGHT, (double)w / (double)NDS_WIDTH);
+                    double ratio = Math.Min((double)h / (double)NDS_DUAL_HEIGHT, (double)w / (double)NDS_WIDTH);
                     int fillWidth;
                     int fillHeight;
                     if (!Stretched)
@@ -465,21 +516,40 @@ namespace OptimeGBAEmulator
                             fillWidth = (int)(ratio * NDS_WIDTH);
                             fillHeight = (int)(ratio * NDS_HEIGHT);
                         }
+
                         dest.w = fillWidth;
                         dest.h = fillHeight;
                         dest.x = (int)((w - fillWidth) / 2);
-                        dest.y = (int)((h - fillHeight) / 2);
+                        dest.y = (int)((h - fillHeight - ratio * NDS_HEIGHT) / 2);
+
+                        dest2.w = fillWidth;
+                        dest2.h = fillHeight;
+                        dest2.x = (int)((w - fillWidth) / 2);
+                        dest2.y = (int)((h - fillHeight + ratio * NDS_HEIGHT) / 2);
                     }
                     else
                     {
                         dest.w = w;
-                        dest.h = h;
+                        dest.h = h / 2;
                         dest.x = 0;
                         dest.y = 0;
+
+                        dest2.w = w;
+                        dest2.h = h / 2;
+                        dest2.x = 0;
+                        dest2.y = h / 2;
                     }
 
+                    NdsTouchscreenRect = dest2;
+
                     SDL_RenderClear(Renderer);
+                    // TODO: improve this BS
+                    if (!Nds.DisplaySwap)
+                    {
+                        Swap(ref dest, ref dest2);
+                    }
                     SDL_RenderCopy(Renderer, Texture, IntPtr.Zero, ref dest);
+                    SDL_RenderCopy(Renderer, Texture2, IntPtr.Zero, ref dest2);
                     SDL_RenderPresent(Renderer);
 
                     // TODO: NDS Saves
@@ -628,7 +698,7 @@ namespace OptimeGBAEmulator
 
             for (uint i = 0; i < pixels; i++)
             {
-                DisplayBuf[i] = lut[src[i] & 0x7FFF];
+                dest[i] = lut[src[i] & 0x7FFF];
             }
         }
 
@@ -638,7 +708,7 @@ namespace OptimeGBAEmulator
 
             for (uint i = 0; i < pixels; i++)
             {
-                DisplayBuf[i] = lut[src[i] & 0x7FFF];
+                dest[i] = lut[src[i] & 0x7FFF];
             }
         }
 
@@ -732,6 +802,13 @@ namespace OptimeGBAEmulator
             {
                 switch (kb.keysym.sym)
                 {
+                    case SDL_Keycode.SDLK_a:
+                        Nds.Keypad.X = pressed;
+                        break;
+                    case SDL_Keycode.SDLK_s:
+                        Nds.Keypad.Y = pressed;
+                        break;
+
                     case SDL_Keycode.SDLK_z:
                         Nds.Keypad.B = pressed;
                         break;
@@ -774,6 +851,22 @@ namespace OptimeGBAEmulator
                         break;
                 }
 
+
+                if (pressed)
+                {
+                    switch (kb.keysym.sym)
+                    {
+                        case SDL_Keycode.SDLK_F2:
+                            Nds.Ppu.Renderers[0].DebugEnableRendering = !Nds.Ppu.Renderers[0].DebugEnableRendering;
+                            Nds.Ppu.Renderers[1].DebugEnableRendering = !Nds.Ppu.Renderers[1].DebugEnableRendering;
+                            break;
+
+                        case SDL_Keycode.SDLK_F9:
+                            Nds.Audio.EnableBlipBufResampling = !Nds.Audio.EnableBlipBufResampling;
+                            UpdateTitle();
+                            break;
+                    }
+                }
             }
             else
             {
@@ -872,7 +965,8 @@ namespace OptimeGBAEmulator
                             break;
 
                         case SDL_Keycode.SDLK_F9:
-                            Gba.GbaAudio.Resample = !Gba.GbaAudio.Resample;
+                            Gba.GbaAudio.ResamplingMode++;
+                            Gba.GbaAudio.ResamplingMode = (ResamplingMode)((int)Gba.GbaAudio.ResamplingMode % 3);
                             UpdateTitle();
                             break;
                     }
@@ -961,7 +1055,8 @@ namespace OptimeGBAEmulator
             {
                 SDL_SetWindowTitle(
                     Window,
-                    "Optime GBA (DS) - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued"
+                    "Dual Optime - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
+                    (Nds.Audio.EnableBlipBufResampling ? "SINC" : "--")
                 );
             }
             else
@@ -972,7 +1067,11 @@ namespace OptimeGBAEmulator
                 bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
                 bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
                 bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
-                bool re = Gba.GbaAudio.Resample;
+                string re = "-- "; 
+                switch (Gba.GbaAudio.ResamplingMode) {
+                    case ResamplingMode.Linear: re = "LINEAR "; break;
+                    case ResamplingMode.Sinc: re = "SINC "; break;
+                }
                 SDL_SetWindowTitle(
                     Window,
                     "Optime GBA - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
@@ -982,7 +1081,7 @@ namespace OptimeGBAEmulator
                     (p2 ? "2 " : "- ") +
                     (p3 ? "3 " : "- ") +
                     (p4 ? "4 " : "- ") +
-                    (re ? "RE " : "-- ") +
+                    re + 
                     "PSG " + Gba.GbaAudio.GbAudio.PsgFactor + "X"
                 );
             }

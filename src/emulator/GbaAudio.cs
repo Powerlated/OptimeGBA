@@ -4,6 +4,65 @@ using System.Runtime.CompilerServices;
 
 namespace OptimeGBA
 {
+    public enum ResamplingMode
+    {
+        None,
+        Linear,
+        Sinc,
+    }
+
+    public sealed class CircularBufferOverwriting<T>
+    {
+        public uint Size;
+        public T[] Buffer;
+        public uint ReadPos = 0;
+        public uint WritePos = 0;
+
+        public CircularBufferOverwriting(uint size)
+        {
+            Size = size;
+            Buffer = new T[Size];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void Insert(T data)
+        {
+                Buffer[WritePos++] = data;
+
+                if (WritePos >= Size)
+                {
+                    WritePos = 0;
+                }
+
+                return;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Pop()
+        {
+            T data = Buffer[ReadPos++];
+
+            if (ReadPos >= Size)
+            {
+                ReadPos = 0;
+            }
+
+            return data;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public T Peek(int offset)
+        {
+            return Buffer[(ReadPos + offset) % Size];
+        }
+
+        public void Reset()
+        {
+            ReadPos = 0;
+            WritePos = 0;
+        }
+    }
+
     public sealed class CircularBuffer<T>
     {
         public uint Size;
@@ -69,9 +128,9 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public T Peek()
+        public T Peek(int offset)
         {
-            return Buffer[ReadPos];
+            return Buffer[(ReadPos + offset) % Size];
         }
 
         public void Reset()
@@ -91,7 +150,7 @@ namespace OptimeGBA
             Gba = gba;
             Scheduler = scheduler;
 
-            Scheduler.AddEventRelative(SchedulerId.ApuSample, SampleTimerMax, Sample);
+            Scheduler.AddEventRelative(SchedulerId.ApuSample, CyclesPerSample, Sample);
         }
 
         public GbAudio GbAudio = new GbAudio();
@@ -101,6 +160,9 @@ namespace OptimeGBA
 
         public CircularBuffer<byte> A = new CircularBuffer<byte>(32, 0);
         public CircularBuffer<byte> B = new CircularBuffer<byte>(32, 0);
+
+        public CircularBufferOverwriting<short> VisBufA = new CircularBufferOverwriting<short>(1024);
+        public CircularBufferOverwriting<short> VisBufB = new CircularBufferOverwriting<short>(1024);
 
         public short CurrentValueA;
         public short CurrentValueB;
@@ -246,75 +308,106 @@ namespace OptimeGBA
         }
 
         public bool CollectSamples = true;
-        public bool Resample = false;
 
         public bool EnablePsg = true;
         public bool EnableFifo = true;
 
-        const uint SampleTimerMax = 512;
+        public BlipBuf BlipBuf = new BlipBuf(64, true, 2);
+        public ResamplingMode ResamplingMode = ResamplingMode.Sinc;
+        const int SampleRate = 32768;
+        const int CyclesPerSample = 16777216 / SampleRate;
         // public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
         public const uint SampleBufferMax = 256;
         public short[] SampleBuffer = new short[SampleBufferMax];
         public uint SampleBufferPos = 0;
         public bool AudioReady;
 
+        public uint VisSamplingTimer = 0;
+
         public void Sample(long cyclesLate)
         {
-            GbAudio.Tick(128); // Tick 128 T-cycles
+            GbAudio.Tick(CyclesPerSample / 4); // convert to GB sample rate
 
-            short left = 0;
-            short right = 0;
+            BlipBuf.ReadOutSample();
+            
+            double fifoASinc = BlipBuf.CurrentValL;
+            double fifoBSinc = BlipBuf.CurrentValR;
+
+            short fifoA = 0;
+            short fifoB = 0;
+            short psgA = 0;
+            short psgB = 0;
 
             if (MasterEnable)
             {
                 if (EnablePsg)
                 {
-                    left += GbAudio.Out1;
-                    right += GbAudio.Out2;
+                    psgA += GbAudio.Out1;
+                    psgB += GbAudio.Out2;
                 }
                 if (EnableFifo)
                 {
-                    long current = Scheduler.CurrentTicks - cyclesLate;
-
-                    if (Resample)
+                    switch (ResamplingMode)
                     {
-                        if (DebugEnableA)
-                        {
-                            double ratio = (current - LastSampleTimeA) / (double)IntervalA;
-                            double valDouble = (PreviousValueA + ratio * (double)(CurrentValueA - PreviousValueA));
-                            short val = (short)valDouble;
+                        case ResamplingMode.None:
+                            if (DebugEnableA)
+                            {
+                                if (DmaSoundAEnableLeft) fifoA += CurrentValueA;
+                                if (DmaSoundAEnableRight) fifoB += CurrentValueA;
+                            }
+                            if (DebugEnableB)
+                            {
+                                if (DmaSoundBEnableLeft) fifoA += CurrentValueB;
+                                if (DmaSoundBEnableRight) fifoB += CurrentValueB;
+                            }
+                            break;
+                        case ResamplingMode.Linear:
+                            long current = Scheduler.CurrentTicks - cyclesLate;
 
-                            if (DmaSoundAEnableLeft) left += val;
-                            if (DmaSoundAEnableRight) right += val;
-                        }
-                        if (DebugEnableB)
-                        {
-                            double ratio = (current - LastSampleTimeB) / (double)IntervalB;
-                            double valDouble = (PreviousValueB + ratio * (double)(CurrentValueB - PreviousValueB));
-                            short val = (short)valDouble;
+                            if (DebugEnableA)
+                            {
+                                double ratio = (current - LastSampleTimeA) / (double)IntervalA;
+                                double valDouble = (PreviousValueA + ratio * (double)(CurrentValueA - PreviousValueA));
+                                short val = (short)valDouble;
 
-                            if (DmaSoundBEnableLeft) left += val;
-                            if (DmaSoundBEnableRight) right += val;
-                        }
-                    }
-                    else
-                    {
-                        if (DebugEnableA)
-                        {
-                            if (DmaSoundAEnableLeft) left += CurrentValueA;
-                            if (DmaSoundAEnableRight) right += CurrentValueA;
-                        }
-                        if (DebugEnableB)
-                        {
-                            if (DmaSoundBEnableLeft) left += CurrentValueB;
-                            if (DmaSoundBEnableRight) right += CurrentValueB;
-                        }
+                                if (DmaSoundAEnableLeft) fifoA += val;
+                                if (DmaSoundAEnableRight) fifoB += val;
+                            }
+                            if (DebugEnableB)
+                            {
+                                double ratio = (current - LastSampleTimeB) / (double)IntervalB;
+                                double valDouble = (PreviousValueB + ratio * (double)(CurrentValueB - PreviousValueB));
+                                short val = (short)valDouble;
+
+                                if (DmaSoundBEnableLeft) fifoA += val;
+                                if (DmaSoundBEnableRight) fifoB += val;
+                            }
+                            break;
+                        case ResamplingMode.Sinc:
+                            if (DebugEnableA)
+                            {
+                                if (DmaSoundAEnableLeft) fifoA += (short)(fifoASinc);
+                                if (DmaSoundAEnableRight) fifoB += (short)(fifoASinc);
+                            }
+                            if (DebugEnableB)
+                            {
+                                if (DmaSoundBEnableLeft) fifoA += (short)(fifoBSinc);
+                                if (DmaSoundBEnableRight) fifoB += (short)(fifoBSinc);
+                            }
+                            break;
                     }
                 }
             }
 
-            SampleBuffer[SampleBufferPos++] = (short)(left * 64);
-            SampleBuffer[SampleBufferPos++] = (short)(right * 64);
+            if (++VisSamplingTimer >= 4) {
+                VisSamplingTimer = 0;
+
+                VisBufA.Insert(CurrentValueA);
+                VisBufB.Insert(CurrentValueB);
+            }
+
+            SampleBuffer[SampleBufferPos++] = (short)((fifoA + psgA) * 64);
+            SampleBuffer[SampleBufferPos++] = (short)((fifoB + psgB) * 64);
 
             if (SampleBufferPos >= SampleBufferMax)
             {
@@ -323,7 +416,7 @@ namespace OptimeGBA
                 Gba.AudioCallback(SampleBuffer);
             }
 
-            Scheduler.AddEventRelative(SchedulerId.ApuSample, SampleTimerMax - cyclesLate, Sample);
+            Scheduler.AddEventRelative(SchedulerId.ApuSample, CyclesPerSample - cyclesLate, Sample);
         }
 
         public void TimerOverflowFifoA(long cyclesLate, uint timerId)
@@ -333,6 +426,9 @@ namespace OptimeGBA
             IntervalA = Gba.Timers.T[timerId].Interval;
 
             CurrentValueA = (short)((sbyte)A.Pop() << DmaSoundAVolume);
+
+            BlipBuf.SetValue(0, LastSampleTimeA / CyclesPerSample, (double)CurrentValueA, 0);
+
             if (A.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoA();
@@ -345,6 +441,9 @@ namespace OptimeGBA
             IntervalB = Gba.Timers.T[timerId].Interval;
 
             CurrentValueB = (short)((sbyte)B.Pop() << DmaSoundBVolume);
+
+            BlipBuf.SetValue(1, LastSampleTimeB / CyclesPerSample, 0, (double)CurrentValueB);
+
             if (B.Entries <= 16)
             {
                 Gba.Dma.RepeatFifoB();

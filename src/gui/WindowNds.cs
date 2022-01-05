@@ -669,7 +669,7 @@ namespace OptimeGBAEmulator
                 // }
 
                 ImGui.InputInt("Instrs", ref DebugStepFor);
-                if (ImGui.Button("Step For"))
+                if (ImGui.Button("Step For " + DebugStepFor))
                 {
                     int num = DebugStepFor;
                     while (num > 0 && !Nds.Cpu7.Errored)
@@ -679,8 +679,8 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                var times = 10000;
-                if (ImGui.Button("Step " + times))
+                var times = DebugStepFor;
+                if (ImGui.Button("Step For " + DebugStepFor + " & Log"))
                 {
                     using (StreamWriter file7 = new StreamWriter("log7.txt"), file9 = new StreamWriter("log9.txt"))
                     {
@@ -811,6 +811,9 @@ namespace OptimeGBAEmulator
                 ImGui.NextColumn();
 
                 ImGui.Text("A---------------");
+
+                ImGui.Checkbox("Force Display 3D Layer", ref Nds.Ppu.Renderers[0].DebugForce3DLayer);
+
                 var rendA = Nds.Ppu.Renderers[0];
                 ImGui.Text($"BG0 Size X/Y: {PpuRenderer.CharWidthTable[rendA.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rendA.Backgrounds[0].ScreenSize]}");
                 ImGui.Text($"BG0 Scroll X/Y: {rendA.Backgrounds[0].HorizontalOffset}/{rendA.Backgrounds[0].VerticalOffset}");
@@ -1736,12 +1739,54 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public uint LerpColor(uint c0, uint c1, float factor) {
+            int c00 = (int)(c0 >> 0) & 0xFF; 
+            int c01 = (int)(c0 >> 8) & 0xFF; 
+            int c02 = (int)(c0 >> 16) & 0xFF; 
+            int c03 = (int)(c0 >> 24) & 0xFF;
+            int c10 = (int)(c1 >> 0) & 0xFF;
+            int c11 = (int)(c1 >> 8) & 0xFF;
+            int c12 = (int)(c1 >> 16) & 0xFF;
+            int c13 = (int)(c1 >> 24) & 0xFF;
+ 
+            uint cf0 = (uint)((c10 - c00) * factor + c00) & 0xFF; 
+            uint cf1 = (uint)((c11 - c01) * factor + c01) & 0xFF; 
+            uint cf2 = (uint)((c12 - c02) * factor + c02) & 0xFF; 
+            uint cf3 = (uint)((c13 - c03) * factor + c03) & 0xFF; 
+            
+            return cf0 | (cf1 << 8) | (cf2 << 16) | (cf3 << 24);
+        }
+
         public string[] SoundDivs = new string[] { "/1", "/2", "/4", "/16" };
 
         public void DrawSoundVisualizer()
         {
             if (ImGui.Begin("Sound Visualizer"))
             {
+                // if (ImGui.Button("Dump Shared Memory")) {
+                    // System.IO.File.WriteAllBytes("sharedram.bin", Nds.SharedRam);
+                // }
+
+                 if (ImGui.Button("Dump ARM7 Memory")) {
+                    System.IO.File.WriteAllBytes("arm7wram.bin", Nds.Mem7.Arm7Wram);
+                }
+
+
+                ImGui.Checkbox("Enable Resampling", ref Nds.Audio.EnableBlipBufResampling);
+
+                if (Nds.Audio.Record) {
+                    if (ImGui.Button("Stop Recording")) {
+                        Nds.Audio.Record = false;
+
+                        Nds.Audio.WavWriter.Save("nds.wav");
+                        Nds.Audio.WavWriterSinc.Save("nds-sinc.wav");
+                    }
+                } else {
+                    if (ImGui.Button("Start Recording")) {
+                        Nds.Audio.Record = true;
+                    }
+                }
+
                 for (uint i = 0; i < 16; i++)
                 {
                     var c = Nds.Audio.Channels[i];
@@ -1785,10 +1830,7 @@ namespace OptimeGBAEmulator
 
                     if (c.Playing)
                     {
-                        float volumePortion = (float)(c.Volume >> (1 << c.VolumeDiv)) / 127f;
-                        uint fillColor = (crcColor & 0x00FFFFFF) | ((uint)(255f * volumePortion) << 24);
-                        drawList.AddRectFilled(pos, pos + fillSize, fillColor); // fill
-                        drawList.AddRectFilled(new Vector2(pos.X + fillSize.X - 2, pos.Y), new Vector2(pos.X + fillSize.X, pos.Y + size.Y - 1), ColorBright(crcColor, 0.5f));
+                        drawList.AddRectFilled(new Vector2(pos.X + size.X * fillPortion - 2, pos.Y), new Vector2(pos.X + size.X * fillPortion, pos.Y + size.Y - 1), 0xFF00FF00);
                     }
                     if (c.RepeatMode == 1)
                     {
@@ -1800,6 +1842,20 @@ namespace OptimeGBAEmulator
                         drawList.AddRectFilled(new Vector2(pos.X + size.X - 2, pos.Y), new Vector2(pos.X + size.X, pos.Y + size.Y - 1), 0xFF0000FF);
                     }
                     drawList.AddRect(pos, pos + size, ImGui.GetColorU32(ImGuiCol.Border)); // border
+
+                    uint startBoxColorInactive = 0xFF222222;
+                    uint startBoxColorActive = 0xFF444444;
+                    uint startBoxColor;
+                    const uint startBoxFadeTicks = 8388608; // about 0.25 seconds
+                    long ticksSinceStart = Nds.Scheduler.CurrentTicks - c.DebugStartTicks;
+                    if (ticksSinceStart > 0 && ticksSinceStart < startBoxFadeTicks) {
+                        startBoxColor = LerpColor(0xFFFFFFFF, startBoxColorActive, (float)ticksSinceStart / (float)startBoxFadeTicks);
+                    // if (i == 0) Console.WriteLine((float)ticksSinceStart / (float)startBoxFadeTicks);
+                    } else {
+                        startBoxColor = startBoxColorInactive;
+                    }
+                    drawList.AddRectFilled(pos + new Vector2(size.X - 8, 0), pos + size, startBoxColor);
+                    drawList.AddRect(pos, pos + size, ImGui.GetColorU32(ImGuiCol.Border)); // border for start box
 
                     ImGui.Checkbox("##soundvis-check" + i, ref c.DebugEnable); ImGui.SameLine();
                     if (ImGui.Button("Solo##soundvis" + i))

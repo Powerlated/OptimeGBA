@@ -53,8 +53,7 @@ namespace OptimeGBA
         public uint DebugAdpcmSaved;
         public uint DebugAdpcmRestored;
 
-        // Sample Replacement
-        public CustomSample CustomSample;
+        public long DebugStartTicks;
     }
 
     public class NdsAudio
@@ -65,11 +64,6 @@ namespace OptimeGBA
         {
             Nds = nds;
 
-            if (Nds.Cartridge.IdString != null && CustomSamples.ContainsKey(Nds.Cartridge.IdString))
-            {
-                CustomSampleSet = CustomSamples[Nds.Cartridge.IdString];
-            }
-
             for (uint i = 0; i < 16; i++)
             {
                 Channels[i] = new AudioChannelNds();
@@ -78,228 +72,18 @@ namespace OptimeGBA
             Sample(0);
         }
 
-        public static Dictionary<string, Dictionary<uint, CustomSample>> CustomSamples = new Dictionary<string, Dictionary<uint, CustomSample>>();
-
-        // Thanks: https://rosettacode.org/wiki/Fast_Fourier_transform#C.23
-        /* Performs a Bit Reversal Algorithm on a postive integer 
-        * for given number of bits
-        * e.g. 011 with 3 bits is reversed to 110 */
-        public static int BitReverse(int n, int bits)
-        {
-            int reversedN = n;
-            int count = bits - 1;
-
-            n >>= 1;
-            while (n > 0)
-            {
-                reversedN = (reversedN << 1) | (n & 1);
-                count--;
-                n >>= 1;
-            }
-
-            return ((reversedN << count) & ((1 << bits) - 1));
-        }
-
-        /* Uses Cooley-Tukey iterative in-place algorithm with radix-2 DIT case
-        * assumes no of points provided are a power of 2 */
-        public static void FFT(Complex[] buffer)
-        {
-            int bits = (int)Math.Log(buffer.Length, 2);
-            for (int j = 1; j < buffer.Length; j++)
-            {
-                int swapPos = BitReverse(j, bits);
-                if (swapPos <= j)
-                {
-                    continue;
-                }
-                var temp = buffer[j];
-                buffer[j] = buffer[swapPos];
-                buffer[swapPos] = temp;
-            }
-
-            for (int N = 2; N <= buffer.Length; N <<= 1)
-            {
-                for (int i = 0; i < buffer.Length; i += N)
-                {
-                    for (int k = 0; k < N / 2; k++)
-                    {
-
-                        int evenIndex = i + k;
-                        int oddIndex = i + k + (N / 2);
-                        var even = buffer[evenIndex];
-                        var odd = buffer[oddIndex];
-
-                        double term = -2 * Math.PI * k / (double)N;
-                        Complex exp = new Complex(Math.Cos(term), Math.Sin(term)) * odd;
-
-                        buffer[evenIndex] = even + exp;
-                        buffer[oddIndex] = even - exp;
-
-                    }
-                }
-            }
-        }
-
-        static NdsAudio()
-        {
-            // Custom audio file names 
-            // <28_bit_addr>-o[comment].wav
-            // <28_bit_addr>-l-<loop_point_sample>[comment].wav
-            // 28_bit_addr is in hexadecimal
-            // loop_point_sample is in decimal
-            if (Directory.Exists("samples"))
-            {
-                Console.WriteLine("Loading custom samples...");
-
-                string[] gameDirs = Directory.GetDirectories("samples");
-
-                foreach (string gameDir in gameDirs)
-                {
-                    Console.WriteLine(gameDir);
-                    // Since Path.GetDirectoryName chops everything after the first path delineator,
-                    // use Path.GetFileName instead
-                    string gameCode = Path.GetFileName(gameDir);
-
-                    if (gameCode.Length != 4)
-                    {
-                        continue;
-                    }
-
-                    Console.WriteLine(@"Found " + gameCode);
-
-                    Dictionary<uint, CustomSample> gameDictionary = new Dictionary<uint, CustomSample>();
-                    CustomSamples.Add(gameCode, gameDictionary);
-
-                    string[] files = Directory.GetFiles(gameDir);
-                    foreach (string file in files)
-                    {
-                        Console.WriteLine(Path.GetFileName(file));
-
-                        string name = Path.GetFileNameWithoutExtension(file);
-                        string[] nameArr = name.Split("-");
-                        uint addr;
-                        if (!uint.TryParse(nameArr[0], NumberStyles.HexNumber, null, out addr))
-                        {
-                            Console.WriteLine("Error: Error parsing source address in filename");
-                            continue;
-                        }
-
-                        uint loopPoint = 0;
-                        uint repeatMode;
-                        if (nameArr[1][0] == 'o')
-                        {
-                            Console.WriteLine("One-shot");
-                            repeatMode = 2;
-                        }
-                        else if (nameArr[1][0] == 'l')
-                        {
-                            Console.WriteLine("Loop");
-                            repeatMode = 1;
-
-                            if (!uint.TryParse(nameArr[2], out loopPoint))
-                            {
-                                Console.WriteLine("Error: Error parsing loop point in filename");
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error: Unsupported repeat mode, use \"o\" or \"r\".");
-                            continue;
-                        }
-
-                        byte[] data = File.ReadAllBytes(file);
-
-                        uint channels = GetUshort(data, 22);
-                        uint sampleRate = GetUint(data, 24);
-                        uint bitsPerSample = GetUshort(data, 34);
-                        uint subchunk2Size = GetUint(data, 40);
-
-                        Console.WriteLine("Sample rate: " + sampleRate);
-                        Console.WriteLine("Bit depth: " + sampleRate);
-                        if (!(bitsPerSample == 8 || bitsPerSample == 16))
-                        {
-                            Console.WriteLine("Error: Unsupported bit depth, please use 8 or 16");
-                            continue;
-                        }
-
-                        Console.WriteLine("Channels: " + sampleRate);
-                        if (channels != 1)
-                        {
-                            Console.WriteLine("Error: Unsupported channel count, please use mono only");
-                        }
-
-                        uint bytesPerSample = bitsPerSample / 8;
-                        uint sampleCount = subchunk2Size / bytesPerSample;
-                        short[] samples = new short[sampleCount];
-
-                        for (int i = 0; i < sampleCount; i++)
-                        {
-                            if (bytesPerSample == 8)
-                            {
-                                samples[i] = (short)((data[44 + i] - 0x7F) << 8);
-                            }
-                            else
-                            {
-                                samples[i] = (short)GetUshort(data, (uint)(44 + i * 2));
-                            }
-                        }
-
-                        uint fftSize = sampleCount;
-
-                        // Round up to next power of 2, then cut
-                        fftSize--;
-                        fftSize |= fftSize >> 1;
-                        fftSize |= fftSize >> 2;
-                        fftSize |= fftSize >> 4;
-                        fftSize |= fftSize >> 8;
-                        fftSize |= fftSize >> 16;
-                        fftSize++;
-                        fftSize >>= 4;
-
-                        Console.WriteLine("FFT size: " + fftSize);
-
-                        Complex[] fftData = new Complex[fftSize]; // Round up
-
-                        for (int i = 0; i < fftSize; i++)
-                        {
-                            fftData[i] = (double)samples[i] / 32768D;
-                        }
-
-                        FFT(fftData);
-
-                        int largestBinIndex = 0;
-                        double largestBinMagnitude = 0;
-                        for (int i = 1; i < fftData.Length / 2 - 1; i++)
-                        {
-                            double magnitude = Math.Sqrt(Math.Pow(fftData[i].Real, 2) + Math.Pow(fftData[i].Imaginary, 2));
-
-                            if (magnitude > largestBinMagnitude)
-                            {
-                                largestBinMagnitude = magnitude;
-                                largestBinIndex = i;
-                            }
-                        }
-
-                        Console.WriteLine("largest bin: " + largestBinIndex);
-                        Console.WriteLine("mag: " + largestBinMagnitude);
-                        Console.WriteLine("Fundamental hz: " + ((double)largestBinIndex * (double)sampleRate / (double)fftSize));
-
-                        gameDictionary.Add(addr, new CustomSample(samples, loopPoint, repeatMode));
-                    }
-                }
-            }
-            else
-            {
-                Console.WriteLine("No \"samples\" directory present.");
-            }
-        }
-
         public AudioChannelNds[] Channels = new AudioChannelNds[16];
 
-        public Dictionary<uint, CustomSample> CustomSampleSet;
+        public const int SampleRate = 32768;
 
-        public int SampleTimer;
+        public bool EnableBlipBufResampling = true;
+        public BlipBuf BlipBuf = new BlipBuf(32, true, 16);
+
+        public bool Record = false;
+        public WavWriter WavWriter = new WavWriter(SampleRate);
+        public WavWriter WavWriterSinc = new WavWriter(SampleRate);
+
+        public int SampleTimer = 0;
 
         public const uint SampleBufferMax = 256;
         public short[] SampleBuffer = new short[SampleBufferMax];
@@ -456,6 +240,9 @@ namespace OptimeGBA
                 case 0x5:
                 case 0x6:
                 case 0x7:
+                    Console.WriteLine(Util.Hex(Nds.Cpu7.GetCurrentInstrAddr(), 8));
+                    // Console.WriteLine(Nds.MemoryControl.SharedRamControl);
+
                     c.SOUNDSAD = SetByteIn(c.SOUNDSAD, val, addr & 3) & 0x7FFFFFC;
 
                     if (c.Playing)
@@ -487,28 +274,15 @@ namespace OptimeGBA
             c.Timer = 0;
             c.CurrentValue = 0;
 
-            if (CustomSampleSet != null)
-            {
-                // Exclude PSGs from sample replacement
-                if (c.Format != 3)
-                {
-                    c.CustomSample = CustomSampleSet.GetValueOrDefault(c.SOUNDSAD);
-                }
-                else
-                {
-                    c.CustomSample = null;
-                }
-                // Console.WriteLine($"Custom sample: addr:{Util.Hex(c.SOUNDSAD, 7)}");
-            }
+            c.DebugStartTicks = Nds.Scheduler.CurrentTicks;
         }
 
         public void Sample(long cyclesLate)
         {
-
             long left = 0;
             long right = 0;
 
-            for (uint i = 0; i < 16; i++)
+            for (int i = 0; i < 16; i++)
             {
                 var c = Channels[i];
 
@@ -519,18 +293,94 @@ namespace OptimeGBA
                     {
                         c.Timer -= c.Interval;
 
-                        if (c.CustomSample == null)
+                        // Advance sample
+                        switch (c.Format)
                         {
-                            // Advance sample
-                            switch (c.Format)
-                            {
-                                case 0: // PCM8
-                                    if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 4)
+                            case 0: // PCM8
+                                if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 4)
+                                {
+                                    switch (c.RepeatMode)
+                                    {
+                                        case 1: // Infinite 
+                                            c.SamplePos = c.SOUNDPNT * 4;
+                                            break;
+                                        case 2: // One-shot
+                                            c.Playing = false;
+                                            if (!c.Hold)
+                                            {
+                                                c.CurrentValue = 0;
+                                            }
+                                            break;
+                                    }
+                                }
+
+                                if ((c.SamplePos & 3) == 0)
+                                {
+                                    c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos);
+                                }
+
+                                c.CurrentValue = (short)((byte)c.CurrentData << 8);
+                                c.CurrentData >>= 8;
+
+                                c.SamplePos++;
+                                break;
+                            case 1: // PCM16
+                                if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 2)
+                                {
+                                    switch (c.RepeatMode)
+                                    {
+                                        case 1: // Infinite 
+                                            c.SamplePos = c.SOUNDPNT * 2;
+                                            break;
+                                        case 2: // One-shot
+                                            c.Playing = false;
+                                            if (!c.Hold)
+                                            {
+                                                c.CurrentValue = 0;
+                                            }
+                                            break;
+                                    }
+                                }
+
+                                if ((c.SamplePos & 1) == 0)
+                                {
+                                    c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos * 2);
+                                }
+
+                                c.CurrentValue = (short)c.CurrentData;
+                                c.CurrentData >>= 16;
+
+                                c.SamplePos++;
+                                break;
+                            case 2: // IMA-ADPCM
+                                if ((c.SamplePos & 7) == 0)
+                                {
+                                    c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos / 2);
+                                    // ADPCM header
+                                    if (c.SamplePos == 0)
+                                    {
+                                        c.CurrentValue = (short)c.CurrentData;
+                                        // Console.WriteLine("header set " + x++);
+                                        // Console.WriteLine("interval: " + Util.Hex(c.Interval, 8));
+                                        c.AdpcmIndex = Math.Clamp((int)(c.CurrentData >> 16), 0, 88);
+                                    }
+                                    // Console.WriteLine("addr: " + Util.Hex(c.Source, 8));
+                                }
+                                if (c.SamplePos > 7)
+                                {
+                                    // End of sound, loop or stop
+                                    if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 8)
                                     {
                                         switch (c.RepeatMode)
                                         {
                                             case 1: // Infinite 
-                                                c.SamplePos = c.SOUNDPNT * 4;
+                                                c.SamplePos = c.SOUNDPNT * 8;
+                                                c.CurrentValue = c.AdpcmLoopValue;
+                                                c.AdpcmIndex = c.AdpcmLoopIndex;
+                                                c.CurrentData = c.AdpcmLoopCurrentData;
+                                                // Console.WriteLine($"Ch{i}: Loaded at " + c.SampleNum);
+
+                                                c.DebugAdpcmRestored = c.SamplePos;
                                                 break;
                                             case 2: // One-shot
                                                 c.Playing = false;
@@ -540,154 +390,74 @@ namespace OptimeGBA
                                                 }
                                                 break;
                                         }
-                                    }
-
-                                    if ((c.SamplePos & 3) == 0)
-                                    {
-                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos);
-                                    }
-
-                                    c.CurrentValue = (short)((byte)c.CurrentData << 8);
-                                    c.CurrentData >>= 8;
-
-                                    c.SamplePos++;
-                                    break;
-                                case 1: // PCM16
-                                    if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 2)
-                                    {
-                                        switch (c.RepeatMode)
-                                        {
-                                            case 1: // Infinite 
-                                                c.SamplePos = c.SOUNDPNT * 2;
-                                                break;
-                                            case 2: // One-shot
-                                                c.Playing = false;
-                                                if (!c.Hold)
-                                                {
-                                                    c.CurrentValue = 0;
-                                                }
-                                                break;
-                                        }
-                                    }
-
-                                    if ((c.SamplePos & 1) == 0)
-                                    {
-                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos * 2);
-                                    }
-
-                                    c.CurrentValue = (short)c.CurrentData;
-                                    c.CurrentData >>= 16;
-
-                                    c.SamplePos++;
-                                    break;
-                                case 2: // IMA-ADPCM
-                                    if ((c.SamplePos & 7) == 0)
-                                    {
-                                        c.CurrentData = Nds.Mem7.Read32(c.SOUNDSAD + c.SamplePos / 2);
-                                        // ADPCM header
-                                        if (c.SamplePos == 0)
-                                        {
-                                            c.CurrentValue = (short)c.CurrentData;
-                                            // Console.WriteLine("header set " + x++);
-                                            // Console.WriteLine("interval: " + Util.Hex(c.Interval, 8));
-                                            c.AdpcmIndex = Math.Clamp((int)(c.CurrentData >> 16), 0, 88);
-                                        }
-                                        // Console.WriteLine("addr: " + Util.Hex(c.Source, 8));
-                                    }
-                                    if (c.SamplePos > 7)
-                                    {
-                                        // End of sound, loop or stop
-                                        if (c.SamplePos >= (c.SOUNDPNT + c.SOUNDLEN) * 8)
-                                        {
-                                            switch (c.RepeatMode)
-                                            {
-                                                case 1: // Infinite 
-                                                    c.SamplePos = c.SOUNDPNT * 8;
-                                                    c.CurrentValue = c.AdpcmLoopValue;
-                                                    c.AdpcmIndex = c.AdpcmLoopIndex;
-                                                    c.CurrentData = c.AdpcmLoopCurrentData;
-                                                    // Console.WriteLine($"Ch{i}: Loaded at " + c.SampleNum);
-
-                                                    c.DebugAdpcmRestored = c.SamplePos;
-                                                    break;
-                                                case 2: // One-shot
-                                                    c.Playing = false;
-                                                    if (!c.Hold)
-                                                    {
-                                                        c.CurrentValue = 0;
-                                                    }
-                                                    break;
-                                            }
-                                        }
-                                        else
-                                        {
-                                            byte data = (byte)(c.CurrentData & 0xF);
-
-                                            short tableVal = AdpcmTable[c.AdpcmIndex];
-                                            int diff = tableVal / 8;
-                                            if ((data & 1) != 0) diff += tableVal / 4;
-                                            if ((data & 2) != 0) diff += tableVal / 2;
-                                            if ((data & 4) != 0) diff += tableVal / 1;
-
-                                            if ((data & 8) == 8)
-                                            {
-                                                c.CurrentValue = Math.Max((int)c.CurrentValue - diff, -0x7FFF);
-                                            }
-                                            else
-                                            {
-                                                c.CurrentValue = Math.Min((int)c.CurrentValue + diff, 0x7FFF);
-                                            }
-                                            c.AdpcmIndex = Math.Clamp(c.AdpcmIndex + IndexTable[data & 7], 0, 88);
-
-                                            c.CurrentData >>= 4;
-
-                                            // Save value and ADPCM table index for loop
-                                            if (c.SamplePos == c.SOUNDPNT * 8)
-                                            {
-                                                c.AdpcmLoopValue = c.CurrentValue;
-                                                c.AdpcmLoopIndex = c.AdpcmIndex;
-                                                c.AdpcmLoopCurrentData = c.CurrentData;
-
-                                                c.DebugAdpcmSaved = c.SamplePos;
-                                                // Console.WriteLine($"Ch{i}: Saved at " + c.SampleNum);
-                                            }
-                                        }
-                                    }
-                                    c.SamplePos++;
-                                    break;
-                                case 3: // Pulse / Noise
-                                    if (((c.SamplePos ^ 7) & 7) <= c.PulseDuty)
-                                    {
-                                        c.CurrentValue = -0x7FFF;
                                     }
                                     else
                                     {
-                                        c.CurrentValue = 0x7FFF;
-                                    }
-                                    c.SamplePos++;
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            c.CurrentValue = c.CustomSample.Data[c.SamplePos];
-                            c.SamplePos++;
+                                        byte data = (byte)(c.CurrentData & 0xF);
 
-                            if (c.SamplePos >= c.CustomSample.Data.Length)
-                            {
-                                switch (c.RepeatMode)
-                                {
-                                    case 1: // Infinite 
-                                        c.SamplePos = c.CustomSample.LoopPoint;
-                                        break;
-                                    case 2: // One-shot
-                                        c.Playing = false;
-                                        if (!c.Hold)
+                                        short tableVal = AdpcmTable[c.AdpcmIndex];
+                                        int diff = tableVal / 8;
+                                        if ((data & 1) != 0) diff += tableVal / 4;
+                                        if ((data & 2) != 0) diff += tableVal / 2;
+                                        if ((data & 4) != 0) diff += tableVal / 1;
+
+                                        if ((data & 8) == 8)
                                         {
-                                            c.CurrentValue = 0;
+                                            c.CurrentValue = Math.Max((int)c.CurrentValue - diff, -0x7FFF);
                                         }
-                                        break;
+                                        else
+                                        {
+                                            c.CurrentValue = Math.Min((int)c.CurrentValue + diff, 0x7FFF);
+                                        }
+                                        c.AdpcmIndex = Math.Clamp(c.AdpcmIndex + IndexTable[data & 7], 0, 88);
+
+                                        c.CurrentData >>= 4;
+
+                                        // Save value and ADPCM table index for loop
+                                        if (c.SamplePos == c.SOUNDPNT * 8)
+                                        {
+                                            c.AdpcmLoopValue = c.CurrentValue;
+                                            c.AdpcmLoopIndex = c.AdpcmIndex;
+                                            c.AdpcmLoopCurrentData = c.CurrentData;
+
+                                            c.DebugAdpcmSaved = c.SamplePos;
+                                            // Console.WriteLine($"Ch{i}: Saved at " + c.SampleNum);
+                                        }
+                                    }
                                 }
+                                c.SamplePos++;
+                                break;
+                            case 3: // Pulse / Noise
+                                if (((c.SamplePos ^ 7) & 7) <= c.PulseDuty)
+                                {
+                                    c.CurrentValue = -0x7FFF;
+                                }
+                                else
+                                {
+                                    c.CurrentValue = 0x7FFF;
+                                }
+                                c.SamplePos++;
+                                break;
+                        }
+
+                        if (EnableBlipBufResampling)
+                        {
+                            long timeTicks = Nds.Scheduler.CurrentTicks - cyclesLate + 1024 - (c.Timer % 1024);
+                            double timeSec = (double)timeTicks / 33513982D;
+                            double timeSample = (double)timeTicks / (33513982D / (double)SampleRate);
+
+                            if (c.DebugEnable)
+                            {
+                                uint effectiveVol = c.Volume;
+                                if (effectiveVol == 127) effectiveVol++;
+                                long leftCh = ((((long)c.CurrentValue * (16 >> c.VolumeDiv)) * effectiveVol) * (127 - c.Pan)) >> 10;
+                                long rightCh = ((((long)c.CurrentValue * (16 >> c.VolumeDiv)) * effectiveVol) * c.Pan) >> 10;
+
+                                BlipBuf.SetValue(i, timeSample, leftCh, rightCh);
+                            }
+                            else
+                            {
+                                BlipBuf.SetValue(i, timeSample, 0, 0);
                             }
                         }
                     }
@@ -704,10 +474,12 @@ namespace OptimeGBA
 
             // Decimate samples to 32768 hz 
             // Since 33513982 hz / 1024 ≅ 32728.498 hz
-            SampleTimer += 32768 * 1024;
+            SampleTimer += SampleRate * 1024;
             while (SampleTimer >= 33513982)
             {
                 SampleTimer -= 33513982;
+
+                BlipBuf.ReadOutSample();
 
                 // 28 bits now, after mixing all channels
                 // add master volume to get 35 bits
@@ -715,8 +487,29 @@ namespace OptimeGBA
                 // strip 19 to get 16 bits for our short output
                 uint effectiveMasterVol = MasterVolume;
                 if (effectiveMasterVol == 127) effectiveMasterVol++;
-                SampleBuffer[SampleBufferPos++] = (short)((left * effectiveMasterVol) >> 16);
-                SampleBuffer[SampleBufferPos++] = (short)((right * effectiveMasterVol) >> 16);
+
+                short leftFinalSinc = (short)(((long)BlipBuf.CurrentValL * effectiveMasterVol) >> 16);
+                short rightFinalSinc = (short)(((long)BlipBuf.CurrentValR * effectiveMasterVol) >> 16);
+
+                short leftFinal = (short)((left * effectiveMasterVol) >> 16);
+                short rightFinal = (short)((right * effectiveMasterVol) >> 16);
+
+                if (EnableBlipBufResampling)
+                {
+                    SampleBuffer[SampleBufferPos++] = leftFinalSinc;
+                    SampleBuffer[SampleBufferPos++] = rightFinalSinc;
+                }
+                else
+                {
+                    SampleBuffer[SampleBufferPos++] = leftFinal;
+                    SampleBuffer[SampleBufferPos++] = rightFinal;
+                }
+
+                if (Record)
+                {
+                    WavWriterSinc.AddSample(leftFinalSinc, rightFinalSinc);
+                    WavWriter.AddSample(leftFinal, rightFinal);
+                }
 
                 if (SampleBufferPos >= SampleBufferMax)
                 {

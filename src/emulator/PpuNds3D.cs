@@ -219,7 +219,7 @@ namespace OptimeGBA
         public MatrixStack DirectionStack = new MatrixStack(31, 63);
         public MatrixStack TextureStack = new MatrixStack(1, 0);
         public Matrix ClipMatrix;
-        public bool ClipMatrixDirty;
+        // public bool ClipMatrixDirty; // TODO - reimplement this when I need more speed
 
         public byte[] Viewport1 = new byte[2];
         public byte[] Viewport2 = new byte[2];
@@ -312,7 +312,7 @@ namespace OptimeGBA
                 else
                 {
                     // Console.WriteLine("quued");
-                    byte cmd = PackedCommandQueue.Peek();
+                    byte cmd = PackedCommandQueue.Peek(0);
                     QueueCommand(cmd, val);
 
                     PackedParamsQueued++;
@@ -345,6 +345,8 @@ namespace OptimeGBA
             {
                 Console.Error.WriteLine("3D: GXFIFO overflow");
             }
+
+            CheckCommands();
         }
 
         public void RunCommand(Command cmd)
@@ -438,16 +440,13 @@ namespace OptimeGBA
                     {
                         case MatrixMode.Projection:
                             ProjectionStack.Current = Matrix.GetIdentity();
-                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.Position:
                             PositionStack.Current = Matrix.GetIdentity();
-                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.PositionDirection:
                             PositionStack.Current = Matrix.GetIdentity();
                             DirectionStack.Current = Matrix.GetIdentity();
-                            ClipMatrixDirty = true;
                             break;
                         case MatrixMode.Texture:
                             TextureStack.Current = Matrix.GetIdentity();
@@ -539,12 +538,10 @@ namespace OptimeGBA
                         {
                             case MatrixMode.Projection:
                                 ProjectionStack.Current = ProjectionStack.Current.Multiply(m);
-                                ClipMatrixDirty = true;
                                 break;
                             case MatrixMode.Position:
                             case MatrixMode.PositionDirection:
                                 PositionStack.Current = PositionStack.Current.Multiply(m);
-                                ClipMatrixDirty = true;
                                 break;
                             case MatrixMode.Texture:
                                 TextureStack.Current = TextureStack.Current.Multiply(m);
@@ -708,9 +705,9 @@ namespace OptimeGBA
             }
         }
 
-        public void Run()
+        public void CheckCommands()
         {
-            if (CommandFifo.Entries > 0)
+            while (CommandFifo.Entries > 0)
             {
                 Command cmd = PeekCommand();
 
@@ -718,8 +715,15 @@ namespace OptimeGBA
                 {
                     RunCommand(cmd);
                 }
+                else
+                {
+                    break;
+                }
             }
+        }
 
+        public void Run()
+        {
             if (
                 (CommandFifo.Entries == 0 && CommandFifoIrqMode == 2) ||
                 (CommandFifo.Entries < 128 && CommandFifoIrqMode == 1)
@@ -738,7 +742,7 @@ namespace OptimeGBA
 
         public Command PeekCommand()
         {
-            return CommandFifo.Peek();
+            return CommandFifo.Peek(0);
         }
 
         public void LoadCurrentMatrix(ref Matrix m)
@@ -747,16 +751,13 @@ namespace OptimeGBA
             {
                 case MatrixMode.Projection:
                     ProjectionStack.Current = m;
-                    ClipMatrixDirty = true;
                     break;
                 case MatrixMode.Position:
                     PositionStack.Current = m;
-                    ClipMatrixDirty = true;
                     break;
                 case MatrixMode.PositionDirection:
                     PositionStack.Current = m;
                     DirectionStack.Current = m;
-                    ClipMatrixDirty = true;
                     break;
                 case MatrixMode.Texture:
                     TextureStack.Current = m;
@@ -770,12 +771,10 @@ namespace OptimeGBA
             {
                 case MatrixMode.Projection:
                     ProjectionStack.Current = ProjectionStack.Current.Multiply(m);
-                    ClipMatrixDirty = true;
                     // ProjectionStack.Current.Print("Projection after multiply");
                     break;
                 case MatrixMode.Position:
                     PositionStack.Current = PositionStack.Current.Multiply(m);
-                    ClipMatrixDirty = true;
                     break;
                 case MatrixMode.PositionDirection:
                     PositionStack.Current.Print("Before translation mul");
@@ -799,15 +798,9 @@ namespace OptimeGBA
                 v.Pos.Data[i] = VertexCoords[i];
             }
 
-            if (ClipMatrixDirty)
-            {
-                ClipMatrixDirty = false;
-
-                ClipMatrix = ProjectionStack.Current.Multiply(PositionStack.Current);
-            }
-
             v.Pos.Data[3] = 0x1000; // Set W coordinate to 1 
-            v.Pos = ClipMatrix.Multiply(v.Pos);
+            v.Pos = PositionStack.Current.Multiply(v.Pos);
+            v.Pos = ProjectionStack.Current.Multiply(v.Pos);
             // PositionStack.Current.Print("Position Matrix");
             VertexQueueBack.Insert(v);
 

@@ -108,24 +108,6 @@ namespace OptimeGBA
             }
         }
 
-        public byte ReadBGOFS(uint addr)
-        {
-            switch (addr)
-            {
-                case 0x0: // BGHOFS B0
-                    return (byte)((HorizontalOffset & 0x0FF) >> 0);
-                case 0x1: // BGHOFS B1
-                    return (byte)((HorizontalOffset & 0x100) >> 8);
-
-                case 0x2: // BGVOFS B0
-                    return (byte)((VerticalOffset & 0x0FF) >> 0);
-                case 0x3: // BGVOFS B1
-                    return (byte)((VerticalOffset & 0x100) >> 8);
-            }
-
-            return 0;
-        }
-
         public void WriteBGOFS(uint addr, byte val)
         {
             switch (addr)
@@ -148,27 +130,6 @@ namespace OptimeGBA
                     VerticalOffset |= (uint)((val << 8) & 0x100u);
                     break;
             }
-        }
-
-        public byte ReadBGXY(uint addr)
-        {
-            byte offset = (byte)((addr & 3) << 8);
-            switch (addr)
-            {
-                case 0x0: // BGX_L
-                case 0x1: // BGX_L
-                case 0x2: // BGX_H
-                case 0x3: // BGX_H
-                    return (byte)(RefPointX >> offset);
-
-                case 0x4: // BGY_L
-                case 0x5: // BGY_L
-                case 0x6: // BGY_H
-                case 0x7: // BGY_H
-                    return (byte)(RefPointY >> offset);
-            }
-
-            return 0;
         }
 
         public void WriteBGXY(uint addr, byte val)
@@ -203,29 +164,6 @@ namespace OptimeGBA
             AffinePosY = ((int)RefPointY << 4) >> 4;
         }
 
-        public byte ReadBGPX(uint addr)
-        {
-            byte offset = (byte)((addr & 1) * 8);
-            switch (addr)
-            {
-                case 0x0: // BGPA B0
-                case 0x1: // BGPA B1
-                    return (byte)(AffineA >> offset);
-                case 0x2: // BGPB B0
-                case 0x3: // BGPB B1
-                    return (byte)(AffineB >> offset);
-
-                case 0x4: // BGPC B0
-                case 0x5: // BGPC B1
-                    return (byte)(AffineC >> offset);
-                case 0x6: // BGPD B0
-                case 0x7: // BGPD B1
-                    return (byte)(AffineD >> offset);
-            }
-
-            return 0;
-        }
-
         public void WriteBGPX(uint addr, byte val)
         {
             byte offset = (byte)((addr & 1) * 8);
@@ -253,6 +191,12 @@ namespace OptimeGBA
                     AffineD |= (short)(val << offset);
                     break;
             }
+        }
+
+        // Metadata used for rendering
+        public ushort GetMeta()
+        {
+            return (ushort)((Priority << 8) | (1 << Id));
         }
     }
 

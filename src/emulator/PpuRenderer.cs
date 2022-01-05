@@ -87,6 +87,9 @@ namespace OptimeGBA
 
                 PlaceholderFor3D[index++] = (ushort)((b << 10) | (g << 5) | r);
             }
+
+            for (uint i = 0; i < Width; i++)
+                WinMasks[i + 8] = 0b111111;
         }
 
         // RGB555
@@ -95,6 +98,7 @@ namespace OptimeGBA
         // Internal State
         public const int BYTES_PER_PIXEL = 4;
 
+        public bool DebugForce3DLayer = false;
         public bool RenderingDone = false;
 
         // RGB, 24-bit
@@ -323,6 +327,17 @@ namespace OptimeGBA
                         case 1: // Regular rendering
                             PrepareBackgroundAndWindow(vcount);
                             RenderBgModes(vcount, bgVram);
+
+                            if (DebugForce3DLayer) {
+                                uint srcBase = (uint)(vcount * Width);
+
+                                for (uint i = 0; i < Width; i++)
+                                {
+                                    BgLo[i + 8] = BgHi[i + 8];
+                                    BgHi[i + 8] = (uint)(Nds.Ppu3D.Screen[srcBase + i]);
+                                }
+                            }
+
                             Composite(vcount);
                             if (DebugEnableObj && ScreenDisplayObj && vcount != 191) RenderObjs(vcount + 1, objVram);
                             break;
@@ -659,34 +674,46 @@ namespace OptimeGBA
                 bool yFlip = BitTest(mapEntry, 11);
 
                 uint effectiveIntraTileY = intraTileY;
-                if (yFlip) effectiveIntraTileY ^= 7;
+                if (yFlip)
+                {
+                    effectiveIntraTileY ^= 7;
+                }
+
+                Vector256<uint> clearMaskVec;
+                Vector256<uint> indicesVec = Vector256<uint>.Zero;
+                uint paletteRow = 0;
 
                 if (bg.Use8BitColor)
                 {
+                    clearMaskVec = Vector256.Create(0xFFU);
+
                     uint vramTileAddr = charBase + tileNumber * 64 + effectiveIntraTileY * 8;
                     ulong data = GetUlong(vram, vramTileAddr);
 
                     if (data != 0)
                     {
-                        Vector256<uint> indices = Avx2.ConvertToVector256Int32((byte*)&data).AsUInt32();
+                        indicesVec = Avx2.ConvertToVector256Int32((byte*)&data).AsUInt32();
                         if (xFlip)
                         {
                             // First, reverse within 128-bit lanes
-                            indices = Avx2.Shuffle(indices, 0b00_01_10_11);
+                            indicesVec = Avx2.Shuffle(indicesVec, 0b00_01_10_11);
                             // Then, swap upper and lower halves
-                            indices = Avx2.Permute2x128(indices, indices, 1);
+                            indicesVec = Avx2.Permute2x128(indicesVec, indicesVec, 1);
                         }
-                        indices = Avx2.And(indices, Vector256.Create(0xFFU));
-
-                        PlaceBgRow(lineIndex, palettes, 0, indices, metaVec, Vector256.Create(0xFFU), winMasks, hi, lo);
+                        indicesVec = Avx2.And(indicesVec, clearMaskVec);
                     }
-
-                    pixelX += 8;
-                    lineIndex += 8;
+                    else
+                    {
+                        pixelX += 8;
+                        lineIndex += 8;
+                        continue;
+                    }
                 }
                 else
                 {
-                    uint paletteRow = (mapEntry >> 12) & 0xF;
+                    clearMaskVec = Vector256.Create(0xFU);
+
+                    paletteRow = (mapEntry >> 12) & 0xF;
                     uint vramTileAddr = charBase + tileNumber * 32 + effectiveIntraTileY * 4;
 
                     uint data = GetUint(vram, vramTileAddr);
@@ -695,51 +722,48 @@ namespace OptimeGBA
                     {
                         Vector256<uint> shifts;
                         if (xFlip)
+                        {
                             shifts = Vector256.Create(28U, 24U, 20U, 16U, 12U, 8U, 4U, 0U);
+                        }
                         else
+                        {
                             shifts = Vector256.Create(0U, 4U, 8U, 12U, 16U, 20U, 24U, 28U);
-                        Vector256<uint> indices = Vector256.Create(data);
-                        indices = Avx2.ShiftRightLogicalVariable(indices, shifts);
-                        indices = Avx2.And(indices, Vector256.Create(0xFU));
-
-                        PlaceBgRow(lineIndex, palettes, paletteRow, indices, metaVec, Vector256.Create(0xFU), winMasks, hi, lo);
+                        }
+                        indicesVec = Vector256.Create(data);
+                        indicesVec = Avx2.ShiftRightLogicalVariable(indicesVec, shifts);
+                        indicesVec = Avx2.And(indicesVec, clearMaskVec);
                     }
-
-                    pixelX += 8;
-                    lineIndex += 8;
+                    else
+                    {
+                        pixelX += 8;
+                        lineIndex += 8;
+                        continue;
+                    }
                 }
+
+                Vector256<int> color = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indicesVec.AsInt32(), sizeof(ushort));
+                color = Avx2.And(color, Vector256.Create(0xFFFF));
+                // Weave metadata (priority, ID) into color data
+                color = Avx2.Or(color, Avx2.ShiftLeftLogical(metaVec, 16));
+
+                Vector256<int> winMask = Avx2.ConvertToVector256Int32((byte*)(winMasks + lineIndex));
+                winMask = Avx2.And(winMask, metaVec);
+                winMask = Avx2.CompareEqual(winMask, Vector256<int>.Zero);
+                // Get important color bits
+                Vector256<int> clear = Avx2.And(indicesVec, clearMaskVec).AsInt32();
+                // Are those bits clear? 
+                clear = Avx2.CompareEqual(clear, Vector256<int>.Zero);
+                // Merge with window mask
+                winMask = Avx2.Or(winMask, clear);
+                winMask = Avx2.Xor(winMask, Vector256.Create(0xFFFFFFFF).AsInt32());
+
+                // Push back covered pixels from hi to lo
+                Avx2.MaskStore((int*)(lo + lineIndex), winMask, Avx2.LoadVector256((int*)(hi + lineIndex)));
+                Avx2.MaskStore((int*)(hi + lineIndex), winMask, color);
+
+                pixelX += 8;
+                lineIndex += 8;
             }
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void PlaceBgRow(
-                uint lineIndex,
-                byte* palettes,
-                uint paletteRow,
-                Vector256<uint> indices, Vector256<int> meta, Vector256<uint> clearMask,
-                byte* winMasks,
-                uint* hi, uint* lo
-            )
-        {
-            Vector256<int> color = Avx2.GatherVector256((int*)((ushort*)palettes + paletteRow * 16), indices.AsInt32(), sizeof(ushort));
-            color = Avx2.And(color, Vector256.Create(0xFFFF));
-            // Weave metadata (priority, ID) into color data
-            color = Avx2.Or(color, Avx2.ShiftLeftLogical(meta, 16));
-
-            Vector256<int> winMask = Avx2.ConvertToVector256Int32((byte*)(winMasks + lineIndex));
-            winMask = Avx2.And(winMask, meta);
-            winMask = Avx2.CompareEqual(winMask, Vector256<int>.Zero);
-            // Get important color bits
-            Vector256<int> clear = Avx2.And(indices, clearMask).AsInt32();
-            // Are those bits clear? 
-            clear = Avx2.CompareEqual(clear, Vector256<int>.Zero);
-            // Merge with window mask
-            winMask = Avx2.Or(winMask, clear);
-            winMask = Avx2.Xor(winMask, Vector256.Create(0xFFFFFFFF).AsInt32());
-
-            // Push back covered pixels from hi to lo
-            Avx2.MaskStore((int*)(lo + lineIndex), winMask, Avx2.LoadVector256((int*)(hi + lineIndex)));
-            Avx2.MaskStore((int*)(hi + lineIndex), winMask, color);
         }
 
         public readonly static int[] AffineSizeShiftTable = { 7, 8, 9, 10 };
@@ -752,7 +776,7 @@ namespace OptimeGBA
             uint charBase = bg.CharBaseBlock * CharBlockSize;
             uint mapBase = bg.MapBaseBlock * MapBlockSize;
 
-            ushort meta = (ushort)((bg.Priority << 8) | (1 << bg.Id));
+            ushort meta = bg.GetMeta();
 
             int posX = bg.AffinePosX;
             int posY = bg.AffinePosY;
@@ -1242,11 +1266,12 @@ namespace OptimeGBA
         {
             uint srcBase = (uint)(vcount * Width);
 
-            ushort meta = (ushort)((bg.Priority << 8) | (1 << bg.Id));
+            ushort meta = bg.GetMeta();
 
             for (uint i = 0; i < Width; i++)
             {
-                PlaceBgPixel(i + 8, Nds.Ppu3D.Screen[srcBase + i], meta);
+                if (Nds.Ppu3D.Screen[srcBase + i] != 0) 
+                    PlaceBgPixel(i + 8, Nds.Ppu3D.Screen[srcBase + i], meta);
             }
         }
 
@@ -1258,8 +1283,7 @@ namespace OptimeGBA
             uint screenBase = (uint)(vcount * Width);
             uint vramBase = (uint)(vcount * Width * 2) + bg.MapBaseBlock * MapBlockSizeAffineNds;
 
-            byte flag = (byte)(1 << bg.Id);
-            ushort meta = (ushort)((bg.Priority << 8) | flag);
+            ushort meta = bg.GetMeta();
 
             for (uint p = 0; p < Width; p++)
             {

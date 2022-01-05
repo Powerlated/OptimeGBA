@@ -206,8 +206,8 @@ namespace OptimeGBAEmulator
         public void OnUpdateFrame(FrameEventArgs e)
         {
             Window.VSync = VSyncMode.Off;
-            Window.UpdateFrequency = 59.7275;            
-            
+            Window.UpdateFrequency = 59.7275;
+
             Gba.Keypad.B = Window.KeyboardState.IsKeyDown(Keys.Z);
             Gba.Keypad.A = Window.KeyboardState.IsKeyDown(Keys.X);
             Gba.Keypad.Left = Window.KeyboardState.IsKeyDown(Keys.Left);
@@ -277,7 +277,7 @@ namespace OptimeGBAEmulator
         {
             if (ImGui.Begin("Banked Registers"))
             {
-                                ImGui.Columns(5);
+                ImGui.Columns(5);
 
                 ImGui.Text("User");
                 ImGui.Text("R13: " + Hex(Gba.Cpu.GetModeReg(13, Arm7Mode.USR), 8));
@@ -775,6 +775,15 @@ namespace OptimeGBAEmulator
                 {
                     Gba.GbaAudio.GbAudio.PsgFactor++;
                 }
+
+                if (ImGui.Selectable("No Resampling", Gba.GbaAudio.ResamplingMode == ResamplingMode.None))
+                    Gba.GbaAudio.ResamplingMode = ResamplingMode.None;
+                if (ImGui.Selectable("Linear Resampling", Gba.GbaAudio.ResamplingMode == ResamplingMode.Linear))
+                    Gba.GbaAudio.ResamplingMode = ResamplingMode.Linear;
+                if (ImGui.Selectable("Sinc Resampling", Gba.GbaAudio.ResamplingMode == ResamplingMode.Sinc))
+                    Gba.GbaAudio.ResamplingMode = ResamplingMode.Sinc;
+
+                ImGui.Text("");
 
                 var rend = Gba.Ppu.Renderer;
                 ImGui.Text($"BG0 Size X/Y: {PpuRenderer.CharWidthTable[rend.Backgrounds[0].ScreenSize]}/{PpuRenderer.CharHeightTable[rend.Backgrounds[0].ScreenSize]}");
@@ -1293,13 +1302,16 @@ namespace OptimeGBAEmulator
 
         public void DrawPulseBox(int duty, float widthMul, float heightMul)
         {
+            uint height = 64;
+            uint margin = 8;
+
             ImDrawListPtr dl = ImGui.GetWindowDrawList();
             System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
             float width = ImGui.GetWindowContentRegionWidth();
 
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+            ImGui.Dummy(new System.Numerics.Vector2(0, height));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Border));
 
             uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
 
@@ -1307,9 +1319,9 @@ namespace OptimeGBAEmulator
             float xPerUnit = ((width) / 8) * widthMul;
             float valX = pos.X;
 
-            float yCenter = (pos.Y + 64);
-            float yHigh = (yCenter - (heightMul * 56));
-            float yLow = (yCenter + (heightMul * 56));
+            float yCenter = pos.Y + height / 2;
+            float yHigh = (yCenter - (heightMul * ((height - margin) / 2)));
+            float yLow = (yCenter + (heightMul * ((height - margin) / 2)));
 
             for (uint i = 0; i < 2048; i++)
             {
@@ -1345,13 +1357,16 @@ namespace OptimeGBAEmulator
 
         public void DrawWaveBox(byte[] waveTable, float widthMul, int waveShift)
         {
+            uint height = 64;
+            uint margin = 8;
+
             ImDrawListPtr dl = ImGui.GetWindowDrawList();
             System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
             float width = ImGui.GetWindowContentRegionWidth();
 
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+            ImGui.Dummy(new System.Numerics.Vector2(0, height));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Border));
 
             uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
 
@@ -1359,16 +1374,16 @@ namespace OptimeGBAEmulator
             float xPerUnit = ((width) / 32) * widthMul;
             float valX = pos.X;
 
-            float yCenter = (pos.Y + 64);
-            float yHigh = yCenter - 56;
-            float yLow = yCenter + 56;
+            float yCenter = pos.Y + height / 2;
+            float yHigh = yCenter - (height - margin) / 2;
+            float yLow = yCenter + (height - margin) / 2;
 
             for (uint i = 0; i < 2048; i++)
             {
                 float val = waveTable[i & 31] >> waveShift;
 
-                float y = yLow - ((val / 15) * 112);
-                float yPrev = yLow - ((prev / 15) * 112);
+                float y = yLow - ((val / 15) * (height - margin));
+                float yPrev = yLow - ((prev / 15) * (height - margin));
 
                 float newX = valX + xPerUnit;
                 if (newX > pos.X + width) newX = pos.X + width;
@@ -1392,13 +1407,16 @@ namespace OptimeGBAEmulator
 
         public void DrawNoiseBox(byte[] noiseArray, float widthMul, float heightMul)
         {
+            uint height = 64;
+            uint margin = 8;
+
             ImDrawListPtr dl = ImGui.GetWindowDrawList();
             System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
             float width = ImGui.GetWindowContentRegionWidth();
 
-            ImGui.Dummy(new System.Numerics.Vector2(0, 128));
-            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Button));
-            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + 128), ImGui.GetColorU32(ImGuiCol.Border));
+            ImGui.Dummy(new System.Numerics.Vector2(0, height));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Border));
 
             uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
 
@@ -1406,9 +1424,9 @@ namespace OptimeGBAEmulator
             float xPerUnit = ((width) / 8) * widthMul;
             float valX = pos.X;
 
-            float yCenter = (pos.Y + 64);
-            float yHigh = (yCenter - (heightMul * 56));
-            float yLow = (yCenter + (heightMul * 56));
+            float yCenter = pos.Y + height / 2;
+            float yHigh = (yCenter - (heightMul * (height - margin)));
+            float yLow = (yCenter + (heightMul * (height - margin)));
 
             for (uint i = 0; i < 2048; i++)
             {
@@ -1437,6 +1455,57 @@ namespace OptimeGBAEmulator
                 valX += xPerUnit;
 
                 init = val;
+
+                if (valX > pos.X + width) return;
+            }
+        }
+
+
+        public void DrawFifoBox(CircularBufferOverwriting<short> fifo)
+        {
+            uint height = 64;
+            uint margin = 8;
+
+            ImDrawListPtr dl = ImGui.GetWindowDrawList();
+            System.Numerics.Vector2 pos = ImGui.GetCursorScreenPos();
+            float width = ImGui.GetWindowContentRegionWidth();
+
+            ImGui.Dummy(new System.Numerics.Vector2(0, height));
+            dl.AddRectFilled(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Button));
+            dl.AddRect(pos, new System.Numerics.Vector2(pos.X + width, pos.Y + height), ImGui.GetColorU32(ImGuiCol.Border));
+
+            uint lineCol = ImGui.GetColorU32(ImGuiCol.PlotLines);
+
+            float prev = 0;
+            float xPerUnit = ((width) / 1024);
+            float valX = pos.X;
+
+            float yCenter = pos.Y + height / 2;
+            float yHigh = yCenter - (height - margin) / 2;
+            float yLow = yCenter + (height - margin) / 2;
+
+            for (int i = 0; i < 1024; i++)
+            {
+                float val = fifo.Peek((int)(fifo.WritePos + i));
+
+                float y = yCenter + ((val / 511) * (height - margin));
+                float yPrev = yCenter + ((prev / 511) * (height - margin));
+
+                float newX = valX + xPerUnit;
+                if (newX > pos.X + width) newX = pos.X + width;
+                if (valX > pos.X + width) valX = pos.X + width;
+                if (val != prev)
+                {
+                    // Make sure vertical line isn't off the edge of the box
+                    if (valX > pos.X && valX < pos.X + width)
+                    {
+                        dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(valX, yPrev), lineCol, 2);
+                    }
+                }
+                dl.AddLine(new System.Numerics.Vector2(valX, y), new System.Numerics.Vector2(newX, y), lineCol, 2);
+                valX += xPerUnit;
+
+                prev = val;
 
                 if (valX > pos.X + width) return;
             }
@@ -1493,6 +1562,16 @@ namespace OptimeGBAEmulator
                 long noiseHz = 524288 / NoiseDivisors[gbAudio.noise_divisorCode] / 2 ^ (gbAudio.noise_shiftClockFrequency + 1);
                 bool noiseActive = gbAudio.noise_enabled && gbAudio.noise_dacEnabled && (gbAudio.noise_outputLeft || gbAudio.noise_outputRight);
                 DrawNoiseBox(gbAudio.noise_counterStep ? GbAudio.SEVEN_BIT_NOISE : GbAudio.FIFTEEN_BIT_NOISE, 0.025f, noiseActive ? gbAudio.noise_volume / 15f : 0);
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text("FIFO A");
+                DrawFifoBox(Gba.GbaAudio.VisBufA);
+
+                ImGuiColumnSeparator();
+
+                ImGui.Text("FIFO B");
+                DrawFifoBox(Gba.GbaAudio.VisBufB);
 
                 // ImGui.NextColumn();
 
