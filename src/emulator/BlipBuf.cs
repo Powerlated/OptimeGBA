@@ -60,8 +60,8 @@ namespace OptimeGBA
                     if (enabled)
                     {
                         double x = j - kernelSize / 2D;
-                        x += (KERNEL_RESOLUTION - i - 1) / KERNEL_RESOLUTION;
-                        x *= 2;
+                        x += (KERNEL_RESOLUTION - i - 1) / (double)KERNEL_RESOLUTION;
+                        x *= Math.PI;
 
                         double sinc = Math.Sin(x) / x;
                         double lanzcosWindow = Math.Sin((double)x / kernelSize) / ((double)x / kernelSize);
@@ -138,6 +138,7 @@ namespace OptimeGBA
                 double diffR = valR - ChannelValsR[channel];
 
                 int subsamplePos = (int)Math.Floor((sample % 1) * KERNEL_RESOLUTION);
+
 
                 // Add our bandlimited impulse to the difference buffer
                 int kBufPos = (BufferPos + (int)(Math.Floor(sample) - CurrentSampleOutPos)) % BufferSize;
