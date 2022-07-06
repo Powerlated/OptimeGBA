@@ -43,23 +43,22 @@ namespace OptimeGBA
             ⢀⢂⢑⠀⡂⡃⠅⠊⢄⢑⠠⠑⢕⢕⢝⢮⢺⢕⢟⢮⢊⢢⢱⢄⠃⣇⣞⢞⣞⢾
             ⢀⠢⡑⡀⢂⢊⠠⠁⡂⡐⠀⠅⡈⠪⠪⠪⠣⠫⠑⡁⢔⠕⣜⣜⢦⡰⡎⡯⡾⡽
             */
-            // if (Gba.Provider.BootBios)
-            // {
-            //     BiosMod = true;
-            //     // 250 frames
-            //     Scheduler.AddEventRelative(SchedulerId.None, 70224000, DisableBiosMod);
-            //     // 120 frames
-            //     Scheduler.AddEventRelative(SchedulerId.None, 33707520, EnableBiosModLayer2);
-            // }
+            if (Gba.Provider.BootBios)
+            {
+                PrideMode = true;
+                // 250 frames
+                Scheduler.AddEventRelative(SchedulerId.None, 70224000, DisablePrideMode);
+                // 120 frames
+                Scheduler.AddEventRelative(SchedulerId.None, 33707520, EnablePrideModeLayer2);
+            }
         }
 
         public byte[] Vram = new byte[98304];
 
         public long ScanlineStartCycles;
 
-        public bool BiosMod = false;
-        public bool BiosModLayer2 = false;
-        public sbyte[] OamColorOffsets = new sbyte[128];
+        public bool PrideMode = false;
+        public bool PrideModeLayer2 = false;
 
         public ushort DISPCNTValue;
 
@@ -73,17 +72,14 @@ namespace OptimeGBA
         // State
         public uint VCount;
 
-        public void DisableBiosMod(long cyclesLate)
+        public void DisablePrideMode(long cyclesLate)
         {
-            BiosMod = false;
+            PrideMode = false;
         }
 
-        public void EnableBiosModLayer2(long cyclesLate)
+        public void EnablePrideModeLayer2(long cyclesLate)
         {
-            BiosModLayer2 = true;
-
-            OamColorOffsets[4] = -28;
-            OamColorOffsets[20] = -28;
+            PrideModeLayer2 = true;
         }
 
         public long GetScanlineCycles()
@@ -251,7 +247,7 @@ namespace OptimeGBA
             }
             else
             {
-                if (BiosMod)
+                if (PrideMode)
                 {
                     uint objE0 = 8 * 3;
                     uint objE1 = 8 * 19;
@@ -267,16 +263,11 @@ namespace OptimeGBA
                     Renderer.Oam[objM0 + 4] = 68;
                     Renderer.Oam[objM0 + 5] |= 2;
 
-                    if (BiosModLayer2)
+                    if (PrideModeLayer2)
                     {
                         Renderer.Oam[objM1 + 4] = 68;
                         Renderer.Oam[objM1 + 5] |= 2;
                     }
-
-                    // uint objG0 = 8 * 6;
-                    // uint objG1 = 8 * 5;
-                    // uint objA0 = 8 * 22;
-                    // uint objA1 = 8 * 21;
                 }
 
                 VCount = 0;

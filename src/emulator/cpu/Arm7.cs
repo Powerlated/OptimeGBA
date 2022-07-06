@@ -285,6 +285,7 @@ namespace OptimeGBA
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+
         public uint ExecuteThumb()
         {
             InstructionsRan++;
@@ -1032,7 +1033,6 @@ namespace OptimeGBA
 
             // Error("No SPSR in this mode!");
             return GetCPSR();
-
         }
         public void SetSPSR(uint set)
         {
@@ -1219,6 +1219,9 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write8(uint addr, byte val)
         {
+            // if (addr == 0x300402C) Console.WriteLine("DMA1 Write8: " + Util.HexN(GetCurrentInstrAddr(), 8));
+            // if (addr == 0x300465C) Console.WriteLine("DMA2 Write8: " + Util.HexN(GetCurrentInstrAddr(), 8));
+
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             Mem.Write8(addr, val);
         }
@@ -1226,6 +1229,9 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write16(uint addr, ushort val)
         {
+            // if (addr == 0x300402C) Console.WriteLine("DMA1 Write16: " + Util.HexN(GetCurrentInstrAddr(), 8));
+            // if (addr == 0x300465C) Console.WriteLine("DMA2 Write16: " + Util.HexN(GetCurrentInstrAddr(), 8));
+
             InstructionCycles += Timing8And16[(addr >> 24) & 0xF];
             Mem.Write16(addr, val);
         }
@@ -1233,6 +1239,9 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Write32(uint addr, uint val)
         {
+            // if (addr == 0x300402C) Console.WriteLine("DMA1 Write32: " + Util.HexN(GetCurrentInstrAddr(), 8));
+            // if (addr == 0x300465C) Console.WriteLine("DMA2 Write32: " + Util.HexN(GetCurrentInstrAddr(), 8));
+
             InstructionCycles += Timing32[(addr >> 24) & 0xF];
             Mem.Write32(addr, val);
         }

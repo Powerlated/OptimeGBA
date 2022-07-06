@@ -79,6 +79,64 @@ namespace OptimeGBAEmulator
             }
         }
 
+        public static bool EnableSoundgoodizer = true;
+        public static Soundgoodizer Soundgoodizer = new Soundgoodizer(true, 32768, 200, 3000);
+
+        public void DrawSoundgoodizer()
+        {
+            ref var s = ref Soundgoodizer;
+            if (ImGui.Begin("Soundgoodizer"))
+            {
+                ImGui.Checkbox("Enable", ref EnableSoundgoodizer);
+                if (ImGui.Button("Reset"))
+                {
+                    s = new Soundgoodizer(GbaAudio.SampleRate);
+                }
+
+                if (ImGui.RadioButton("12 db/octave", !s.DbPerOct24))
+                {
+                    s.ChangeFilterParams(false, s.SampleRate, s.LowHz, s.HighHz);
+                }
+                ImGui.SameLine();
+                if (ImGui.RadioButton("24 db/octave", s.DbPerOct24))
+                {
+                    s.ChangeFilterParams(true, s.SampleRate, s.LowHz, s.HighHz);
+                }
+
+                ImGui.SliderFloat("Mix Level", ref s.MixLevel, 0, 1);
+
+                float lowHz = s.LowHz;
+                float highHz = s.HighHz;
+                ImGui.SliderFloat("Low Hz", ref lowHz, 0, 16000, "%f", ImGuiSliderFlags.Logarithmic);
+                ImGui.SliderFloat("High Hz", ref highHz, 0, 16000, "%f", ImGuiSliderFlags.Logarithmic);
+
+                if (lowHz != s.LowHz || highHz != s.HighHz)
+                {
+                    s.ChangeFilterParams(s.DbPerOct24, s.SampleRate, lowHz, highHz);
+                }
+
+                ImGui.Separator();
+
+                ImGui.SliderFloat("Low Pre-Gain", ref s.PreGainLow, 0, 8);
+                ImGui.SliderFloat("Low Post-Gain", ref s.PostGainLow, 0, 3);
+
+                ImGui.Separator();
+
+                ImGui.SliderFloat("Mid Pre-Gain", ref s.PreGainMid, 0, 8);
+                ImGui.SliderFloat("Mid Post-Gain", ref s.PostGainMid, 0, 3);
+
+                ImGui.Separator();
+
+                ImGui.SliderFloat("High Pre-Gain", ref s.PreGainHigh, 0, 8);
+                ImGui.SliderFloat("High Post-Gain", ref s.PostGainHigh, 0, 3);
+
+                ImGui.Separator();
+
+                ImGui.SliderFloat("Master Pre-Gain", ref s.PreGainMaster, 0, 3);
+
+                ImGui.End();
+            }
+        }
         public void LoadRomFromPath(string path)
         {
             byte[] rom = System.IO.File.ReadAllBytes(path);
@@ -203,6 +261,7 @@ namespace OptimeGBAEmulator
 
             if (RomLoaded)
             {
+                DrawSoundgoodizer();
                 if (NdsMode)
                 {
                     WindowNds.OnRenderFrame(e);

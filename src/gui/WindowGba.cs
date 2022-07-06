@@ -172,6 +172,16 @@ namespace OptimeGBAEmulator
         static IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
         static void AudioReady(short[] data)
         {
+            if (Window.EnableSoundgoodizer)
+            {
+                for (int i = 0; i < data.Length; i += 2)
+                {
+                    Window.Soundgoodizer.Process(data[i] / 32768F, data[i + 1] / 32768F);
+                    data[i] = (short)(Math.Clamp(Window.Soundgoodizer.OutL, -1, 1) * 32767);
+                    data[i + 1] = (short)(Math.Clamp(Window.Soundgoodizer.OutR, -1, 1) * 32767);
+                }
+            }
+
             // Don't queue audio if too much is in buffer
             if (SyncToAudio || GetAudioSamplesInQueue() < AUDIO_SAMPLE_FULL_THRESHOLD)
             {
@@ -591,11 +601,11 @@ namespace OptimeGBAEmulator
                     }
                 }
 
-                if (ImGui.Button("Step 250000"))
+                if (ImGui.Button("Step 500000"))
                 {
                     using (StreamWriter file = new StreamWriter("log.txt"))
                     {
-                        int num = 250000;
+                        int num = 500000;
                         while (num > 0 && !Gba.Cpu.Errored)
                         {
                             Gba.Step();
@@ -1695,5 +1705,6 @@ namespace OptimeGBAEmulator
             }
         }
 
+      
     }
 }

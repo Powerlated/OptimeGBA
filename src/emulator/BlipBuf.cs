@@ -8,43 +8,43 @@ namespace OptimeGBA
     {
         const int KERNEL_RESOLUTION = 1024;
 
-        double[] Kernel;
+        float[] Kernel;
         int KernelSize = 0;
 
-        double[] ChannelValsL;
-        double[] ChannelValsR;
+        float[] ChannelValsL;
+        float[] ChannelValsR;
         double[] ChannelSample;
         double[] ChannelRealSample;
 
-        double[] BufferL;
-        double[] BufferR;
+        float[] BufferL;
+        float[] BufferR;
 
         int BufferPos = 0;
         int BufferSize = 0;
 
-        public double CurrentValL = 0;
-        public double CurrentValR = 0;
+        public float CurrentValL = 0;
+        public float CurrentValR = 0;
 
         double CurrentSampleInPos = 0;
         double CurrentSampleOutPos = 0;
 
         public BlipBuf(int kernelSize, bool normalize, int channels)
         {
-            ChannelValsL = new double[channels];
-            ChannelValsR = new double[channels];
+            ChannelValsL = new float[channels];
+            ChannelValsR = new float[channels];
             ChannelSample = new double[channels];
             ChannelRealSample = new double[channels];
 
             BufferSize = 32768;
-            BufferL = new double[BufferSize];
-            BufferR = new double[BufferSize];
+            BufferL = new float[BufferSize];
+            BufferR = new float[BufferSize];
 
             SetKernelSize(kernelSize, normalize, true);
         }
 
         public void SetKernelSize(int kernelSize, bool normalize, bool enabled)
         {
-            Kernel = new double[kernelSize * KERNEL_RESOLUTION];
+            Kernel = new float[kernelSize * KERNEL_RESOLUTION];
             KernelSize = kernelSize;
 
             if ((kernelSize & (kernelSize - 1)) != 0)
@@ -54,17 +54,17 @@ namespace OptimeGBA
 
             for (int i = 0; i < KERNEL_RESOLUTION; i++)
             {
-                double sum = 0;
+                float sum = 0;
                 for (int j = 0; j < kernelSize; j++)
                 {
                     if (enabled)
                     {
-                        double x = j - kernelSize / 2D;
-                        x += (KERNEL_RESOLUTION - i - 1) / (double)KERNEL_RESOLUTION;
-                        x *= Math.PI;
+                        float x = j - kernelSize / 2F;
+                        x += (KERNEL_RESOLUTION - i - 1) / (float)KERNEL_RESOLUTION;
+                        x *= (float)Math.PI;
 
-                        double sinc = Math.Sin(x) / x;
-                        double lanzcosWindow = Math.Sin((double)x / kernelSize) / ((double)x / kernelSize);
+                        float sinc = (float)Math.Sin(x) / x;
+                        float lanzcosWindow = (float)Math.Sin((float)x / kernelSize) / ((float)x / kernelSize);
 
                         if (x == 0)
                         {
@@ -112,7 +112,7 @@ namespace OptimeGBA
             }
         }
 
-        public void SetValue(int channel, double sample, double valL, double valR)
+        public void SetValue(int channel, double sample, float valL, float valR)
         {
             // Tracking to allow submitting value for different channels out of order 
             double realSample = sample;
@@ -126,7 +126,8 @@ namespace OptimeGBA
             
             if (sample < CurrentSampleOutPos)
             {
-                throw new ArgumentException("Tried to set amplitude backward in time");
+                Console.Error.WriteLine("Tried to set amplitude backward in time!");
+                Console.WriteLine(System.Environment.StackTrace);
             }
 
             ChannelSample[channel] = sample;
@@ -134,8 +135,8 @@ namespace OptimeGBA
 
             if (valL != ChannelValsL[channel] || valR != ChannelValsR[channel])
             {
-                double diffL = valL - ChannelValsL[channel];
-                double diffR = valR - ChannelValsR[channel];
+                float diffL = valL - ChannelValsL[channel];
+                float diffR = valR - ChannelValsR[channel];
 
                 int subsamplePos = (int)Math.Floor((sample % 1) * KERNEL_RESOLUTION);
 
@@ -144,7 +145,7 @@ namespace OptimeGBA
                 int kBufPos = (BufferPos + (int)(Math.Floor(sample) - CurrentSampleOutPos)) % BufferSize;
                 for (int i = 0; i < KernelSize; i++)
                 {
-                    double kernelVal = Kernel[KernelSize * subsamplePos + i];
+                    float kernelVal = Kernel[KernelSize * subsamplePos + i];
                     BufferL[kBufPos] += kernelVal * diffL;
                     BufferR[kBufPos] += kernelVal * diffR;
                     kBufPos = (kBufPos + 1) % BufferSize;

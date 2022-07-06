@@ -9,6 +9,7 @@ namespace OptimeGBA
         None,
         Linear,
         Sinc,
+        SincLowPass,
     }
 
     public sealed class CircularBufferOverwriting<T>
@@ -27,14 +28,14 @@ namespace OptimeGBA
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Insert(T data)
         {
-                Buffer[WritePos++] = data;
+            Buffer[WritePos++] = data;
 
-                if (WritePos >= Size)
-                {
-                    WritePos = 0;
-                }
+            if (WritePos >= Size)
+            {
+                WritePos = 0;
+            }
 
-                return;
+            return;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -312,9 +313,9 @@ namespace OptimeGBA
         public bool EnablePsg = true;
         public bool EnableFifo = true;
 
-        public BlipBuf BlipBuf = new BlipBuf(64, true, 2);
+        public BlipBuf BlipBuf = new BlipBuf(32, true, 2);
         public ResamplingMode ResamplingMode = ResamplingMode.Sinc;
-        const int SampleRate = 32768;
+        public const int SampleRate = 32768;
         const int CyclesPerSample = 16777216 / SampleRate;
         // public CircularBuffer<short> SampleBuffer = new CircularBuffer<short>(32768, 0);
         public const uint SampleBufferMax = 256;
@@ -329,7 +330,7 @@ namespace OptimeGBA
             GbAudio.Tick(CyclesPerSample / 4); // convert to GB sample rate
 
             BlipBuf.ReadOutSample();
-            
+
             double fifoASinc = BlipBuf.CurrentValL;
             double fifoBSinc = BlipBuf.CurrentValR;
 
@@ -384,6 +385,7 @@ namespace OptimeGBA
                             }
                             break;
                         case ResamplingMode.Sinc:
+                        case ResamplingMode.SincLowPass:
                             if (DebugEnableA)
                             {
                                 if (DmaSoundAEnableLeft) fifoA += (short)(fifoASinc);
@@ -399,7 +401,8 @@ namespace OptimeGBA
                 }
             }
 
-            if (++VisSamplingTimer >= 4) {
+            if (++VisSamplingTimer >= 4)
+            {
                 VisSamplingTimer = 0;
 
                 VisBufA.Insert(CurrentValueA);
@@ -427,7 +430,7 @@ namespace OptimeGBA
 
             CurrentValueA = (short)((sbyte)A.Pop() << DmaSoundAVolume);
 
-            BlipBuf.SetValue(0, LastSampleTimeA / CyclesPerSample, (double)CurrentValueA, 0);
+            BlipBuf.SetValue(0, (float)LastSampleTimeA / CyclesPerSample, (float)CurrentValueA, 0);
 
             if (A.Entries <= 16)
             {
@@ -442,7 +445,7 @@ namespace OptimeGBA
 
             CurrentValueB = (short)((sbyte)B.Pop() << DmaSoundBVolume);
 
-            BlipBuf.SetValue(1, LastSampleTimeB / CyclesPerSample, 0, (double)CurrentValueB);
+            BlipBuf.SetValue(1, (float)LastSampleTimeB / CyclesPerSample, 0, (float)CurrentValueB);
 
             if (B.Entries <= 16)
             {

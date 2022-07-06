@@ -1,0 +1,3 @@
+[submodule "external/NAudio"]
+	path = external/NAudio
+	url = https://github.com/Powerlated/NAudio

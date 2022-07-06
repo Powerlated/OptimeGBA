@@ -29,6 +29,9 @@ namespace OptimeGBAEmulator
         const int LogoBpp = 4;
         const int LogoFrames = 8;
 
+        static bool EnableSoundgoodizer = true;
+        static Soundgoodizer Soundgoodizer;
+
         static SDL_AudioSpec want, have;
         static uint AudioDevice;
 
@@ -81,6 +84,10 @@ namespace OptimeGBAEmulator
 
         public static void Main(string[] args)
         {
+            Soundgoodizer = new Soundgoodizer(32768);
+            Soundgoodizer.MixLevel = 1.0F;
+            Soundgoodizer.PreGainMaster = 0.6F;
+
             // Parse No-Intro database
             var stream = typeof(MainSDL).Assembly.GetManifestResourceStream("OptimeGBA-SDL.resources.no-intro.dat");
             var doc = new XmlDocument();
@@ -124,7 +131,7 @@ namespace OptimeGBAEmulator
 
             Window = SDL_CreateWindow("Optime GBA", 0, 0, GBA_WIDTH * 4, GBA_HEIGHT * 4, SDL_WindowFlags.SDL_WINDOW_SHOWN | SDL_WindowFlags.SDL_WINDOW_RESIZABLE);
             SDL_SetWindowPosition(Window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED);
-            Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED | SDL_RendererFlags.SDL_RENDERER_PRESENTVSYNC);
+            Renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
 
             SDL_SetWindowMinimumSize(Window, GBA_WIDTH, GBA_HEIGHT);
 
@@ -233,6 +240,8 @@ namespace OptimeGBAEmulator
                     SDL_RenderClear(Renderer);
                     SDL_RenderCopy(Renderer, iconTexture, IntPtr.Zero, ref dest);
                     SDL_RenderPresent(Renderer);
+
+                    Thread.Sleep(1);
                 }
                 romPath = filename;
 
@@ -552,6 +561,8 @@ namespace OptimeGBAEmulator
                     SDL_RenderCopy(Renderer, Texture2, IntPtr.Zero, ref dest2);
                     SDL_RenderPresent(Renderer);
 
+                    Thread.Sleep(1);
+
                     // TODO: NDS Saves
                     // if (Gba.Mem.SaveProvider.Dirty)
                     // {
@@ -662,6 +673,8 @@ namespace OptimeGBAEmulator
                     SDL_RenderClear(Renderer);
                     SDL_RenderCopy(Renderer, Texture, IntPtr.Zero, ref dest);
                     SDL_RenderPresent(Renderer);
+
+                    Thread.Sleep(1);
 
                     if (Gba.Mem.SaveProvider.Dirty)
                     {
@@ -1033,6 +1046,15 @@ namespace OptimeGBAEmulator
                         ToggleFullscreen();
                     }
                     break;
+
+
+                case SDL_Keycode.SDLK_F10:
+                    if (pressed)
+                    {
+                        EnableSoundgoodizer = !EnableSoundgoodizer;
+                        UpdateTitle();
+                    }
+                    break;
             }
 
         }
@@ -1056,7 +1078,7 @@ namespace OptimeGBAEmulator
                 SDL_SetWindowTitle(
                     Window,
                     "Dual Optime - " + Fps + " fps - " + Mips + " MIPS - " + GetAudioSamplesInQueue() + " samples queued | " +
-                    (Nds.Audio.EnableBlipBufResampling ? "SINC" : "--")
+                    (Nds.Audio.EnableBlipBufResampling ? "SINC " : "-- ") + (EnableSoundgoodizer ? "SOUNDGOODIZER " : "NO-SOUNDGOODIZER ")
                 );
             }
             else
@@ -1067,8 +1089,9 @@ namespace OptimeGBAEmulator
                 bool p2 = Gba.GbaAudio.GbAudio.enable2Out;
                 bool p3 = Gba.GbaAudio.GbAudio.enable3Out;
                 bool p4 = Gba.GbaAudio.GbAudio.enable4Out;
-                string re = "-- "; 
-                switch (Gba.GbaAudio.ResamplingMode) {
+                string re = "-- ";
+                switch (Gba.GbaAudio.ResamplingMode)
+                {
                     case ResamplingMode.Linear: re = "LINEAR "; break;
                     case ResamplingMode.Sinc: re = "SINC "; break;
                 }
@@ -1081,8 +1104,11 @@ namespace OptimeGBAEmulator
                     (p2 ? "2 " : "- ") +
                     (p3 ? "3 " : "- ") +
                     (p4 ? "4 " : "- ") +
-                    re + 
-                    "PSG " + Gba.GbaAudio.GbAudio.PsgFactor + "X"
+                    re +
+                    "PSG " +
+                    Gba.GbaAudio.GbAudio.PsgFactor +
+                    "X " +
+                    (EnableSoundgoodizer ? "SOUNDGOODIZER " : "NO-SOUNDGOODIZER ")
                 );
             }
         }
@@ -1110,6 +1136,7 @@ namespace OptimeGBAEmulator
             {
                 ExceptionMessage = e.ToString();
                 Excepted = true;
+                Console.Error.WriteLine(ExceptionMessage);
             }
         }
 
@@ -1157,6 +1184,16 @@ namespace OptimeGBAEmulator
         static IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
         static void AudioReady(short[] data)
         {
+            if (EnableSoundgoodizer)
+            {
+                for (int i = 0; i < data.Length; i += 2)
+                {
+                    Soundgoodizer.Process(data[i] / 32768F, data[i + 1] / 32768F);
+                    data[i] = (short)(Math.Clamp(Soundgoodizer.OutL, -1, 1) * 32767);
+                    data[i + 1] = (short)(Math.Clamp(Soundgoodizer.OutR, -1, 1) * 32767);
+                }
+            }
+
             // Don't queue audio if too much is in buffer
             if (Sync || GetAudioSamplesInQueue() < AUDIO_SAMPLE_FULL_THRESHOLD)
             {

@@ -208,6 +208,16 @@ namespace OptimeGBAEmulator
         static IntPtr AudioTempBufPtr = Marshal.AllocHGlobal(16384);
         static void AudioReady(short[] data)
         {
+            if (Window.EnableSoundgoodizer)
+            {
+                for (int i = 0; i < data.Length; i += 2)
+                {
+                    Window.Soundgoodizer.Process(data[i] / 32768F, data[i + 1] / 32768F);
+                    data[i] = (short)(Math.Clamp(Window.Soundgoodizer.OutL, -1, 1) * 32767);
+                    data[i + 1] = (short)(Math.Clamp(Window.Soundgoodizer.OutR, -1, 1) * 32767);
+                }
+            }
+
             // Don't queue audio if too much is in buffer
             if (SyncToAudio || GetAudioSamplesInQueue() < AUDIO_SAMPLE_FULL_THRESHOLD)
             {
@@ -1739,21 +1749,22 @@ namespace OptimeGBAEmulator
             }
         }
 
-        public uint LerpColor(uint c0, uint c1, float factor) {
-            int c00 = (int)(c0 >> 0) & 0xFF; 
-            int c01 = (int)(c0 >> 8) & 0xFF; 
-            int c02 = (int)(c0 >> 16) & 0xFF; 
+        public uint LerpColor(uint c0, uint c1, float factor)
+        {
+            int c00 = (int)(c0 >> 0) & 0xFF;
+            int c01 = (int)(c0 >> 8) & 0xFF;
+            int c02 = (int)(c0 >> 16) & 0xFF;
             int c03 = (int)(c0 >> 24) & 0xFF;
             int c10 = (int)(c1 >> 0) & 0xFF;
             int c11 = (int)(c1 >> 8) & 0xFF;
             int c12 = (int)(c1 >> 16) & 0xFF;
             int c13 = (int)(c1 >> 24) & 0xFF;
- 
-            uint cf0 = (uint)((c10 - c00) * factor + c00) & 0xFF; 
-            uint cf1 = (uint)((c11 - c01) * factor + c01) & 0xFF; 
-            uint cf2 = (uint)((c12 - c02) * factor + c02) & 0xFF; 
-            uint cf3 = (uint)((c13 - c03) * factor + c03) & 0xFF; 
-            
+
+            uint cf0 = (uint)((c10 - c00) * factor + c00) & 0xFF;
+            uint cf1 = (uint)((c11 - c01) * factor + c01) & 0xFF;
+            uint cf2 = (uint)((c12 - c02) * factor + c02) & 0xFF;
+            uint cf3 = (uint)((c13 - c03) * factor + c03) & 0xFF;
+
             return cf0 | (cf1 << 8) | (cf2 << 16) | (cf3 << 24);
         }
 
@@ -1764,25 +1775,31 @@ namespace OptimeGBAEmulator
             if (ImGui.Begin("Sound Visualizer"))
             {
                 // if (ImGui.Button("Dump Shared Memory")) {
-                    // System.IO.File.WriteAllBytes("sharedram.bin", Nds.SharedRam);
+                // System.IO.File.WriteAllBytes("sharedram.bin", Nds.SharedRam);
                 // }
 
-                 if (ImGui.Button("Dump ARM7 Memory")) {
+                if (ImGui.Button("Dump ARM7 Memory"))
+                {
                     System.IO.File.WriteAllBytes("arm7wram.bin", Nds.Mem7.Arm7Wram);
                 }
 
 
                 ImGui.Checkbox("Enable Resampling", ref Nds.Audio.EnableBlipBufResampling);
 
-                if (Nds.Audio.Record) {
-                    if (ImGui.Button("Stop Recording")) {
+                if (Nds.Audio.Record)
+                {
+                    if (ImGui.Button("Stop Recording"))
+                    {
                         Nds.Audio.Record = false;
 
                         Nds.Audio.WavWriter.Save("nds.wav");
                         Nds.Audio.WavWriterSinc.Save("nds-sinc.wav");
                     }
-                } else {
-                    if (ImGui.Button("Start Recording")) {
+                }
+                else
+                {
+                    if (ImGui.Button("Start Recording"))
+                    {
                         Nds.Audio.Record = true;
                     }
                 }
@@ -1848,10 +1865,13 @@ namespace OptimeGBAEmulator
                     uint startBoxColor;
                     const uint startBoxFadeTicks = 8388608; // about 0.25 seconds
                     long ticksSinceStart = Nds.Scheduler.CurrentTicks - c.DebugStartTicks;
-                    if (ticksSinceStart > 0 && ticksSinceStart < startBoxFadeTicks) {
+                    if (ticksSinceStart > 0 && ticksSinceStart < startBoxFadeTicks)
+                    {
                         startBoxColor = LerpColor(0xFFFFFFFF, startBoxColorActive, (float)ticksSinceStart / (float)startBoxFadeTicks);
-                    // if (i == 0) Console.WriteLine((float)ticksSinceStart / (float)startBoxFadeTicks);
-                    } else {
+                        // if (i == 0) Console.WriteLine((float)ticksSinceStart / (float)startBoxFadeTicks);
+                    }
+                    else
+                    {
                         startBoxColor = startBoxColorInactive;
                     }
                     drawList.AddRectFilled(pos + new Vector2(size.X - 8, 0), pos + size, startBoxColor);

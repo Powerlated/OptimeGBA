@@ -21,19 +21,23 @@
     <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
 
     <DefineConstants>UNSAFE</DefineConstants>
+
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <PublishReadyToRunComposite>true</PublishReadyToRunComposite>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="DiscordRichPresence" Version="1.0.169" /> 
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-*" />
-    <PackageReference Include="ppy.SDL2-CS" Version="1.0.53" />
+    <PackageReference Include="ppy.SDL2-CS" Version="1.0.82" />
     <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
 
-    <PackageReference Include="Imgui.net" Version="1.75.0" />
-    <PackageReference Include="Gee.External.Capstone" Version="2.0.2" />
-    <PackageReference Include="OpenGL.Net" Version="0.8.4" />
-    <PackageReference Include="OpenTK" Version="4.6.3" />
+    <ProjectReference Include="external\NAudio\NAudio.Core\NAudio.Core.csproj" />
 
     <Compile Remove="src/gui/**" />
+    <Compile Remove="external/**" />
+    <Content Remove="external/**" />
+    <EmbeddedResource Remove="external/**" />
+    <None Remove="external/**" />
     <Compile Remove="src/MainOpenTK.cs" />
   </ItemGroup>
   <ItemGroup>

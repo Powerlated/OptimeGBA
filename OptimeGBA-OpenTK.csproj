@@ -14,6 +14,7 @@
     <DefineConstants>OPENTK_DEBUGGER</DefineConstants>
 
     <ApplicationIcon>icon.ico</ApplicationIcon>
+
   </PropertyGroup>
   <ItemGroup>
     <Content Include="icon.ico"> 
@@ -31,8 +32,15 @@
     <PackageReference Include="SDL2-CS.NetCore" Version="2.0.8" />
 
     <Compile Remove="src/MainSDL.cs" />
+    <Compile Remove="external/**" />
+    <Content Remove="external/**" />
+    <EmbeddedResource Remove="external/**" />
+    <None Remove="external/**" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="resources/3d-placeholder.raw" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="external\NAudio\NAudio.Core\NAudio.Core.csproj" />
   </ItemGroup>
 </Project> 
